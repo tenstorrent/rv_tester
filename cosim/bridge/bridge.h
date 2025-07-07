@@ -64,7 +64,7 @@ public:
   //   - Write (St cache write)
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
   virtual void process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
@@ -161,7 +161,7 @@ private:
   bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
-  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data);
+  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data, bool cache, bool skipmem);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -417,4 +417,6 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+
+  std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
 };

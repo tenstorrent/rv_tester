@@ -207,22 +207,27 @@ module rv_tester_mem #(
     `ifdef RV_TESTER_MEM_TIME_ZERO_PRELOAD
         initial begin
             force llc.i_hit_miss_unit.i_tag_store.i_tag_pattern_gen.we_o = '0;
-            force top.tester.rv_tester_mem.llc.i_hit_miss_unit.i_tag_store.i_tag_pattern_gen.bist_res_q = '0;
+            force llc.i_hit_miss_unit.i_tag_store.i_tag_pattern_gen.bist_res_q = '0;
+            force llc.i_hit_miss_unit.i_tag_store.i_tag_pattern_gen.eoc_q = '1;
+        end
+        for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
+            localparam string suffix = $sformatf("way%0d.hex", i);
+            initial begin
+                $readmemh({"preload_data_", suffix},
+                        llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram,
+                        0, DataWords - 1);
+                $readmemh({"preload_tag_", suffix},
+                        llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram,
+                        0, TagWords - 1);
+            end
         end
     `endif
 
     `ifndef NO_PRELOAD
         for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
-            `ifdef RV_TESTER_MEM_TIME_ZERO_PRELOAD
-                initial begin
-                    // preload files aren't generated until here
-                    @(negedge rv_tester.rv_tester_reset);
-                    if (1'b1) begin
-            `else
                 always @(posedge clk_gated) begin
                     bist_status_done_1T <= bist_status_done;
                     if (bist_status_done && !bist_status_done_1T && rst_n) begin
-            `endif
                         if (preload_file_data_arr[i] != "") begin
                             $display("%0t Preloading data SRAM for LLC way %0d with file: %s", $time, i, preload_file_data_arr[i]);
                             $readmemh(preload_file_data_arr[i],

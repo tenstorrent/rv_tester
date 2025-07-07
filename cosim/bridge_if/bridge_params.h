@@ -23,7 +23,7 @@ namespace {
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
     constexpr uint64_t time_csr = 0xC01;
-    constexpr uint64_t c_dtvec_csr = 0x7DA;
+    constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
     constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
     constexpr uint64_t boot_num_harts_offset = 0x9000;
@@ -426,6 +426,7 @@ namespace {
       CSR(C_LSCFG13,        0xBDD, "c_lscfg13"   ,  true)                      \
       CSR(C_LSCFG14,        0xBDE, "c_lscfg14"   ,  true)                      \
       CSR(C_LSCFG15,        0xBDF, "c_lscfg15"   ,  true)                      \
+      CSR(C_MSPPC,          0xBF0, "c_msppc"     ,  true)                      \
       CSR(C_ASYNCINTSTATUS, 0xBF2, "c_asyncintstatus")                         \
       CSR(MSTATEEN0,        0x30C, "mstateen0")                                \
       CSR(MSTATEEN1,        0x30D, "mstateen1")                                \

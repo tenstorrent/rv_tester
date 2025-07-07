@@ -219,7 +219,8 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
+    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity, cvm_debug_verbosity;
+    LU cvm_debug_cycle_on, cvm_debug_cycle_off;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -277,6 +278,21 @@ module rv_tester
         rv_tester_reset <= rerun_now;
         rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
+
+        /* verilator lint_off BLKSEQ */
+        cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+        cvm_debug_verbosity        = cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+        cvm_debug_cycle_on         = cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+        cvm_debug_cycle_off        = cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
+        /* verilator lint_on BLKSEQ */
+         if ((cvm_debug_cycle_off>0) && (clocks >= cvm_debug_cycle_on) && (clocks <= cvm_debug_cycle_off)) begin
+             if (cvm_verbosity != cvm_debug_verbosity)
+               cvm_logger::set_verbosity(cvm_debug_verbosity);
+         end else begin
+             if (cvm_verbosity != cvm_debug_verbosity)
+               cvm_logger::set_verbosity(cvm_verbosity);
+         end
+
 
         `ifndef NO_TIMESTAMP
             current_time <= $time;
@@ -421,7 +437,7 @@ module rv_tester
             // Using nested function calls in cvm as Palladium doesn't support strings
             cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
             gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            gen_timestamp_verbosity     = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
             warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
@@ -455,7 +471,7 @@ module rv_tester
             dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
-            gen_timestamp            <= cvm_verbosity >= gen_timestamp_verbosity;
+            gen_timestamp        <= cvm_verbosity >= gen_timestamp_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
@@ -471,10 +487,10 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
-            clock_mode           <= clk_profile[2:0];
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
+        clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -565,6 +581,7 @@ module rv_tester
 
     // sys_reset per clock domain
     logic sys_reset_pending [NCLKS-1:0];
+    logic terminate_sync    [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
         if (c != TB_CLK_IDX) begin
             rv_tester_cdc_pulse cdc_pulse (
@@ -574,11 +591,19 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
+ 
+            rv_tester_sync3 terminate_sync3 (
+                .clk (dut_clk[c]),
+                .d   (terminate),
+                .q   (terminate_sync[c])
+            );
+
         end else begin
             always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+            assign terminate_sync   [c] = terminate;
         end
     end
 
@@ -699,6 +724,21 @@ module rv_tester
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    // Writeback logic
+    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_writeback_valid[0] = writeback_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_writeback_valid[i] = 2'b00;
+    end
+
+    // Dfetch logic
+    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_dfetch_valid[0] = dfetch_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_dfetch_valid[i] = 2'b00;
+    end
+    
+
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
@@ -812,6 +852,8 @@ module rv_tester
 
 `endif
 
+
+
     // coverage
     arch_sample arch_sample ();
 
@@ -819,6 +861,17 @@ module rv_tester
 
     logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
+    `ifndef CACHE_MODEL_EN
+    // Dummy variables to prevent X - props #FIXME : remove later when making cache model default
+    logic [51:0] devict_addr;
+    logic [51:0] writeback_addr [1:0];
+    logic [51:0] dfetch_addr [1:0];
+    assign devict_addr = '0;
+    for(genvar i = 0; i < 2; i++) begin : no_cache_model_init
+        assign writeback_addr[i] = '0;
+        assign dfetch_addr[i] = '0;
+    end
+    `endif 
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
           .NUM(c),
@@ -863,9 +916,33 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
+          `ifdef CACHE_MODEL_EN
+          .devict_cl_valid(devict_cl_valid[c]),
+          .devict_cl_addr(devict_cl_addr[c]),
+          .flush_cl_valid(flush_cl_valid[c]),
+          .flush_cl_addr(flush_cl_addr[c]),
+          .writeback_cl_valid(mcm_writeback_valid[c]),
+          .writeback_cl_addr(writeback_cl_addr),
+          .dfetch_cl_valid(mcm_dfetch_valid[c]),
+          .dfetch_cl_addr(dfetch_cl_addr),
+          `else
+          .devict_cl_valid(),
+          .devict_cl_addr(devict_addr),
+          .flush_cl_valid('0),
+          .flush_cl_addr('0),
+          .writeback_cl_valid('0),
+          .writeback_cl_addr(writeback_addr),
+          .dfetch_cl_valid('0),
+          .dfetch_cl_addr(dfetch_addr),
+          // Tying to 0 to prevent X-propagation
+          `endif
+
+          
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
+    
+    assign boot_done_all = &boot_done;
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
@@ -899,6 +976,10 @@ module rv_tester
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 .core_no_fetch(|core_no_fetch),
+                .tj_shutdown(tj_shutdown),
+                .tj_max(tj_max),
+                .pll_dfs_done(pll_dfs_done),
+                .pll_shutdown_done(pll_shutdown_done),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -1065,7 +1146,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
@@ -1085,7 +1166,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
         );
       end

@@ -262,7 +262,7 @@ cvm::messenger::task<void> axi::operator()() {
                 }
 
                 if (a.w) {
-                    cvm::log(cvm::FULL, "[axi] aw: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
+                    cvm::log(cvm::HIGH, "[axi] aw: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
                     auto w = w_q_.dequeue();
                     if (!!w.last != last) {
                         cvm::log(cvm::ERROR, "ERROR: [axi] w.last not set in for write to addr {:#x}\n", start);

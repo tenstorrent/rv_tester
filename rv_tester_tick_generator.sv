@@ -67,7 +67,6 @@ module rv_tester_tick_generator
           /* verilator lint_off BLKSEQ */
           interval = cvm_rand::get(INTERVAL);
           width = cvm_rand::get(WIDTH);
-          $display("[%s] rand: interval=%0d, width=%0d", NAME, interval, width);
           /* verilator lint_on BLKSEQ */
 
           // Move to the next tick after the width is reached

@@ -135,7 +135,7 @@ cvm::messenger::task<void> dfs_sequence::write(uint64_t addr, size_t sz, uint64_
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
   cvm::log(cvm::MEDIUM, "[smc] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
+  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, sz, byte_array, strb});
   dfs_write_count_++;
 
   if (!block)

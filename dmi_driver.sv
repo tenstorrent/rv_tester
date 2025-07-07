@@ -261,7 +261,7 @@ import rv_tester_params:: * ;
       terminate_align <= terminate;
       terminate_d1 <= terminate_align;
     
-      if(trigger_config != 0 && (terminate_align && ~terminate_d1)) begin
+      if(trigger_config != 0 && (terminate_align && ~terminate_d1) && dmi_driver_dbg_enable) begin
         for(int core_id=0; core_id<num_harts; core_id++) begin
           for (int tselect=0; tselect<8; tselect+=2) begin
             if(trigger_config[tselect] && trigger_config[tselect+1]) begin

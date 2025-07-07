@@ -58,6 +58,7 @@ class reset_sequence {
     cvm::messenger::task<void> cpl_reset_sequence(rst_t);
     cvm::messenger::task<void> cpl_sram_fuse_configuration();
     cvm::messenger::task<void> disable_clc4_entry();
+    cvm::messenger::task<void> program_tjshutdown_in_cpl_sram();
     cvm::messenger::task<void> cpl_fw_reset_sequence(rst_t);
     cvm::messenger::task<void> check_system_config_done();
     cvm::messenger::task<void> send_start_of_execution_to_cpl();
@@ -79,7 +80,7 @@ class reset_sequence {
     cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk = true);
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
-    cvm::messenger::task<void> program_thub_threshold();
+    cvm::messenger::task<void> program_thub_max_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
 

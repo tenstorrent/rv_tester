@@ -327,6 +327,8 @@ cosim:
                 width: 5
             cbo:
                 width: 1
+            attr:
+                width: 32
             v_ext:
                 width: 1
             data_vec:
@@ -389,6 +391,46 @@ cosim:
                 width: 32
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+    
+    m_mcmi_devict:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_flush:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_writeback:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
+    
+    m_mcmi_dfetch:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
 
     m_trap:
         domain: 1
@@ -1774,6 +1816,18 @@ aclint_checker:
                 width: ${TOP.PLATFORM.XLEN}
             user:
                 width: 8
+    mtip_check:
+        domain: 1
+        num: 9
+        fields:
+            check_1:
+                width: 1
+            check_2:
+                width: 1
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1
@@ -1814,6 +1868,12 @@ pwrmgmt:
         domain: 3
         num: 1
     m_force_ref_clk_ack:
+        domain: 3
+        num: 1
+    m_tj_shutdown_ack:
+        domain: 3
+        num: 1
+    m_tj_max_ack:
         domain: 3
         num: 1
 

@@ -34,6 +34,14 @@ DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt 
 
 DEFINE_bool(axi_sw_fast_write_response, false, "If fast write response, SV will immediately return write response without going through DPI.");
 
+
+DEFINE_uint32(axi_sw_lfsr_seed_aw_rdy, 0, "LFSR seed for aw ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_aw_rdy, 0, "LFSR mask for aw ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_ar_rdy, 0, "LFSR seed for ar ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_ar_rdy, 0, "LFSR mask for ar ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_w_rdy, 0, "LFSR seed for w ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_w_rdy, 0, "LFSR mask for w ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+
 static std::tuple<bool, uint64_t, uint64_t> get_uint64_pair(std::string_view value) {
     using std::operator""sv;
     auto range = std::views::split(value, ":"sv);
@@ -185,7 +193,7 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
-    cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
+    cvm::log(cvm::MEDIUM, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
 
     axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
@@ -341,6 +349,7 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
+        assert(scope_ && "scope_ not set before pushing r_dpi callback");
         cvm::registry::callbacks.push(
             scope_,
               [this]() {

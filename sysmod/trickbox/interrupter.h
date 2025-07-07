@@ -279,7 +279,7 @@ protected:
 private:
  //unsigned numMSIs_ = 6;
   cvm::topology::loc_t axi_mst_loc_l;
-  cvm::topology::loc_t intr_loc_;
+  //cvm::topology::loc_t intr_loc_;
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt
@@ -296,7 +296,7 @@ private:
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
   int      intr_count = 0;
   int      limit_interrupts = 0;
-
+  const unsigned hart_count_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
 

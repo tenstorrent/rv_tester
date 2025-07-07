@@ -39,3 +39,20 @@ module rv_tester_cdc_pulse (
     end
 
 endmodule
+
+module rv_tester_sync3 (
+    input  logic clk,
+    input  logic d  ,
+    output logic q
+);
+
+  logic sync1, sync2, sync3;
+
+  always_ff @(posedge clk) begin
+    sync1 <= d;
+    sync2 <= sync1;
+    q     <= sync2;
+  end
+
+endmodule
+
