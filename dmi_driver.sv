@@ -658,7 +658,7 @@ import rv_tester_params:: * ;
           $display("get_data1:%h to compare", get_data1);
         end else if(mmr_access_rd && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
-          //read_data0_comp = 1;
+          read_data0_comp = 1;
           mmr_access_rd = 0;
           read_data2 = 1;
           $display("Read data0 to compare 32bit read");
