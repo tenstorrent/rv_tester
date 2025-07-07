@@ -411,13 +411,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [63:0]          eoti_data;
 
     // Timeout checks
-<<<<<<< HEAD
     longint unsigned max_stall_cycle;
     longint unsigned max_cycle;
-=======
-    int max_stall_cycle = 50000;
-    longint unsigned max_cycle = 0;
->>>>>>> origin/master
     longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
