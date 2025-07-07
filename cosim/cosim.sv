@@ -402,7 +402,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [63:0]          eoti_data;
 
     // Timeout checks
-    int max_stall_cycle = 50000;
+    longint unsigned max_stall_cycle;
     longint unsigned max_cycle;
     longint unsigned new_max_cycle;
     longint unsigned max_instructions;
@@ -1335,6 +1335,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     logic [63:0] updated_max_stall_cycle;
     logic        max_stall_cycle_update_valid;
 
+    /* verilator lint_off WIDTHEXPAND */
     always_ff @(posedge tb_clk) begin
       if (reset) begin
         should_update_max_cycle <= 0;
@@ -1366,16 +1367,16 @@ localparam CAM_IHBIT = CAM_IBITS;
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
-        max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
-        cosim_period = cvm_plusargs::get_int("cosim_period");
-        max_instructions = cvm_plusargs::get_ulongint("max_instr");
-        nharts = cvm_plusargs::get_int("num_harts");
-        hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
-        debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
-        debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
+        max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+        cosim_period <= cvm_plusargs::get_int("cosim_period");
+        max_instructions <= cvm_plusargs::get_ulongint("max_instr");
+        nharts <= cvm_plusargs::get_int("num_harts");
+        hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
+        debug_entry_pc_arg <= cvm_plusargs::get_ulongint("debug_entry_pc");
+        debug_exit_pc_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc");
         //mcm_value  = cvm_plusargs::get_int("mcm");
-        psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
-        psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
+        psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
+        psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
 
 
         /* verilator lint_on BLKSEQ */
@@ -1416,5 +1417,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         end
       end
     end
+    /* verilator lint_on WIDTHEXPAND */
 
 endmodule
