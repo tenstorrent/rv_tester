@@ -17,7 +17,7 @@ lint:
     script:
         - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
         - python3 plusarg_lint.py
-        - ${BZSIM} build sw_2c_tb:dpi ${BZSIM_BUILD_OPTS} --config=clang-tidy
+        - ${BZSIM} build sw_2c_tb:dpi  --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_BUILD_OPTS} --config=clang-tidy
     timeout: 1h
 
 smoke:
@@ -28,7 +28,7 @@ smoke:
     tags:
         - jacamar-lsf
     script:
-        - ${BZSIM} test smoke ${BZSIM_OPTS}
+        - ${BZSIM} test --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_OPTS} smoke
     timeout: 1h
 
 notify_riscv_cluster:
@@ -51,7 +51,7 @@ asan+ubsan:
     tags:
         - jacamar-lsf
     script:
-        - ${BZSIM} test smoke ${BZSIM_OPTS} --config asan+ubsan
+        - ${BZSIM} test --lsf-opt=-mfast --lsf-opt=-qsmoke  smoke ${BZSIM_OPTS} --config asan+ubsan
     timeout: 1h
 
 tsan:
@@ -62,7 +62,7 @@ tsan:
     tags:
         - jacamar-lsf
     script:
-        - ${BZSIM} test smoke ${BZSIM_OPTS} --config tsan
+        - ${BZSIM} test  --lsf-opt=-mfast --lsf-opt=-qsmoke smoke ${BZSIM_OPTS} --config tsan
     timeout: 1h
 
 valgrind:
@@ -74,7 +74,7 @@ valgrind:
         - jacamar-lsf
     script:
         # TODO(mboisvert): Clean this by adding native +valgrind support to runtime.
-        - ${BZSIM} test smoke ${BZSIM_OPTS} --bazel-test-opt=--test_tag_filters=-no-valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=/opt/rh/gcc-toolset-11/root/bin/valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--trace-children=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--tool=memcheck --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--leak-check=full --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--show-reachable=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--track-origins=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--error-exitcode=1
+        - ${BZSIM} test  --lsf-opt=-mfast --lsf-opt=-qsmoke smoke ${BZSIM_OPTS} --bazel-test-opt=--test_tag_filters=-no-valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=/opt/rh/gcc-toolset-11/root/bin/valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--trace-children=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--tool=memcheck --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--leak-check=full --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--show-reachable=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--track-origins=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--error-exitcode=1
     timeout: 1h
 
 

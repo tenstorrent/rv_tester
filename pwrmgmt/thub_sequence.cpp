@@ -33,7 +33,11 @@ thub_sequence::~thub_sequence() {
   if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0)){
     cvm::log(cvm::ERROR,"[tj_shutdown]:- ERROR: Expected to have TJ_SHUTDOWN followed by DFS \n");
   }
-  if(FLAGS_tj_shutdown){
+  if(FLAGS_tj_max && (tj_max_ack_rcvd == 0)){
+    cvm::log(cvm::ERROR,"[tj_max]:- ERROR: Expected to have TJ_MAX followed by PLL Shutdown \n");
+  }
+  if(FLAGS_tj_shutdown || FLAGS_tj_max){
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"tj_max_ack\": \"{}\"}}\n", tj_max_ack_rcvd);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"tj_shutdown_ack\": \"{}\"}}\n", tj_shutdown_ack_rcvd);
   }
 }
@@ -60,8 +64,12 @@ cvm::messenger::task<void> thub_sequence::main() {
     else {break;}
   };
   if(FLAGS_tj_shutdown){
-    cvm::log(cvm::NONE, "[TJ Shutdow] Enabled TJ shutdown via override ...... \n");
+    cvm::log(cvm::NONE, "[TJ Shutdown] Enabled TJ shutdown via override ...... \n");
     co_await tj_shutdown_config();
+  }
+  if(FLAGS_tj_max){
+    cvm::log(cvm::NONE, "[TJ Max] Enabled TJ Max via override ...... \n");
+    co_await tj_max_config();
   }
   co_return;
 }
@@ -75,7 +83,57 @@ cvm::messenger::task<void> thub_sequence::wait_for_ticks()
   {
     co_await tick();
   };
-};
+  co_return;
+}
+
+cvm::messenger::task<void> thub_sequence::wait_for_tj_max_ticks()
+{
+  cvm::rand::uniform_dist<uint32_t> max_cnt(1500, 2000);
+  uint32_t thub_wait_clk = max_cnt();
+
+  for(uint32_t i =0; i< thub_wait_clk; i++)
+  {
+    co_await tick();
+  };
+  co_return;
+}
+
+cvm::messenger::task<void> thub_sequence::tj_max_config()
+{
+  cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,2); // PMNW ID for THUB-0,1 is 12,9
+  uint8_t thub_select;
+  uint32_t wdata=1;
+
+  switch (FLAGS_num_harts-1) {
+      case 0:
+          thub_select = 12;     // PMNW ID for THUB-0
+          break;
+      case 1:
+          thub_select = 12;     // PMNW ID for THUB-0
+          break;
+      case 2:
+          thub_select = thub_dist_3c();
+          if(thub_select != 0x1) { thub_select = 12; }
+          else { thub_select = 9;} 
+          break;
+      case 7:
+          thub_select = thub_dist_8c();
+          break;
+      default:
+          cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+  }
+
+  co_await wait_for_tj_max_ticks();
+  cvm::log(cvm::NONE, "[tj_max] Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  wdata |= (0xA00 << 5);      // Programming a high value compared to max threshold paraneters
+  wdata |= (1 << 22);         // Set snapshot override control
+  co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
+  cvm::log(cvm::NONE, "[tj_max] Set Snapshot Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  co_await tj_max_ack();
+  cvm::log(cvm::NONE, "[tj_max] Observed PLL Shutdown done due to tj_max interrupt ...... \n");
+  co_return;
+}
 
 /*
 Sequence of steps for TJ Shudown cases would be as below.
@@ -112,14 +170,15 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
           cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
   }
 
+  co_await wait_for_ticks();
+  co_await wait_for_ticks();
   cvm::log(cvm::NONE, "[tj_shutdown] Overriding sensor data for Temp HUB {} ...... \n", thub_select);
-  co_await wait_for_ticks();
-  co_await wait_for_ticks();
   wdata |= (0xA00 << 5);      // Programming a high value compared to threshold paraneters
   wdata |= (1 << 22);         // Set snapshot override control
   co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
   cvm::log(cvm::NONE, "[tj_shutdown] Set Snapshot Overriding sensor data for Temp HUB {} ...... \n", thub_select);
   co_await tj_shutdown_ack();
+  cvm::log(cvm::NONE, "[tj_shutdown] Clear Snapshot Overriding sensor data for Temp HUB {} ...... \n", thub_select);
   wdata = 0x1;                // Clear snapshot override control
   co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
   co_return;
@@ -132,6 +191,8 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
   cvm::log(cvm::NONE, "[THUB THROTTLE]  Entered into throttle for Core {} ...... \n", core_throttle);
   co_await temp_throttle_enable();
   //Delay before temp throttle is disabled
+  co_await wait_for_ticks();
+  co_await wait_for_ticks();
   co_await wait_for_ticks();
   co_await temp_throttle_disable();
   co_await wait_for_ticks();
@@ -154,31 +215,33 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_enable()
     // Configure HPMEVENT10/HPMCOUNTER10 to monitor throttle
     co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x94400000); // MS Event
     co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x94400000); // MC Event
-    cntr_data = co_await csr_read(core_throttle, 0x8, core_mhpmcounter10);
-    if(cntr_data != 0)
-      cvm::log(cvm::ERROR, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is non-zero {} .... \n",cntr_data);
-    else
-      cvm::log(cvm::NONE, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
 
-    // Write to MC/MS power config
-    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    // Removing checks as it would be on MC side for throttling 
+    // cntr_data = co_await csr_read(core_throttle, 0x8, core_mhpmcounter10);
+    // if(cntr_data != 0)
+    //   cvm::log(cvm::ERROR, "[THROTTLE] ERROR: Before Enabling Throttle HPMCOUNTER is non-zero {} .... \n",cntr_data);
+    // else
+    //   cvm::log(cvm::NONE, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
+
+    // Write to MC/MS power config lower threshold to 10 (0xA) for temp throttle
+    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078820372a210); // Disabling Preset, Didt throttling
+    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x1015017ecb594128); // Disabling max power throttle, Enable Thermal Adjust Enable
     co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_disable()
 {
-  uint64_t cntr_data;
+  // Removing checks as it would be on MC side for throttling 
+  // uint64_t cntr_data;
 
-  cntr_data = co_await csr_read(core_throttle, 0x4, core_mhpmcounter10);
-  if(cntr_data == 0)
-    cvm::log(cvm::ERROR, "[THROTTLE] After Enabling Throttle HPMCOUNTER is zero {} .... \n",cntr_data);
-  else
-  cvm::log(cvm::NONE, "[THROTTLE] After Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
+  // cntr_data = co_await csr_read(core_throttle, 0x4, core_mhpmcounter10);
+  // if(cntr_data == 0)
+  //   cvm::log(cvm::ERROR, "[THROTTLE] ERROR: After Enabling Throttle HPMCOUNTER is zero {} .... \n",cntr_data);
+  // else
+  // cvm::log(cvm::NONE, "[THROTTLE] After Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
 
   // Write to MC/MS power config
-  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x11ff017ecb594129);
+  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x11fe017ecb594128); // Disable Thermal Adjust end
 
   co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x0); // MS Event
   co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x0); // MC Event
@@ -304,5 +367,11 @@ void thub_sequence::blocking_seq_tick(uint8_t val) {
 cvm::messenger::task<void> thub_sequence::tj_shutdown_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_shutdown_ack<>>(loc_);
   tj_shutdown_ack_rcvd = 1;
+  co_return;
+}
+
+cvm::messenger::task<void> thub_sequence::tj_max_ack() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_max_ack<>>(loc_);
+  tj_max_ack_rcvd = 1;
   co_return;
 }

@@ -76,6 +76,9 @@ DEFINE_int32(start_overlay_access,10, "Start tick point for starting overlay acc
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
+// Uninitialized memory read callback configuration
+DEFINE_bool(sysmod_mem_random, false, "Return random data for uninitialized memory reads");
+DEFINE_uint64(sysmod_mem_default_64, 0, "Return specific 64-bit pattern for uninitialized memory reads (0 = disabled)");
 // STEE
 DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
 DEFINE_uint32(matp_swid, 0, "MATP.SWID");
@@ -689,8 +692,8 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
      cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
-     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
-       cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_crsp failed to poke whisper memory");
+     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, false, false, valid) || !valid) && FLAGS_whisper_client_check) {
+       cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
 }
@@ -716,8 +719,8 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n", inval_load_.data, ld_addr);
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), valid)) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory in AMO MB Bypass case\n");
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), false, false, valid)) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
         }
       }
     }
@@ -736,8 +739,8 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x} with read-mask : {:#x}\n", read_data,ld_addr,byte_mask);
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), valid) || !valid) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory\n");
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), false, false, valid) || !valid) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
         }
       }
     }
@@ -753,7 +756,7 @@ sysmod::backdoor_write(sysmod::backdoor_write_t t) {
 
   if (FLAGS_cosim) {
     bool valid = true;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, false, false, valid) || !valid) && FLAGS_whisper_client_check)
       cvm::log(cvm::ERROR, "Error: [sysmod] backdoor_write failed to poke whisper memory\n");
   }
 
@@ -1067,6 +1070,9 @@ sysmod::compose() {
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 
     assert(masters.size() > 0);
+
+    // Configure uninitialized read callbacks for memory devices
+    configure_uninit_read_callbacks();
   }
   catch (std::exception& e) {
     std::cerr << "Error: [sysmod] Memmap access exception.\n" << "  Message: " << e.what() << "\n";
@@ -1279,7 +1285,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
 
     } else {
       bool valid = true;
-      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(wc_loc_, 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
+      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(wc_loc_, 0, 0, 'm', addr, op, false, false, valid) || !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: [sysmod] Failed to poke whisper memory\n");
     }
     addr += 4;
@@ -1506,6 +1512,89 @@ void sysmod::overlay_tick(uint64_t advance) {
    if (advance)
      for (auto& d : devices_)
        d->overlay_tick(advance);
+}
+
+void sysmod::configure_uninit_read_callbacks()
+{
+  // Check if any uninitialized read flags are enabled
+  if (!FLAGS_sysmod_mem_random && FLAGS_sysmod_mem_default_64 == 0)
+    return;
+
+  // Validate that only one mode is enabled
+  int modes_enabled = 0;
+  if (FLAGS_sysmod_mem_random)
+    modes_enabled++;
+  if (FLAGS_sysmod_mem_default_64 != 0)
+    modes_enabled++;
+
+  if (modes_enabled > 1)
+  {
+    cvm::log(cvm::ERROR, "Error: [sysmod] Only one uninitialized read mode can be enabled at a time\n");
+    return;
+  }
+
+  // Create the appropriate callback based on flags
+  std::function<std::vector<std::uint8_t>(std::uint64_t, std::uint64_t)> callback;
+
+  if (FLAGS_sysmod_mem_random)
+  {
+    callback = [this](std::uint64_t addr, std::uint64_t size) -> std::vector<std::uint8_t>
+    {
+      std::vector<std::uint8_t> data(size);
+      auto random_byte_dist = cvm::rand::uniform_dist<uint8_t>();
+      std::generate(data.begin(), data.end(), [&random_byte_dist]()
+                    { return random_byte_dist(); });
+
+      // Poke whisper with generated data if cosim is enabled
+      if (FLAGS_cosim)
+      {
+        bool valid = true;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemBatchRPC>(wc_loc_, 0, 0, 'm', addr, data, valid) || !valid) && FLAGS_whisper_client_check)
+        {
+          cvm::log(cvm::ERROR, "Error: [sysmod] configure_uninit_read_callbacks failed to batch poke whisper memory for random data at addr {:#x}, size {}\n", addr, size);
+        }
+      }
+
+      return data;
+    };
+  }
+  else if (FLAGS_sysmod_mem_default_64 != 0)
+  {
+    callback = [this](std::uint64_t addr, std::uint64_t size) -> std::vector<std::uint8_t>
+    {
+      std::vector<std::uint8_t> data(size);
+
+      // Fill data with 64-bit aligned pattern
+      for (std::uint64_t i = 0; i < size; ++i)
+      {
+        auto aligned_offset = cvm::bitmanip::slice(addr + i, 2, 0) * 8;
+        data[i] = cvm::bitmanip::slice(FLAGS_sysmod_mem_default_64, aligned_offset + 7, aligned_offset);
+      }
+
+      // Poke whisper with generated data if cosim is enabled
+      if (FLAGS_cosim)
+      {
+        bool valid = true;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemBatchRPC>(wc_loc_, 0, 0, 'm', addr, data, valid) || !valid) && FLAGS_whisper_client_check)
+        {
+          cvm::log(cvm::ERROR, "Error: [sysmod] configure_uninit_read_callbacks failed to batch poke whisper memory for pattern data at addr {:#x}, size {}\n", addr, size);
+        }
+      }
+
+      return data;
+    };
+  }
+
+  // Apply callback to all memory devices
+  for (auto &device : devices_)
+  {
+    auto *mem_device = dynamic_cast<sysmod_mem *>(device.get());
+    if (mem_device)
+    {
+      mem_device->uninitialized_read_data_cb(callback);
+      cvm::log(cvm::MEDIUM, "[sysmod] Configured uninitialized read callback for memory device: {}\n", mem_device->tag());
+    }
+  }
 }
 
 extern "C" {

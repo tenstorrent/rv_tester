@@ -64,6 +64,10 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
     void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
+    void process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict);
+    void process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush);
+    void process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback);
+    void process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch);
 
     void process(const rv_tester::terminate_called&);
     void process(const rv_tester::terminate_called_mem_checks&);

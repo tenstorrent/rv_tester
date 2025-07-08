@@ -426,6 +426,7 @@ namespace {
       CSR(C_LSCFG13,        0xBDD, "c_lscfg13"   ,  true)                      \
       CSR(C_LSCFG14,        0xBDE, "c_lscfg14"   ,  true)                      \
       CSR(C_LSCFG15,        0xBDF, "c_lscfg15"   ,  true)                      \
+      CSR(C_MSPPC,          0xBF0, "c_msppc"     ,  true)                      \
       CSR(C_ASYNCINTSTATUS, 0xBF2, "c_asyncintstatus")                         \
       CSR(MSTATEEN0,        0x30C, "mstateen0")                                \
       CSR(MSTATEEN1,        0x30D, "mstateen1")                                \

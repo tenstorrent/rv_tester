@@ -109,7 +109,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (used_id(b.id) && ((chk_rsp_err_ids_[b.id] && b.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[b.id] && b.resp == axi::RESP_OKAY))) {
-        if (!FLAGS_axi_allow_err_resp || !allow_err_resp_ids_[b.id]) {
+        if (!FLAGS_axi_allow_err_resp && !allow_err_resp_ids_[b.id]) {
             cvm::log(cvm::ERROR, "[{}] Error: bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, chk_rsp_err_ids_[b.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(b.resp));
             return;
         } else {
@@ -136,7 +136,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (used_id(r.id) && ((chk_rsp_err_ids_[r.id] && r.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[r.id] && r.resp == axi::RESP_OKAY))) {
-        if (!FLAGS_axi_allow_err_resp || !allow_err_resp_ids_[r.id]) {
+        if (!FLAGS_axi_allow_err_resp && !allow_err_resp_ids_[r.id]) {
             cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, chk_rsp_err_ids_[r.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(r.resp));
             return;
         } else {
