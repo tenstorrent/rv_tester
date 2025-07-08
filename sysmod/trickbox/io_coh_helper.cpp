@@ -270,7 +270,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   a_txn.region  =0;
   a_txn.atop  =0;
   a_txn.user  =0;
-  
+  a_txn.allow_err_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
+
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
 
   read_in_flight = true;
