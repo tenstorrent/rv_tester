@@ -977,7 +977,9 @@ module rv_tester
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 .core_no_fetch(|core_no_fetch),
                 .tj_shutdown(tj_shutdown),
+                .tj_max(tj_max),
                 .pll_dfs_done(pll_dfs_done),
+                .pll_shutdown_done(pll_shutdown_done),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
