@@ -50,15 +50,17 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         }
         cvm::log(cvm::LOW, "[scratchpad_random_sequence] Check Slice status for arry_init_done : {} \n", sc_slice_array_initial_done);
 
-	      // cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
-        // co_await axi_write_mmr_granular();
-        // co_await axi_write_mmr_data_granular();
+        if (!FLAGS_cluster_axi_sp_perf) {
+          cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
+          co_await axi_write_mmr_granular();
+          co_await axi_write_mmr_data_granular();
 
-        // // Delay
-        // for (int i=0; i<6; i=i+1){
-        //   co_await tick();
-        // }
-        
+          // Delay
+          for (int i=0; i<6; i=i+1){
+            co_await tick();
+          }
+        }
+       
         cvm::registry::messenger.clear_channel<axi::r_t>(r_channel);
         if(!slice_chk_done){
           co_await check_sc_slice_status(ARAY_INIT_DONE_AND_SPRECONFIG_DONE_CHK);
@@ -94,9 +96,9 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         uint64_t odd_offset = (rng() & 0x1FF) | 0x1; // OddNW - Addr[6] = 1
         uint64_t sp_addr_odd_nw = sp_base + (odd_offset<<6);
 
-        // cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Random OT Traffic Write req :- sp_addr={:#x}, sp_base={:#x}, offset={:#x} \n", send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw, sp_base, send_wr_to_odd_network?even_offset:odd_offset);
-        // co_await axi_write_granular(send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw);
-        // co_await axi_write_data_granular();
+        cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Random OT Traffic Write req :- sp_addr={:#x}, sp_base={:#x}, offset={:#x} \n", send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw, sp_base, send_wr_to_odd_network?even_offset:odd_offset);
+        co_await axi_write_granular(send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw);
+        co_await axi_write_data_granular();
 
         cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Random OT Traffic Read req :- sp_addr={:#x}, sp_base={:#x}, offset={:#x} \n", send_wr_to_odd_network?sp_addr_even_nw:sp_addr_odd_nw, sp_base, send_wr_to_odd_network?odd_offset:even_offset);
         co_await axi_read(send_wr_to_odd_network?sp_addr_even_nw:sp_addr_odd_nw, 4, 4, NO_BLOCK);
@@ -407,9 +409,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::sp_mmr_prog(){
 }
 
 cvm::messenger::task<void> scratchpad_random_sequence::tick() {
-  auto tick = co_await cvm::registry::messenger.wait<rv_tester_transactions::overlay_driver::m_overlay_driver_tick<>>(tick_loc_);
-  uint64_t dut_clocks = tick.cycle;
-  cvm::log(cvm::HIGH, " [scratchpad_random_sequence] m_overlay_driver_tick:-  cnt_tick={}, dut_clocks={}\n", cnt_tick, dut_clocks);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::overlay_driver::m_overlay_driver_tick<>>(tick_loc_);
   cnt_tick++;
   co_return;
 }

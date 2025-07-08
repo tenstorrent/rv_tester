@@ -179,6 +179,7 @@ module rv_tester
     int hart_enable_mask = 0;
     int num_harts = 0;
     bit ntrace_stop_on_wrap = 0;
+    bit cluster_axi_sp_perf = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
     int num_dm_randpc = 0;
@@ -472,6 +473,7 @@ module rv_tester
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts            <= cvm_plusargs::get_int("num_harts");
+            cluster_axi_sp_perf  <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
 
         end
         clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
@@ -970,6 +972,7 @@ module rv_tester
             .dut_clk(dut_clk[AXI_CLK_IDX]),
             .dut_reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
+            .cluster_axi_sp_perf(cluster_axi_sp_perf),
           `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PORTS(2,0,0)
         );
 
