@@ -22,7 +22,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
 
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
 DEFINE_bool(axi_rand_id_alloc, true, "Allow random ID allocation for axi_mst transactions");
-DEFINE_int32(axi_seqid_width, 3, "AXI sequence ID width");
+DEFINE_bool(axi_disable_seqid_alloc, false, "Disable Cluster AXI sequence based ID allocation");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
 DEFINE_bool(axi_sw_rsp_toggle_en, false, "Allow axi_sw_rsp_toggle_en responses on axi_mst transactions");
 DEFINE_int32(axi_mst_brdy_high, 4, "Maximum cycles of axi bready assertion");

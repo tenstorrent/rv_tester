@@ -19,7 +19,6 @@
 #include "whisper_client.h"
 #include "axi_sw_mst.h"
 DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
-DECLARE_bool(cosim);
 
 namespace {
   typedef enum : size_t { SZ_1B = 1, SZ_2B = 2, SZ_4B = 4, SZ_8B = 8, SZ_16B = 16 } sz_t;

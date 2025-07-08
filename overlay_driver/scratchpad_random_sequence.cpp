@@ -196,8 +196,10 @@ cvm::messenger::task<uint64_t> scratchpad_random_sequence::axi_read_mmr_granular
   ar_txn.atop   = 0;
   ar_txn.user   = 0;
   ar_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
-  ar_txn.is_manual_id = true;
-  ar_txn.manual_id =  0x300;
+  if (FLAGS_cluster_axi_sp_perf) {
+    ar_txn.is_manual_id = true;
+    ar_txn.manual_id =  0x300;
+  }
 
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] AXI READ MMR GRANULAR (read req):- addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
@@ -235,8 +237,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   ar_txn.atop  =0;
   ar_txn.user  =0;
   ar_txn.seqid  = SCRATCHPAD_MEM_SEQ_ID;
-  ar_txn.is_manual_id = true;
-  ar_txn.manual_id = 0x301;
+  if (FLAGS_cluster_axi_sp_perf) {
+    ar_txn.is_manual_id = true;
+    ar_txn.manual_id = 0x301;
+  }
 
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
@@ -293,8 +297,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() 
   aw_txn.atop  =0;
   aw_txn.user  =8;
   aw_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
-  aw_txn.is_manual_id = true;
-  aw_txn.manual_id =  0x302;
+  if (FLAGS_cluster_axi_sp_perf) {
+    aw_txn.is_manual_id = true;
+    aw_txn.manual_id =  0x302;
+  }
 
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
@@ -337,8 +343,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   aw_txn.atop  =0;
   aw_txn.user  =0;
   aw_txn.seqid  = SCRATCHPAD_MEM_SEQ_ID;
-  aw_txn.is_manual_id = true;
-  aw_txn.manual_id =  0x303;
+  if (FLAGS_cluster_axi_sp_perf) {
+    aw_txn.is_manual_id = true;
+    aw_txn.manual_id =  0x303;
+  }
 
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
