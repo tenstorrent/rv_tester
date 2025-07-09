@@ -47,6 +47,7 @@ namespace {
   constexpr uint32_t dst_control_mmr        = 0x4200'2000;
   constexpr uint32_t trace_control_mmr      = 0x4200'1000;
   constexpr uint32_t core_cla_ctrl_status_mmr = 0x4200'2190;
+  constexpr uint32_t cr_chicken_bits_mmr    = 0x4200'FFF0;
 
   constexpr uint32_t lock_idx               = 63;
   constexpr uint32_t dst_fuse_idx           = 52;
