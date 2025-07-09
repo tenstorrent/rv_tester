@@ -193,7 +193,7 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
-    cvm::log(cvm::MEDIUM, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
+    cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
 
     axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
