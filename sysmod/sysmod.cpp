@@ -92,6 +92,8 @@ DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 // Overlay MMR Checker
 DEFINE_bool(overlay_mmr_check, true, "Enable Scratchpad MMR read/write data checks from Overlay port");
+// CLUSTER AXI->SC-SP Performance testing
+DEFINE_bool(cluster_axi_sp_perf, false, "Enable Cluster AXI->SC-SP Performance testing");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 

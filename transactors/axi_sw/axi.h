@@ -109,6 +109,8 @@ class axi : public transactor {
             bool              rsp_err_chk = true;
             bool              allow_err_resp = false;
             seqid_t           seqid = seqid_t(0);
+            bool              is_manual_id = false;
+            id_t              manual_id = id_t(0);
 
             a_no_id_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_no_id_t(const addr_t& addr, const sz_t& size) : addr(addr), size(size) {}
