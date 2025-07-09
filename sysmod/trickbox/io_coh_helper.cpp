@@ -135,7 +135,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.atop  =0;
   aw_txn.user  =8;
   aw_txn.allow_err_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
- 
+
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);

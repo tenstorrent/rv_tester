@@ -476,7 +476,7 @@ module rv_tester
             cluster_axi_sp_perf  <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
 
         end
-        clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
+        clock_mode           <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
