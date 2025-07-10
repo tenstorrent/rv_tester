@@ -151,7 +151,7 @@ class axi : public transactor {
                 w(w), id(id), addr(addr), len(len), size(size), burst(burst), lock(lock), cache(cache), prot(prot), qos(qos), region(region), atop(atop), user(user) {}
             a_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_t(const a_no_id_t& a) : w(a.w), addr(a.addr), len(a.len), size(a.size), burst(a.burst), lock(a.lock),
-              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk), seqid(a.seqid) {}
+              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk), allow_err_resp(a.allow_err_resp), seqid(a.seqid) {}
             a_t() = default;
             a_t(a_t&&) = default;
             a_t& operator=(a_t&&) = default;
