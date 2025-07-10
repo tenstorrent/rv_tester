@@ -64,6 +64,7 @@ void eot::init_tohost_addr() {
 
     try {
       tohost_addr_ = std::stoul(addr_str, nullptr, 16);
+      FLAGS_tohost = tohost_addr_;
     }
     catch (...) {
       tohost_in_elf = false;
@@ -83,6 +84,7 @@ void eot::init_tohost_addr() {
 
   if (m.count("htif") > 0) {
     tohost_addr_ = m.at("htif").base;
+    FLAGS_tohost = tohost_addr_;
     cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", tohost_addr_);
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
