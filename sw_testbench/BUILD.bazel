@@ -91,7 +91,8 @@ sim_test_suite(
     name  = "all_smoke",
     testlists  = [
         "@smoke",
-        "@axi_sw_tb_smoke"
+        "@axi_sw_tb_smoke",
+        "@rv_tester_delay_resp_tb_smoke"
     ],
     sim = None,
     visibility = ["//visibility:public"],
