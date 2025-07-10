@@ -15,6 +15,11 @@ typedef struct {
     uint64_t resp;
 } smc_read_pkt;
 
+enum smc_txn_type {
+    SMC_READ,
+    SMC_WRITE
+};
 typedef struct {
+    smc_txn_type req_type;
     uint64_t addr;
 } smc_req_pkt;
