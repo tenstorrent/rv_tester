@@ -40,7 +40,13 @@ module rv_tester_mem #(
     //Number of address rules
     parameter int unsigned NoAddrRules	        = 2,
     //number of master ports of rv_tester_mem
-    parameter int unsigned NumMastersMem	= 2
+    parameter int unsigned NumMastersMem	= 2,
+    //Max in flight read requests
+    parameter int unsigned MaxInFlightReadReq = 16,
+    //Max beats per request
+    parameter int unsigned MaxBeatsPerBurst = 16,
+    //inclusion of response delay module
+    parameter bit RespDelayModule = 0
 ) (
 
     input   logic                            clk,
@@ -52,7 +58,8 @@ module rv_tester_mem #(
     output  mst_req_t   axi_req_mst_up [NumMastersMem-1:0]     ,    
     input   mst_resp_t  axi_resp_mst_up [NumMastersMem-1:0]     ,
     input   rule_t	[NoAddrRules-1:0] addr_map,	   
-    input   logic 	bypass_mem	,
+    input   logic 	rv_tester_enable_llc	,
+    input   int unsigned    rv_tester_mem_delay,
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
     output  logic       bist_status_done
@@ -90,9 +97,10 @@ module rv_tester_mem #(
     logic clk_gated, flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2, flush_complete_reg;
     logic enable_flop /*verilator clock_enable*/;
 
-    slv_req_t [NumMasters-1:0] axi_req_xbar;
-    slv_resp_t [NumMasters-1:0] axi_resp_xbar;
-
+    // Slave Ports on Rdly 
+    slv_req_t [NumMasters-1:0] axi_req_rdly;    // From core to rdly
+    slv_resp_t [NumMasters-1:0] axi_resp_rdly;  // From rdly to core
+    
     mst_req_t axi_req_mst_imm;
     mst_resp_t axi_resp_mst_imm;
 
@@ -100,7 +108,9 @@ module rv_tester_mem #(
     localparam int unsigned AxiIdUsed             = 32'd3;
     localparam bit UniqueIds                      = 1'b0;
     localparam int unsigned NumSlaves             = 32'd2;
-    localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);
+    localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);   // Width of id after xbar
+    localparam int unsigned AxiIdWidthMstRDly     = AxiIdWidth;                        // Width of id between rdly and xbar
+    
     localparam AxiAddrWidthCache		  = AxiAddrWidth + 1;
     localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
         NoSlvPorts:         NumMasters,
@@ -110,7 +120,7 @@ module rv_tester_mem #(
         FallThrough:        1'b0,
         LatencyMode:        axi_pkg::CUT_SLV_PORTS,
         PipelineStages:     Pipeline,
-        AxiIdWidthSlvPorts: AxiIdWidth,
+        AxiIdWidthSlvPorts: AxiIdWidthMstRDly,
         AxiIdUsedSlvPorts:  AxiIdUsed,
         UniqueIds:          UniqueIds,
         AxiAddrWidth:       AxiAddrWidth,
@@ -130,22 +140,95 @@ module rv_tester_mem #(
     localparam int TagWords = NumLines_LLC;
 
     always@(negedge clk) begin
-        enable_flop <= ~bypass_mem;
+        enable_flop <= rv_tester_enable_llc;
     end
 
     assign clk_gated = clk & enable_flop;
 
 //////////////////////////////////////////
 
+///////////////////Read Delay//////////////
+
+    typedef logic [AxiIdWidthMstRDly-1:0] id_mst_t;
+    typedef logic [AxiIdWidth-1:0] id_slv_t;
+    typedef logic [AxiAddrWidth-1:0] addr_rdly_t;
+    typedef logic [AxiDataWidth-1:0] data_rdly_t;
+    typedef logic [AxiStrbWidth-1:0] strb_rdly_t;
+    typedef logic [AxiUserWidth-1:0] user_rdly_t;
+
+    // Slave side (core to delay response) - all channels use regular ID
+    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_rdly_t, addr_rdly_t, id_slv_t, user_rdly_t)
+    `AXI_TYPEDEF_W_CHAN_T(slv_w_chan_rdly_t, data_rdly_t, strb_rdly_t, user_rdly_t)
+    `AXI_TYPEDEF_B_CHAN_T(slv_b_chan_rdly_t, id_slv_t, user_rdly_t)
+    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_rdly_t, addr_rdly_t, id_slv_t, user_rdly_t)
+    `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_rdly_t, data_rdly_t, id_slv_t, user_rdly_t)
+
+    // Master side (delay response to xbar) - all channels use extended ID
+    `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_rdly_t, addr_rdly_t, id_mst_t, user_rdly_t)  
+    `AXI_TYPEDEF_W_CHAN_T(mst_w_chan_rdly_t, data_rdly_t, strb_rdly_t, user_rdly_t)
+    `AXI_TYPEDEF_B_CHAN_T(mst_b_chan_rdly_t, id_mst_t, user_rdly_t)            
+    `AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_rdly_t, addr_rdly_t, id_mst_t, user_rdly_t)
+    `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_rdly_t, data_rdly_t, id_mst_t, user_rdly_t)
+
+    // Request/Response struct types
+    `AXI_TYPEDEF_REQ_T(mst_req_rdly_t, mst_aw_chan_rdly_t, mst_w_chan_rdly_t, mst_ar_chan_rdly_t)
+    `AXI_TYPEDEF_RESP_T(mst_resp_rdly_t, mst_b_chan_rdly_t, mst_r_chan_rdly_t)
+
+    // Intermediate signals for delay response module connections
+    // Request Channel
+    mst_req_rdly_t  [NumMasters-1:0] axi_req_from_rdly;    // Delay response to xbar
+    // Response Channels
+    mst_resp_rdly_t [NumMasters-1:0] axi_resp_to_rdly;     // Xbar to delay response
+    // Slave Ports are just slv_req_t and slv_resp_t
+
+    // Temporary assignment to avoid multiply driven conflict for ar.id
+    id_mst_t rdly_ar_id [NumMasters-1:0];
+    
+
+    // Read Response Delay Module for each NumMaster/core
+    generate
+        if (RespDelayModule) begin: gen_with_delay
+            if ($clog2(MaxInFlightReadReq) > AxiIdWidth) begin : gen_param_error
+                // This will cause a build error if the condition is true
+                $error("rv_tester_mem: MaxInFlightReadReq (%0d) requires %0d bits which exceeds AxiIdWidth (%0d)", 
+                           MaxInFlightReadReq, $clog2(MaxInFlightReadReq), AxiIdWidth);
+            end
+            for (genvar i = 0; i < NumMasters; i++) begin : gen_rdly
+                rv_tester_delay_resp #(  
+                    .AxiIdWidth       ( AxiIdWidth              ), 
+                    .slv_resp_t       ( slv_resp_t              ),
+                    .mst_resp_t       ( mst_resp_rdly_t         ),
+                    .r_chan_t         ( mst_r_chan_rdly_t       ),
+                    .slv_ar_chan_t    ( slv_ar_chan_rdly_t      ),
+                    .MaxInFlight      ( MaxInFlightReadReq      ),
+                    .MaxBeatsPerBurst ( MaxBeatsPerBurst        )
+                ) i_rv_test_rdly (
+                    .clk_i                  ( clk_gated                     ),
+                    .rst_ni                 ( rst_n                         ),
+                    .delay_cycles           ( rv_tester_mem_delay           ),
+                    .slv_req_ar_i           ( axi_req_rdly[i].ar            ),
+                    .slv_req_ar_valid_i     ( axi_req_rdly[i].ar_valid      ),
+                    .slv_req_r_ready_i      ( axi_req_rdly[i].r_ready       ),
+                    .slv_resp_o             ( axi_resp_rdly[i]              ),
+                    .mst_req_ar_id_o        ( rdly_ar_id[i]                 ),
+                    .mst_resp_i             ( axi_resp_to_rdly[i]           )
+                );
+            end
+        end 
+    endgenerate
+
+    
+////////////////////////////////////////////////
+
 /////////////axi_interconnect/////////////
 
-    typedef logic [AxiIdWidthMst-1:0] id_mst_xbar;
-    typedef logic [AxiIdWidth-1:0] id_slv_xbar;
+    typedef logic [AxiIdWidthMst-1:0] id_mst_xbar;         // All channels after xbar (to LLC)
+    typedef logic [AxiIdWidthMstRDly-1:0] id_slv_xbar;     // All channels from rdly to xbar
     typedef logic [AxiAddrWidth-1:0] addr_xbar;
     typedef logic [AxiDataWidth-1:0] data_xbar;
     typedef logic [AxiStrbWidth-1:0] strb_xbar;
     typedef logic [AxiUserWidth-1:0] user_xbar;
-
+    
     `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_xbar, addr_xbar, id_mst_xbar, user_xbar)
     `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_xbar, addr_xbar, id_slv_xbar, user_xbar)
     `AXI_TYPEDEF_W_CHAN_T(w_chan_xbar, data_xbar, strb_xbar, user_xbar)
@@ -155,13 +238,16 @@ module rv_tester_mem #(
     `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_xbar, addr_xbar, id_slv_xbar, user_xbar)
     `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_xbar, data_xbar, id_mst_xbar, user_xbar)
     `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_xbar, data_xbar, id_slv_xbar, user_xbar)
+    `AXI_TYPEDEF_REQ_T(slv_req_xbar, slv_aw_chan_xbar, w_chan_xbar, slv_ar_chan_xbar)
     `AXI_TYPEDEF_REQ_T(mst_req_xbar, mst_aw_chan_xbar, w_chan_xbar, mst_ar_chan_xbar)
     `AXI_TYPEDEF_RESP_T(mst_resp_xbar, mst_b_chan_xbar, mst_r_chan_xbar)
+    `AXI_TYPEDEF_RESP_T(slv_resp_xbar, slv_b_chan_xbar, slv_r_chan_xbar)
     
-
     mst_req_xbar [1:0] mem_req_t;
     mst_resp_xbar [1:0] mem_resp_t;
-
+    // Xbar slave side connections (from rdly modules)
+    slv_req_xbar [NumMasters-1:0] axi_req_xbar;
+    slv_resp_xbar [NumMasters-1:0] axi_resp_xbar;
     axi_xbar #(
         .Cfg  (xbar_cfg),
         .slv_aw_chan_t  ( slv_aw_chan_xbar ),
@@ -173,8 +259,8 @@ module rv_tester_mem #(
         .mst_ar_chan_t  ( mst_ar_chan_xbar ),
         .slv_r_chan_t   ( slv_r_chan_xbar  ),
         .mst_r_chan_t   ( mst_r_chan_xbar  ),
-        .slv_req_t      ( slv_req_t     ),
-        .slv_resp_t     ( slv_resp_t    ),
+        .slv_req_t      ( slv_req_xbar  ),
+        .slv_resp_t     ( slv_resp_xbar ),
         .mst_req_t      ( mst_req_xbar     ),
         .mst_resp_t     ( mst_resp_xbar    ),
         .rule_t         ( rule_t        )
@@ -339,15 +425,18 @@ module rv_tester_mem #(
 ///////////////bypassing cache//////////////////////
 
     localparam ID_WIDTH_DIFF = $clog2(NumMasters) + 1;
-
+    localparam ID_WIDTH_DIFF_RDLY = AxiIdWidthMstRDly - AxiIdWidth;
     slv_req_t temp_1;
     mst_req_t temp_2;
     slv_resp_t temp_3;
     mst_resp_t temp_4;
     mst_req_xbar temp_5;
-    mst_resp_xbar temp_6;  
+    mst_resp_xbar temp_6;
+    slv_req_xbar temp_7;
+    slv_resp_t temp_8;
+
     always_comb begin
-	if(bypass_mem) begin
+	if(!rv_tester_enable_llc) begin
 	    for(int i=0;i<NumMasters;i++) begin
 		temp_1 = axi_req[i];
 		/* verilator lint_off WIDTH */
@@ -369,13 +458,42 @@ module rv_tester_mem #(
 		axi_req_mst[i] = '0;
 	    end 
 		mem_resp_t[1] = '0;			
-		axi_req_xbar = '0;			
+		axi_req_rdly = '0;			
 		axi_resp_mst_imm = '0;
             temp_5 = '0;
             temp_6 = '0;
+            temp_7 = '0;
+            temp_8 = '0;
+        axi_resp_to_rdly = '0;
+        axi_req_from_rdly = '0;
+        axi_req_xbar = '0;
+        axi_resp_rdly = '0;
 	end else begin
-	    axi_req_xbar = axi_req;
-	    axi_resp = axi_resp_xbar;
+
+        if (RespDelayModule) begin: resp_delay_connections
+            for (int i = 0; i < NumMasters; i++) begin
+                axi_req_rdly[i] = axi_req[i];
+                axi_resp[i] = axi_resp_rdly[i];
+                axi_resp_to_rdly[i] = axi_resp_xbar[i];
+                    /* verilator lint_off WIDTH */
+                    `AXI_SET_REQ_STRUCT(temp_7, axi_req[i]);
+                    /* verilator lint_on WIDTH */
+                    temp_7.ar.id = rdly_ar_id[i];
+                axi_req_from_rdly[i] = temp_7;
+                /* verilator lint_off WIDTH */
+                `AXI_SET_REQ_STRUCT(axi_req_xbar[i], axi_req_from_rdly[i]);
+                /* verilator lint_on WIDTH */
+            end
+        end else begin: resp_delay_bypass_connections
+            axi_req_xbar = axi_req;
+            axi_resp = axi_resp_xbar;
+            axi_req_rdly = '0;
+            axi_resp_to_rdly = '0;
+            axi_req_from_rdly = '0;
+            axi_resp_rdly = '0;
+            temp_7 = '0;
+        end
+        
             axi_req_mst[0] = axi_req_mst_imm;	
 	    axi_resp_mst_imm = axi_resp_mst[0];
             temp_5 = mem_req_t[1];
@@ -397,6 +515,8 @@ module rv_tester_mem #(
             end	
 	    temp_1 = '0;
             temp_3 = '0;
+            temp_8 = '0;
+        
 	end
     end
 
@@ -414,7 +534,7 @@ module rv_tester_mem #(
 		flush_complete_delayed_1		  <= '0;
                 flush_complete_delayed_2                  <= '0;
         end else begin
-                flush_cache_delayed_1                     <= flush_cache & !bypass_mem;
+                flush_cache_delayed_1                     <= flush_cache & rv_tester_enable_llc;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
 		flush_cache_delayed_3			  <= flush_cache_delayed_2;
 		flush_complete_delayed_1	          <= |reg_cfg_hw_to_reg.cfg_flush;
@@ -529,7 +649,7 @@ module rv_tester_mem #(
         end
     end
 
-    assign flush_complete = flush_complete_reg || bypass_mem;
+    assign flush_complete = flush_complete_reg || !rv_tester_enable_llc;
 
 
 
