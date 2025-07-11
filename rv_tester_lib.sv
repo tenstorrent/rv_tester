@@ -56,3 +56,67 @@ module rv_tester_sync3 (
 
 endmodule
 
+module rv_tester_fifo #(
+    parameter  int unsigned D = 1,
+    parameter  type         T = logic,
+    parameter  bit          ENABLE_RANDOM_ACCESS_WRITE = 0,  // Enable selective field updates with write mask
+    localparam type         ptr_t = logic[$clog2(D+1)-1:0],
+    localparam type         idx_t = logic[($clog2(D) > 0 ? $clog2(D)-1 : 0):0]
+)(
+    input  logic                clk,
+    input  logic                reset_n,
+    input  logic                push,
+    input  T                    d,
+    input  logic                wr_en, 
+    input  idx_t                wr_idx,
+    input  T                    wr_data,
+    input  T                    wr_mask,
+    input  logic                pop,
+    output T                    q,
+    output ptr_t                size,
+    output logic                full,
+    output logic                empty,
+    output ptr_t                push_ptr,
+    output ptr_t                pop_ptr                
+);
+
+    if ((D & (D-1)) != 0)
+        $error("Depth %0d not a power of 2, modulo operator below is going to be more gates", D);
+
+    ptr_t rptr, wptr;
+    T ram[D];
+
+    assign size  = wptr - rptr;
+    assign full  = size == ptr_t'(D);
+    assign empty = size == '0;
+    assign push_ptr = wptr;
+    assign pop_ptr  = rptr;
+    localparam int M = D > 1 ? $clog2(D) : 1;
+
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            // Properly initialize all signals during reset
+            rptr <= '0;
+            wptr <= '0;
+            
+        end else begin
+            // Normal operation
+            rptr <= rptr + ptr_t'(pop);
+            wptr <= wptr + ptr_t'(push);
+            if (push) begin
+                ram[M'(wptr % ptr_t'(D))] <= d;
+            end
+            if (ENABLE_RANDOM_ACCESS_WRITE && wr_en) begin
+                ram[idx_t'(wr_idx)] <= (ram[idx_t'(wr_idx)] & ~wr_mask) | (wr_data & wr_mask);
+            end
+        end
+    end
+
+    push_when_full: assert property(@(posedge clk) disable iff(!reset_n) push -> !full)
+        else $error("pushing when fifo is full");
+    pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
+        else $error("popping when fifo is empty");
+
+    assign q = ram[M'(rptr % ptr_t'(D))];
+
+endmodule

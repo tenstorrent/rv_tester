@@ -1103,7 +1103,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
     if (prev_hw_mip_[d.icause]) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch: Resynch and keep going. cause: {})\n", w.time, d.icause);
-      if (d.icause != 9) { 
+      if (d.icause != 9) {
         std::bitset<64> mip = 0;
         peek_mip(hart, w.time, mip);
         poke_mip(hart, w.time, mip| std::bitset<64> ((uint64_t)1 << d.icause));
@@ -2435,6 +2435,14 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
     }
   }
 
+  // Disable MCM when tohost is written through mcm bypass
+  if (m.pa == FLAGS_tohost && m.data == 0x1) {
+    bool valid = false;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, valid) || !valid) {
+      error("Hart {}: Failed to disable MCM\n", hart);
+    }
+  }
+
   if (FLAGS_bridge_log)
     bridge_log_(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, vec={}, addr={:#x}, size={}, data={:#x}, cache={}]\n",
       m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data,cache);
@@ -3012,7 +3020,7 @@ bool bridge::is_csr_allowlist(uint64_t addr) {
 
 bool bridge::is_csr_allowlist(const std::string& csr_name) {
     for (const auto& [addr, csr] : csrs) {
-        if (csr.name.find(csr_name) != std::string::npos) {
+        if (csr_name.find(csr.name) != std::string::npos) {
             return csr.allowlist_custom_csr;
         }
     }

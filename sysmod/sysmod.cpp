@@ -92,6 +92,8 @@ DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 // Overlay MMR Checker
 DEFINE_bool(overlay_mmr_check, true, "Enable Scratchpad MMR read/write data checks from Overlay port");
+// CLUSTER AXI->SC-SP Performance testing
+DEFINE_bool(cluster_axi_sp_perf, false, "Enable Cluster AXI->SC-SP Performance testing");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -649,7 +651,7 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
-    if (!FLAGS_bypass_cache && !FLAGS_bypass_mem)
+    if (!FLAGS_rv_tester_mem_bypass_cache && FLAGS_rv_tester_enable_llc)
       cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_write: caching is enabled in rv_tester and it does not receive DMAs, so the test could fail if the CPU does a read to this address as it will receive the stale cached data");
 
     cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
@@ -779,7 +781,7 @@ sysmod::backdoor_read(uint64_t address) {
 
 void
 sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
-    if (!FLAGS_bypass_cache && !FLAGS_bypass_mem)
+    if (!FLAGS_rv_tester_mem_bypass_cache && FLAGS_rv_tester_enable_llc)
       cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_read: caching is enabled in rv_tester and it does not receive DMAs, so this backdoor read might receive stale data");
 
     cvm::log(cvm::HIGH, "[SYSMOD] uc_helper_backdoor_read addr {:#x} \n", r.addr);

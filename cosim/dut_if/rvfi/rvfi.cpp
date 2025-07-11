@@ -252,7 +252,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       cvm::log(cvm::HIGH, "Enter patch via exception\n");
       if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
-      patch_mode_first_tag_ = m_trap.order;
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
@@ -913,13 +912,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   // Handle tags
   if (vec_cmode_tags_.contains(m_mcmi_read.order))
       m.tag = vec_cmode_tags_[m_mcmi_read.order];
-  else if (vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
+  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
   }
   else if (patch_mode_tags_.contains(m_mcmi_read.order))
       m.tag = patch_mode_tags_[m_mcmi_read.order];
-  else if (patch_mode_) {
+  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_read.order >= patch_mode_first_tag_)) {
       patch_mode_tags_.emplace(m_mcmi_read.order, patch_mode_first_tag_);
       m.tag = patch_mode_first_tag_;
   } else
@@ -1127,13 +1126,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   // Handle tags
   if (vec_cmode_tags_.contains(m_mcmi_insert.order))
       m.tag = vec_cmode_tags_[m_mcmi_insert.order];
-  else if (vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
+  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
   }
   else if (patch_mode_tags_.contains(m_mcmi_insert.order))
       m.tag = patch_mode_tags_[m_mcmi_insert.order];
-  else if (patch_mode_) {
+  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_insert.order >= patch_mode_first_tag_)) {
       patch_mode_tags_.emplace(m_mcmi_insert.order, patch_mode_first_tag_);
       m.tag = patch_mode_first_tag_;
   } else
@@ -1216,14 +1215,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
     m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
 
-  } else if (vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
+  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
 
   } else if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
     m.tag = patch_mode_tags_[m_mcmi_bypass.order];
 
-  } else if (patch_mode_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
+  } else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
     patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
     m.tag = patch_mode_first_tag_;
 
@@ -1254,7 +1253,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         return;
       }
       if(m_mcmi_bypass.attr == 0x1000) {
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true); 
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
         // Setting the Cache flag to true for CBO
       }
       else {
@@ -1334,7 +1333,7 @@ void rvfi::process_amo(mem_t& read) {
   m.cycle = read.cycle;
   amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
-  
+
 bridge_->process_dut_mcm_bypass(m.hart, m, true);
   amo_writes_.erase(read.tag);
 }
@@ -1505,7 +1504,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
 
   if (terminated_ || in_reset_)
     return;
-  
+
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
@@ -1621,9 +1620,22 @@ bool rvfi::check_axi_error(uint64_t addr) {
     // Check all AXI instances
     for (const auto& loc : cvm::topology::get_from_type(type)) {
         if (loc != cvm::topology::null) {
-            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr);
+            size_t count = 0;
+            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr, count);
             if (has_error) {
-                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured\n", addr);
+                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured, count={}\n", addr, count);
+                return true;
+            }
+        }
+    }
+
+    // Also check NCIO_AXI instances
+    for (const auto& loc : cvm::topology::get_from_type("NCIO_AXI")) {
+        if (loc != cvm::topology::null) {
+            size_t count = 0;
+            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr, count);
+            if (has_error) {
+                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured (NCIO_AXI), count={}\n", addr, count);
                 return true;
             }
         }
