@@ -247,17 +247,17 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
-    bit [5:0]           rd_addr     [NRET    ]; //register-retire load enable
-    bit [5:0]           frd_addr    [NRET    ]; //register-retire load enable
-    bit [5:0]           vrd_addr    [NRET    ]; //register-retire load enable
+    logic [5:0]           rd_addr     [NRET    ]; //register-retire load enable
+    logic [5:0]           frd_addr    [NRET    ]; //register-retire load enable
+    logic [5:0]           vrd_addr    [NRET    ]; //register-retire load enable
     bit                 rd_load     [NGP_REGS]; //register-retire load enable
     bit                 frd_load    [NFP_REGS];
     bit                 vrd_load    [NVC_REGS];
-    bit [GP_WIDTH-1:0]  rd_wdata    [NRET    ];
+    logic [GP_WIDTH-1:0]  rd_wdata    [NRET    ];
     bit [NGP_REGS-1:0][GP_WIDTH-1:0]  gp_wdata_in;
-    bit [FP_WIDTH-1:0]  frd_wdata   [NRET    ];
+    logic [FP_WIDTH-1:0]  frd_wdata   [NRET    ];
     bit [NFP_REGS-1:0][FP_WIDTH-1:0]  fp_wdata_in;
-    bit [VC_WIDTH-1:0]  vrd_wdata   [NRET    ];
+    logic [VC_WIDTH-1:0]  vrd_wdata   [NRET    ];
     bit [NVC_REGS-1:0][VC_WIDTH-1:0]  vc_wdata_in;
     bit                 gp_reg_written;
     bit                 fp_reg_written;
@@ -310,11 +310,11 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                    send_steps;
     bit                    rvfi_first_valid;
     bit [63:0]             val0_order;
-    bit                    rvgp_valids[NRET];
+    logic                    rvgp_valids[NRET];
     bit [NRET-1:0]         gp_loadn[NGP_REGS-1:0];
     bit                    gp_load[NGP_REGS-1:0];
-    bit                    rvfp_valids[NRET];
-    bit                    rvvc_valids[NRET];
+    logic                    rvfp_valids[NRET];
+    logic                    rvvc_valids[NRET];
     bit [NRET-1:0]         sc_rw;                           // instr= sc..  poke
     bit [NRET-1:0]         csr_rw;                          // instr= csr..  poke
     bit [NRET-1:0]         msret;                           // instr= mret or sret  poke
