@@ -1139,12 +1139,17 @@ import rv_tester_params:: * ;
           poll = 0;
         end else if(read_data0_comp) begin
           $display("data0_stored_value:%h data0_read_value:%h", data0_value, dmi_resp.data);
-          if(data0_value === dmi_resp.data) begin
-            read_data1_comp = 1; 
-            $display("read_data1_comp is set");
-          end else begin
+          if(disable_mem_access_checker) begin
             poll = 0;
-            $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data0 - Written: 0x%h, Read: 0x%h", data0_value, dmi_resp.data);
+            $display("Mem Access checker is disabled");
+          end else begin
+            if(data0_value === dmi_resp.data) begin
+              read_data1_comp = 1; 
+              $display("read_data1_comp is set");
+            end else begin
+              poll = 0;
+              $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data0 - Written: 0x%h, Read: 0x%h", data0_value, dmi_resp.data);
+            end
           end
           read_data0_comp = 0;
         end else if(read_data1_comp) begin
@@ -1152,6 +1157,7 @@ import rv_tester_params:: * ;
           if(data1_value === dmi_resp.data) begin
             if(mmr_read_32bits) begin
               mmr_read_32bits = 0;
+              poll = 0;
               $display("all data reg read completed for 32bit read");
             end else if(mmr_read_64bits) begin
               read_data2_comp = 1;
