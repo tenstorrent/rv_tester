@@ -455,7 +455,7 @@ namespace {
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
       CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)              \
-      CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, false)              \ // @travi - enable check once RVDE-25330 is fixed
+      CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, false)              \
       CSR(C_MISA_RVA23U64_O,           0xBCB, "c_misa_rva23u64_O", true, true, 0, true)              \
       CSR(C_MISA_RVA23S64_M,           0xBCC, "c_misa_rva23s64_M", true, true, 0, true)              \
       CSR(C_MISA_RVA23S64_O,           0xBCD, "c_misa_rva23s64_O", true, true, 0, true)              \
