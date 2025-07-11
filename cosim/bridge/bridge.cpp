@@ -3017,7 +3017,7 @@ bool bridge::is_csr_allowlist(uint64_t addr) {
 
 bool bridge::is_csr_allowlist(const std::string& csr_name) {
     for (const auto& [addr, csr] : csrs) {
-        if (csr_name.find(csr.name) != std::string::npos) {
+        if (csr.name.find(csr_name) != std::string::npos) {
             return csr.allowlist_custom_csr;
         }
     }
