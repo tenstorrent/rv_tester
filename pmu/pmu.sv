@@ -285,6 +285,7 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.op_retired_csr = 24'(pmcounter[OP_RETIRED_CSR]);
     assign pmcounters_cores[0].data.op_retired_fp = 24'(pmcounter[OP_RETIRED_FP]);
     assign pmcounters_cores[0].data.op_retired_vec = 24'(pmcounter[OP_RETIRED_VEC]);
+    assign pmcounters_cores[0].data.uop_retired_any = 24'(pmcounter[UOP_RETIRED_ANY]);
     assign pmcounters_cores[0].data.op_complete_ld = 24'(pmcounter[OP_COMPLETE_LD]);
     assign pmcounters_cores[0].data.op_complete_st = 24'(pmcounter[OP_COMPLETE_ST]);
     assign pmcounters_cores[0].data.op_complete_int = 24'(pmcounter[OP_COMPLETE_INT]);
