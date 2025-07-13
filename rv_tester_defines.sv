@@ -525,6 +525,7 @@ package rv_tester_params;
         OP_RETIRED_CSR,
         OP_RETIRED_FP,
         OP_RETIRED_VEC,
+        UOP_RETIRED_ANY,
         OP_COMPLETE_LD,
         OP_COMPLETE_ST,
         OP_COMPLETE_INT,

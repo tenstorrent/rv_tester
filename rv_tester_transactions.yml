@@ -883,6 +883,8 @@ pmu_core:
                 width: 24
             op_retired_vec:
                 width: 24
+            uop_retired_any:
+                width: 24
             op_complete_ld:
                 width: 24
             op_complete_st:
