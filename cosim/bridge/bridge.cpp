@@ -1122,19 +1122,24 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
         w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
+
+    std::bitset<64> timing_case_w_mip;
+    peek_mip(hart, w.time, timing_case_w_mip);
+    uint64_t w_defer_mip = 0;
+    bool valid;
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::DeferredInterrupts, w_defer_mip, valid)|| !valid) && FLAGS_whisper_client_check)
+      error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
+
     if (prev_hw_mip_[d.icause]) {
-      std::bitset<64> timing_case_w_mip;
-      bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
-        w.time, d.icause);
-      uint64_t w_defer_mip = 0;
-      bool valid;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::DeferredInterrupts, w_defer_mip, valid)|| !valid) && FLAGS_whisper_client_check)
-        error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
-      peek_mip(hart, w.time, timing_case_w_mip);
+      bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",w.time, d.icause);
       if(d.icause != 9)
         poke_mip(hart, w.time, timing_case_w_mip.to_ullong() | (uint64_t)1 << d.icause); // Combination of case 1 and 2 where whisper is not seeing the interrupt currently being serviced by DUT and there is another interrupt also pending in both DUT and whisper.
       defer_interrupt(hart, w.time, (mip_.to_ullong()|w_defer_mip) & ~((uint64_t)1 << d.icause));
       timing_case2 = 1;
+    } else {
+      bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Defer and check)\n", w.time, w_cause);
+      deferred_interrupt_ = w_cause;
+      defer_interrupt(hart, w.time, (uint64_t(1) << w_cause));
     }
     return;
   }
@@ -1198,7 +1203,10 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       return;
 
     print_instr_stdout(hart, w);
-    error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
+    if (!deferred_interrupt_)
+      error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
+    else
+      error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, deferred_interrupt_);
     return;
   }
 
@@ -1224,7 +1232,8 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     poke_mip(hart, d.cycle, resynch_mip);
   }
 
-  if(timing_case2){
+  if(timing_case2 || deferred_interrupt_) {
+    deferred_interrupt_ = 0;
     defer_interrupt(hart, w.time, 0);
     timing_case2 = 0;
   }
