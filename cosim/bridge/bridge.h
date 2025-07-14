@@ -346,6 +346,7 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
@@ -366,8 +367,6 @@ private:
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
-  bool pre_undeferred_intr_;
-  bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
