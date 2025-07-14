@@ -77,7 +77,7 @@ import rv_tester_params::*;
    bit        hard_reset_pending;        // Indicates if a hard reset is pending
    bit        soft_reset_pending;        // Indicates if a soft reset is pending
    
-
+   bit        jtag_sp_boot;
 
    initial begin
      jtag_enable_end = 0;
@@ -105,6 +105,7 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
         jtag_socket_en <= jtag_driver_get_socket_en_from_plusargs("jtag_driver_mode");
+        jtag_sp_boot   <= cvm_plusargs::get_bool("jtag_sp_boot") != '0;
       end
     end
   end
@@ -125,7 +126,7 @@ import rv_tester_params::*;
       jtag_enable_begin_sv <= jtag_enable_begin_cpp;
       jtag_enable_end <= '0;
     end else begin
-      if (jtag_socket_en  && ~|no_fetch) begin
+      if (jtag_socket_en  && (~|no_fetch | jtag_sp_boot)) begin
         tb_clocks <= tb_clocks + 1;
         jtag_socket_start <= '0;
         jtag_socket_end <= '0;
@@ -152,7 +153,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ~no_fetch & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & (~no_fetch| jtag_sp_boot) & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   

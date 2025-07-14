@@ -197,6 +197,8 @@ public:
       OP_RETIRED_FP,
       //Event for every retired vector operation. This does not include Load or Store operations
       OP_RETIRED_VEC,
+      //Event for every retired uop of any kind.
+      UOP_RETIRED_ANY,
       //Event (speculative) for every confirmed load operation. This does not include Load or Store operations
       OP_COMPLETE_LD,
       //Event (speculative) for every confirmed store operation. This does not include Load or Store operations
@@ -895,6 +897,7 @@ public:
       counters_core[counter_core::OP_RETIRED_CSR] = counters_core[counter_core::OP_RETIRED_CSR] + ((pmcounters.op_retired_csr - (counters_core[counter_core::OP_RETIRED_CSR] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_RETIRED_FP] = counters_core[counter_core::OP_RETIRED_FP] + ((pmcounters.op_retired_fp - (counters_core[counter_core::OP_RETIRED_FP] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_RETIRED_VEC] = counters_core[counter_core::OP_RETIRED_VEC] + ((pmcounters.op_retired_vec - (counters_core[counter_core::OP_RETIRED_VEC] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::UOP_RETIRED_ANY] = counters_core[counter_core::UOP_RETIRED_ANY] + ((pmcounters.uop_retired_any - (counters_core[counter_core::UOP_RETIRED_ANY] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_COMPLETE_LD] = counters_core[counter_core::OP_COMPLETE_LD] + ((pmcounters.op_complete_ld - (counters_core[counter_core::OP_COMPLETE_LD] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_COMPLETE_ST] = counters_core[counter_core::OP_COMPLETE_ST] + ((pmcounters.op_complete_st - (counters_core[counter_core::OP_COMPLETE_ST] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_COMPLETE_INT] = counters_core[counter_core::OP_COMPLETE_INT] + ((pmcounters.op_complete_int - (counters_core[counter_core::OP_COMPLETE_INT] % casting_size_term)) % casting_size_term);
@@ -1291,6 +1294,7 @@ public:
       {OP_RETIRED_CSR,"op_retired_csr"},
       {OP_RETIRED_FP,"op_retired_fp"},
       {OP_RETIRED_VEC,"op_retired_vec"},
+      {UOP_RETIRED_ANY,"uop_retired_any"},
       {OP_COMPLETE_LD,"op_complete_ld"},
       {OP_COMPLETE_ST,"op_complete_st"},
       {OP_COMPLETE_INT,"op_complete_int"},
@@ -1685,6 +1689,7 @@ public:
       {0x14610080,counter_core::OP_RETIRED_CSR},
       {0x14610100,counter_core::OP_RETIRED_FP},
       {0x14610200,counter_core::OP_RETIRED_VEC},
+      {0x14610400,counter_core::UOP_RETIRED_ANY},
       {0x14620001,counter_core::OP_COMPLETE_LD},
       {0x14620002,counter_core::OP_COMPLETE_ST},
       {0x14620004,counter_core::OP_COMPLETE_INT},
@@ -2016,6 +2021,7 @@ public:
             {0x0080,counter_core::OP_RETIRED_CSR},
             {0x0100,counter_core::OP_RETIRED_FP},
             {0x0200,counter_core::OP_RETIRED_VEC},
+            {0x0400,counter_core::UOP_RETIRED_ANY},
             }
       },
       {0x2180,{
