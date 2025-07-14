@@ -20,6 +20,7 @@ import rv_tester_params:: * ;
         input logic[63: 0] AcMtimei,
         input logic[8: 0] AcMtipi,
         input logic SmcMtipi,
+        input logic AcChk_pll_interrupts_in,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -256,7 +257,9 @@ import rv_tester_params:: * ;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
     always @(posedge terminate) begin
-        if (!reset && enable_checks) check_outstanding_transactions(location);
+        // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
+        // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
+        if (!reset && !AcChk_pll_interrupts_in && enable_checks) check_outstanding_transactions(location);
     end
 
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
