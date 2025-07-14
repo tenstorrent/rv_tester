@@ -224,7 +224,9 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
+    int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
+    LU cvm_debug_cycle_on = '0;
+    LU cvm_debug_cycle_off = '0;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -283,6 +285,7 @@ module rv_tester
         rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
 
+
         `ifndef NO_TIMESTAMP
             current_time <= $time;
         `else
@@ -324,6 +327,19 @@ module rv_tester
         end
 
     end
+
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (!rv_tester_reset && cvm_debug_cycle_off > 0) begin
+            if (curr_cvm_verbosity != cvm_debug_verbosity && clocks >= cvm_debug_cycle_on && clocks <= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_debug_verbosity);
+                curr_cvm_verbosity <= cvm_debug_verbosity;
+            end else if (curr_cvm_verbosity != cvm_verbosity && clocks >= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_verbosity);
+                curr_cvm_verbosity <= cvm_verbosity;
+            end
+        end
+    end
+
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
@@ -400,7 +416,7 @@ module rv_tester
     */
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
-        automatic int _;
+        automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
         if (rv_tester_reset) begin
 
@@ -424,9 +440,9 @@ module rv_tester
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             // Using nested function calls in cvm as Palladium doesn't support strings
-            cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
-            gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+            _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+            _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
             warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
@@ -459,14 +475,13 @@ module rv_tester
             clk_profile                     <= cvm_plusargs::get_int("clk_profile");
             dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks                      <= cvm_verbosity >= gen_clocks_verbosity;
-            gen_timestamp                   <= cvm_verbosity >= gen_timestamp_verbosity;
+            gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
+            gen_timestamp                   <= _cvm_verbosity >= _gen_timestamp_verbosity;
             rv_tester_enable_llc            <= cvm_plusargs::get_bool("rv_tester_enable_llc") != '0;
             rv_tester_mem_bypass_cache      <= cvm_plusargs::get_bool("rv_tester_mem_bypass_cache") != '0;
             rv_tester_mem_delay             <= cvm_plusargs::get_int("rv_tester_mem_delay");
             assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
             sdtrig_display                  <= cvm_plusargs::get_bool("sdtrig_display") != '0;
-
             dm_model_bypass                 <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable                    <= cvm_plusargs::get_int("debug_enable");
             trace_en                        <= cvm_plusargs::get_bool("trace_en") != '0;
@@ -479,6 +494,12 @@ module rv_tester
             ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
+
+            cvm_verbosity        <= _cvm_verbosity;
+            curr_cvm_verbosity   <= _cvm_verbosity;
+            cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+            cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+            cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
 
         end
         clock_mode           <= clk_profile[2:0];
