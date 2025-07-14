@@ -987,7 +987,7 @@ module rv_tester
                 .warm_reset_req(warm_reset_req),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
-                .core_no_fetch(|core_no_fetch),
+                .core_no_fetch(&core_no_fetch),
                 .tj_shutdown(tj_shutdown),
                 .tj_max(tj_max),
                 .pll_dfs_done(pll_dfs_done),
