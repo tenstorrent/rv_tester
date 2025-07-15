@@ -24,8 +24,8 @@ import rv_tester_params:: * ;
     input logic [31:0]              num_harts,
     input logic                     sdtrig_display,
     input logic                     nonexistent_hart,
+    input logic [31:0]              abscmd_hang_counter,
 
-    
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
     input rv_tester_pkg::dmi_resp_t dmi_resp,
@@ -89,6 +89,7 @@ import rv_tester_params:: * ;
   logic read_data2, read_data3, get_data2, get_data3, end_of_test_cleanup;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value, core_id_hit, core_hartsel_hit;
   logic [7:0] DM_DebugReq_Valids_q;
+  int abscmd_counter;
   typedef struct packed {
     logic [15:0] reg_addr;
     logic [63:0] reg_data;
@@ -868,6 +869,16 @@ import rv_tester_params:: * ;
                 abs_read_data = 1;
               end else begin
                 poll = 0;
+              end
+            end
+            if(abscmd_hang_counter) begin
+              if(abscmd_counter == abscmd_hang_counter)begin
+                abstr_cmd_req = 0;
+                poll = 0;
+                $display("[Poll] Clearing abc cmd poll as the core is hung; abscmd_counter: %0d", abscmd_counter);
+              end else begin
+                abscmd_counter += 1;
+                $display("[Poll] Decrementing abscmd_counter: %0d", abscmd_counter);
               end
             end
             if(expect_cmd_err_excp)begin
