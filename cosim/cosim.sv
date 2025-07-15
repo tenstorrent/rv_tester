@@ -238,6 +238,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit cache_model_enabled;
     bit offline_dpi_test;                          // this disables the sending of mcmi_bypass and mcmi_insert even when to_host == 1
     bit poke_mip_timer;
+    bit timeout_scale_en;                          // enable timeout scaling via DPI calls
 
     //int mcm_value;
     longint unsigned psc_off_low  = 0;
@@ -615,9 +616,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         for(int i = 0; i < 2; i = i+1) begin
           if(reset) begin
             writeback_cl_addr_d1[i] <= '0;
-            dfetch_cl_addr_d1[i] <= '0; 
-            flush_cl_addr_d1 <= '0; 
-            devict_cl_addr_d1 <= '0;        
+            dfetch_cl_addr_d1[i] <= '0;
+            flush_cl_addr_d1 <= '0;
+            devict_cl_addr_d1 <= '0;
           end
 
           if(devict_cl_valid) begin
@@ -1247,7 +1248,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
     assign m_mcmi_devicts[0].data.location = location;
     assign m_mcmi_devicts[0].data.cycle = devict_cl_valid ? clocks : '0;
-    assign m_mcmi_devicts[0].data.hart = NUM;        
+    assign m_mcmi_devicts[0].data.hart = NUM;
     assign m_mcmi_devicts[0].data.addr = (devict_cl_addr >> 6) << 6; // align to cacheline boundary
 
     // m_mcmi_flush
@@ -1438,12 +1439,12 @@ localparam CAM_IHBIT = CAM_IBITS;
       end
     end
 
-    // Capture DPI result only when triggered
+    // Capture DPI result only when triggered and DPI scaling is enabled
     always_ff @(posedge tb_clk) begin
-      if (should_update_max_cycle) begin
+      if (should_update_max_cycle && timeout_scale_en) begin
         updated_max_cycle       <= get_max_cycle();
         max_cycle_update_valid  <= 1;
-      end else if (should_update_max_stall_cycle) begin
+      end else if (should_update_max_stall_cycle && timeout_scale_en) begin
         updated_max_stall_cycle <= get_max_stall_cycle();
         max_stall_cycle_update_valid <= 1;
       end else begin
@@ -1465,6 +1466,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
+        timeout_scale_en <= (cvm_plusargs::get_bool("timeout_scale_en") != '0);
 
 
         /* verilator lint_on BLKSEQ */
@@ -1487,6 +1489,10 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
+        end else if (!timeout_scale_en && should_update_max_cycle && cosim_terminate_sent == '0) begin
+          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          cosim_terminate();
+          cosim_terminate_sent <= 1'b1;
         end
         if (max_stall_cycle_update_valid) begin
           if (max_stall_cycle < updated_max_stall_cycle) begin
@@ -1497,6 +1503,10 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
+        end else if (!timeout_scale_en && should_update_max_stall_cycle && cosim_terminate_sent == '0) begin
+          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          cosim_terminate();
+          cosim_terminate_sent <= 1'b1;
         end
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
