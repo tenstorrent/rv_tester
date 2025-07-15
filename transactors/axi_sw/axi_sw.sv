@@ -216,7 +216,7 @@ module axi_sw #(
     logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
     id_t fast_axi_slv_b_id;
     logic [1:0] fast_axi_slv_b_resp;
-    axi_sw_fifo #(
+    rv_tester_fifo #(
         .D         (1),
         .T         (logic[$bits(id_t)+2-1:0])
     ) fast_b_queue (
@@ -231,7 +231,7 @@ module axi_sw #(
     );
 
     logic w_last_queue_full, w_last_queue_empty;
-    axi_sw_fifo #(
+    rv_tester_fifo #(
         .D         (1),
         .T         (logic)
     ) w_last_queue (
@@ -426,7 +426,7 @@ module axi_sw #(
     logic [CW         -1:0] ar_history_q;
     logic [$clog2(AR_HISTORY_Q_MAX+1)-1:0] ar_history_size;
 
-    axi_sw_fifo #(
+    rv_tester_fifo #(
         .D(AR_HISTORY_Q_MAX),
         .T(logic[CW-1:0])
     ) ar_history (
@@ -445,7 +445,7 @@ module axi_sw #(
     logic [CW         -1:0] aw_history_q;
     logic [$clog2(AW_HISTORY_Q_MAX+1)-1:0] aw_history_size;
 
-    axi_sw_fifo #(
+    rv_tester_fifo #(
         .D(AW_HISTORY_Q_MAX),
         .T(logic[CW-1:0])
     ) aw_history (
@@ -516,57 +516,6 @@ module axi_sw #(
         end
       end
     end
-
-endmodule
-
-module axi_sw_fifo #(
-    parameter  int unsigned D = 1    ,
-    parameter  type         T = logic,
-    localparam type         ptr_t = logic[$clog2(D+1)-1:0]
-)(
-    input  logic                clk,
-    input  logic                reset_n,
-    input  logic                push,
-    input  T                    d,
-    input  logic                pop,
-    output T                    q,
-    output ptr_t                size,
-    output logic                full,
-    output logic                empty
-);
-
-    if ((D & (D-1)) != 0)
-        $error("Depth %0d not a power of 2, modulo operator below is going to be more gates", D);
-
-    ptr_t rptr, wptr;
-
-    T ram[D];
-
-    assign size  = wptr - rptr;
-    assign full  = size == ptr_t'(D);
-    assign empty = size == '0;
-
-    localparam int M = D > 1 ? $clog2(D) : 1;
-
-    always_ff @(posedge clk) begin
-        if (reset_n) begin
-            rptr <= rptr + ptr_t'(pop );
-            wptr <= wptr + ptr_t'(push);
-            if (push) begin
-                ram[M'(wptr % ptr_t'(D))] <= d;
-            end
-        end else begin
-            rptr <= '0;
-            wptr <= '0;
-        end
-    end
-
-    push_when_full: assert property(@(posedge clk) disable iff(!reset_n) push -> !full)
-        else $error("pushing when fifo is full");
-    pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
-        else $error("popping when fifo is empty");
-
-    assign q = ram[M'(rptr % ptr_t'(D))];
 
 endmodule
 

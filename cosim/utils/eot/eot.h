@@ -70,4 +70,3 @@ class eot {
     std::vector<std::pair<uint64_t, std::bitset<512>>> mem_lines_;
     bool eot_mem_checks_done_ = false;
 };
-

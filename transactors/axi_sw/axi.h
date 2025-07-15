@@ -151,7 +151,7 @@ class axi : public transactor {
                 w(w), id(id), addr(addr), len(len), size(size), burst(burst), lock(lock), cache(cache), prot(prot), qos(qos), region(region), atop(atop), user(user) {}
             a_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_t(const a_no_id_t& a) : w(a.w), addr(a.addr), len(a.len), size(a.size), burst(a.burst), lock(a.lock),
-              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk), seqid(a.seqid) {}
+              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk), allow_err_resp(a.allow_err_resp), seqid(a.seqid) {}
             a_t() = default;
             a_t(a_t&&) = default;
             a_t& operator=(a_t&&) = default;
@@ -238,11 +238,11 @@ class axi : public transactor {
         CVM_MESSENGER_procedure_call(configure_error_rpc, void ());
         CVM_MESSENGER_procedure_call(enable_error_rpc, void ());
         CVM_MESSENGER_procedure_call(disable_error_rpc, void ());
-        CVM_MESSENGER_procedure_call(check_error_rpc, bool (addr_t));
+        CVM_MESSENGER_procedure_call(check_error_rpc, bool (addr_t, size_t&));
         void configure_error();
         void enable_error();
         void disable_error();
-        bool check_error(addr_t addr);
+        bool check_error(addr_t addr, size_t& count);
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

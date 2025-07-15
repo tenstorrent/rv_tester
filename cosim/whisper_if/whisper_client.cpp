@@ -504,13 +504,13 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.hart = hart;
   req.type = WhisperMessageType::Poke;
   req.resource = resource;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.value = value;
   req.time = time;
   req.size = size;
   req.tag[0] = 0;
 
-  cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
+  cvm::log(cvm::FULL, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
 
   if (not whisperCommand(req, reply))
     return false;
@@ -731,7 +731,7 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
   req.type = WhisperMessageType::McmInsert;
   req.time = time;
   req.instrTag = instrTag;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.size = size;   // Total size in bytes
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
@@ -745,7 +745,7 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmInsert(hart, time, instrTag, addr, size, value[0], elemIx, field, valid);
+    return whisperMcmInsert(hart, time, instrTag, (addr & ~FLAGS_pa_mask), size, value[0], elemIx, field, valid);
   }
 
   for (unsigned i = 0; i < size; ++i) {
@@ -769,7 +769,7 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
   req.type = WhisperMessageType::McmInsert;
   req.time = time;
   req.instrTag = instrTag;
-  req.address  = addr;
+  req.address  = addr & ~FLAGS_pa_mask;
   req.value    = value;
   req.size     = size;
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
@@ -802,7 +802,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
   req.type = WhisperMessageType::McmBypass;
   req.time = time;
   req.instrTag = instrTag;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.size = size;   // Total size in bytes
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
@@ -816,7 +816,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmBypass(hart, time, instrTag, addr, size, value[0], elemIx, field, cache, valid);
+    return whisperMcmBypass(hart, time, instrTag, (addr & ~FLAGS_pa_mask), size, value[0], elemIx, field, cache, valid);
   }
 
   for (unsigned i = 0; i < size; ++i) {
@@ -844,7 +844,7 @@ whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag,
   req.type = WhisperMessageType::McmBypass;
   req.time = time;
   req.instrTag = instrTag;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.value = value;
   req.size = size;
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
@@ -873,7 +873,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
   req.hart = hart;
   req.type = WhisperMessageType::McmWrite;
   req.time = time;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.size = size;
   req.flags = 1;
   req.flags |= (error << 1);
@@ -953,7 +953,7 @@ whisperClient<URV>::whisperMcmDEvict(int hart, uint64_t time, uint64_t addr, boo
   req.hart = hart;
   req.type = WhisperMessageType::McmDEvict;
   req.time = time;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -973,14 +973,14 @@ whisperClient<URV>::whisperMcmDWriteback(int hart, uint64_t time, uint64_t addr,
   req.size = 0; // currently not sending data as a a part of writeback
   req.buffer.fill(0);
   req.value = 0;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
 
   if (not whisperCommand(req, reply)) {
     return false;
   }
 
   valid = reply.type != WhisperMessageType::Invalid;
-  cvm::log(cvm::MEDIUM, "valid : {}\n",valid);
+  cvm::log(cvm::FULL, "valid : {}\n",valid);
   return true;
 }
 
@@ -991,14 +991,14 @@ whisperClient<URV>::whisperMcmDFetch(int hart, uint64_t time, uint64_t addr, boo
   req.hart = hart;
   req.type = WhisperMessageType::McmDFetch;
   req.time = time;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
 
   if (not whisperCommand(req, reply)) {
     return false;
   }
 
   valid = reply.type != WhisperMessageType::Invalid;
-  cvm::log(cvm::MEDIUM, "dfetch valid : {}\n",valid);
+  cvm::log(cvm::FULL, "dfetch valid : {}\n",valid);
   return true;
 }
 
