@@ -14,7 +14,7 @@ public:
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t &c) = 0;
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t &m) = 0;
-  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t &m) = 0;
+  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t &m, bool cache) = 0;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t &m) = 0;
   virtual void process_dut_mcm_ifetch(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t &m) = 0;

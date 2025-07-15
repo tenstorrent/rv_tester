@@ -353,13 +353,17 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        cvm::registry::callbacks.push(
-            scope_,
-              [this]() {
-                  std::lock_guard<std::mutex> l(r_dpi_mutex_);
-                  r_dpi();
-              }
-        );
+        if (!scope_) {
+          cvm::log(cvm::ERROR, "Error: scope_ not set before pushing r_dpi callback\n");
+        } else {
+          cvm::registry::callbacks.push(
+              scope_,
+                [this]() {
+                    std::lock_guard<std::mutex> l(r_dpi_mutex_);
+                    r_dpi();
+                }
+          );
+        }
       }
     }
 }

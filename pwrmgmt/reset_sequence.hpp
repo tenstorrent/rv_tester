@@ -80,7 +80,7 @@ class reset_sequence {
     cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk = true);
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
-    cvm::messenger::task<void> program_thub_threshold();
+    cvm::messenger::task<void> program_thub_max_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
 

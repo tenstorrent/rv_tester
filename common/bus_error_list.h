@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 #include <sstream>
+#include <cstdio>
 
 /**
  * @brief Template class for managing bus error injection lists with configurable error policies

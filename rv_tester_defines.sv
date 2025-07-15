@@ -525,6 +525,7 @@ package rv_tester_params;
         OP_RETIRED_CSR,
         OP_RETIRED_FP,
         OP_RETIRED_VEC,
+        UOP_RETIRED_ANY,
         OP_COMPLETE_LD,
         OP_COMPLETE_ST,
         OP_COMPLETE_INT,
@@ -917,11 +918,14 @@ package rv_tester_params;
     output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
     output                                   tj_shutdown,                                           \
+    output                                   tj_max,                                                \
     output                                   pll_dfs_done,                                          \
+    output                                   pll_shutdown_done,                                     \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
+    input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -933,7 +937,15 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-    output [7:0]                             DM_DebugReq_Valids,                                    \
+    output [7:0]                             DM_DebugReq_Valids,                                  \
+    output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
+    output logic [1:0]                       dfetch_cl_valid,                                      \
+    output logic [51:0]                      writeback_cl_addr[1:0],                               \
+    output logic [1:0]                       writeback_cl_valid,                                    \
+    output logic [51:0]                      devict_cl_addr [rv_tester_params::NHARTS-1:0],         \
+    output logic                             devict_cl_valid [rv_tester_params::NHARTS-1:0],        \
+    output logic [51:0]                      flush_cl_addr [rv_tester_params::NHARTS-1:0],         \
+    output logic                             flush_cl_valid [rv_tester_params::NHARTS-1:0],        \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -1005,11 +1017,14 @@ package rv_tester_params;
     logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \
     logic                                    tj_shutdown;                                           \
+    logic                                    tj_max;                                                \
     logic                                    pll_dfs_done;                                          \
+    logic                                    pll_shutdown_done;                                     \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
+    logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
@@ -1035,6 +1050,14 @@ package rv_tester_params;
     rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
     rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
                                                                                                     \
+    logic [51:0]                             dfetch_cl_addr[1:0];                                        \
+    logic [1:0]                              dfetch_cl_valid;                                       \
+    logic [51:0]                             writeback_cl_addr[1:0];                                     \
+    logic [1:0]                              writeback_cl_valid;                                    \
+    logic [51:0]                             devict_cl_addr [rv_tester_params::NHARTS-1:0];         \
+    logic                                    devict_cl_valid [rv_tester_params::NHARTS-1:0];        \
+    logic [51:0]                             flush_cl_addr  [rv_tester_params::NHARTS-1:0];         \
+    logic                                    flush_cl_valid [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]       rvfi;        \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NREADS-1:0]      mcmi_read;   \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]    mcmi_insert; \

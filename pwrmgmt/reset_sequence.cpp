@@ -50,6 +50,7 @@ DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:
 DEFINE_string(rmw_csr_resetseq, "", "+rmw_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>:<mask>,... ");
 DEFINE_string(rmw_mmr_resetseq, "", "+rmw_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>:<mask>,... ");
 DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
+DEFINE_bool(fuse_based_clock_gating, true, "Enable clock gating based on fuse programming");
 
 extern "C" {
   void pwrmgmt_init();
@@ -268,7 +269,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if (FLAGS_fuse_mmr_check)
     co_await disabled_mmr_csr_check();
   
-  co_await program_thub_threshold();
+  co_await program_thub_max_threshold();
 
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
@@ -301,7 +302,7 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   if(FLAGS_clc4_nack) co_await disable_clc4_entry();
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
-  co_await program_thub_threshold();
+  co_await program_thub_max_threshold();
 
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
@@ -522,9 +523,13 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   cvm::log(cvm::HIGH, "[pwrmgmt] Programming fuse MMRs\n", trace_fuse_mmr);
-  for (uint32_t i = 0; i < ncores; ++i)
+  for (uint32_t i = 0; i < ncores; ++i) {
+    if (!FLAGS_fuse_based_clock_gating) {
+      uint64_t data = co_await read(cr_chicken_bits_mmr + i * core_fuse_offset, SZ_8B, boot_interface);
+      co_await write(cr_chicken_bits_mmr + i * core_fuse_offset, SZ_8B, data | !FLAGS_fuse_based_clock_gating, boot_interface);
+    }
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
-   
+  }   
   co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
@@ -954,13 +959,31 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
     co_await write(pm_mbox_reg, SZ_8B, w_data);
 }
 
-cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
+cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
   co_await tick();
   if(FLAGS_tj_max){
-    for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
-      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
-    };
-  };
+      switch (num_cores_-1) {
+          case 0:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              break;
+          case 1:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              break;
+          case 2:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,1);   // PMNW ID for THUB-1 
+              break;
+          case 7:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,0);   // PMNW ID for THUB-0 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,10,1);   // PMNW ID for THUB-1 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,11,2);   // PMNW ID for THUB-2 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,3);   // PMNW ID for THUB-3 
+              break;
+          default:
+              cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid NHARTS seen.. {} .... \n",num_cores_);
+      }
+  }
+  co_return;
 
  
 };

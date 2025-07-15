@@ -64,7 +64,7 @@ public:
   //   - Write (St cache write)
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
   virtual void process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
@@ -161,7 +161,7 @@ private:
   bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
-  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data);
+  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data, bool cache, bool skipmem);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -346,6 +346,7 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
@@ -366,8 +367,6 @@ private:
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
-  bool pre_undeferred_intr_;
-  bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;

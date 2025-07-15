@@ -7,6 +7,7 @@ DEFINE_bool(sp_xtor_rand_en, true, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
+DEFINE_bool(sp_xtor_ot_traffic_en, false, "Enable Outstanding transactions (rd,wr) to SC Scraptchpad memory region from Scraptchpad transactor ");
 DEFINE_bool(sp_xtor_test_cwfr, false, "Read SP data written by core ");
 DEFINE_bool(sp_xtor_test_fwcr, false, "Write SP data for core to read ");
 DEFINE_bool(sp_xtor_test_false_sharing, false, "false sharing test ");
@@ -49,15 +50,17 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         }
         cvm::log(cvm::LOW, "[scratchpad_random_sequence] Check Slice status for arry_init_done : {} \n", sc_slice_array_initial_done);
 
-	      cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
-        co_await axi_write_mmr_granular();
-        co_await axi_write_mmr_data_granular();
+        if (!FLAGS_cluster_axi_sp_perf) {
+          cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
+          co_await axi_write_mmr_granular();
+          co_await axi_write_mmr_data_granular();
 
-        // Delay
-        for (int i=0; i<6; i=i+1){
-          co_await tick();
+          // Delay
+          for (int i=0; i<6; i=i+1){
+            co_await tick();
+          }
         }
-        
+       
         cvm::registry::messenger.clear_channel<axi::r_t>(r_channel);
         if(!slice_chk_done){
           co_await check_sc_slice_status(ARAY_INIT_DONE_AND_SPRECONFIG_DONE_CHK);
@@ -86,6 +89,22 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         co_await axi_read(sp_addr, 4, 4);
         rnd_traffic_cnt_tick_1 = cnt_tick + 5 + std::abs(rng()% 60);
       }
+    } else if (FLAGS_sp_xtor_ot_traffic_en) {
+      if ((!FLAGS_sp_xtor_mmr_prog_en || sc_polling_done) && cnt_tick == rnd_traffic_cnt_tick_1) {
+        uint64_t even_offset = rng() & 0x1FE; // EvenNW - Addr[6] = 0
+        uint64_t sp_addr_even_nw = sp_base + (even_offset<<6);
+        uint64_t odd_offset = (rng() & 0x1FF) | 0x1; // OddNW - Addr[6] = 1
+        uint64_t sp_addr_odd_nw = sp_base + (odd_offset<<6);
+
+        cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Random OT Traffic Write req :- sp_addr={:#x}, sp_base={:#x}, offset={:#x} \n", send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw, sp_base, send_wr_to_odd_network?even_offset:odd_offset);
+        co_await axi_write_granular(send_wr_to_odd_network?sp_addr_odd_nw:sp_addr_even_nw);
+        co_await axi_write_data_granular();
+
+        cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Random OT Traffic Read req :- sp_addr={:#x}, sp_base={:#x}, offset={:#x} \n", send_wr_to_odd_network?sp_addr_even_nw:sp_addr_odd_nw, sp_base, send_wr_to_odd_network?odd_offset:even_offset);
+        co_await axi_read(send_wr_to_odd_network?sp_addr_even_nw:sp_addr_odd_nw, 4, 4, NO_BLOCK);
+        send_wr_to_odd_network = !send_wr_to_odd_network;
+        rnd_traffic_cnt_tick_1 = cnt_tick + 1;
+      }
     } else if (FLAGS_sp_xtor_test_cwfr) {
       if(cnt_tick == 60){
         cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] CORE Write Fabric Read Test **** \n");
@@ -98,8 +117,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         co_await axi_write_granular(addr);
         co_await axi_write_data_granular();
       }
-    }
-      else if (FLAGS_sp_xtor_test_false_sharing) {
+    } else if (FLAGS_sp_xtor_test_false_sharing) {
       if (cnt_tick == 34) {
         cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] Fabric Write Core Read Test **** \n");
         uint64_t addr = sp_base;
@@ -110,8 +128,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] CORE Write Fabric Read Test **** \n");
         co_await axi_read(sp_base+16, 4, 4); 
       }
-    }
-    else {
+    } else {
       cvm::log(cvm::HIGH, " [scratchpad_random_sequence] tick {}\n",cnt_tick);
       if(cnt_tick == 60) {
         cvm::log(cvm::HIGH, " [scratchpad_random_sequence] trigger flag set \n");
@@ -179,6 +196,10 @@ cvm::messenger::task<uint64_t> scratchpad_random_sequence::axi_read_mmr_granular
   ar_txn.atop   = 0;
   ar_txn.user   = 0;
   ar_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
+  if (FLAGS_cluster_axi_sp_perf) {
+    ar_txn.is_manual_id = true;
+    ar_txn.manual_id =  0x300;
+  }
 
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] AXI READ MMR GRANULAR (read req):- addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
@@ -197,7 +218,7 @@ cvm::messenger::task<uint64_t> scratchpad_random_sequence::axi_read_mmr_granular
   co_return rdata;
 }
 
-cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const transactor::read_t& r) {
+cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const transactor::read_t& r, bool block /* = BLOCK*/) {
 
   axi::a_no_id_t ar_txn;
   unsigned id;
@@ -215,8 +236,12 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
-  ar_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
-  
+  ar_txn.seqid  = SCRATCHPAD_MEM_SEQ_ID;
+  if (FLAGS_cluster_axi_sp_perf) {
+    ar_txn.is_manual_id = true;
+    ar_txn.manual_id = 0x301;
+  }
+
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
@@ -225,6 +250,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
     if (!axi_idalloc_done) {
       co_return;
     }
+  }
+
+  if (!block){
+    co_return;
   }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel, [&id](const auto& r) { return r.id == id;});
@@ -243,13 +272,13 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   co_return;
 }
 
-cvm::messenger::task<void> scratchpad_random_sequence::axi_read(uint64_t addr, size_t length, uint32_t id) {
+cvm::messenger::task<void> scratchpad_random_sequence::axi_read(uint64_t addr, size_t length, uint32_t id, bool block /* = BLOCK*/) {
   cvm::log(cvm::FULL, "[scratchpad_random_sequence] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
   sp_xtor_num_accesses++;
-  co_await axi_read_granular(r);
+  co_await axi_read_granular(r, block);
 }
 
 cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() {
@@ -268,7 +297,11 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() 
   aw_txn.atop  =0;
   aw_txn.user  =8;
   aw_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
- 
+  if (FLAGS_cluster_axi_sp_perf) {
+    aw_txn.is_manual_id = true;
+    aw_txn.manual_id =  0x302;
+  }
+
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
@@ -309,8 +342,12 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =0;
-  aw_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
-  
+  aw_txn.seqid  = SCRATCHPAD_MEM_SEQ_ID;
+  if (FLAGS_cluster_axi_sp_perf) {
+    aw_txn.is_manual_id = true;
+    aw_txn.manual_id =  0x303;
+  }
+
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
@@ -343,7 +380,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
   bool valid;
   cvm::log(cvm::HIGH, "[scratchpad_random_sequence] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", scratchpad_addr_in_flight, w_txn.data[0]);
   for (uint8_t i = 0; i < 64; ++i) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+i, 1, w_txn.data[i], valid) || !valid) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+i, 1, w_txn.data[i], false, false, valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       co_return;
     }

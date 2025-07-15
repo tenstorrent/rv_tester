@@ -24,13 +24,15 @@ static bool validate_ge0(const char* flagname, const int value) {
     }
     return true;
 }
+static bool validate_debug_cycle_off(const char* flagname, const uint64_t value);
 
 DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
 DEFINE_int32(flush_timeout, 25000, "cycles to wait after flush is initiated before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
-DEFINE_bool(bypass_mem, true, "Bypass xbar+cache switch");
-DEFINE_bool(bypass_cache, false, "Bypass cache switch");
+DEFINE_bool(rv_tester_enable_llc, false, "Bypass xbar+cache switch");
+DEFINE_bool(rv_tester_mem_bypass_cache, false, "Bypass cache switch");
+DEFINE_int32(rv_tester_mem_delay, 20, "cycles to delay read responses from xbar");
 DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
 DEFINE_bool(trace_en, false, "Set this while running trace test");
 DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
@@ -45,6 +47,11 @@ DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
 DEFINE_string(gen_timestamp_verbosity, "HIGH", "verbosity at which to generate timestamps with cvm::logger prints");
+
+DEFINE_string(cvm_debug_verbosity, "DEBUG", "Change the verbosity during the test for certain cycles during the test");
+DEFINE_uint64(cvm_debug_cycle_on, 0, "TB cycle on which to change the verbosity to cvm_debug_verbosity");
+DEFINE_uint64(cvm_debug_cycle_off, 0, "TB cycle off which to change the verbosity back to cvm_verbosity");
+DEFINE_validator(cvm_debug_cycle_off, &validate_debug_cycle_off);
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
 DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
 DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
@@ -62,6 +69,16 @@ DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode f
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
+
+static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
+  if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))
+    FLAGS_cvm_debug_cycle_off = -1;
+  if ((value > 0) && (FLAGS_cvm_debug_cycle_on >= value )) {
+    cvm::log(cvm::NONE, "Invalid value for +{}={}, must be greater than cvm_debug_cycle_on={}\n", flagname, value, FLAGS_cvm_debug_cycle_on);
+    return false;
+  }
+  return true;
+}
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);

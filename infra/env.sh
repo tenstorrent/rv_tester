@@ -36,7 +36,7 @@ export COSMOS_LIB_PATH=/tools_risc/tt/cosmos/v1.3.0/backend/lib
 export SS_ID_SERVER=http://aus-ss:3000
 
 # Enable --lsf and --bazel-remote-dir only if austin servers
-if [[ $(uname -n) == *"aus"* ]]; then
+if [[ -d /weka_scratch/rv_bazel_cache/v3 ]]; then
     export BZSIM_LSF=1
     export BZSIM_BAZEL_REMOTE_DIR=/weka_scratch/rv_bazel_cache/v3
 fi

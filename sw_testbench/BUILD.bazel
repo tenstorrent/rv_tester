@@ -53,6 +53,7 @@ harnesses = [ "sw_1c", "sw_2c"]
     rv_tester_gen(
         name = name + "_rv_tester",
         topology = name + "_topology",
+        csr_spec = "@rv_tester//csr:csr_spec",
         cc_attrs = {
             'alwayslink': True,
             'linkstatic': True,
@@ -90,7 +91,8 @@ sim_test_suite(
     name  = "all_smoke",
     testlists  = [
         "@smoke",
-        "@axi_sw_tb_smoke"
+        "@axi_sw_tb_smoke",
+        "@rv_tester_delay_resp_tb_smoke"
     ],
     sim = None,
     visibility = ["//visibility:public"],

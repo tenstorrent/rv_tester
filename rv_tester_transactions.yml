@@ -327,6 +327,8 @@ cosim:
                 width: 5
             cbo:
                 width: 1
+            attr:
+                width: 32
             v_ext:
                 width: 1
             data_vec:
@@ -389,6 +391,46 @@ cosim:
                 width: 32
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+    
+    m_mcmi_devict:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_flush:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_writeback:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
+    
+    m_mcmi_dfetch:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
 
     m_trap:
         domain: 1
@@ -840,6 +882,8 @@ pmu_core:
             op_retired_fp:
                 width: 24
             op_retired_vec:
+                width: 24
+            uop_retired_any:
                 width: 24
             op_complete_ld:
                 width: 24
@@ -1829,6 +1873,9 @@ pwrmgmt:
         domain: 3
         num: 1
     m_tj_shutdown_ack:
+        domain: 3
+        num: 1
+    m_tj_max_ack:
         domain: 3
         num: 1
 

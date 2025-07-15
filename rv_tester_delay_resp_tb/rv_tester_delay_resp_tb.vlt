@@ -1,0 +1,4 @@
+`verilator_config
+
+lint_off -rule WIDTHEXPAND -file  "external/opensrc-axi/src/axi_pkg.sv"
+

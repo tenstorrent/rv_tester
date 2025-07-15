@@ -13,7 +13,9 @@ import rv_tester_params::*;
   input int target_reset_count,
   input logic warm_reset_en,
   input logic tj_shutdown,
+  input logic tj_max,
   input logic pll_dfs_done,
+  input logic pll_shutdown_done,
   output logic cold_reset,
   output logic warm_reset,
   output logic warm_reset_req,
@@ -58,6 +60,7 @@ import rv_tester_params::*;
   logic force_ref_clk_d1;
   logic cold_reset_d1;
   logic pll_dfs_done_d1;
+  logic pll_shutdown_done_d1;
 
   always @(posedge clk[TB_CLK_IDX]) begin
     if (warm_reset_tick) begin
@@ -73,6 +76,7 @@ import rv_tester_params::*;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
     pll_dfs_done_d1 <= pll_dfs_done;
+    pll_shutdown_done_d1 <= pll_shutdown_done;
     if (warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
       $display("[%0d] [pwrmgmt] Warm reset now", warm_reset_clocks);
       warm_reset_tick <= 1;
@@ -128,6 +132,12 @@ import rv_tester_params::*;
   assign pll_dfs_done_valid = (~pll_dfs_done_d1 && pll_dfs_done);
   assign m_tj_shutdown_acks[0].valid = tj_shutdown && pll_dfs_done_valid && (location != cvm_topology::nil);
   assign m_tj_shutdown_acks[0].data.location = location;
+
+   // m_tj_max_ack
+  logic pll_shotdown_done_valid;
+  assign pll_shotdown_done_valid = (~pll_shutdown_done_d1 && pll_shutdown_done);
+  assign m_tj_max_acks[0].valid = tj_max && pll_shotdown_done_valid && (location != cvm_topology::nil);
+  assign m_tj_max_acks[0].data.location = location;
 
   // -------------------------
   // C++->SV Callbacks

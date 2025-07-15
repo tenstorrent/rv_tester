@@ -7,6 +7,9 @@ TESTLISTS = {
     "axi_sw_tb_smoke": {
         "testlist" : "//transactors/axi_sw/test/testlists:smoke.py",
     },
+    "rv_tester_delay_resp_tb_smoke": {
+        "testlist" : "//rv_tester_delay_resp_tb/testlists:smoke.py",
+    },
 }
 
 def _testlist(name, testlist, **kwargs):
