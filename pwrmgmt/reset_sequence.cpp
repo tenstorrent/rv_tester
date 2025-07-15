@@ -962,7 +962,7 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
 cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
   co_await tick();
   if(FLAGS_tj_max){
-      switch (FLAGS_num_harts-1) {
+      switch (num_cores_-1) {
           case 0:
               co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
               break;
@@ -980,7 +980,7 @@ cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
               co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,3);   // PMNW ID for THUB-3 
               break;
           default:
-              cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+              cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid NHARTS seen.. {} .... \n",num_cores_);
       }
   }
   co_return;
