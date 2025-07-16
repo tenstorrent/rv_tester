@@ -137,6 +137,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       //}
     }
 
+
+
     // Reset value
     hw_mip_age_ = FLAGS_mip_resynch_threshold;
 
@@ -175,9 +177,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
-    int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+    uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
 
-    for(int32_t i = 0 ; i < nharts ; i++) {
+    for(uint64_t i = 0 ; i < nharts ; i++) {
       int unsigned location = cvm::topology::get_from_type("CORE", i);
       cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
     }
@@ -196,6 +198,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     }
 
     FLAGS_metrics = FLAGS_monitor & FLAGS_metrics;
+
 }
 
 // Destructor
