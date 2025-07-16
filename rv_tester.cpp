@@ -69,6 +69,7 @@ DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode f
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
+DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))

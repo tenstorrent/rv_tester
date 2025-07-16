@@ -201,6 +201,7 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
+    int abscmd_hang_counter = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -448,6 +449,7 @@ module rv_tester
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
+      
             eot_addr                        <= eot_get_addr();
             eot_status                      <= 1;
             eot_syscall                     <= 0;
@@ -494,6 +496,7 @@ module rv_tester
             ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
+            abscmd_hang_counter  <= cvm_plusargs::get_int("abscmd_hang_counter");
 
             cvm_verbosity        <= _cvm_verbosity;
             curr_cvm_verbosity   <= _cvm_verbosity;
@@ -802,6 +805,7 @@ module rv_tester
         .num_harts,
         .sdtrig_display,
         .nonexistent_hart,
+        .abscmd_hang_counter,
 
         .dmi_req_ready,
         .dmi_resp_valid,
