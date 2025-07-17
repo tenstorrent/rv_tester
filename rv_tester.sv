@@ -1039,7 +1039,7 @@ module rv_tester
             .jtag_req,
             .jtag_tck_trst,
             .jtag_resp,
-          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(1,0,0)
         );
 
 
