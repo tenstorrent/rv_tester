@@ -136,9 +136,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->is_dut_reset_req(t.dut_reset_req,t.clocks,t.divisor); });
-  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
-      loc_,
-      [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
+ // cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
+ //     loc_,
+ //     [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
