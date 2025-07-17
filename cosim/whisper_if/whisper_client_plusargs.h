@@ -1,1 +1,2 @@
 DECLARE_string(whisper_data_lines);
+DECLARE_bool(whisper_vmvr_ignore_vill);

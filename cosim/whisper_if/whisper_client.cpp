@@ -44,6 +44,7 @@ DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
+DEFINE_bool(whisper_vmvr_ignore_vill, false, "Enable whisper vmvr_ignore_vill flag");
 #include "iss_utils.h"
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
@@ -235,6 +236,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       system->setAplicAutoForwardViaMsi(false);
     for (unsigned i=0; i<system->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
+      hart->configVmvrIgnoreVill(FLAGS_whisper_vmvr_ignore_vill);
       if (standalone) {
         hart->setWfiTimeout(0);
         hart->setAclintDeliverInterrupts(false); 

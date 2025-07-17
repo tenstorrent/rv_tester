@@ -25,6 +25,7 @@
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
+#include "cosim/whisper_if/whisper_client_plusargs.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
@@ -1366,6 +1367,10 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
         std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);
+        if (csr == "c_fecfg2" && ((value >> 16) & 1)) {
+          FLAGS_whisper_vmvr_ignore_vill = true;
+          cvm::log(cvm::MEDIUM, "[sysmod] c_fecfg2 bit[16] is set, enabling whisper vmvr_ignore_vill\n");
+        }
         if (csr_map.count(csr))
           csr_data[csr_map[csr]] = value;
         else {
