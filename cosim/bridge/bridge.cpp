@@ -2359,6 +2359,9 @@ void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
 
 // Process mem accesses - load resolves
 void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
+  if (end_mcm_)
+    return;
+
   bool valid = false;
   if (FLAGS_cosim_period > 0) {
      if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
@@ -2396,6 +2399,9 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
 
 // Process mem accesses - store inserts
 void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
+  if (end_mcm_)
+    return;
+
   bool valid = false;
   if (FLAGS_cosim_period > 0) {
      if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
@@ -2423,6 +2429,9 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
 
 // Process mem accesses - store bypass_writes
 void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
+  if (end_mcm_)
+    return;
+
   bool valid = false;
   if (FLAGS_cosim_period > 0) {
      if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
@@ -2450,6 +2459,7 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, valid) || !valid) {
       error("Hart {}: Failed to disable MCM\n", hart);
     }
+    end_mcm_ = true;
   }
 
   if (FLAGS_bridge_log)
@@ -2459,6 +2469,9 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
 
 // Process mem accesses - store drains
 void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
+  if (end_mcm_)
+    return;
+
   uint8_t data[64] = {0};
   for (unsigned i=0; i<64; i++) {
     data[i] = (uint8_t)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
@@ -2482,6 +2495,9 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
 
 // Process inst fetches
 void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
+  if (end_mcm_)
+    return;
+
   bool valid = false;
 
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)) {
@@ -2495,6 +2511,9 @@ void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
 
 // Process inst evicts
 void bridge::process_dut_mcm_ievict(hart_id_t hart, mem_t& m) {
+  if (end_mcm_)
+    return;
+
   bool valid = false;
 
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)|| !valid) && FLAGS_whisper_client_check) {
