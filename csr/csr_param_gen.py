@@ -3,13 +3,14 @@ import logging
 import argparse
 
 class Field:
-    def __init__(self, name, width, msb, lsb, legal_value, reset_val, sw_type):
+    def __init__(self, name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val):
         self.name = name
         self.width = width
         self.range = (msb, lsb)
         self.reset_val = reset_val
         self.legal_value = legal_value
         self.sw_type = sw_type
+        self.perf_val = perf_val
 
 class CSR:
     def __init__(self, name, address, size, alias_of=""):
@@ -18,6 +19,56 @@ class CSR:
         self.size = size
         self.field = {}
         self.alias_of = alias_of
+        self.perf_val = "0x0"  # Initialize with default value
+
+    def concat_perf_val(self):
+        """Concatenate performance values from all fields in this CSR"""
+        from bitstring import BitArray
+        
+        # Create a BitArray of the CSR size, initialized to 0
+        concat_bitarray = BitArray(length=self.size)
+        
+        for field_name, field_property in self.field.items():
+            # Use perf_val if available, otherwise fall back to reset_val
+            value_to_use = None
+            if hasattr(field_property, 'perf_val') and field_property.perf_val is not None and str(field_property.perf_val).strip():
+                value_to_use = field_property.perf_val
+            elif hasattr(field_property, 'reset_val') and field_property.reset_val:
+                value_to_use = field_property.reset_val
+            
+            if value_to_use:
+                # Calculate start position (MSB position from the right)
+                start_pos = self.size - 1 - field_property.range[0]  # range[0] is MSB
+                
+                # Parse the value to get binary representation
+                val_str = str(value_to_use).strip()
+                
+                try:
+                    # perf_val and reset_val may or may not have "0x" prefix; handle both cases
+                    if val_str.lower().startswith("0x"):
+                        val_str = val_str[2:]
+                    val_int = int(val_str, 16)
+                    
+                    # Create BitArray for this field's value
+                    field_bitarray = BitArray(length=field_property.width, uint=val_int)
+                    # Overwrite the corresponding bits in the main BitArray
+                    concat_bitarray.overwrite(field_bitarray, start_pos)
+                except (ValueError, TypeError):
+                    # If value is invalid, skip this field
+                    continue
+        
+        # Convert to hex string
+        hex_result = str(concat_bitarray)
+        if hex_result.startswith('0x'):
+            hex_result = hex_result[2:]
+        
+        # Remove leading zeros but keep at least one digit
+        hex_result = hex_result.lstrip('0')
+        if not hex_result:
+            hex_result = '0'
+        
+        self.perf_val = '0x' + hex_result
+        return self.perf_val
 
 class CsrMap:
     def __init__(self, csr_spec):
@@ -59,8 +110,9 @@ class CsrMap:
                 sw_type = field_data.get("SW_TYPE", "WARL")
                 if not sw_type:
                     sw_type = "WARL"
+                perf_val = field_data.get("PERF_VALUE", None)
                 
-                field_obj = Field(field_name, width, msb, lsb, legal_value, reset_val, sw_type)
+                field_obj = Field(field_name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val)
                 field_dict[field_name] = field_obj
             
             csr_obj = CSR(csr_name, csr_address, size, alias_of)
@@ -148,6 +200,22 @@ class CsrMap:
             
             return values
 
+        def parse_hex_perf_val(perf_val):
+            """Convert perf value to 64-bit hex value (uint64_t)"""
+            if not perf_val:
+                return 0
+            
+            perf_str = str(perf_val).strip()
+            
+            if perf_str.lower().startswith("0x"):
+                perf_str = perf_str[2:]
+            
+            try:
+                perf_value = int(perf_str, 16) & 0xFFFFFFFFFFFFFFFF
+                return perf_value
+            except ValueError:
+                return 0
+
         with open(output_file, 'w') as f:
             f.write("#pragma once\n")
             f.write("#include <string>\n")
@@ -166,6 +234,7 @@ class CsrMap:
             f.write("    std::string sw_type;\n")
             f.write("    std::string description;\n")
             f.write("    std::uint64_t bit_mask;  // Bit position as hex number (bits set to 1 for field positions)\n")
+            f.write("    std::uint64_t perf_val;\n")
             f.write("    \n")
             f.write("    inline std::uint64_t extract_value(std::uint64_t csr_data) const {\n")
             f.write("        return (csr_data & bit_mask) >> range.second;\n")
@@ -177,9 +246,10 @@ class CsrMap:
             f.write("    std::uint16_t address;  // 12-bit hex address\n")
             f.write("    int size;\n")
             f.write("    csr_base* alias_of;  // Pointer to aliased CSR struct\n")
+            f.write("    std::uint64_t perf_val;\n")
             f.write("    \n")
             f.write("    csr_base(const std::string& csr_name, std::uint16_t csr_address, int csr_size)\n")
-            f.write("        : name(csr_name), address(csr_address), size(csr_size), alias_of(nullptr) {}\n")
+            f.write("        : name(csr_name), address(csr_address), size(csr_size), alias_of(nullptr), perf_val(0) {}\n")
             f.write("    \n")
             f.write("    csr_base() = default;\n")
             f.write("};\n\n")
@@ -192,7 +262,21 @@ class CsrMap:
                 
                 hex_address = parse_hex_address(csr.address)
                 lowercase_csr_name = csr_name.lower()
-                f.write(f"    {struct_name}() : csr_base(\"{lowercase_csr_name}\", 0x{hex_address:03X}, {csr.size}) {{}}\n\n")
+                # Calculate the concatenated perf value for this CSR
+                csr_perf_val = csr.concat_perf_val()
+                csr_perf_val_int = 0
+                if csr_perf_val:
+                    perf_str = str(csr_perf_val).strip()
+                    if perf_str.lower().startswith("0x"):
+                        perf_str = perf_str[2:]
+                    try:
+                        csr_perf_val_int = int(perf_str, 16) & 0xFFFFFFFFFFFFFFFF
+                    except ValueError:
+                        csr_perf_val_int = 0
+                
+                f.write(f"    {struct_name}() : csr_base(\"{lowercase_csr_name}\", 0x{hex_address:03X}, {csr.size}) {{\n")
+                f.write(f"        perf_val = 0x{csr_perf_val_int:016X}ULL;\n")
+                f.write(f"    }}\n\n")
                 
                 for field_name, field in csr.field.items():
                     sanitized_field_name = sanitize_name(field_name).upper()
@@ -202,6 +286,7 @@ class CsrMap:
                     width_val = field.width if field.width else "0"
                     reset_val = parse_hex_reset_val(field.reset_val)
                     legal_values = parse_hex_legal_values(field.legal_value)
+                    perf_val = parse_hex_perf_val(field.perf_val)
                     
                     f.write(f"    field {sanitized_field_name} = {{\n")
                     f.write(f"        \"{field_full_name}\",\n")
@@ -221,7 +306,8 @@ class CsrMap:
                     for bit_pos in range(lsb, msb + 1):
                         if bit_pos < csr.size and bit_pos < 64:
                             bit_pos_value |= (1 << bit_pos)
-                    f.write(f"        0x{bit_pos_value:016X}ULL\n")
+                    f.write(f"        0x{bit_pos_value:016X}ULL,\n")
+                    f.write(f"        0x{perf_val:016X}ULL\n")
                     f.write(f"    }};\n")
                 
                 f.write(f"}};\n\n")
@@ -240,8 +326,45 @@ class CsrMap:
                 sanitized_csr_name = sanitize_name(csr_name).lower()
                 struct_name = f"{sanitized_csr_name}_csr"
                 instance_name = sanitized_csr_name
-                f.write(f"{struct_name} {instance_name};\n")
+                f.write(f"inline {struct_name} {instance_name};\n")
             f.write("\n")
+            
+            f.write("// Vector containing all CSR instances\n")
+            f.write("extern std::vector<csr_base*> csr_map;\n")
+            f.write("\n")
+            
+            f.write("// Vector definition with all CSR instances\n")
+            f.write("inline std::vector<csr_base*> csr_map = {\n")
+            instance_names = []
+            for csr_name in self.csr_property_dict.keys():
+                sanitized_csr_name = sanitize_name(csr_name).lower()
+                instance_name = sanitized_csr_name
+                instance_names.append(f"    &{instance_name}")
+            f.write(",\n".join(instance_names))
+            f.write("\n};\n\n")
+            
+            f.write("// Utility functions for CSR management\n")
+            f.write("inline size_t get_csr_count() {\n")
+            f.write("    return csr_map.size();\n")
+            f.write("}\n\n")
+            
+            f.write("inline csr_base* find_csr_by_name(const std::string& name) {\n")
+            f.write("    for (auto* csr : csr_map) {\n")
+            f.write("        if (csr->name == name) {\n")
+            f.write("            return csr;\n")
+            f.write("        }\n")
+            f.write("    }\n")
+            f.write("    return nullptr;\n")
+            f.write("}\n\n")
+            
+            f.write("inline csr_base* find_csr_by_address(std::uint16_t address) {\n")
+            f.write("    for (auto* csr : csr_map) {\n")
+            f.write("        if (csr->address == address) {\n")
+            f.write("            return csr;\n")
+            f.write("        }\n")
+            f.write("    }\n")
+            f.write("    return nullptr;\n")
+            f.write("}\n\n")
             
             f.write("// Function to initialize alias pointers\n")
             f.write("// Call this after all CSR instances are created to set up CSR aliases\n")

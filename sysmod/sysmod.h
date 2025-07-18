@@ -18,6 +18,9 @@
 #include <string>
 #include "rv_tester_transactions.hpp"
 
+// Function declarations
+std::string get_set_csr_perf();
+
 class sysmod {
 
   public:
