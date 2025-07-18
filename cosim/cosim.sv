@@ -1417,33 +1417,33 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
-    logic        should_update_max_cycle;
+    logic        max_cycle_timeout_detect;
     logic [63:0] updated_max_cycle;
     logic        max_cycle_update_valid;
-    logic        should_update_max_stall_cycle;
+    logic        max_stall_cycle_timeout_detect;
     logic [63:0] updated_max_stall_cycle;
     logic        max_stall_cycle_update_valid;
 
     /* verilator lint_off WIDTHEXPAND */
     always_ff @(posedge tb_clk) begin
       if (reset) begin
-        should_update_max_cycle <= 0;
-        should_update_max_stall_cycle <= 0;
+        max_cycle_timeout_detect <= 0;
+        max_stall_cycle_timeout_detect <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-        should_update_max_cycle <= 1;
+        max_cycle_timeout_detect <= 1;
         if (timeout_scale_en) begin
           updated_max_cycle       <= get_max_cycle();
           max_cycle_update_valid  <= 1;
         end
       end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-        should_update_max_stall_cycle <= 1;
+        max_stall_cycle_timeout_detect <= 1;
         if (timeout_scale_en) begin
           updated_max_stall_cycle <= get_max_stall_cycle();
           max_stall_cycle_update_valid <= 1;
         end
       end else begin
-        should_update_max_cycle <= 0;
-        should_update_max_stall_cycle <= 0;
+        max_cycle_timeout_detect <= 0;
+        max_stall_cycle_timeout_detect <= 0;
         max_cycle_update_valid  <= 0;
         max_stall_cycle_update_valid <= 0;
       end
@@ -1485,7 +1485,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
-        end else if (!timeout_scale_en && should_update_max_cycle && cosim_terminate_sent == '0) begin
+        end else if (!timeout_scale_en && max_cycle_timeout_detect && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
           cosim_terminate_sent <= 1'b1;
@@ -1499,7 +1499,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
-        end else if (!timeout_scale_en && should_update_max_stall_cycle && cosim_terminate_sent == '0) begin
+        end else if (!timeout_scale_en && max_stall_cycle_timeout_detect && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
           cosim_terminate_sent <= 1'b1;
