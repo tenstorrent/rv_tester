@@ -1431,23 +1431,19 @@ localparam CAM_IHBIT = CAM_IBITS;
         should_update_max_stall_cycle <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
         should_update_max_cycle <= 1;
+        if (timeout_scale_en) begin
+          updated_max_cycle       <= get_max_cycle();
+          max_cycle_update_valid  <= 1;
+        end
       end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
         should_update_max_stall_cycle <= 1;
+        if (timeout_scale_en) begin
+          updated_max_stall_cycle <= get_max_stall_cycle();
+          max_stall_cycle_update_valid <= 1;
+        end
       end else begin
         should_update_max_cycle <= 0;
         should_update_max_stall_cycle <= 0;
-      end
-    end
-
-    // Capture DPI result only when triggered and DPI scaling is enabled
-    always_ff @(posedge tb_clk) begin
-      if (should_update_max_cycle && timeout_scale_en) begin
-        updated_max_cycle       <= get_max_cycle();
-        max_cycle_update_valid  <= 1;
-      end else if (should_update_max_stall_cycle && timeout_scale_en) begin
-        updated_max_stall_cycle <= get_max_stall_cycle();
-        max_stall_cycle_update_valid <= 1;
-      end else begin
         max_cycle_update_valid  <= 0;
         max_stall_cycle_update_valid <= 0;
       end
@@ -1498,7 +1494,7 @@ localparam CAM_IHBIT = CAM_IBITS;
           if (max_stall_cycle < updated_max_stall_cycle) begin
             max_stall_cycle <= updated_max_stall_cycle;
             $display("\nHart %0d:  Updated max_stall_cycle=%0d", NUM, updated_max_stall_cycle);
-          end else begin
+          end else if (cycles_since_retire > max_stall_cycle) begin
             $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
