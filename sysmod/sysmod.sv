@@ -97,10 +97,10 @@ import rv_tester_params::*;
     assign ticks[0].data.divisor  = TICKS;
     assign ticks[0].data.dut_reset_req = dut_reset_req & (clocks > 100);
 
-    localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
-    assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
-    assign jtag_ticks[0].data.location = location;
-    assign jtag_ticks[0].data.advance  = JTAG_TICKS;
+   // localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
+   // assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
+   // assign jtag_ticks[0].data.location = location;
+   // assign jtag_ticks[0].data.advance  = JTAG_TICKS;
 
     localparam longint unsigned OVERLAY_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(OVERLAY_CLOCK_PERIOD_PS);
     assign overlay_ticks[0].valid         = (0 == (clocks % OVERLAY_TICKS)) & (location != cvm_topology::nil);

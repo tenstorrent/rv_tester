@@ -517,24 +517,12 @@ sysmod:
                 width: 64
             dut_reset_req:
                 width: 1
-    jtag_tick:
-        domain: 2
-        num: 1
-        fields:
-            advance:
-                width: 64
     overlay_tick:
         domain: 2
         num: 1
         fields:
             advance:
                 width: 64
-    jtag_rdata:
-        domain: 2
-        num: 1
-        fields:
-            rdata:
-                width: 70
     event_triggers:
         domain: 2
         num: ${TOP.PLATFORM.NHARTS}
@@ -1933,25 +1921,25 @@ overlay_driver:
 jtag_driver:
     num: 1
     m_jtag_driver_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             cycle:
                 width: 32
     jtag_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             advance:
                 width: 64
     jtag_pkt_ack:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             complete:
                 width: 1
     jtag_rdata:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             rdata:
