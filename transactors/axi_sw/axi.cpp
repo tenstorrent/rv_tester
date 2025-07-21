@@ -247,6 +247,9 @@ cvm::messenger::task<void> axi::operator()() {
             upper_wrap_boundary = lower_wrap_boundary + dtsize;
         }
 
+        // Single write response for all write transfers. Give DECERR priority over SLVERR.
+        axi::resp_t write_resp = RESP_OKAY;
+
         for (addr_t n = 1; n <= burst_len; n++) {
 
             addr_t lower_byte_lane = addr - addr/data_bus_bytes * data_bus_bytes;
@@ -300,9 +303,6 @@ cvm::messenger::task<void> axi::operator()() {
                             w.strb
                     );
 
-                    // Resp
-                    axi::resp_t write_resp = RESP_OKAY;
-
                     // Check and increment counters for error injection policies
                     bool inject_slverr = error_en_ && slverr_list_.check_inject_error(addr, WRITE);
                     bool inject_decerr = error_en_ && decerr_list_.check_inject_error(addr, WRITE);
@@ -311,7 +311,7 @@ cvm::messenger::task<void> axi::operator()() {
                     if (error_en_ && slverr_list_.find(addr)) {
                         auto count = slverr_list_.incr_count(addr, WRITE);
                         if (inject_slverr) {
-                            write_resp = RESP_SLVERR;
+                            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_SLVERR));
                             cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
                             num_slverr_resp_++;
                         }
@@ -319,14 +319,11 @@ cvm::messenger::task<void> axi::operator()() {
                     if (error_en_ && decerr_list_.find(addr)) {
                         auto count = decerr_list_.incr_count(addr, WRITE);
                         if (inject_decerr) {
-                            write_resp = RESP_DECERR;
+                            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_DECERR));
                             cvm::log(cvm::HIGH, "[axi] decerr write resp addr={:#x} count={}\n", addr, count.value());
                             num_decerr_resp_++;
                         }
                     }
-
-                    b_q_.enqueue(b_t(a.id, write_resp));
-                    cvm::log(cvm::HIGH, "[axi] b: id={}, addr={:#x}, resp={}\n", a.id, addr, +write_resp);
                 }
 
                 if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {
@@ -388,6 +385,12 @@ cvm::messenger::task<void> axi::operator()() {
                     aligned = true;
                 }
             }
+        }
+
+        // We should only generate a single B response regardless of burst length.
+        if (a.w) {
+          b_q_.enqueue(b_t(a.id, write_resp));
+          cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
         }
     }
 }

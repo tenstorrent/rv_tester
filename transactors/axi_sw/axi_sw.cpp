@@ -87,6 +87,7 @@ extern "C" {
   void axi_sw_b_reset();
   void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
   void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+  void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
   void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 }
 
@@ -196,7 +197,8 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
 
-    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
+    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,
+                           axi::cache_mem_attr_t(aw.cache), aw.prot, aw.qos, aw.region, aw.atop, aw.user};
 
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
@@ -214,7 +216,9 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     read_bytes_ = read_bytes_ + (1ull << ar.size);
 
-    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user};
+    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,
+                           axi::cache_mem_attr_t(ar.cache), ar.prot, ar.qos, ar.region, 0, ar.user};
+
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
     else {
@@ -325,12 +329,12 @@ bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
 
     uint16_t latency =  cvm::rand::lcg::generate(add_latency_max_ - add_latency_min_) + add_latency_min_;
 
-    if(data_width_ == 64)
-        axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
-    else if(data_width_ == 512)
-        axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
-    else
-        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    switch (data_width_) {
+      case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 256: axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 512: axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency); break;
+      default:  cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    }
 
     return true;
 }
