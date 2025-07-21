@@ -475,7 +475,7 @@ namespace {
     };
 #undef CSRS
 
-    const std::array<mmr_entry, 409> mmrs {{
+    const std::array<mmr_entry, 417> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
