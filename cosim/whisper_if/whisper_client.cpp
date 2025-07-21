@@ -22,7 +22,7 @@
 #include "rv_tester_plusargs.h"
 #include "rv_tester_structs.h"
 #include "cvm/registry.hpp"
-
+#include "nlohmann/json.hpp"
 
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
@@ -45,6 +45,7 @@ DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 DEFINE_bool(whisper_vmvr_ignore_vill, false, "Enable whisper vmvr_ignore_vill flag");
+DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can be set dynamically based on chicken bits");
 #include "iss_utils.h"
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
@@ -153,6 +154,7 @@ bool
 whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
                                     uint16_t ncores, bool standalone, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
+  overrideWhisperJson();
   args_str.insert(args_str.end(), {"--config" , FLAGS_whisper_json_path});
   args_str.insert(args_str.end(), {"--cores" , std::to_string(ncores)});
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc()) });
@@ -205,16 +207,10 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
     if (ncores > 1)                   args_str.insert(args_str.end(), {"--deterministic", std::to_string(FLAGS_whisper_deterministic)});
   } else {
     if (FLAGS_mcm) {                  args_str.push_back("--mcm");
-      if(!FLAGS_cache_model_en) {
-        args_str.push_back("--dismcmcache");
-      }
-      if (!FLAGS_ppo) {              
-        args_str.push_back("--noppo");
-      }
+      if (!FLAGS_cache_model_en)      args_str.push_back("--dismcmcache");
+      if (!FLAGS_ppo)                 args_str.push_back("--noppo");
     }
-    else {
-      args_str.push_back("--dismcmcache");
-    }
+    else {                            args_str.push_back("--dismcmcache"); }
   }
   std::string string_ = "";
   for (auto &i: args_str)
@@ -236,7 +232,6 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       system->setAplicAutoForwardViaMsi(false);
     for (unsigned i=0; i<system->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
-      hart->configVmvrIgnoreVill(FLAGS_whisper_vmvr_ignore_vill);
       if (standalone) {
         hart->setWfiTimeout(0);
         hart->setAclintDeliverInterrupts(false); 
@@ -1191,6 +1186,50 @@ whisperClient<URV>::whisperClearNmi(int hart, uint64_t time)
     return false;
 
   return true;
+}
+
+// Static function for whisper JSON override
+template <typename URV>
+void
+whisperClient<URV>::overrideWhisperJson()
+{
+  static bool whisper_json_overridden = false;
+  if (whisper_json_overridden)
+    return;
+  whisper_json_overridden = true;
+
+  nlohmann::json j;
+  try {
+    std::ifstream f(FLAGS_whisper_json_path);
+    j = nlohmann::json::parse(f);
+  }
+  catch (...) {
+    cvm::log(cvm::ERROR, "Error: Unable to parse whisper_json:{}\n", FLAGS_whisper_json_path);
+  }
+  bool changed = false;
+
+  if (FLAGS_whisper_vmvr_ignore_vill) {
+    j["vector"]["vmvr_ignore_vill"] = true;
+    changed = true;
+  }
+  if (FLAGS_derr_interrupt_num_override) {
+    changed = true;
+    if (j.contains("csr") and j["csr"].contains("mie") and j["csr"]["mie"].contains("mask")) {
+      auto data = (std::stoull(std::string(j["csr"]["mie"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
+      j["csr"]["mie"]["mask"] = std::format("0x{:x}", data);
+    }
+    if (j.contains("csr") and j["csr"].contains("mip") and j["csr"]["mip"].contains("mask")) {
+      auto data = (std::stoull(std::string(j["csr"]["mip"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
+      j["csr"]["mip"]["mask"] = std::format("0x{:x}", data);
+    }
+  }
+  if (changed) {
+    std::string whisper_override_json = "whisper_override.json";
+    cvm::log (cvm::MEDIUM, "Overriding whisper json, FLAGS_whisper_json now set to {}\n", whisper_override_json);
+    std::ofstream o(whisper_override_json);
+    o <<  std::setw(4) << j << std::endl;
+    FLAGS_whisper_json_path=whisper_override_json;
+  }
 }
 
 template class whisperClient<uint32_t>;

@@ -1371,6 +1371,10 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
           FLAGS_whisper_vmvr_ignore_vill = true;
           cvm::log(cvm::MEDIUM, "[sysmod] c_fecfg2 bit[16] is set, enabling whisper vmvr_ignore_vill\n");
         }
+        if (csr == "c_mccfg1") {
+          FLAGS_derr_interrupt_num_override = value & 0x3f;
+          cvm::log(cvm::MEDIUM, "[sysmod] DERR interrupt number is set to {}, c_mccfg1={:x}\n", value & 0x3f, value);
+        }
         if (csr_map.count(csr))
           csr_data[csr_map[csr]] = value;
         else {

@@ -20,6 +20,7 @@ cc_library(
         "//:structs",
         "@cvm//:registry",
         "@cvm//:messenger",
+       "@opensrc-nlohmann-json//:json",
     ],
     alwayslink = True,
     linkopts = ["-lrt", "-lboost_program_options"],

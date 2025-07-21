@@ -93,6 +93,7 @@ class whisperClient {
     std::vector<iss_select_s> get_iss_select(uint32_t hart=0)  { return rand_addrs_map_[hart].rand_addrs; }
 
     static bool constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&, std::shared_ptr<WdRiscv::System<URV>>&, WdRiscv::Args&, uint16_t ncores, bool standalone, std::string logfile="");
+    static void overrideWhisperJson();
     int whisperConnect();
     bool whisperConnected();
     int whisperStandalone();
