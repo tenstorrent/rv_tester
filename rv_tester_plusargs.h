@@ -7,6 +7,7 @@ DECLARE_uint64(resetpcfw);
 DECLARE_uint64(max_stall_cycle);
 DECLARE_bool(bypass_cache);
 DECLARE_bool(bypass_mem);
+DECLARE_bool(timeout_scale_en);
 DECLARE_bool(rv_tester_mem_bypass_cache);
 DECLARE_bool(rv_tester_enable_llc);
 DECLARE_bool(rand_snoop_en);
