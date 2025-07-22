@@ -475,7 +475,7 @@ namespace {
     };
 #undef CSRS
 
-    const std::array<mmr_entry, 409> mmrs {{
+    const std::array<mmr_entry, 417> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
@@ -884,7 +884,15 @@ namespace {
         {"sc_dbg_any_change",             0x1AF340},
         {"sc_dbg_mux_control_A",          0x1AF388},
         {"sc_dbg_mux_control_B",          0x1AF390},
-        {"sc_chicken_bits",               0x421a0040}
+        {"sc_chicken_bits",               0x421a0040},
+        {"sc_pmu_select_0",               0x421a0140},
+        {"sc_pmu_select_1",               0x421a0148},
+        {"sc_pmu_select_2",               0x421a0150},
+        {"sc_pmu_select_3",               0x421a0158},
+        {"sc_pmu_select_4",               0x421a0160},
+        {"sc_pmu_select_5",               0x421a0168},
+        {"sc_pmu_select_6",               0x421a0170},
+        {"sc_pmu_select_7",               0x421a0178}
     }};
 
     enum patch_mode {
