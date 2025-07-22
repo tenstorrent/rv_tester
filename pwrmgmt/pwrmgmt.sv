@@ -61,6 +61,7 @@ import rv_tester_params::*;
   logic cold_reset_d1;
   logic pll_dfs_done_d1;
   logic pll_shutdown_done_d1;
+  bit tj_seq_ack;
 
   always @(posedge clk[TB_CLK_IDX]) begin
     if (warm_reset_tick) begin
@@ -195,6 +196,17 @@ import rv_tester_params::*;
   function void thub_blocking_sequence_tick(bit val);
       thub_blocking_sequence_tick_internal(val);
   endfunction
+
+  export "DPI-C" function func_tj_seq_ack;
+  function void func_tj_seq_ack(bit val);
+      tj_seq_ack = val;
+  endfunction
+
+  final begin
+    if(thub_tick && !tj_seq_ack) begin
+      $display("ERROR: TJ_max/Shutdown didn't completed with Proper Ack...");
+    end
+  end
 
 
 endmodule

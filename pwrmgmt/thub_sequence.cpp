@@ -12,6 +12,7 @@ DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 
 extern "C" {
   void thub_blocking_sequence_tick(uint8_t val);
+  void func_tj_seq_ack(uint8_t val);
 }
 
 thub_sequence::thub_sequence
@@ -32,10 +33,10 @@ thub_sequence::thub_sequence
 }
 
 thub_sequence::~thub_sequence() {
-  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0)){
+  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0) && tj_seq_done){
     cvm::log(cvm::ERROR,"[tj_shutdown]:- ERROR: Expected to have TJ_SHUTDOWN followed by DFS \n");
   }
-  if(FLAGS_tj_max && (tj_max_ack_rcvd == 0)){
+  if(FLAGS_tj_max && (tj_max_ack_rcvd == 0) && tj_seq_done){
     cvm::log(cvm::ERROR,"[tj_max]:- ERROR: Expected to have TJ_MAX followed by PLL Shutdown \n");
   }
   if(FLAGS_tj_shutdown || FLAGS_tj_max){
@@ -73,6 +74,7 @@ cvm::messenger::task<void> thub_sequence::main() {
     cvm::log(cvm::NONE, "[TJ Max] Enabled TJ Max via override ...... \n");
     co_await tj_max_config();
   }
+  tj_seq_done = 1;
   co_return;
 }
 
@@ -369,11 +371,15 @@ void thub_sequence::blocking_seq_tick(uint8_t val) {
 cvm::messenger::task<void> thub_sequence::tj_shutdown_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_shutdown_ack<>>(loc_);
   tj_shutdown_ack_rcvd = 1;
+  svSetScope(scope_);
+  func_tj_seq_ack(1);
   co_return;
 }
 
 cvm::messenger::task<void> thub_sequence::tj_max_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_max_ack<>>(loc_);
   tj_max_ack_rcvd = 1;
+  svSetScope(scope_);
+  func_tj_seq_ack(1);
   co_return;
 }
