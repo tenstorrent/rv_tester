@@ -61,5 +61,5 @@ class thub_sequence {
     uint32_t core_throttle,num_cores;
     bool tj_max_ack_rcvd=0;
     bool tj_shutdown_ack_rcvd=0;
-
+    bool tj_seq_done=0;
 };
