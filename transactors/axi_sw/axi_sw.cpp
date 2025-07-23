@@ -166,23 +166,32 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
   position = std::distance(a_window_.begin(), it);
   axi::a_t aaa = *it;
 
+  cvm::log(cvm::FULL, "[axi_sw] Picking position {} of {} a's\n", position, a_window_.size());
+
   if (aaa.w) {
     // stupid way to check write data is available
-    unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
-          return p.w;
-        });
+    unsigned prior_writes = 0;
+    // TODO: change this to std:;reduce
+    for (auto it = a_window_.begin(); it != (a_window_.begin() + position); ++it)
+      if (it->w)
+        prior_writes += (it->len + 1);
 
-    if (w_in_front >= w_window_.size())
+    size_t burst_len = aaa.len + 1;
+    if ((prior_writes + burst_len) > w_window_.size()) {
+      cvm::log(cvm::FULL, "[axi_sw] Insufficient write packets for burst_len={} in w window={}\n", burst_len, w_window_.size());
       co_return false;
+    }
 
     a_window_.erase(it);
     co_await a(std::move(aaa));
 
     // we're guaranteed to not co_await in a() if aw, so this is safe to do
-    auto it2 = w_window_.begin() + w_in_front;
-    axi::w_t ww = *it2;
-    w_window_.erase(it2);
-    co_await this->w(std::move(ww));
+    auto it2 = w_window_.begin() + prior_writes;
+    for (unsigned i = 0; i < burst_len; ++i) {
+      axi::w_t ww = *it2;
+      it2 = w_window_.erase(it2);
+      co_await this->w(std::move(ww));
+    }
   }
   else {
     a_window_.erase(it);
