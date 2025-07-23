@@ -1216,11 +1216,11 @@ whisperClient<URV>::overrideWhisperJson()
     changed = true;
     if (j.contains("csr") and j["csr"].contains("mie") and j["csr"]["mie"].contains("mask")) {
       auto data = (std::stoull(std::string(j["csr"]["mie"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
-      j["csr"]["mie"]["mask"] = std::format("0x{:x}", data);
+      j["csr"]["mie"]["mask"] = fmt::format("{:#x}", data);
     }
     if (j.contains("csr") and j["csr"].contains("mip") and j["csr"]["mip"].contains("mask")) {
       auto data = (std::stoull(std::string(j["csr"]["mip"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
-      j["csr"]["mip"]["mask"] = std::format("0x{:x}", data);
+      j["csr"]["mip"]["mask"] = fmt::format("{:#x}", data);
     }
   }
   if (changed) {
