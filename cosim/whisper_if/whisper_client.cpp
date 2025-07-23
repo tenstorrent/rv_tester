@@ -46,6 +46,7 @@ DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 DEFINE_bool(whisper_vmvr_ignore_vill, false, "Enable whisper vmvr_ignore_vill flag");
 DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can be set dynamically based on chicken bits");
+DEFINE_uint32(derr_interrupt_num_default, 23, "DERR interrupt default number");
 #include "iss_utils.h"
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
@@ -1212,14 +1213,14 @@ whisperClient<URV>::overrideWhisperJson()
     j["vector"]["vmvr_ignore_vill"] = true;
     changed = true;
   }
-  if (FLAGS_derr_interrupt_num_override) {
+  if (FLAGS_derr_interrupt_num_override && (FLAGS_derr_interrupt_num_override != FLAGS_derr_interrupt_num_default)) {
     changed = true;
     if (j.contains("csr") and j["csr"].contains("mie") and j["csr"]["mie"].contains("mask")) {
-      auto data = (std::stoull(std::string(j["csr"]["mie"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
+      auto data = ((std::stoull(std::string(j["csr"]["mie"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override)) & ~(1ull << FLAGS_derr_interrupt_num_default);
       j["csr"]["mie"]["mask"] = fmt::format("{:#x}", data);
     }
     if (j.contains("csr") and j["csr"].contains("mip") and j["csr"]["mip"].contains("mask")) {
-      auto data = (std::stoull(std::string(j["csr"]["mip"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override);
+      auto data = ((std::stoull(std::string(j["csr"]["mip"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override)) & ~(1ull << FLAGS_derr_interrupt_num_default);
       j["csr"]["mip"]["mask"] = fmt::format("{:#x}", data);
     }
   }
