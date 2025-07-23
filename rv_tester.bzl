@@ -83,6 +83,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
     sysmod_gen(
         name = name + "_sysmod",
         packet = name + "_transactions",
+        csr_param = name + "_csr_param",
         topology = topology,
         cc_attrs = cc_attrs,
     )

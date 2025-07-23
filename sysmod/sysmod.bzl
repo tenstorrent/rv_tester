@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs):
+def sysmod_gen(name, packet, csr_param, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     sysmod_dpi = name + "_dpi"
     sysmod_sv = name + "_sv"
@@ -55,6 +55,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@cvm//:registry",
           "@rv_tester//sysmod:sysmod_params",
           packet + "_cc",
+          csr_param + "_cc",
         ],
         alwayslink = True,
         visibility = ["//visibility:public"],

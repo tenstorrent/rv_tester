@@ -2,6 +2,9 @@
 #include <thread>
 #include <unordered_map>
 #include <set>
+#include <regex>
+#include <sstream>
+#include <vector>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
@@ -34,6 +37,8 @@
 #include "rv_tester_transactions.hpp"
 #include <sys/socket.h>
 #include <sys/un.h>
+#include "csr_param.hpp"
+using namespace CSR;
 
 // internal flags
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
@@ -50,6 +55,7 @@ DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
+DEFINE_bool(set_csr_perf, false, "Set chkn-bits csr to performance values");
 //core harvesting
 DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
@@ -1271,6 +1277,13 @@ sysmod::load_boot(const std::string& boot) {
 
 void
 sysmod::load_csr_mmr_boot(uint64_t dut) {
+  if (FLAGS_set_csr_perf){
+    if (FLAGS_set_csr != "")
+      FLAGS_set_csr = get_set_csr_perf() + "," + FLAGS_set_csr;
+    else
+      FLAGS_set_csr = get_set_csr_perf();
+  }
+  
   if (!FLAGS_bootrom || (FLAGS_set_csr == "" && FLAGS_set_mmr == ""))
       return;
 
@@ -1629,4 +1642,26 @@ extern "C" {
     flag.wait(false);
     return;
   }
+}
+
+std::string get_set_csr_perf() {
+  std::vector<std::string> csr_entries;
+  
+  // Pattern to match c_(fe|mc|ls|ms)cfg or c_msppc
+  std::regex pattern("^c_(fe|mc|ls|ms)cfg.*$|^c_msppc$");
+  
+  std::string result;
+  
+  // Iterate through all CSRs in the csr_map
+  for (const auto* csr : csr_map) {
+    if (csr && std::regex_match(csr->name, pattern)) {
+      if (!result.empty()) {
+        result += ",";
+      }
+      result += csr->name + ":" + std::to_string(csr->perf_val);
+      cvm::log(cvm::HIGH, "Setting CSR: {} to perf_val: {:#x}\n", csr->name, csr->perf_val);
+    }
+  }
+  
+  return result;
 }
