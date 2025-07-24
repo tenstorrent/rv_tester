@@ -327,7 +327,7 @@ bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
         d += fmt::format("{:02x}", r.data[i]);
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
-    uint16_t latency =  cvm::rand::lcg::generate(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    uint16_t latency =  cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
 
     switch (data_width_) {
       case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
