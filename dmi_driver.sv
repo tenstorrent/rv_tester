@@ -1383,7 +1383,7 @@ import rv_tester_params:: * ;
   end
 
   always @(posedge rvfi_sdtrig) begin
-    while(rvfi_sdtrig && trigger_config != 0) begin
+    while(rvfi_sdtrig && (trigger_config != 0)) begin
       if(sdtrig_progbuf_exec)begin //fixme: use command_trigger
         $display("waiting for core to exit debug mode");
         repeat(5)
@@ -1503,7 +1503,7 @@ import rv_tester_params:: * ;
         $display("After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
     end
     $display("Hit and cause for all the triggers that fired has been verified and triggers disabled");
-    @(posedge clk);
+    // @(posedge clk);
   end
 
 endmodule
