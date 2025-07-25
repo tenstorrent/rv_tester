@@ -389,7 +389,7 @@ bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
 
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
-    uint8_t latency = cvm::rand::lcg::generate(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
     axi_sw_b(b.id, b.resp, latency);
     return true;
 }
