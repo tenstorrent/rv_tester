@@ -26,7 +26,7 @@ using namespace CSR;
 #include <chrono>           // std::chrono::seconds
 #include <cstdlib>          // system
 #include <vector>
-#include <fmt/format.h>ƒ
+#include <fmt/format.h>
 #include <random>
 #include <regex>
 
