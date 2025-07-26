@@ -26,7 +26,7 @@ using namespace CSR;
 #include <chrono>           // std::chrono::seconds
 #include <cstdlib>          // system
 #include <vector>
-#include <fmt/format.h>
+#include <fmt/format.h>ƒ
 #include <random>
 #include <regex>
 
@@ -2455,10 +2455,6 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
 
   // Disable MCM when tohost is written through mcm bypass
   if (m.pa == FLAGS_tohost && m.data == 0x1) {
-    bool valid = false;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, valid) || !valid) {
-      error("Hart {}: Failed to disable MCM\n", hart);
-    }
     end_mcm_ = true;
   }
 
