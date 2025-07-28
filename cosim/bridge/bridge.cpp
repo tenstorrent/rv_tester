@@ -995,37 +995,36 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!nmi_poke_pending_ && !d.nmi)
+  if (!nmis_.size() && !d.nmi)
     return;
 
-  if (!d.nmi && nmi_poke_pending_) {
-    nmi_age_++;
-    if (FLAGS_bridge_log)
-      bridge_log_(cvm::HIGH, "<{}> nmi_age++={}\n", w.time, nmi_age_);
-    if ((nmi_age_ > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
-      error("Hart {}: Whisper wants to take NMI, DUT does not. timeout: [{}] retires\n",
-        hart, FLAGS_max_pend_nmi_age);
+  if (!d.nmi && nmis_.size()) {
+    for (auto& [key, value] : nmis_) {
+      if (FLAGS_bridge_log)
+        bridge_log_(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
+      value++;
+      if ((value > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
+        error("Hart {}: Whisper wants to take NMI, DUT does not. cause:[{}] timeout: [{}] retires\n",
+          hart, key, FLAGS_max_pend_nmi_age);
+      }
     }
     return;
   }
 
   // Timing sensitive resynch cases
   // 1. DUT took nmi that deasserted before retire
-  if (d.nmi && !nmi_poke_pending_ && (prev_nmi_.valid != nmi_.valid)) {
+  if (d.nmi && !nmis_.size() && (prev_nmi_.valid != nmi_.valid)) {
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT took NMI, Whisper does not want to. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, prev_nmi_.cause);
     poke_nmi(hart, d.cycle, prev_nmi_.cause);
-    nmi_poke_pending_ = false;
     return;
   }
 
-  nmi_age_ = 0;
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, nmi_.cause);
+    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
 
   // Poke nmi into whisper
-  poke_nmi(hart, nmi_.cycle, nmi_.cause);
-  nmi_poke_pending_ = false;
+  poke_nmi(hart, nmi_.cycle);
   nmi_taken_count_++;
 }
 
@@ -1288,7 +1287,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
 
   // Clear nmi on first step after taking timing sensitive nmi
   if (d.nmi && !nmi_.valid && prev_nmi_.valid) {
-    clear_nmi(hart, d.cycle);
+    clear_nmi(hart, d.cycle, d.ncause);
   }
 }
 
@@ -2600,17 +2599,18 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> NMI: Hart {} valid: {}\n", n.cycle, hart, n.valid);
 
+  nmi_ = n;
   if (n.valid) {
-    nmi_poke_pending_ = true;
+    nmis_[n.cause] = 0; // Age
     if (debug_mode_ && !nmi_poke_in_debug_mode_) {
-      poke_nmi(hart, nmi_.cycle, nmi_.cause);
+      poke_nmi(hart, n.cycle, n.cause);
       nmi_poke_in_debug_mode_ = true;
     }
   } else {
-    clear_nmi(hart, nmi_.cycle);
-    nmi_poke_pending_ = false;
+    clear_nmi(hart, n.cycle, n.cause);
+    nmis_.erase(n.cause);
   }
-  nmi_ = n;
+  nmi_poke_pending_ = nmis_.size() > 0;
 }
 
 std::string bridge::to_string(rv_intr_t& i) {
@@ -2762,6 +2762,12 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
     bridge_log_(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={}\n", cycle, taken, intr_to_string.at(static_cast<intr>(cause)));
 }
 
+void bridge::poke_nmi(hart_id_t hart, uint64_t time) {
+  if (FLAGS_bridge_log) bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: nmis\n", time);
+  for (const auto& cause : nmis_)
+    poke_nmi(hart, time, cause.first);
+}
+
 void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: nmi: {:#x}\n", time, cause);
@@ -2772,7 +2778,18 @@ void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
   }
 }
 
+void bridge::clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
+  // clears a specific NMI cause
+  if (FLAGS_bridge_log)
+    bridge_log_(cvm::MEDIUM, "<{}> Whisper clear nmi cause:{}\n", time, cause);
+
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperClearNmiCauseRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, cause)) {
+    error("Hart {}: Failed to clear nmi cause {}\n", hart, cause);
+    return;
+  }
+}
 void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
+  // clears all NMI
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> Whisper clear nmi\n", time);
 
@@ -2871,7 +2888,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
   }
   if (nmi_poke_pending_ && !nmi_poke_in_debug_mode_) {
-    poke_nmi(d.hart, d.cycle, nmi_.cause); // If NMI was pending before entering debug mode, poke it now
+    poke_nmi(d.hart, d.cycle); // If NMI was pending before entering debug mode, poke it now
     nmi_poke_in_debug_mode_ = true;
   }
 }

@@ -186,7 +186,9 @@ private:
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
+  void poke_nmi(hart_id_t hart, uint64_t time);
   void clear_nmi(hart_id_t hart, uint64_t time);
+  void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip);
   void peek_seip(hart_id_t hart, uint64_t time, bool& seip);
@@ -353,6 +355,7 @@ private:
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
+  std::unordered_map<uint64_t, uint64_t> nmis_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
   std::bitset<64> mip_ = 0;
