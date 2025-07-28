@@ -29,12 +29,15 @@ import rv_tester_params::*;
   import "DPI-C" function void pwrmgmt_set_reset_count(int unsigned location, int count);
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
+  bit tj_max_shutdown_seq_en;
   int unsigned warm_reset_interval = 0;
   int unsigned warm_reset_clocks = 0;
+
   always @(posedge clk[TB_CLK_IDX]) begin
     if (sys_reset[TB_CLK_IDX]) begin
       /* verilator lint_off BLKSEQ */
       if (location != cvm_topology::nil) begin
+        tj_max_shutdown_seq_en  <= (cvm_plusargs::get_bool("tj_max") != '0) || (cvm_plusargs::get_bool("tj_shutdown") != '0);
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
         thub_blocking_sequence_tick_internal(0);
@@ -203,7 +206,7 @@ import rv_tester_params::*;
   endfunction
 
   final begin
-    if(thub_tick && !tj_seq_ack) begin
+    if(thub_tick && tj_max_shutdown_seq_en && !tj_seq_ack) begin
       $display("ERROR: TJ_max/Shutdown didn't completed with Proper Ack...");
     end
   end
