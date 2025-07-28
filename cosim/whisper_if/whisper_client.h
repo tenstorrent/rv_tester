@@ -139,6 +139,7 @@ class whisperClient {
     // Deliver a non-maskable interrupt to whisper.
     bool whisperNmi(int hart, uint64_t time, uint64_t cause);
     bool whisperClearNmi(int hart, uint64_t time);
+    bool whisperClearNmiCause(int hart, uint64_t time, uint64_t cause);
 
   private:
 
@@ -201,6 +202,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
+    CVM_MESSENGER_procedure_call(whisperClearNmiCauseRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperMcmSkipReadDataCheckRPC, bool (uint64_t, unsigned, bool));
     CVM_MESSENGER_procedure_call(secureRegionRPC, void (uint64_t, uint64_t));
 };
