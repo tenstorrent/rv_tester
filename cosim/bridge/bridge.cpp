@@ -535,6 +535,12 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   psc_stepping_ = false;
 }
 
+void bridge::process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order) {
+    print(cvm::HIGH, "hart={}: excp_valid=1, excp_cause={:#x}, excp_order={:#x}\n", hart, cause, order);
+    prev_dut_trap_cause_ = cause;
+    prev_dut_trap_order_ = order;
+}
+
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
@@ -700,6 +706,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   if (patch_mode_ == EXIT_PATCH)
     patch_mode_ = NO_PATCH;
+
 }
 
 void bridge::resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string&, const whisper_state_t& w){
@@ -3245,6 +3252,7 @@ void bridge::report_metrics() {
   const auto& instr = prev_whisp_state.disasm;
   const auto& mode = prev_whisp_state.priv_mode;
   const auto& trap = prev_whisp_state.trap;
+  const auto& cmode = (prev_dut_trap_cause_ == 55) && (prev_dut_trap_order_ == prev_whisp_state.tag + 1); // FIXME: cmode state should be handled in riscv_cluster
   const auto& num_dest = prev_whisp_state.change_count;
   bool rfcm = (prev_whisp_state.resource == 'r' || prev_whisp_state.resource == 'f' || prev_whisp_state.resource == 'c' || prev_whisp_state.resource == 'm');
   const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
@@ -3270,6 +3278,7 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", id_, trap);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cmode\": {}}}\n", id_, cmode);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
