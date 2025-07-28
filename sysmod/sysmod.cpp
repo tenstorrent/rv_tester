@@ -447,6 +447,124 @@ sysmod::sc_harvest_plusargs()
 uint32_t
 sysmod::get_rand_mask(uint32_t n, uint32_t max)
 {
+  // Read reset_state.json and look for hart_enable_mask
+  std::ifstream jsonFile("reset_state.json");
+  std::string jsonContent;
+  bool fileExists = false;
+
+  if (jsonFile.good()) {
+    // Read the entire file content
+    jsonContent = std::string((std::istreambuf_iterator<char>(jsonFile)),
+                             std::istreambuf_iterator<char>());
+    jsonFile.close();
+    fileExists = true;
+
+    // Simple parsing to find hart_enable_mask value
+    size_t pos = jsonContent.find("\"hart_enable_mask\":");
+    if (pos != std::string::npos) {
+        pos = jsonContent.find(":", pos + 18); // Skip to the value
+        if (pos != std::string::npos) {
+            pos++; // Move past ':'
+            // Skip whitespace
+            while (pos < jsonContent.length() && std::isspace(jsonContent[pos])) {
+                pos++;
+            }
+            // Check if value is quoted
+            if (pos < jsonContent.length() && jsonContent[pos] == '"') {
+                pos++; // Skip opening quote
+                size_t end = jsonContent.find('"', pos); // Find closing quote
+                if (end != std::string::npos) {
+                    std::string maskStr = jsonContent.substr(pos, end - pos);
+                    uint32_t hartEnableMask;
+                    if (maskStr.find("0x") == 0 || maskStr.find("0X") == 0) {
+                        hartEnableMask = std::stoul(maskStr, nullptr, 16);
+                    } else {
+                        hartEnableMask = std::stoul(maskStr, nullptr, 10);
+                    }
+                    return hartEnableMask;
+                }
+            } else {
+                // Handle unquoted number (for backward compatibility)
+                size_t end = pos;
+                while (end < jsonContent.length() &&
+                       (std::isdigit(jsonContent[end]) || jsonContent[end] == 'x' ||
+                        (jsonContent[end] >= 'a' && jsonContent[end] <= 'f') ||
+                        (jsonContent[end] >= 'A' && jsonContent[end] <= 'F'))) {
+                    end++;
+                }
+                if (end > pos) {
+                    std::string maskStr = jsonContent.substr(pos, end - pos);
+                    uint32_t hartEnableMask;
+                    if (maskStr.find("0x") == 0 || maskStr.find("0X") == 0) {
+                        hartEnableMask = std::stoul(maskStr, nullptr, 16);
+                    } else {
+                        hartEnableMask = std::stoul(maskStr, nullptr, 10);
+                    }
+                    return hartEnableMask;
+                }
+            }
+        }
+    }
+
+    // If hart_enable_mask not found, check if hart_enable_id exists and calculate mask from it
+    size_t idPos = jsonContent.find("\"hart_enable_id\":");
+    if (idPos != std::string::npos) {
+        idPos = jsonContent.find("\"", idPos + 16); // Skip to the value
+        if (idPos != std::string::npos) {
+            size_t start = idPos + 1;
+            size_t end = jsonContent.find("\"", start);
+            if (end != std::string::npos) {
+                std::string hartEnableIds = jsonContent.substr(start, end - start);
+
+                // Parse the comma-separated IDs and create mask
+                uint32_t mask = 0;
+                std::stringstream ss(hartEnableIds);
+                std::string id;
+                while (std::getline(ss, id, ',')) {
+                    // Trim whitespace
+                    id.erase(0, id.find_first_not_of(" \t"));
+                    id.erase(id.find_last_not_of(" \t") + 1);
+                    if (!id.empty()) {
+                        uint32_t hartId = std::stoul(id);
+                        if (hartId < 32) { // Safety check
+                            mask |= (1u << hartId);
+                        }
+                    }
+                }
+
+                // Write back to JSON file, preserving existing content
+                std::ofstream newJsonFile("reset_state.json");
+                if (fileExists && !jsonContent.empty()) {
+                    // Parse existing JSON and add hart_enable_mask
+                    size_t lastBrace = jsonContent.find_last_of('}');
+                    // Remove the closing brace and add our new entry
+                    std::string beforeBrace = jsonContent.substr(0, lastBrace);
+                    // Check if we need a comma (if there's existing content)
+                    bool needComma = false;
+                    for (size_t i = lastBrace - 1; i > 0; i--) {
+                        if (jsonContent[i] == '"' || jsonContent[i] == '}') {
+                            needComma = (jsonContent[i] == '"');
+                            break;
+                        } else if (!std::isspace(jsonContent[i])) {
+                            break;
+                        }
+                    }
+                    newJsonFile << beforeBrace;
+                    if (needComma) {
+                        newJsonFile << ", ";
+                    }
+                    newJsonFile << "\"hart_enable_mask\": \"" << std::hex << "0x" << mask << std::dec << "\"}";
+                } else {
+                    // Create new JSON file
+                    newJsonFile << "{\"hart_enable_mask\": \"" << std::hex << "0x" << mask << std::dec << "\"}";
+                }
+                newJsonFile.close();
+                return mask;
+            }
+        }
+    }
+  }
+
   // Ex: input: n=4, max=8
   // Ex: output: mask=0x9a - bits: 1,3,4,7
 
@@ -462,6 +580,33 @@ sysmod::get_rand_mask(uint32_t n, uint32_t max)
   for (size_t i = 0; i < n; ++i)
     mask |= (1u << all_positions[i]);
 
+  // Write back to JSON file, preserving existing content
+  std::ofstream newJsonFile("reset_state.json");
+  if (fileExists && !jsonContent.empty()) {
+    // Parse existing JSON and add hart_enable_mask
+    size_t lastBrace = jsonContent.find_last_of('}');
+    // Remove the closing brace and add our new entry
+    std::string beforeBrace = jsonContent.substr(0, lastBrace);
+    // Check if we need a comma (if there's existing content)
+    bool needComma = false;
+    for (size_t i = lastBrace - 1; i > 0; i--) {
+      if (jsonContent[i] == '"' || jsonContent[i] == '}') {
+        needComma = (jsonContent[i] == '"');
+        break;
+      } else if (!std::isspace(jsonContent[i])) {
+        break;
+      }
+    }
+    newJsonFile << beforeBrace;
+    if (needComma) {
+      newJsonFile << ", ";
+    }
+    newJsonFile << "\"hart_enable_mask\": \"" << std::hex << "0x" << mask << std::dec << "\"}";
+  } else {
+    // Create new JSON file
+    newJsonFile << "{\"hart_enable_mask\": \"" << std::hex << "0x" << mask << std::dec << "\"}";
+  }
+  newJsonFile.close();
   return mask;
 }
 
@@ -727,7 +872,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), false, false, valid)) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n");
         }
       }
     }
@@ -747,7 +892,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), false, false, valid) || !valid) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n");
         }
       }
     }
@@ -1283,7 +1428,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
     else
       FLAGS_set_csr = get_set_csr_perf();
   }
-  
+
   if (!FLAGS_bootrom || (FLAGS_set_csr == "" && FLAGS_set_mmr == ""))
       return;
 
@@ -1646,12 +1791,12 @@ extern "C" {
 
 std::string get_set_csr_perf() {
   std::vector<std::string> csr_entries;
-  
+
   // Pattern to match c_(fe|mc|ls|ms)cfg or c_msppc
   std::regex pattern("^c_(fe|mc|ls|ms)cfg.*$|^c_msppc$");
-  
+
   std::string result;
-  
+
   // Iterate through all CSRs in the csr_map
   for (const auto* csr : csr_map) {
     if (csr && std::regex_match(csr->name, pattern)) {
@@ -1662,6 +1807,6 @@ std::string get_set_csr_perf() {
       cvm::log(cvm::HIGH, "Setting CSR: {} to perf_val: {:#x}\n", csr->name, csr->perf_val);
     }
   }
-  
+
   return result;
 }
