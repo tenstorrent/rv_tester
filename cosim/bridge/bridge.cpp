@@ -49,7 +49,7 @@ DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch
 DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
 DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei mismatch condition to match DUT");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
-DEFINE_bool(intr_timeout_resynch, false, "Ignore whisper timeout error condition");
+DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
@@ -2174,7 +2174,7 @@ bool bridge::boot_read(const uint64_t& pa) {
 bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& , std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& ) {
 
   bool csr_opcode = ((d.opcode & 0x73) == 0x73);
-  uint32_t funct3 = (d.opcode >> 11) & 7;
+  uint32_t funct3 = (d.opcode >> 12) & 7;
   csr_opcode = csr_opcode && !(funct3==0 || funct3 == 4);
   if (!csr_opcode)
     return false;
