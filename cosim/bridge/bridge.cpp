@@ -2035,14 +2035,14 @@ bool bridge::is_cracked_csr(const std::string& instr) {
 }
 
 
-bool bridge::resynch_needed(const hart_id_t&, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
+bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
 
   if (d.mem_read.valid && resynch_on_pa(d.mem_read.pa, d.cycle)) {
     IF_DEBUG("resynch on pa match");
     return true;
   }
 
-  if (resynch_on_instr(instr, d.cycle, resource, dut, iss, d, w) && (instr != "illegal")) {
+  if (resynch_on_instr(hart, instr, d.cycle, resource, dut, iss, d, w) && (instr != "illegal")) {
     IF_DEBUG1("resynch on instr match ",instr);
     return true;
   }
@@ -2112,14 +2112,14 @@ bool bridge::resynch_on_pa(const uint64_t& pa, const uint64_t& cycle) {
   return false;
 }
 
-bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle,  std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w) {
+bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, const uint64_t& cycle,  std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w) {
 
   if (hpm_counter_read(instr)) {
     IF_DEBUG("hpm_counter_read condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[hpm_counter_read]\n", cycle);
     return true;
   }
-  if (intr_csrs_mismatch(instr, resource, dut, iss, cycle, d, w)) {
+  if (intr_csrs_mismatch(hart, instr, resource, dut, iss, cycle, d, w)) {
     return true;
   }
   if (instr.find("seed") != std::string::npos) {
@@ -2171,7 +2171,7 @@ bool bridge::boot_read(const uint64_t& pa) {
   return false;
 }
 
-bool bridge::intr_csrs_mismatch(const std::string& instr, std::string& , std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& ) {
+bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& , std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& ) {
 
   bool csr_opcode = ((d.opcode & 0x73) == 0x73);
   uint32_t funct3 = (d.opcode >> 11) & 7;
@@ -2199,6 +2199,11 @@ bool bridge::intr_csrs_mismatch(const std::string& instr, std::string& , std::st
       uint64_t iss_val = std::stoull(iss, nullptr, 16);
       auto dut_val_diff = dut_val & ~iss_val; //TODO
       auto iss_val_diff = iss_val & ~dut_val;
+      uint64_t cac_csr_val = get_csr(hart, src_t::dut, csr_addr);
+      if (iss_val == cac_csr_val) {
+        bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Recent HW update] [dut={:#x}, iss={:#x}, cac={:#x}]\n", cycle, dut_val, iss_val, cac_csr_val);
+        return true;
+      }
       bool match = true;
       match &= is_match(dut_val_diff, deferred_mip_age_clear_);
       match &= is_match(iss_val_diff, deferred_mip_age_);

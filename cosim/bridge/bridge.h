@@ -208,7 +208,7 @@ private:
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
-  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
+  bool resynch_on_instr(const hart_id_t& hart, const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
   void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool clint_read(const uint64_t& pa);
   bool tbox_read(const uint64_t& pa);
@@ -221,7 +221,7 @@ private:
   bool unsupported_mmr_access(const uint64_t& pa);
   bool unsupported_csr_access(const std::string& instr);
   bool hpm_counter_read(const std::string& instr);
-  bool intr_csrs_mismatch(const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
+  bool intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
   void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
