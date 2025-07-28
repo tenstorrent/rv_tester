@@ -205,9 +205,10 @@ private:
   bool is_renamed_csr(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
-  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
+  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
+
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
-  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle=0);
+  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
   void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool clint_read(const uint64_t& pa);
   bool tbox_read(const uint64_t& pa);
@@ -220,15 +221,14 @@ private:
   bool unsupported_mmr_access(const uint64_t& pa);
   bool unsupported_csr_access(const std::string& instr);
   bool hpm_counter_read(const std::string& instr);
-  bool mip_mismatch(const std::string& instr);
-  bool topi_mismatch(const std::string& instr);
-  bool topei_mismatch(const std::string& instr);
+  bool intr_csrs_mismatch(const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
   void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
+  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new);
 
 private:
 
@@ -367,6 +367,8 @@ private:
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
+  std::unordered_map<uint32_t, uint32_t> deferred_mip_age_, deferred_mip_age_clear_;
+  std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
