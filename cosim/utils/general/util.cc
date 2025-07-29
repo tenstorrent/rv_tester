@@ -130,3 +130,13 @@ bool cosim_util::has_substring(const std::vector<std::string>& vec, const std::s
         return s.find(substring) != std::string::npos;
     });
 }
+
+bool cosim_util::is_csr_opcode(const uint32_t& opcode, uint32_t&csr_addr) {
+  if ((opcode & 0x7f) != 0x73)
+    return false;
+  uint32_t funct3 = (opcode >> 12) & 7;
+  if (funct3==0 || funct3==4)
+    return false;
+  csr_addr = (opcode >> 20) & 0xfff;
+  return true;
+}
