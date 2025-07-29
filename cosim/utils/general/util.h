@@ -10,4 +10,5 @@ namespace cosim_util {
     std::vector<std::string> split_string(const std::string& input, const std::string& delimiter);
     std::string hex_string_to_binary_string(const std::string& hex);
     bool has_substring(const std::vector<std::string>& vec, const std::string& substr);
+    bool is_csr_opcode(const uint32_t& opcode, uint32_t&csr_addr);
 };

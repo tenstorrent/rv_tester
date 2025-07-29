@@ -2059,6 +2059,19 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
       bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
+
+  if (debug_mode_) {
+    uint32_t csr_addr;
+    if (cosim_util::is_csr_opcode(d.opcode, csr_addr) && csr_addr == DCSR && nmi_poke_in_debug_mode_) {
+      uint64_t dut_val = std::stoull(dut, nullptr, 16);
+      uint64_t iss_val = std::stoull(iss, nullptr, 16);
+      if ((iss_val & ~dut_val) == 0b1000) { //
+        IF_DEBUG("nmi poke in debug mode condition");
+        bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[nmi poke in debug mode]\n", d.cycle);
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -2173,12 +2186,9 @@ bool bridge::boot_read(const uint64_t& pa) {
 
 bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& , std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& ) {
 
-  bool csr_opcode = ((d.opcode & 0x73) == 0x73);
-  uint32_t funct3 = (d.opcode >> 12) & 7;
-  csr_opcode = csr_opcode && !(funct3==0 || funct3 == 4);
-  if (!csr_opcode)
+  uint32_t csr_addr;
+  if (!cosim_util::is_csr_opcode(d.opcode, csr_addr))
     return false;
-  uint32_t csr_addr = (d.opcode >> 20) & 0xfff;
   bridge_log_(cvm::MEDIUM, "<{}> Trying to Resynch: Reason=[intr_csrs_mismatch] [csr_addr={:#x}] instr: {}\n", cycle, csr_addr, instr);
   auto is_match = [] (uint64_t diff, std::unordered_map<uint32_t, uint32_t>& deferred_age) {
     if (diff) {
@@ -2197,7 +2207,7 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
     if (dut != "" && iss != "") {
       uint64_t dut_val = std::stoull(dut, nullptr, 16);
       uint64_t iss_val = std::stoull(iss, nullptr, 16);
-      auto dut_val_diff = dut_val & ~iss_val; //TODO
+      auto dut_val_diff = dut_val & ~iss_val;
       auto iss_val_diff = iss_val & ~dut_val;
       uint64_t cac_csr_val = get_csr(hart, src_t::dut, csr_addr);
       if (iss_val == cac_csr_val) {
