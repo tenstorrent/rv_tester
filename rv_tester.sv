@@ -42,7 +42,7 @@ module rv_tester
     logic  profile5_clk [NCLKS-1:0];
     logic  profile6_clk [NCLKS-1:0];
 
-    logic ixcom_clk;
+    logic fastest_clk;
     `ifdef IXCOM_COMPILE
         localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
             PROFILE1_CLOCK_FREQ_MHZ,
@@ -65,10 +65,10 @@ module rv_tester
         endfunction
 
         localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
-        IXCclkgen #(max_clock_freq_overall) uclk (ixcom_clk);
+        IXCclkgen #(max_clock_freq_overall) uclk (fastest_clk);
     `else
-        localparam int max_clock_freq_overall = find_overall_max_freq
-        assign ixcom_clk = '0;
+        localparam int max_clock_freq_overall = 0
+        assign fastest_clk = '0;
     `endif
 
     if (EXTERNAL_CLOCK) begin
@@ -79,20 +79,21 @@ module rv_tester
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
             `ifdef CLK_MUX_UNSUPPORTED
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .ixcom_clk(ixcom_clk));
+
             `else
             if(c == REF_CLK_IDX) begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(clk[REF_CLK_IDX]), .ixcom_clk(ixcom_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[REF_CLK_IDX]), .ixcom_clk(fastest_clk));
             end else if (c == TB_CLK_IDX ) begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(clk[TB_CLK_IDX]), .ixcom_clk(ixcom_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[TB_CLK_IDX]), .ixcom_clk(fastest_clk));
             end else begin 
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(def_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile1_clkgen(.clk(profile1_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile2_clkgen(.clk(profile2_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile3_clkgen(.clk(profile3_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile4_clkgen(.clk(profile4_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile5_clkgen(.clk(profile5_clk[c]), .ixcom_clk(ixcom_clk));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .ixcom_clk(ixcom_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(def_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile1_clkgen(.clk(profile1_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile2_clkgen(.clk(profile2_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile3_clkgen(.clk(profile3_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile4_clkgen(.clk(profile4_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile5_clkgen(.clk(profile5_clk[c]), .ixcom_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .ixcom_clk(fastest_clk));
 
 
                 clk_mux_glitch_free #(
