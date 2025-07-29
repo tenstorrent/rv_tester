@@ -995,10 +995,10 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!nmis_.size() && !d.nmi)
+  if (!nmi_poke_pending_ && !d.nmi)
     return;
 
-  if (!d.nmi && nmis_.size()) {
+  if (!d.nmi && nmi_poke_pending_) {
     for (auto& [key, value] : nmis_) {
       if (FLAGS_bridge_log)
         bridge_log_(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
@@ -1013,7 +1013,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
   // Timing sensitive resynch cases
   // 1. DUT took nmi that deasserted before retire
-  if (d.nmi && !nmis_.size() && (prev_nmi_.valid != nmi_.valid)) {
+  if (d.nmi && (nmis_.find(d.ncause) == nmis_.end()) && (prev_nmi_.valid != nmi_.valid)) {
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT took NMI, Whisper does not want to. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, prev_nmi_.cause);
     poke_nmi(hart, d.cycle, prev_nmi_.cause);
@@ -1024,7 +1024,11 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
 
   // Poke nmi into whisper
-  poke_nmi(hart, nmi_.cycle);
+  if (nmi_poke_pending_) {
+    clear_nmi(hart, d.cycle); // clear all previous NMI
+    poke_nmi(hart, d.cycle);
+    nmi_poke_pending_ = false;
+  }
   nmi_taken_count_++;
 }
 
@@ -1286,7 +1290,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
   }
 
   // Clear nmi on first step after taking timing sensitive nmi
-  if (d.nmi && !nmi_.valid && prev_nmi_.valid) {
+  if (d.nmi && !nmi_.valid && prev_nmi_.valid) { // TODO handle multiple nmis
     clear_nmi(hart, d.cycle, d.ncause);
   }
 }
@@ -2597,11 +2601,12 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 // Interrupts
 void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> NMI: Hart {} valid: {}\n", n.cycle, hart, n.valid);
+    bridge_log_(cvm::MEDIUM, "<{}> NMI: Hart {} valid: {} cause: {}\n", n.cycle, hart, n.valid, n.cause);
 
   nmi_ = n;
   if (n.valid) {
     nmis_[n.cause] = 0; // Age
+    nmi_poke_pending_ = true;
     if (debug_mode_ && !nmi_poke_in_debug_mode_) {
       poke_nmi(hart, n.cycle, n.cause);
       nmi_poke_in_debug_mode_ = true;
@@ -2610,7 +2615,6 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
     clear_nmi(hart, n.cycle, n.cause);
     nmis_.erase(n.cause);
   }
-  nmi_poke_pending_ = nmis_.size() > 0;
 }
 
 std::string bridge::to_string(rv_intr_t& i) {
