@@ -67,6 +67,7 @@ module rv_tester
         localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
         IXCclkgen #(max_clock_freq_overall) uclk (ixcom_clk);
     `else
+        localparam int max_clock_freq_overall = find_overall_max_freq
         assign ixcom_clk = '0;
     `endif
 
