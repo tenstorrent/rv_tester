@@ -42,31 +42,29 @@ module rv_tester
     logic  profile5_clk [NCLKS-1:0];
     logic  profile6_clk [NCLKS-1:0];
 
-
-    localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
-        PROFILE1_CLOCK_FREQ_MHZ,
-        PROFILE2_CLOCK_FREQ_MHZ,
-        PROFILE3_CLOCK_FREQ_MHZ,
-        PROFILE4_CLOCK_FREQ_MHZ,
-        PROFILE5_CLOCK_FREQ_MHZ,
-        PROFILE6_CLOCK_FREQ_MHZ,
-        CLOCK_FREQ_MHZ
-    };
-
-    function automatic int unsigned find_overall_max_freq(bit [6:0][NCLKS-1:0][31:0] all_freqs);
-        int unsigned max_val = 0;
-        foreach (all_freqs[i, j]) begin
-            if (all_freqs[i][j] > max_val) begin
-                max_val = all_freqs[i][j];
-            end
-        end
-        return max_val;
-    endfunction
-
-    localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
-
     logic ixcom_clk;
     `ifdef IXCOM_COMPILE
+        localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
+            PROFILE1_CLOCK_FREQ_MHZ,
+            PROFILE2_CLOCK_FREQ_MHZ,
+            PROFILE3_CLOCK_FREQ_MHZ,
+            PROFILE4_CLOCK_FREQ_MHZ,
+            PROFILE5_CLOCK_FREQ_MHZ,
+            PROFILE6_CLOCK_FREQ_MHZ,
+            CLOCK_FREQ_MHZ
+        };
+
+        function automatic int unsigned find_overall_max_freq(bit [6:0][NCLKS-1:0][31:0] all_freqs);
+            int unsigned max_val = 0;
+            foreach (all_freqs[i, j]) begin
+                if (all_freqs[i][j] > max_val) begin
+                    max_val = all_freqs[i][j];
+                end
+            end
+            return max_val;
+        endfunction
+
+        localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
         IXCclkgen #(max_clock_freq_overall) uclk (ixcom_clk);
     `else
         assign ixcom_clk = '0;
