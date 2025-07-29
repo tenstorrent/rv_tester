@@ -2416,11 +2416,6 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   if (debug_mode_ || (m.pa>=sep_base_ && ((m.pa + m.size) < sep_end_))) {
     poke_mem(hart, m.cycle, m.pa, m.size, m.data, false, false);
   }
-  if (((m.pa >= maplic_base_ && (m.pa + m.size) < maplic_end_) ||
-       (m.pa >= saplic_base_ && (m.pa + m.size) < saplic_end_)
-      ) && m.size > 4) {
-    m.size = 4; // FIXME: hack for now, APLIC reads from zebu are returned as 8 bytes
-  }
 
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
