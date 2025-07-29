@@ -971,7 +971,7 @@ cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
               break;
           case 2:
               co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
-              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,1);   // PMNW ID for THUB-1 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,11,1);   // PMNW ID for THUB-1 
               break;
           case 7:
               co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,0);   // PMNW ID for THUB-0 
