@@ -189,7 +189,7 @@ typedef enum logic [1:0] {
   
   bit pos_tdo_en;
 
-  assign jtag_pkt_acks[0].valid         = (state == UPDATE);
+  assign jtag_pkt_acks[0].valid         = (state == UPDATE) || (jtag_busy && (jtag_soft_reset|| jtag_hard_reset));
   assign jtag_pkt_acks[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign jtag_pkt_acks[0].data.complete     = (state == UPDATE);//upper32 bits for future use
@@ -207,6 +207,8 @@ typedef enum logic [1:0] {
       tap_sel = tap_cfg_sel;
       length = reg_length[31:0];
       jtag_quiesced = 1'b0;
+      hard_reset_pending = 1'b0;
+      soft_reset_pending = 1'b0;
       $display("[JTAG_DRIVER.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
     end
     else if(jtag_quit === 1 )begin
@@ -300,23 +302,30 @@ always @(posedge clk) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 5 cycles
         trst_active <= 1'b1; // Pull trst pin down
+        jtag_busy <= 1'b1;
+        state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
           trst_active <= 1'b0; // Release trst pin after 5 cycles
           jtag_hard_reset <= 1'b0; // Clear hard reset signal
           jtag_req.tms <= 1'b0;
+          jtag_busy <= 1'b0;
+
         end
       end
     end else if (jtag_soft_reset) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 6 cycles
-         jtag_req.tms <= 1'b1; // Keep TMS high for 5 cycles
+        jtag_req.tms <= 1'b1; // Keep TMS high for 5 cycles
+        jtag_busy <= 1'b1;
+        state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
             jtag_soft_reset <= 1'b0; // Clear soft reset after 5 cycles
             jtag_req.tms <= 1'b0;
+            jtag_busy <= 1'b0;
         end
       end
     end else begin
@@ -452,7 +461,7 @@ end
 //driving tdo 
 
 always @(posedge clk) begin
-  if (reset) begin
+  if (reset || jtag_hard_reset || jtag_soft_reset) begin
     push_idx <= 32'b0;
   end else begin
     if(read_data_valid_reg == 1'b1)begin
