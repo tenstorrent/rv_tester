@@ -104,8 +104,11 @@ cvm::messenger::task<void> thub_sequence::wait_for_tj_max_ticks()
 
 cvm::messenger::task<void> thub_sequence::tj_max_config()
 {
+  // Note: not following Cluster Spec THUB PMNW ID as it only applies to 8 Core model
+  // For 3 Core model, THUB-0,1 is 12,11 according to Cluster Spec it is 12,9 (not applicable)
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,1);
   cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
-  cvm::rand::uniform_dist<uint8_t> thub_dist_2c(0,1); // PMNW ID for THUB-0,1 is 12,9
+
   uint8_t thub_select;
   uint32_t wdata=1;
 
@@ -117,9 +120,9 @@ cvm::messenger::task<void> thub_sequence::tj_max_config()
           thub_select = 12;     // PMNW ID for THUB-0
           break;
       case 2:
-          thub_select = thub_dist_2c();
+          thub_select = thub_dist_3c();
           if(thub_select != 0x1) { thub_select = 12; }
-          else { thub_select = 9;} 
+          else { thub_select = 11;} 
           break;
       case 7:
           thub_select = thub_dist_8c();
@@ -150,8 +153,11 @@ Sequence of steps for TJ Shutdown cases would be as below.
 */
 cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
 {
+  // Note: not following Cluster Spec THUB PMNW ID as it only applies to 8 Core model
+  // For 3 Core model, THUB-0,1 is 12,11 according to Cluster Spec it is 12,9 (not applicable)
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,1);
   cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
-  cvm::rand::uniform_dist<uint8_t> thub_dist_2c(0,1); // PMNW ID for THUB-0,1 is 12,9
+
   uint8_t thub_select;
   uint32_t wdata=1;
 
@@ -163,9 +169,9 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
           thub_select = 12;     // PMNW ID for THUB-0
           break;
       case 2:
-          thub_select = thub_dist_2c();
+          thub_select = thub_dist_3c();
           if(thub_select != 0x1) { thub_select = 12; }
-          else { thub_select = 9;} 
+          else { thub_select = 11;} 
           break;
       case 7:
           thub_select = thub_dist_8c();

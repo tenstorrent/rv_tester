@@ -35,6 +35,7 @@ class external_interrupt_sequence {
     void drive_interrupt();
     void capture_trigger_info(int32_t a, int32_t b);
     void gen_interrupt_timings();
+    uint32_t get_logical_core_id(uint32_t physical_hart_id);
 
   private:
 
