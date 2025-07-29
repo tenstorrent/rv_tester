@@ -12,8 +12,10 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//transactors/axi_sw:axi_sw.sv"
         ],
         deps = [
+            "@rv_tester//:rv_tester_lib",
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
+            "@cvm//:random_sv",
             packet + "_sv",
         ],
         visibility = ["//visibility:public"],

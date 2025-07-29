@@ -16,6 +16,7 @@
 #include "cvm/logger.hpp"
 #include "src/cac_core.h"
 #include "src/cac_lib.h"
+#include "common/parser.hpp"
 
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
@@ -48,6 +49,7 @@ public:
   //   - AMO
   //   - Table Walks
   //   - Exceptions/interrupt
+  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
@@ -63,7 +65,7 @@ public:
   //   - Write (St cache write)
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
   virtual void process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
@@ -96,62 +98,6 @@ private:
     fetch
   } memclass_t;
 
-  using hex_range = std::pair<uint64_t, uint64_t>;
-  using key_hex_map = std::unordered_map<int, std::vector<hex_range>>;
-
-  // A simple type_tag used to select the proper overload.
-  template <typename T>
-  struct type_tag {};
-
-  // Helper for static_assert false in dependent contexts.
-  template<typename T>
-  struct dependent_false : std::false_type {};
-
-  // Generic function to parse a comma-separated list using a converter callable.
-  template <typename T, typename Converter>
-  std::vector<T> parse_comma_separated(const std::string &input, Converter converter) {
-      std::vector<T> result;
-      std::istringstream stream(input);
-      std::string token;
-      while (std::getline(stream, token, ',')) {
-          result.push_back(converter(token));
-      }
-      return result;
-  }
-
-  // Overload for key_hex_map (i.e. key:hex_range pairs).
-  key_hex_map parse_key_with_hex_ranges(const std::string &input);
-
-  // Overload for parse_input for key_hex_map.
-  inline key_hex_map parse_input(const std::string &input, type_tag<key_hex_map>) {
-      return parse_key_with_hex_ranges(input);
-  }
-
-  // Overload for comma-separated lists returned as std::vector<T>.
-  // Supports T = int and T = std::string.
-  template <typename T>
-  std::vector<T> parse_input(const std::string &input, type_tag<std::vector<T>>) {
-      if constexpr (std::is_same_v<T, int>) {
-          auto converter = [](const std::string &token) -> int {
-              return std::stoi(token);
-          };
-          return parse_comma_separated<int>(input, converter);
-      } else if constexpr (std::is_same_v<T, std::string>) {
-          auto converter = [](const std::string &token) -> std::string {
-              return token;
-          };
-          return parse_comma_separated<std::string>(input, converter);
-      } else {
-          static_assert(dependent_false<T>::value, "Unsupported type for parse_input");
-      }
-  }
-
-  // Generic version for containers (other than vector<string> or key_hex_map) using strict equality.
-  template <typename Container, typename T>
-  bool find(const Container &container, const T &value) {
-      if (container.empty()) return false;
-      return std::find(container.begin(), container.end(), value) != container.end();
-  }
 
   // Overload for vector<string> that allows regex matching.
   // The provided pattern is compiled to a std::regex and used to match each element.
@@ -160,19 +106,6 @@ private:
       std::regex re(pattern);
       for (const auto &str : container) {
           if (std::regex_match(str, re)) {
-              return true;
-          }
-      }
-      return false;
-  }
-
-  // Overload for key_hex_map: looks for a given key and numeric value (value must fall within one of the ranges).
-  inline bool find(const key_hex_map &m, int key, uint64_t value) {
-      if (m.empty()) return false;
-      auto it = m.find(key);
-      if (it == m.end()) return false;
-      for (const auto &range : it->second) {
-          if (value >= range.first && value <= range.second) {
               return true;
           }
       }
@@ -229,7 +162,7 @@ private:
   bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
-  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data);
+  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data, bool cache, bool skipmem);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -272,9 +205,10 @@ private:
   bool is_renamed_csr(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
-  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
+  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
+
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
-  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle=0);
+  bool resynch_on_instr(const hart_id_t& hart, const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
   void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool clint_read(const uint64_t& pa);
   bool tbox_read(const uint64_t& pa);
@@ -287,15 +221,14 @@ private:
   bool unsupported_mmr_access(const uint64_t& pa);
   bool unsupported_csr_access(const std::string& instr);
   bool hpm_counter_read(const std::string& instr);
-  bool mip_mismatch(const std::string& instr);
-  bool topi_mismatch(const std::string& instr);
-  bool topei_mismatch(const std::string& instr);
+  bool intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
   void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
+  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new);
 
 private:
 
@@ -370,6 +303,8 @@ private:
   CacCore csr_cac_;
 
   uint64_t order_ = 0;
+  uint64_t prev_dut_trap_cause_ = 0;
+  uint64_t prev_dut_trap_order_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
@@ -414,6 +349,7 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
@@ -431,11 +367,11 @@ private:
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
+  std::unordered_map<uint32_t, uint32_t> deferred_mip_age_, deferred_mip_age_clear_;
+  std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
-  bool pre_undeferred_intr_;
-  bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
@@ -456,11 +392,12 @@ private:
 
   std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
-  int num_exceptions_iaf_nderr_ = 0;
-  int num_exceptions_laf_nderr_ = 0;
-  int num_exceptions_saf_nderr_ = 0;
-  int num_exceptions_iside_hwerr_ = 0;
-  int num_exceptions_dside_hwerr_ = 0;
+  int num_exceptions_insn_err_access_fault_ = 0;
+  int num_exceptions_ld_err_access_fault_ = 0;
+  int num_exceptions_late_st_err_access_fault_ = 0;
+  int num_exceptions_insn_hwerr_fault_ = 0;
+  int num_exceptions_ld_hwerr_fault_ = 0;
+  int num_exceptions_late_st_hwerr_fault_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
@@ -475,11 +412,15 @@ private:
   enum patch_mode patch_mode_ = NO_PATCH;
 
   // Containers for storing result of parsing plusargs
-  key_hex_map cosim_resynch_excp_addr_{};
-  std::vector<int> cosim_resynch_excp_{};
-  std::vector<int> cosim_error_excp_{};
-  std::vector<std::string> cosim_error_instr_{};
+  parser::pair_map<uint64_t, uint64_t> cosim_resynch_excp_addr_{};
+  parser::vector<uint64_t> cosim_resynch_excp_{};
+  parser::vector<uint64_t> cosim_error_excp_{};
+  parser::vector<std::string> cosim_error_instr_{};
+  parser::map<uint32_t, uint32_t> cosim_remap_opcode_{};
+  bool cosim_remap_opcode_enabled_{false};
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+
+  std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
 };

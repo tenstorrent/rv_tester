@@ -322,7 +322,7 @@ void debug_module_t::init_debug_abstract_buffer(){
   debug_module_t::write32(debug_abstract, i++, ebreak()); // 4 (high)
 }
 
-void debug_module_t::reset()
+void debug_module_t::reset(bool is_dm_only_reset)
 {
   cvm::log(cvm::NONE,"\nReset DM Model.. \n");
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
@@ -346,20 +346,22 @@ void debug_module_t::reset()
 
   memset(&dmcontrol, 0, sizeof(dmcontrol));
   memset(&dmcs2, 0, sizeof(dmcs2));
-  memset(&dmstatus, 0, sizeof(dmstatus));
-  dmstatus.impebreak = config.support_impebreak;
-  dmstatus.authenticated = !config.require_authentication;
-  dmstatus.version = 3;
 
   memset(&abstractcs, 0, sizeof(abstractcs));
   abstractcs.datacount = sizeof(dmdata) / 4;
   abstractcs.progbufsize = config.progbufsize;
 
   memset(&abstractauto, 0, sizeof(abstractauto));
-
-  for (auto &ele : hart_state)
-  { // Add havereset for all the core
-    ele.havereset = true;
+ 
+  if (!is_dm_only_reset) {
+    memset(&dmstatus, 0, sizeof(dmstatus));
+    dmstatus.impebreak = config.support_impebreak;
+    dmstatus.authenticated = !config.require_authentication;
+    dmstatus.version = 3;
+    for (auto &ele : hart_state)
+    { // Add havereset for all the core
+      ele.havereset = true;
+  }
   }
 
   cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x388); //Fixed value as per the implementation
@@ -1242,8 +1244,8 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
     case DM_DMCONTROL:
     {
       cvm::log(cvm::HIGH, "Inside the DMCONTROL Write Event - 001 with num harts:{:#x}\n", harts.size());
-      if (!dmcontrol.dmactive && get_field(value, DM_DMCONTROL_DMACTIVE))
-        reset();
+      if (!dmcontrol.dmactive && get_field(value, DM_DMCONTROL_DMACTIVE)) 
+        reset(true);
       dmcontrol.dmactive = get_field(value, DM_DMCONTROL_DMACTIVE);
       if (!dmstatus.authenticated || !dmcontrol.dmactive)
         return true;

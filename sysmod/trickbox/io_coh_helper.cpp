@@ -134,8 +134,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =8;
-  aw_txn.rsp_err_chk = !FLAGS_io_coherency_disable && (((aw_txn.addr & 0x3) == 0) && (aw_txn.size != 0 && aw_txn.size != 1) && !((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3));
- 
+  aw_txn.allow_err_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
+
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
@@ -169,14 +169,14 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   //cvm::registry::messenger.fork(l, t);
 
   //Poke same data to whisper memory
-  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data_vec[0]);
+  cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     co_return;
   }{
 
-  cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
+  cvm::log(cvm::MEDIUM, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
   }
   }
    num_writes++;
@@ -223,7 +223,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
-  ar_txn.rsp_err_chk = !FLAGS_io_coherency_disable && (((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3));
+  ar_txn.allow_err_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
 
@@ -270,7 +270,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   a_txn.region  =0;
   a_txn.atop  =0;
   a_txn.user  =0;
-  
+  a_txn.allow_err_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
+
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
 
   read_in_flight = true;
@@ -329,9 +330,9 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
  
   ////------------------------------
   //Poke same data to whisper memory
-  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
+  cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', txns_vec[i].addr+ i,1, data_vec[i], valid) && FLAGS_whisper_client_check)) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', txns_vec[i].addr+ i,1, data_vec[i], false, false, valid) && FLAGS_whisper_client_check)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     co_return;
   }{

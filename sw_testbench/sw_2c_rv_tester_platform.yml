@@ -22,6 +22,9 @@ rv_tester_platform_attrs: &rv_tester_platform_attrs
   PALEN: 56
   CLLEN: 512
   CSRLEN: 12
+  # Memory/AXI parameters
+  MAX_IN_FLIGHT_READ_REQ: 16
+  MAX_BEATS_PER_BURST: 16
 
 rv_tester_clki_attrs: &rv_tester_clki_attrs
   NCLKS: 5

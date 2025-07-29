@@ -13,6 +13,7 @@ import rv_tester_params::*;
     input clk,
     input reset,
     input dut_reset_req,
+    input dut_core_reset,
     output logic trace_quiesced,
     //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
@@ -89,17 +90,17 @@ import rv_tester_params::*;
     export "DPI-C" function sysmod_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (clocks > TICKS )& (location != cvm_topology::nil);
+    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (~dut_core_reset) & (clocks > TICKS )& (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
     assign ticks[0].data.clocks   = clocks;
     assign ticks[0].data.divisor  = TICKS;
     assign ticks[0].data.dut_reset_req = dut_reset_req & (clocks > 100);
 
-    localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
-    assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
-    assign jtag_ticks[0].data.location = location;
-    assign jtag_ticks[0].data.advance  = JTAG_TICKS;
+   // localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
+   // assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
+   // assign jtag_ticks[0].data.location = location;
+   // assign jtag_ticks[0].data.advance  = JTAG_TICKS;
 
     localparam longint unsigned OVERLAY_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(OVERLAY_CLOCK_PERIOD_PS);
     assign overlay_ticks[0].valid         = (0 == (clocks % OVERLAY_TICKS)) & (location != cvm_topology::nil);

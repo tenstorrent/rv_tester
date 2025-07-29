@@ -25,10 +25,11 @@ module rv_tester
     bit flag_force_ref_clk;
     bit force_ref_clk_d1;
     bit force_ref_clk_d2;
-    logic bypass_mem = 1;
-    logic bypass_cache = 1;
+    logic rv_tester_enable_llc = 0;
+    logic rv_tester_mem_bypass_cache = 1;
     logic rv_tester_reset = '1;
     logic dm_model_bypass = 1;
+    int unsigned rv_tester_mem_delay = 20;
 
     /* verilator lint_off UNOPTFLAT */
     logic [2:0] clock_mode = 3'b000;
@@ -81,7 +82,11 @@ module rv_tester
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
-             if(c != REF_CLK_IDX) begin
+            if(c == REF_CLK_IDX) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(clk[REF_CLK_IDX]), .ixcom_clk(ixcom_clk));
+            end else if (c == TB_CLK_IDX ) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(clk[TB_CLK_IDX]), .ixcom_clk(ixcom_clk));
+            end else begin 
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) clkgen(.clk(def_clk[c]), .ixcom_clk(ixcom_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile1_clkgen(.clk(profile1_clk[c]), .ixcom_clk(ixcom_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile2_clkgen(.clk(profile2_clk[c]), .ixcom_clk(ixcom_clk));
@@ -89,6 +94,7 @@ module rv_tester
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile4_clkgen(.clk(profile4_clk[c]), .ixcom_clk(ixcom_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile5_clkgen(.clk(profile5_clk[c]), .ixcom_clk(ixcom_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .BFREQ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .ixcom_clk(ixcom_clk));
+
 
                 clk_mux_glitch_free #(
                     .NUM_INPUTS(7),
@@ -101,8 +107,6 @@ module rv_tester
                     .async_sel_i    (clock_mode),
                     .clk_o          (clk[c])
                 );
-            end else begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
             end
             `endif
          end
@@ -124,7 +128,10 @@ module rv_tester
     import "DPI-C" function longint unsigned eot_get_addr();
     import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
 
+    localparam int unsigned MaxInFlightReadReq = topology.TOP.PLATFORM.MAX_IN_FLIGHT_READ_REQ;
+    localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
+    localparam bit RespDelayModule = 0;
 
     logic flush_complete;
 
@@ -207,6 +214,7 @@ module rv_tester
     int hart_enable_mask = 0;
     int num_harts = 0;
     bit ntrace_stop_on_wrap = 0;
+    bit cluster_axi_sp_perf = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
     int num_dm_randpc = 0;
@@ -224,6 +232,7 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
+    int abscmd_hang_counter = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -247,11 +256,15 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
+    int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
+    LU cvm_debug_cycle_on = '0;
+    LU cvm_debug_cycle_off = '0;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
     reg [9:0] dut_reset_req_shift_reg;
+
+    logic rerun_now_ff;
 
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
@@ -276,17 +289,18 @@ module rv_tester
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
-      if (rv_tester_reset)begin
+      if (rv_tester_reset & !rerun_now_ff)begin
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
-        clock_mode <= clock_mode + 1'b1;
-        if(clock_mode == 3'b111)
-          clock_mode <= '0;
-      end
+        if(clock_mode == 3'b110)
+            clock_mode <= 'b1;
+        else
+            clock_mode <= clock_mode + 1'b1;
+      end 
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -300,7 +314,9 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
+        rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
+
 
         `ifndef NO_TIMESTAMP
             current_time <= $time;
@@ -343,6 +359,19 @@ module rv_tester
         end
 
     end
+
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (!rv_tester_reset && cvm_debug_cycle_off > 0) begin
+            if (curr_cvm_verbosity != cvm_debug_verbosity && clocks >= cvm_debug_cycle_on && clocks <= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_debug_verbosity);
+                curr_cvm_verbosity <= cvm_debug_verbosity;
+            end else if (curr_cvm_verbosity != cvm_verbosity && clocks >= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_verbosity);
+                curr_cvm_verbosity <= cvm_verbosity;
+            end
+        end
+    end
+
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
@@ -419,7 +448,7 @@ module rv_tester
     */
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
-        automatic int _;
+        automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
         if (rv_tester_reset) begin
 
@@ -443,62 +472,71 @@ module rv_tester
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             // Using nested function calls in cvm as Palladium doesn't support strings
-            cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
-            gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+            _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+            _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
             warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
-            eot_addr             <= eot_get_addr();
-            eot_status           <= 1;
-            eot_syscall          <= 0;
-            perf                 <= cvm_plusargs::get_bool("perf") != '0;
-            flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            num_dm_randpc        <= cvm_plusargs::get_int("iss_select_num_randpc");
-            num_dm_randload      <= cvm_plusargs::get_int("iss_select_num_randload");
-            num_dm_randstore     <= cvm_plusargs::get_int("iss_select_num_randstore");
-            trigger_config       <= cvm_plusargs::get_int("trigger_config");
-            priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
-            disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
-            disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
-            disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
-            nonexistent_hart     <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
-            sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
-            dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
-            cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
-            dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
-            ndmreset_ack_delay   <= cvm_plusargs::get_int("ndmreset_ack_delay");
-            trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
-            flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
-            freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
-            clk_profile          <= cvm_plusargs::get_int("clk_profile");
-            dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
-            call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
-            gen_timestamp            <= cvm_verbosity >= gen_timestamp_verbosity;
-            bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
-            bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
-            assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
-            sdtrig_display       <= cvm_plusargs::get_bool("sdtrig_display") != '0;
+      
+            eot_addr                        <= eot_get_addr();
+            eot_status                      <= 1;
+            eot_syscall                     <= 0;
+            perf                            <= cvm_plusargs::get_bool("perf") != '0;
+            flag_force_ref_clk              <= cvm_plusargs::get_bool("force_ref_clk") != '0;
+            rand_dmi_driver_dly             <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            num_dm_randpc                   <= cvm_plusargs::get_int("iss_select_num_randpc");
+            num_dm_randload                 <= cvm_plusargs::get_int("iss_select_num_randload");
+            num_dm_randstore                <= cvm_plusargs::get_int("iss_select_num_randstore");
+            trigger_config                  <= cvm_plusargs::get_int("trigger_config");
+            priority_singlestep             <= cvm_plusargs::get_bool("priority_singlestep") != '0;
+            disable_haltpoll                <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
+            disable_abscmdpoll              <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
+            disable_triggerpoll             <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
+            nonexistent_hart                <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
+            sdtrig_multitrigger             <= cvm_plusargs::get_int("sdtrig_multitrigger");
+            dm_single_step_count            <= cvm_plusargs::get_int("dm_single_step_count");
+            cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
+            dmi_poll_timeout                <= cvm_plusargs::get_int("dmi_poll_timeout");
+            ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
+            trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
+            flush_timeout                   <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile                     <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+            call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
+            gen_timestamp                   <= _cvm_verbosity >= _gen_timestamp_verbosity;
+            rv_tester_enable_llc            <= cvm_plusargs::get_bool("rv_tester_enable_llc") != '0;
+            rv_tester_mem_bypass_cache      <= cvm_plusargs::get_bool("rv_tester_mem_bypass_cache") != '0;
+            rv_tester_mem_delay             <= cvm_plusargs::get_int("rv_tester_mem_delay");
+            assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
+            sdtrig_display                  <= cvm_plusargs::get_bool("sdtrig_display") != '0;
+            dm_model_bypass                 <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
+            debug_enable                    <= cvm_plusargs::get_int("debug_enable");
+            trace_en                        <= cvm_plusargs::get_bool("trace_en") != '0;
+            cla_en                          <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
+            overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en                         <= cvm_plusargs::get_bool("jtag_en") != '0;
+            rand_dmi_driver_dly             <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            hart_enable_mask                <= cvm_plusargs::get_int("hart_enable_mask");
+            perf_count                      <= '0;
+            ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
+            num_harts                       <= cvm_plusargs::get_int("num_harts");
+            cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
+            abscmd_hang_counter  <= cvm_plusargs::get_int("abscmd_hang_counter");
 
-            dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
-            debug_enable         <= cvm_plusargs::get_int("debug_enable");
-            trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
-            cla_en               <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
-            overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
-            perf_count           <= '0;
-            ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
-            num_harts            <= cvm_plusargs::get_int("num_harts");
+            cvm_verbosity        <= _cvm_verbosity;
+            curr_cvm_verbosity   <= _cvm_verbosity;
+            cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+            cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+            cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
 
         end
-        clock_mode      <= clk_profile[2:0];
+        clock_mode           <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -589,6 +627,7 @@ module rv_tester
 
     // sys_reset per clock domain
     logic sys_reset_pending [NCLKS-1:0];
+    logic terminate_sync    [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
         if (c != TB_CLK_IDX) begin
             rv_tester_cdc_pulse cdc_pulse (
@@ -598,11 +637,19 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
+ 
+            rv_tester_sync3 terminate_sync3 (
+                .clk (dut_clk[c]),
+                .d   (terminate),
+                .q   (terminate_sync[c])
+            );
+
         end else begin
             always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+            assign terminate_sync   [c] = terminate;
         end
     end
 
@@ -723,6 +770,21 @@ module rv_tester
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    // Writeback logic
+    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_writeback_valid[0] = writeback_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_writeback_valid[i] = 2'b00;
+    end
+
+    // Dfetch logic
+    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_dfetch_valid[0] = dfetch_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_dfetch_valid[i] = 2'b00;
+    end
+    
+
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
@@ -738,6 +800,7 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
         .dut_reset_req,
+        .dut_core_reset(dut_reset[CORE_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
@@ -753,6 +816,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
+        .core_clk(dut_clk[CORE_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
         .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
@@ -768,10 +832,11 @@ module rv_tester
         .disable_haltpoll,
         .disable_abscmdpoll,
         .disable_triggerpoll,
-        .terminate,
+        .terminate(sysmod_terminate.terminate),
         .num_harts,
         .sdtrig_display,
         .nonexistent_hart,
+        .abscmd_hang_counter,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -834,6 +899,8 @@ module rv_tester
 
 `endif
 
+
+
     // coverage
     arch_sample arch_sample ();
 
@@ -841,6 +908,17 @@ module rv_tester
 
     logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
+    `ifndef CACHE_MODEL_EN
+    // Dummy variables to prevent X - props #FIXME : remove later when making cache model default
+    logic [51:0] devict_addr;
+    logic [51:0] writeback_addr [1:0];
+    logic [51:0] dfetch_addr [1:0];
+    assign devict_addr = '0;
+    for(genvar i = 0; i < 2; i++) begin : no_cache_model_init
+        assign writeback_addr[i] = '0;
+        assign dfetch_addr[i] = '0;
+    end
+    `endif 
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
           .NUM(c),
@@ -885,9 +963,33 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
+          `ifdef CACHE_MODEL_EN
+          .devict_cl_valid(devict_cl_valid[c]),
+          .devict_cl_addr(devict_cl_addr[c]),
+          .flush_cl_valid(flush_cl_valid[c]),
+          .flush_cl_addr(flush_cl_addr[c]),
+          .writeback_cl_valid(mcm_writeback_valid[c]),
+          .writeback_cl_addr(writeback_cl_addr),
+          .dfetch_cl_valid(mcm_dfetch_valid[c]),
+          .dfetch_cl_addr(dfetch_cl_addr),
+          `else
+          .devict_cl_valid(),
+          .devict_cl_addr(devict_addr),
+          .flush_cl_valid('0),
+          .flush_cl_addr('0),
+          .writeback_cl_valid('0),
+          .writeback_cl_addr(writeback_addr),
+          .dfetch_cl_valid('0),
+          .dfetch_cl_addr(dfetch_addr),
+          // Tying to 0 to prevent X-propagation
+          `endif
+
+          
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
+    
+    assign boot_done_all = &boot_done;
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
@@ -920,7 +1022,11 @@ module rv_tester
                 .warm_reset_req(warm_reset_req),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
-                .core_no_fetch(|core_no_fetch),
+                .core_no_fetch(&core_no_fetch),
+                .tj_shutdown(tj_shutdown),
+                .tj_max(tj_max),
+                .pll_dfs_done(pll_dfs_done),
+                .pll_shutdown_done(pll_shutdown_done),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -964,7 +1070,7 @@ module rv_tester
             .jtag_req,
             .jtag_tck_trst,
             .jtag_resp,
-          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(1,0,0)
         );
 
 
@@ -979,6 +1085,7 @@ module rv_tester
             .dut_clk(dut_clk[AXI_CLK_IDX]),
             .dut_reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
+            .cluster_axi_sp_perf(cluster_axi_sp_perf),
           `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PORTS(2,0,0)
         );
 
@@ -1051,7 +1158,8 @@ module rv_tester
         .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
-        .terminate,
+        .terminate(terminate),
+        .AcChk_pll_interrupts_in(AcChk_pll_interrupts_in),
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),
         .AcReqPktRfClki(AcReqPktRfClki),
@@ -1087,7 +1195,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
@@ -1107,7 +1215,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
         );
       end
@@ -1429,7 +1537,7 @@ module rv_tester
 
     endfunction
 
-    assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
+    assign addr_map_final = (rv_tester_mem_bypass_cache == 0)?addr_map:addr_map_idx1;
 
     export "DPI-C" function rv_tester_set_address_map;
 
@@ -1484,7 +1592,10 @@ module rv_tester
         .mst_resp_t             ( mst_resp_rv ),
         .rule_t                 ( xbar_rule_t ),
         .NoAddrRules            ( NoAddrRules ),
-        .NumMastersMem          ( NoOfMasters )
+        .NumMastersMem          ( NoOfMasters ),
+        .MaxInFlightReadReq     ( MaxInFlightReadReq ),
+        .MaxBeatsPerBurst       ( MaxBeatsPerBurst ),
+        .RespDelayModule        ( RespDelayModule )
         ) rv_tester_mem(
         .clk                    ( dut_clk[AXI_CLK_IDX] ),
         .rst_n                  ( ~dut_reset[AXI_CLK_IDX] ),
@@ -1493,7 +1604,8 @@ module rv_tester
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
         .addr_map               ( addr_map_final ),
-        .bypass_mem             ( bypass_mem ),
+        .rv_tester_enable_llc   ( rv_tester_enable_llc ),
+        .rv_tester_mem_delay    ( rv_tester_mem_delay ),
         .flush_cache            ( terminate && quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       ()

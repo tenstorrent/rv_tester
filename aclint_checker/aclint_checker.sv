@@ -20,6 +20,7 @@ import rv_tester_params:: * ;
         input logic[63: 0] AcMtimei,
         input logic[8: 0] AcMtipi,
         input logic SmcMtipi,
+        input logic AcChk_pll_interrupts_in,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -182,26 +183,31 @@ import rv_tester_params:: * ;
 
     genvar asserti;
     generate
-        for ( asserti = 0; asserti < 9; asserti++) begin : mtip_check 
-            logic coredisabled;
+        for ( asserti = 0; asserti < 9; asserti++) begin : mtip_checker
             logic [3:0] coreid;
             logic fail_mtishouldbeON, fail_mtishouldbeOFF;
-            assign coredisabled = ~enablefuse[asserti];
-            assign coreid = vid[asserti];
-            assign fail_mtishouldbeON = (AcMtipi[asserti] === '0) &&  ((coreid == 8) ? counter_mtip8 == 0 : (counter[coreid] == 0 && ~coredisabled));
-            assign fail_mtishouldbeOFF =(AcMtipi[asserti] === '1) && ~((coreid == 8) ? counter_mtip8 == 0 : (counter[coreid] == 0 && ~coredisabled));
+            assign coreid = enablefuse[asserti] ? vid[asserti] : 4'b1111;
+            assign fail_mtishouldbeON = (AcMtipi[coreid] === '0) && (coreid !== 4'b1111) &&  ((coreid === 8) ? counter_mtip8 == 0 : (counter[asserti] === 0 && enablefuse[asserti]));
+            assign fail_mtishouldbeOFF = (AcMtipi[coreid] === '1) && (coreid !== 4'b1111) && ~((coreid === 8) ? counter_mtip8 == 0 : (counter[asserti] === 0 && enablefuse[asserti]));
 
-            logic [4:0] cycles_in_fail_mtishouldbeON, cycles_in_fail_mtishouldbeOFF;
+            logic [4:0] cycles_in_fail_mtishouldbeON [8:0];
+            logic [4:0] cycles_in_fail_mtishouldbeOFF [8:0];
             always @(posedge rf_clk) begin
-                if(dut_reset || ~fail_mtishouldbeON) cycles_in_fail_mtishouldbeON <= 0;
-                else if(fail_mtishouldbeON) cycles_in_fail_mtishouldbeON <= cycles_in_fail_mtishouldbeON + 1;
+                if(dut_reset || ~fail_mtishouldbeON) cycles_in_fail_mtishouldbeON[asserti] <= 0;
+                else if(fail_mtishouldbeON) cycles_in_fail_mtishouldbeON[asserti] <= cycles_in_fail_mtishouldbeON[asserti] + 1;
             end
             always @(posedge rf_clk) begin
-                if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
-                else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
+                if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF[asserti] <= 0;
+                else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF[asserti] <= cycles_in_fail_mtishouldbeOFF[asserti] + 1;
             end
-            always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 5)) else $error("[%0d] Error: Did not expect MTIP, but MTIP %d generated", clocks, asserti);
-            always_comb assert(~(cycles_in_fail_mtishouldbeON > 5)) else $error("[%0d] Error: Expected MTIP, but MTIP %d not generated", clocks, asserti);    
+            // always_comb assert(~(cycles_in_fail_mtishouldbeOFF[asserti] > 5)) else $error("[%0d] Error: Did not expect MTIP, but MTIP %d generated", clocks, asserti);
+            // always_comb assert(~(cycles_in_fail_mtishouldbeON[asserti] > 5)) else $error("[%0d] Error: Expected MTIP, but MTIP %d not generated", clocks, asserti);
+            assign mtip_checks[asserti].valid         = ((cycles_in_fail_mtishouldbeOFF[asserti] > 5) || (cycles_in_fail_mtishouldbeON[asserti] > 5)); 
+            assign mtip_checks[asserti].data.location = location;
+            assign mtip_checks[asserti].data.check_1  = (cycles_in_fail_mtishouldbeOFF[asserti] > 5);
+            assign mtip_checks[asserti].data.check_2  = (cycles_in_fail_mtishouldbeON[asserti] > 5);
+            assign mtip_checks[asserti].data.clock    = clocks;
+            assign mtip_checks[asserti].data.hart     = asserti;
         end
     endgenerate
 
@@ -217,7 +223,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  warm_reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
@@ -250,9 +256,15 @@ import rv_tester_params:: * ;
     export "DPI-C" function update_ctime_value;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
-    // FIXME: Re-enable once popping logic is fixed
     always @(posedge terminate) begin
-        if (!reset && enable_checks) check_outstanding_transactions(location);
+        // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
+        // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
+        if (!reset && !AcChk_pll_interrupts_in && enable_checks) check_outstanding_transactions(location);
+    end
+
+    import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
+    always @(negedge warm_reset) begin
+        clear_core_outstanding_transactions(location);
     end
 
   function automatic logic [3:0] get_hart_ret(int n);

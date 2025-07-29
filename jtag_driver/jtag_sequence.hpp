@@ -197,8 +197,10 @@ class jtag_sequence {
   }
 
   void reset() {
-    cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
-    trickboxJtagWrite(0, 13, 0, 1 ,0,2,tap_cfg_sel);
+    if (FLAGS_jtag_en) {
+      cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
+      trickboxJtagWrite(0, 13, 0, 1 ,0,2,tap_cfg_sel);
+    }
 
     if (FLAGS_random_jtag_entry) {
       cvm::log(cvm::HIGH, "[jtag_sequence]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
@@ -269,10 +271,10 @@ class jtag_sequence {
   cvm::messenger::task<void> jtag_tick();
 
   void checkJtagEvents() {
-    cond_log(cvm::DEBUG, "Timer chk jtag evt \n");
+    cond_log(cvm::HIGH, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry) {
       if (timer_ >= timer_rand_debug && csv_completed) {
-        cond_log(cvm::DEBUG, "Timer passed random evt Value\n");
+        cond_log(cvm::HIGH, "Timer passed random evt Value\n");
         rnd_jtag_trigger = 1;
         csv_completed = 0;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets) {

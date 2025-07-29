@@ -1,3 +1,6 @@
+#include <tuple>
+#include <string_view>
+
 #include "axi_sw.h"
 #include "cvm/topology.hpp"
 #include "cvm/plusargs.hpp"
@@ -25,21 +28,67 @@ DEFINE_int32(axi_sw_read_latency_fifo_threshold, 1, "How many remaining fifo ent
 DEFINE_int32(axi_sw_read_latency_fixed, 0, "Fixed latency of axi reads");
 DEFINE_bool(axi_sw_read_no_callbacks, false, "Plusarg to test synchronous read flushes are working by turning off asynchronous callbacks. Must use with +axi_sw_read_latenxy_*");
 DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, -1, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
+
 DEFINE_uint32(axi_sw_reorder_window, 0, "If reorder window > 1, will randomly attempt to reorder ar/aw requests within the window. Otherwise, transactions are handled in-order.");
 DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt to flush transaction every N cycles while window is not drained (prevent stalls).");
+
 DEFINE_bool(axi_sw_fast_write_response, false, "If fast write response, SV will immediately return write response without going through DPI.");
+
+
+DEFINE_uint32(axi_sw_lfsr_seed_aw_rdy, 0, "LFSR seed for aw ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_aw_rdy, 0, "LFSR mask for aw ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_ar_rdy, 0, "LFSR seed for ar ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_ar_rdy, 0, "LFSR mask for ar ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_w_rdy, 0, "LFSR seed for w ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_w_rdy, 0, "LFSR mask for w ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+
+static std::tuple<bool, uint64_t, uint64_t> get_uint64_pair(std::string_view value) {
+    using std::operator""sv;
+    auto range = std::views::split(value, ":"sv);
+    if (std::distance(range.begin(), range.end()) != 2) {
+      cvm::log(cvm::ERROR, "Expecting <min>:<max> format for add response latency range: %s\n", value);
+      return {false, 0, 0};
+    }
+
+    auto it = range.begin();
+    auto min = std::stoull(std::string((*it).begin(), (*it).end()), nullptr, 0);
+    it = std::next(it, 1);
+    auto max = std::stoull(std::string((*it).begin(), (*it).end()), nullptr, 0);
+
+    if ((min >= max) || (max >= 65536)) {
+      cvm::log(cvm::ERROR, "Invalid add response latency range: %s, must be <= 65535 and min < max\n", value);
+      return {false, min, max};
+    }
+    return {true, min, max};
+}
+
+static bool validate_add_response_latency_range([[maybe_unused]] const char* flagname, const std::string& value) {
+    auto [ok, _, _2] = get_uint64_pair(value);
+    return ok;
+}
+
+DEFINE_string(axi_sw_add_response_latency_range, "0:1", "Range of random response latency added [min, max).");
+DEFINE_validator(axi_sw_add_response_latency_range, &validate_add_response_latency_range);
 
 namespace {
     bool destroyed = false;
+}
+
+// Helper function to convert a string to lowercase.
+static std::string to_lower(const std::string& s) {
+  std::string result = s;
+  std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
+  return result;
 }
 
 extern "C" {
 
   void axi_sw_r_reset();
   void axi_sw_b_reset();
-  void axi_sw_b(axi::id_t id, axi::resp_t resp);
-  void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
-  void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
+  void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
+  void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+  void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+  void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 }
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
@@ -65,9 +114,22 @@ axi_sw<W,AW,AR,RQ,BQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
         return reset_ptrs();
     });
 
-   connect_task<W,AW,AR,axi_sw_defs::reorder_q_flush_t>();
 
-   connect<RQ,BQ,axi_sw_defs::r_q_ptr_blocking_update_t>();
+    std::tie(std::ignore, add_latency_min_, add_latency_max_) = get_uint64_pair(FLAGS_axi_sw_add_response_latency_range);
+
+    bool random_latency = add_latency_min_ != 0 or add_latency_max_ != 1 or FLAGS_axi_sw_reorder_window != 0;
+    if (FLAGS_axi_sw_read_latency_fixed and random_latency)
+      cvm::log(cvm::ERROR, "Error: can't specify both fixed latency and randomized latency options (add response latency, reorder window)");
+
+    if (FLAGS_axi_sw_read_latency_max and random_latency)
+      cvm::log(cvm::ERROR, "Error: can't specify both max latency and randomized latency options (add response latency, reorder window)");
+
+    if (FLAGS_axi_sw_fast_write_response and random_latency)
+      cvm::log(cvm::ERROR, "Error: can't specify both fast write response and randomized latency options (add response latency, reorder window)");
+
+    connect_task<W,AW,AR,axi_sw_defs::reorder_q_flush_t>();
+
+    connect<RQ,BQ,axi_sw_defs::r_q_ptr_blocking_update_t>();
 }
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
@@ -83,13 +145,16 @@ axi_sw<W,AW,AR,RQ,BQ>::~axi_sw() {
     ::destroyed = true;
 }
 
+// What I would really like to do instead, is pick a delay ahead-of-time and re-order
+// by randomizing this delay. This also means we wouldn't need to buffer like this. We
+// would also have much better guarantees.
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
-cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
+cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
 
   if (!a_window_.size())
     co_return false;
 
-  unsigned position = cvm::rand::lcg::generate(a_window_.size());
+  unsigned position = oldest? 0 : cvm::rand::lcg::generate(a_window_.size());
   axi::id_t id = a_window_[position].id;
   bool w = a_window_[position].w;
 
@@ -101,23 +166,32 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
   position = std::distance(a_window_.begin(), it);
   axi::a_t aaa = *it;
 
+  cvm::log(cvm::FULL, "[axi_sw] Picking position {} of {} a's\n", position, a_window_.size());
+
   if (aaa.w) {
     // stupid way to check write data is available
-    unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
-          return p.w;
-        });
+    unsigned prior_writes = 0;
+    // TODO: change this to std:;reduce
+    for (auto it = a_window_.begin(); it != (a_window_.begin() + position); ++it)
+      if (it->w)
+        prior_writes += (it->len + 1);
 
-    if (w_in_front >= w_window_.size())
+    size_t burst_len = aaa.len + 1;
+    if ((prior_writes + burst_len) > w_window_.size()) {
+      cvm::log(cvm::FULL, "[axi_sw] Insufficient write packets for burst_len={} in w window={}\n", burst_len, w_window_.size());
       co_return false;
+    }
 
     a_window_.erase(it);
     co_await a(std::move(aaa));
 
     // we're guaranteed to not co_await in a() if aw, so this is safe to do
-    auto it2 = w_window_.begin() + w_in_front;
-    axi::w_t ww = *it2;
-    w_window_.erase(it2);
-    co_await this->w(std::move(ww));
+    auto it2 = w_window_.begin() + prior_writes;
+    for (unsigned i = 0; i < burst_len; ++i) {
+      axi::w_t ww = *it2;
+      it2 = w_window_.erase(it2);
+      co_await this->w(std::move(ww));
+    }
   }
   else {
     a_window_.erase(it);
@@ -132,14 +206,15 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
 
-    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
+    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,
+                           axi::cache_mem_attr_t(aw.cache), aw.prot, aw.qos, aw.region, aw.atop, aw.user};
 
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
     else {
       a_window_.push_back(std::move(aa));
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -150,13 +225,15 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     read_bytes_ = read_bytes_ + (1ull << ar.size);
 
-    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user};
+    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,
+                           axi::cache_mem_attr_t(ar.cache), ar.prot, ar.qos, ar.region, 0, ar.user};
+
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
     else {
       a_window_.push_back(std::move(aa));
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -175,7 +252,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const W& w) {
     else {
       w_window_.push_back(ww);
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -239,7 +316,7 @@ void axi_sw<W,AW,AR,RQ,BQ>::process(const BQ& b_q_ptr) {
 template < typename W,typename AW,typename AR, typename RQ, typename BQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::reorder_q_flush_t&) {
     if (a_window_.size() != 0) {
-      co_await pop_reorder_q();
+      co_await pop_reorder_q(true);
       all_resp();
     }
 }
@@ -259,12 +336,14 @@ bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
         d += fmt::format("{:02x}", r.data[i]);
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
-    if(data_width_ == 64)
-        axi_sw_r_8(r.id, r.resp, r.data.data(), r.last);
-    else if(data_width_ == 512)
-        axi_sw_r_64(r.id, r.resp, r.data.data(), r.last);
-    else
-        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    uint16_t latency =  cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
+
+    switch (data_width_) {
+      case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 256: axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 512: axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency); break;
+      default:  cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    }
 
     return true;
 }
@@ -283,13 +362,17 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        cvm::registry::callbacks.push(
-            scope_,
-              [this]() {
-                  std::lock_guard<std::mutex> l(r_dpi_mutex_);
-                  r_dpi();
-              }
-        );
+        if (!scope_) {
+          cvm::log(cvm::ERROR, "Error: scope_ not set before pushing r_dpi callback\n");
+        } else {
+          cvm::registry::callbacks.push(
+              scope_,
+                [this]() {
+                    std::lock_guard<std::mutex> l(r_dpi_mutex_);
+                    r_dpi();
+                }
+          );
+        }
       }
     }
 }
@@ -306,7 +389,8 @@ bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
 
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
-    axi_sw_b(b.id, b.resp);
+    uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    axi_sw_b(b.id, b.resp, latency);
     return true;
 }
 

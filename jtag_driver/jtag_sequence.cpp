@@ -23,6 +23,7 @@ DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be drive
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file, "", "File containing jtag transaction requests");
 DEFINE_string(jtag_disabled_snippets,"", "List of jtag snippets that needs to be disabled in randoms");
+DEFINE_bool(jtag_sp_boot,false, "Jtag driver will start at reset and not wait for no_fetch deassertion");
 
 extern "C" {
   void jtag_driver_jtag_socket(uint8_t val);
@@ -34,14 +35,14 @@ extern "C" {
     return (std::string(mode) != "off");
   }
 
-  uint8_t jtag_driver_get_en_from_plusargs(const char* mode) {
+  uint8_t jtag_driver_get_socket_en_from_plusargs(const char* mode) {
     const char* p = cvm_plusargs_get_string(mode);
     if (!p) {
       cvm::log(cvm::ERROR, "Error: jtag_driver mode is not set\n");
       assert(false);
       return 0;
     }
-    return (std::string(p) != "off");
+    return (std::string(p) == "socket");
   }
 }
 

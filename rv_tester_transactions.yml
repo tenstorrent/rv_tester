@@ -262,6 +262,24 @@ cosim:
                 qualify: v_ext
                 width: 8
 
+    m_eoti_normal: &eot
+        domain: 1
+        num: 1 
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            icount:
+                width: 64
+            data:
+                width: 64
+            max_instr:
+                width: 1
+
+    offline_eoti:
+        <<: *eot
+
     m_mcmi_insert:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.MCMI.NINSERTS)}
@@ -309,6 +327,8 @@ cosim:
                 width: 5
             cbo:
                 width: 1
+            attr:
+                width: 32
             v_ext:
                 width: 1
             data_vec:
@@ -371,6 +391,46 @@ cosim:
                 width: 32
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+    
+    m_mcmi_devict:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_flush:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_writeback:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
+    
+    m_mcmi_dfetch:
+        domain: 1
+        num: 2
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
 
     m_trap:
         domain: 1
@@ -405,6 +465,8 @@ cosim:
                 width: 1
             seip_clr:
                 width: 1
+            buserr_bit:
+                width: 6
 
     m_core_nmi:
         domain: 1
@@ -455,24 +517,12 @@ sysmod:
                 width: 64
             dut_reset_req:
                 width: 1
-    jtag_tick:
-        domain: 2
-        num: 1
-        fields:
-            advance:
-                width: 64
     overlay_tick:
         domain: 2
         num: 1
         fields:
             advance:
                 width: 64
-    jtag_rdata:
-        domain: 2
-        num: 1
-        fields:
-            rdata:
-                width: 70
     event_triggers:
         domain: 2
         num: ${TOP.PLATFORM.NHARTS}
@@ -820,6 +870,8 @@ pmu_core:
             op_retired_fp:
                 width: 24
             op_retired_vec:
+                width: 24
+            uop_retired_any:
                 width: 24
             op_complete_ld:
                 width: 24
@@ -1754,6 +1806,18 @@ aclint_checker:
                 width: ${TOP.PLATFORM.XLEN}
             user:
                 width: 8
+    mtip_check:
+        domain: 1
+        num: 9
+        fields:
+            check_1:
+                width: 1
+            check_2:
+                width: 1
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1
@@ -1781,6 +1845,9 @@ pwrmgmt:
     m_pcontrol_tick:
         domain: 3
         num: 1
+    m_dfs_tick:
+        domain: 3
+        num: 1
     m_thub_tick:
         domain: 3
         num: 1
@@ -1791,6 +1858,12 @@ pwrmgmt:
         domain: 3
         num: 1
     m_force_ref_clk_ack:
+        domain: 3
+        num: 1
+    m_tj_shutdown_ack:
+        domain: 3
+        num: 1
+    m_tj_max_ack:
         domain: 3
         num: 1
 
@@ -1848,25 +1921,25 @@ overlay_driver:
 jtag_driver:
     num: 1
     m_jtag_driver_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             cycle:
                 width: 32
     jtag_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             advance:
                 width: 64
     jtag_pkt_ack:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             complete:
                 width: 1
     jtag_rdata:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             rdata:

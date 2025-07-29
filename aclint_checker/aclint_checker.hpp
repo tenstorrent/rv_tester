@@ -21,6 +21,7 @@ DECLARE_bool(aclint);
 #define halt_on_reset false
 
 inline uint64_t insterClusterId(uint64_t inaddr);
+inline bool in_range(uint64_t v, uint64_t a, uint64_t b);
 
 typedef uint64_t reg_t;
 typedef struct {
@@ -31,6 +32,17 @@ typedef struct {
     bool datavalid;
 }
 MmrWr;
+
+struct pendingRequests {
+    uint64_t reads;
+    uint64_t writes;
+
+    // Default constructor
+    pendingRequests() : reads(0), writes(0) {}
+
+    // Parameterized constructor
+    pendingRequests(uint64_t r, uint64_t w) : reads(r), writes(w) {}
+};
 
 // Equality operator for MmrWr
 bool operator==(const MmrWr& lhs, const MmrWr& rhs) {
@@ -117,7 +129,7 @@ std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
     {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
 };
 
-std::unordered_map<aclint_addr, std::pair<uint32_t, uint32_t>> mmrReadReqFlag = {
+std::unordered_map<aclint_addr, pendingRequests> mmrReqFlags = {
     {AC_MTIMECMP0   , {0, 0}},
     {AC_MTIMECMP1   , {0, 0}},
     {AC_MTIMECMP2   , {0, 0}},
@@ -152,6 +164,7 @@ class aclint_checker {
 
     void process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite);
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
+    void process(const rv_tester_transactions::aclint_checker::mtip_check < > & mtip_check);
     void process(const smc_write_pkt & w);
     void process(const smc_read_pkt & r);
     void process(const smc_req_pkt & read_req);
@@ -160,6 +173,7 @@ class aclint_checker {
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
+    void clear_core_outstanding_transactions(uint64_t signal);
     void set_scope(svScope scope);
     private:
         // cvm::file_logger log;

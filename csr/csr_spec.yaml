@@ -1,0 +1,7739 @@
+cycle:
+  common_data:
+    ALIAS_OF: mcycle
+    ADDRESS: C00
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Cycle counter for RDCYCLE instruction.
+  cycle:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+time:
+  common_data:
+    ADDRESS: C01
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Timer for RDTIME instruction. Read-only shadow of mtime MMR.
+  time:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+instret:
+  common_data:
+    ALIAS_OF: minstret
+    ADDRESS: C02
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Instructions-retired counter for RDINSTRET instruction.
+  instret:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter3:
+  common_data:
+    ALIAS_OF: mhpmcounter3
+    ADDRESS: C03
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter3:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter4:
+  common_data:
+    ALIAS_OF: mhpmcounter4
+    ADDRESS: C04
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter4:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter5:
+  common_data:
+    ALIAS_OF: mhpmcounter5
+    ADDRESS: C05
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter5:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter6:
+  common_data:
+    ALIAS_OF: mhpmcounter6
+    ADDRESS: C06
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter6:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter7:
+  common_data:
+    ALIAS_OF: mhpmcounter7
+    ADDRESS: C07
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter7:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter8:
+  common_data:
+    ALIAS_OF: mhpmcounter8
+    ADDRESS: C08
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter8:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter9:
+  common_data:
+    ALIAS_OF: mhpmcounter9
+    ADDRESS: C09
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter9:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter10:
+  common_data:
+    ALIAS_OF: mhpmcounter10
+    ADDRESS: C0A
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter10:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter11:
+  common_data:
+    ALIAS_OF: mhpmcounter11
+    ADDRESS: C0B
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter11:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter12:
+  common_data:
+    ALIAS_OF: mhpmcounter12
+    ADDRESS: C0C
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter12:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter13:
+  common_data:
+    ALIAS_OF: mhpmcounter13
+    ADDRESS: C0D
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter13:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter14:
+  common_data:
+    ALIAS_OF: mhpmcounter14
+    ADDRESS: C0E
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter14:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter15:
+  common_data:
+    ALIAS_OF: mhpmcounter15
+    ADDRESS: C0F
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter15:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter16:
+  common_data:
+    ALIAS_OF: mhpmcounter16
+    ADDRESS: C10
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter16:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter17:
+  common_data:
+    ALIAS_OF: mhpmcounter17
+    ADDRESS: C11
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter17:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter18:
+  common_data:
+    ALIAS_OF: mhpmcounter18
+    ADDRESS: C12
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter18:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter19:
+  common_data:
+    ALIAS_OF: mhpmcounter19
+    ADDRESS: C13
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter19:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter20:
+  common_data:
+    ALIAS_OF: mhpmcounter20
+    ADDRESS: C14
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter20:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter21:
+  common_data:
+    ALIAS_OF: mhpmcounter21
+    ADDRESS: C15
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter21:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter22:
+  common_data:
+    ALIAS_OF: mhpmcounter22
+    ADDRESS: C16
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter22:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter23:
+  common_data:
+    ALIAS_OF: mhpmcounter23
+    ADDRESS: C17
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter23:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter24:
+  common_data:
+    ALIAS_OF: mhpmcounter24
+    ADDRESS: C18
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter24:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter25:
+  common_data:
+    ALIAS_OF: mhpmcounter25
+    ADDRESS: C19
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter25:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter26:
+  common_data:
+    ALIAS_OF: mhpmcounter26
+    ADDRESS: C1A
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter26:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter27:
+  common_data:
+    ALIAS_OF: mhpmcounter27
+    ADDRESS: C1B
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter27:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter28:
+  common_data:
+    ALIAS_OF: mhpmcounter28
+    ADDRESS: C1C
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter28:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter29:
+  common_data:
+    ALIAS_OF: mhpmcounter29
+    ADDRESS: C1D
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter29:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter30:
+  common_data:
+    ALIAS_OF: mhpmcounter30
+    ADDRESS: C1E
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter30:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+hpmcounter31:
+  common_data:
+    ALIAS_OF: mhpmcounter31
+    ADDRESS: C1F
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Performance-monitoring counter.
+  hpmcounter31:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+misa:
+  common_data:
+    ADDRESS: '301'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: ISA and extensions
+  MXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: 63:62
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Native base integer ISA width
+  wlrl0:
+    FIELDS_WIDTH: '36'
+    FIELDS_RANGE: '61:26'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hardwired 0
+  Z:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '25:25'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  Y:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '24:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  X:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Non-standard extensions present  (Saying No since, Not sure what
+      this contains)
+  W:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  V:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Vector extension (software can turn this off)
+  U:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: User mode implemented (software can turn this off)
+  T:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  S:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor mode implemented (software can turn this off)
+  R:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  Q:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Quad precision FP extension (Not doing this)
+  P:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  O:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  N:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: User-level interrupts extension (Do we need this?)
+  M:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Integer Mul/Div extension (software can turn this off)
+  L:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  K:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  J:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  I:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: RV64I base ISA
+  H:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor extension
+  G:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Reserved
+  F:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Single-precision FP extension (software can turn this off)
+  E:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: RV32E base ISA (Not allowing this)
+  D:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Double-precision FP extension (software can turn this off)
+  C:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Compressed extension (software can turn this off)
+  B:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Bit-manip Ext reflects cmisa.zb* fields (software can not turn this
+      off)
+  A:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Atomic extension (software can turn this off)
+mstatus:
+  common_data:
+    ADDRESS: '300'
+    MASKED_BY: misa
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine status register.
+  SD:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Summary of FS/VS/XS
+  mstatus_wpri_4:
+    FIELDS_WIDTH: '23'
+    FIELDS_RANGE: '62:40'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  MPV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '39:39'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from M-mode'
+  GVA:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '38:38'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from M-mode'
+  MBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '37:37'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from M-mode'
+  SBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '36:36'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from S-mode'
+  SXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '35:34'
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: XLEN for S-mode
+  UXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: XLEN for U-mode
+  mstatus_wpri_3:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '31:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  TSR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'Trap SRET (FE catch illegal if SRET && TSR==1) '
+  TW:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Timeout Wait (should be writable for hypervisor emulation)
+  TVM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Trap Virtual Memory (should be writable for hypervisor emulation)
+  MXR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Make eXecutable Readable
+  SUM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: permit Supervisor User Memory access
+  MPRV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'Modify PRiVilege: modifies the effective privilege mode'
+  XS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '16:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of additional user-mode extensions and associated state
+  FS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '14:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the floating-point unit state (Must become F-ext is implemented)
+  MPP:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: previous privilege mode before entering M-mode
+  VS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '10:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the vector extension state
+  SPP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'hardware write: TRUE previous privilege mode before entering S-mode'
+  MPIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'hardware write: TRUE  interrupt-enable bit active prior to the trap
+      in M-mode'
+  UBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from U-mode
+      (not writable)'
+  SPIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'hardware write: TRUE interrupt-enable bit active prior to the trap
+      in S-mode'
+  mstatus_wpri_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  MIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'hardware write: TRUE  interrupts are globally enabled when in M-mode'
+  mstatus_wpri_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  SIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'hardware write: TRUE interrupts are globally enabled when in S-mode'
+  mstatus_wpri_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+mtvec:
+  common_data:
+    ADDRESS: '305'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine trap-handler base address.
+  BASE:
+    FIELDS_WIDTH: '62'
+    FIELDS_RANGE: '63:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Top MXLEN-2 bits of BASE
+  MODE_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Modes >= 2 are not allowed
+  MODE_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Allows mode 0 (base only) or mode 1 (vectored)
+medeleg:
+  common_data:
+    ADDRESS: '302'
+    MASKED_BY: misa
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine exception delegation register.
+  rsvd_2:
+    FIELDS_WIDTH: '40'
+    FIELDS_RANGE: '63:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Reserved exception codes
+  medeleg_3:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: '23:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception codes 20-23
+  rsvd_1:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: '19:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Reserved exception codes
+  medeleg_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception code 15
+  rsvd_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Reserved exception code
+  medeleg_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '13:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception codes 12-13
+  ecall_from_m:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception code 11
+  medeleg_masked_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception code 10
+  medeleg_0:
+    FIELDS_WIDTH: '10'
+    FIELDS_RANGE: '9:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Exception codes 0-9
+mideleg:
+  common_data:
+    ADDRESS: '303'
+    MASKED_BY: misa
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine interrupt delegation register.
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Local Count Overflow Interrupt
+  SGEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Supervisor Guest External Interrupt
+  MEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Machine External Interrupt
+  VSEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor External Interrupt
+  SEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Supervisor External Interrupt
+  MTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Machine Timer Interrupt
+  VSTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor Timer Interrupt
+  STIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Supervisor Timer Interrupt
+  MSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Machine Software Interrupt
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: '1'
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor Software Interrupt
+  SSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Supervisor Software Interrupt
+mip:
+  common_data:
+    ADDRESS: '344'
+    MASKED_BY: misa
+    SW_TYPE: WARL
+    DESCRIPTION: Machine interrupt pending.
+  NonStandardInterrupts:
+    FIELDS_WIDTH: '48'
+    FIELDS_RANGE: '63:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Definition of many of these interrupt numbers is either custom or
+      non-ratified.  So, these bits must be flexible
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Local Count Overflow Interrupt Pending
+  SGEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Guest External Interupt Pending
+  MEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Machine External Interupt Pending
+  VSEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor External Interupt Pending
+  SEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor External Interupt Pending
+  MTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Machine Timer Interrupt Pending
+  VSTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Pending
+  STIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Timer Interrupt Pending
+  MSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Machine Software Interrupt Pending
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Software Interrupt Pending
+  SSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Software Interrupt Pending
+mie:
+  common_data:
+    ADDRESS: '304'
+    MASKED_BY: misa
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine interrupt-enable register.
+  NonStandardInterrupts:
+    FIELDS_WIDTH: '48'
+    FIELDS_RANGE: '63:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Definition of many of these interrupt numbers is either custom or
+      non-ratified.  So, these bits must be flexible
+  LCOFIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Local Count Overflow Interrupts
+  SGEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Supervisor Guest External Interrupts
+  MEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Machine External Interrupts
+  VSEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Virtual Supervisor External Interrupts
+  SEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Supervisor External Interrupts
+  MTIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Machine Timer Interrupts
+  VSTIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Virtual Supervisor Timer Interrupts
+  STIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Supervisor Timer Interrupts
+  MSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Machine Software Interrupts
+  VSSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: H
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Virtual Supervisor Software Interrupts
+  SSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for Supervisor Software Interrupts
+mscratch:
+  common_data:
+    ADDRESS: '340'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Scratch register for machine trap handlers.
+  mscratch:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Scratch Register
+mepc:
+  common_data:
+    ADDRESS: '341'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine exception program counter.
+  addr:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '63:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine exception program counter.
+mcause:
+  common_data:
+    ADDRESS: '342'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine trap cause.
+  Interrupt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Indicates if the trap was caused by an interrupt
+  ExceptionCodewlrl:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Code identifying the last exception or interrupt
+mtval:
+  common_data:
+    ADDRESS: '343'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine bad address or instruction or machine trap value register.
+  mtval:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Trap Value Register
+mconfigptr:
+  common_data:
+    ADDRESS: F15
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Pointer to configuration data structure.
+  mconfigptr:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: configuration pointer, may be hardwired
+menvcfg:
+  common_data:
+    ADDRESS: 30A
+    MASKED_BY: c_misa_rva23s64_M
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine environment configuration register.
+  STCE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Sstc
+    SW_TYPE: ''
+    DESCRIPTION: Enables STimecmp for S-mode
+  PBMTE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Svpbmt
+    SW_TYPE: ''
+    DESCRIPTION: Enables Svpbmt extension for S-mode and G-stage address translation
+  HADE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Enables hardware updating of PTE A/D bits during S-mode address translation
+  wpri_2:
+    FIELDS_WIDTH: '27'
+    FIELDS_RANGE: '60:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    CONSTRAINTS: WPRI
+    DESCRIPTION: null
+  PMM:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 2
+    SW_TYPE: ''
+    DESCRIPTION: Enables pointer masking for the next lower privilege mode
+  wpri_1:
+    FIELDS_WIDTH: '24'
+    FIELDS_RANGE: '31:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  CBZE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Zero instruction Enable -- Enables execution of CBO.ZERO
+      in a lower privilege mode
+  CBCFE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Clean and Flush instruction enable -- Enables execution
+      of CBO.CLEAN and CBO.FLUSH in a lower privilege mode
+  CBIE:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '5:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Invalidate instruction Enable -- Enables the execution
+      of CBO.INVAL in a lower privilege mode
+  wpri_0:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '3:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  FIOM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Fence of I/O implies Memory
+mseccfg:
+  common_data:
+    ADDRESS: '747'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine security configuration register.
+  wpri_2:
+    FIELDS_WIDTH: '30'
+    FIELDS_RANGE: '63:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  PMM:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 2
+    MASKED_BY: Smmpm
+    SW_TYPE: ''
+    DESCRIPTION: Enables pointer masking for M-mode
+  wpri_1:
+    FIELDS_WIDTH: '22'
+    FIELDS_RANGE: '31:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  SSEED:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Zkr
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to seed CSR in S or HS mode
+  USEED:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Zkr
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to seed CSR in U mode
+  wpri_0:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '7:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  RLB:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Rule Locking Bypass
+  MMWP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Mode Whitelist Policy
+  MML:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Mode Lockdown
+mcycle:
+  common_data:
+    ADDRESS: B00
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine cycle counter.
+  cycle:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+minstret:
+  common_data:
+    ADDRESS: B02
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine instructions-retired counter.
+  instret:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter3:
+  common_data:
+    ADDRESS: B03
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter3:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter4:
+  common_data:
+    ADDRESS: B04
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter4:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter5:
+  common_data:
+    ADDRESS: B05
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter5:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter6:
+  common_data:
+    ADDRESS: B06
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter6:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter7:
+  common_data:
+    ADDRESS: B07
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter7:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter8:
+  common_data:
+    ADDRESS: B08
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter8:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter9:
+  common_data:
+    ADDRESS: B09
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter9:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter10:
+  common_data:
+    ADDRESS: B0A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter10:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter11:
+  common_data:
+    ADDRESS: B0B
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter11:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter12:
+  common_data:
+    ADDRESS: B0C
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter12:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter13:
+  common_data:
+    ADDRESS: B0D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter13:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter14:
+  common_data:
+    ADDRESS: B0E
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter14:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter15:
+  common_data:
+    ADDRESS: B0F
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter15:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter16:
+  common_data:
+    ADDRESS: B10
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter16:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter17:
+  common_data:
+    ADDRESS: B11
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter17:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter18:
+  common_data:
+    ADDRESS: B12
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter18:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter19:
+  common_data:
+    ADDRESS: B13
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter19:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter20:
+  common_data:
+    ADDRESS: B14
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter20:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter21:
+  common_data:
+    ADDRESS: B15
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter21:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter22:
+  common_data:
+    ADDRESS: B16
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter22:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter23:
+  common_data:
+    ADDRESS: B17
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter23:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter24:
+  common_data:
+    ADDRESS: B18
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter24:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter25:
+  common_data:
+    ADDRESS: B19
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter25:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter26:
+  common_data:
+    ADDRESS: B1A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter26:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter27:
+  common_data:
+    ADDRESS: B1B
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter27:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter28:
+  common_data:
+    ADDRESS: B1C
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter28:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter29:
+  common_data:
+    ADDRESS: B1D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter29:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter30:
+  common_data:
+    ADDRESS: B1E
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter30:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmcounter31:
+  common_data:
+    ADDRESS: B1F
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring counter.
+  hpmcounter31:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Counter value
+mhpmevent3:
+  common_data:
+    ADDRESS: '323'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent3:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent4:
+  common_data:
+    ADDRESS: '324'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent4:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent5:
+  common_data:
+    ADDRESS: '325'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent5:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent6:
+  common_data:
+    ADDRESS: '326'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent6:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent7:
+  common_data:
+    ADDRESS: '327'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent7:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent8:
+  common_data:
+    ADDRESS: '328'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent8:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent9:
+  common_data:
+    ADDRESS: '329'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent9:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent10:
+  common_data:
+    ADDRESS: 32A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Overflow status and interrupt disable bit
+  MINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: M-mode counter inhibit
+  SINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: S/HS-mode counter inhibit
+  UINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: U-mode counter inhibit
+  VSINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VS-mode counter inhibit
+  VUINH:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: VU-mode counter inhibit
+  Reserved:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '57:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    STATUS: bringup
+    DESCRIPTION: Reserved for future use
+  mhpmevent10:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '55:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    STATUS: bringup
+    CONSTRAINTS: fromCorePmcCsv
+    DESCRIPTION: Event selector
+mhpmevent11:
+  common_data:
+    ADDRESS: 32B
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent11:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent12:
+  common_data:
+    ADDRESS: 32C
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent12:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent13:
+  common_data:
+    ADDRESS: 32D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent13:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent14:
+  common_data:
+    ADDRESS: 32E
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent14:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent15:
+  common_data:
+    ADDRESS: 32F
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent15:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent16:
+  common_data:
+    ADDRESS: '330'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent16:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent17:
+  common_data:
+    ADDRESS: '331'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent17:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent18:
+  common_data:
+    ADDRESS: '332'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent18:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent19:
+  common_data:
+    ADDRESS: '333'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent19:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent20:
+  common_data:
+    ADDRESS: '334'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent20:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent21:
+  common_data:
+    ADDRESS: '335'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent21:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent22:
+  common_data:
+    ADDRESS: '336'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent22:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent23:
+  common_data:
+    ADDRESS: '337'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent23:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent24:
+  common_data:
+    ADDRESS: '338'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent24:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent25:
+  common_data:
+    ADDRESS: '339'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent25:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent26:
+  common_data:
+    ADDRESS: 33A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent26:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent27:
+  common_data:
+    ADDRESS: 33B
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent27:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent28:
+  common_data:
+    ADDRESS: 33C
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent28:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent29:
+  common_data:
+    ADDRESS: 33D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent29:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent30:
+  common_data:
+    ADDRESS: 33E
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent30:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mhpmevent31:
+  common_data:
+    ADDRESS: 33F
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine performance-monitoring Event selector.
+  mhpmevent31:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Event selector
+mcounteren:
+  common_data:
+    ADDRESS: '306'
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine counter enable.
+  HPM31:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 31 Enable
+  HPM30:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '30:30'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 30 Enable
+  HPM29:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '29:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 29 Enable
+  HPM28:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '28:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 28 Enable
+  HPM27:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '27:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 27 Enable
+  HPM26:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '26:26'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 26 Enable
+  HPM25:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '25:25'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 25 Enable
+  HPM24:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '24:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 24 Enable
+  HPM23:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 23 Enable
+  HPM22:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 22 Enable
+  HPM21:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 21 Enable
+  HPM20:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 20 Enable
+  HPM19:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 19 Enable
+  HPM18:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 18 Enable
+  HPM17:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 17 Enable
+  HPM16:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 16 Enable
+  HPM15:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 15 Enable
+  HPM14:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 14 Enable
+  HPM13:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 13 Enable
+  HPM12:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 12 Enable
+  HPM11:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 11 Enable
+  HPM10:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 10 Enable
+  HPM9:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 9 Enable
+  HPM8:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 8 Enable
+  HPM7:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 7 Enable
+  HPM6:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 6 Enable
+  HPM5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 5 Enable
+  HPM4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 4 Enable
+  HPM3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 3 Enable
+  IR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Instruction Retired Counter Enable
+  TM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Time Counter Enable
+  CY:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cycle Counter Enable
+mcountinhibit:
+  common_data:
+    ADDRESS: '320'
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine counter-inhibit register.
+  HPM31:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 31 Inhibit
+  HPM30:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '30:30'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 30 Inhibit
+  HPM29:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '29:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 29 Inhibit
+  HPM28:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '28:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 28 Inhibit
+  HPM27:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '27:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 27 Inhibit
+  HPM26:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '26:26'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 26 Inhibit
+  HPM25:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '25:25'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 25 Inhibit
+  HPM24:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '24:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 24 Inhibit
+  HPM23:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 23 Inhibit
+  HPM22:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 22 Inhibit
+  HPM21:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 21 Inhibit
+  HPM20:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 20 Inhibit
+  HPM19:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 19 Inhibit
+  HPM18:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 18 Inhibit
+  HPM17:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 17 Inhibit
+  HPM16:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 16 Inhibit
+  HPM15:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 15 Inhibit
+  HPM14:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 14 Inhibit
+  HPM13:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 13 Inhibit
+  HPM12:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 12 Inhibit
+  HPM11:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 11 Inhibit
+  HPM10:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 10 Inhibit
+  HPM9:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 9 Inhibit
+  HPM8:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 8 Inhibit
+  HPM7:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 7 Inhibit
+  HPM6:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 6 Inhibit
+  HPM5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 5 Inhibit
+  HPM4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 4 Inhibit
+  HPM3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 3 Inhibit
+  IR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Instruction Retired Counter Inhibit
+  hard0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Read-only
+  CY:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cycle Counter Inhibit
+miselect:
+  common_data:
+    ADDRESS: '350'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine Indirect register select (valid range is 0 - 0xFF)
+  rsvd_63_8:
+    FIELDS_WIDTH: '56'
+    FIELDS_RANGE: '63:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  interrupts:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: '0x30 - 0x3F : Major Intr priorities0x70-0xFF: External Intr. (0x71,
+      0x73-0x7F are rsvd)Rest: Reserved'
+mireg:
+  common_data:
+    ADDRESS: '351'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine indirect register alias
+  mireg:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Machine indirect register alias
+mtopei:
+  common_data:
+    ADDRESS: 35C
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine top external interrupt (This is marked as read-write in AIA
+      spec, but implemented as read-only for write to this CSR is ignored)
+  rsvd_63_27:
+    FIELDS_WIDTH: '37'
+    FIELDS_RANGE: '63:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  identity:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '26:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt identity
+  rsvd_15_11:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '15:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  priority:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '10:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt priority (same as identity)
+mtopi:
+  common_data:
+    ADDRESS: FB0
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Machine top interrupt
+  rsvd_63_28:
+    FIELDS_WIDTH: '36'
+    FIELDS_RANGE: '63:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IID:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '27:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Identity
+  rsvd_15_8:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '15:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IPRIO:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Priority
+mvien:
+  common_data:
+    ADDRESS: '308'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine virtual interrupt enables
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Sscofpmf
+    SW_TYPE: ''
+    DESCRIPTION: Enable virtual interrupts for local count overflow interrupts
+  hard0_2:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Enable virtual interrupts for supervisor external interrupts
+  hard0_1:
+    FIELDS_WIDTH: '7'
+    FIELDS_RANGE: '8:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Enable virtual interrupts for supervisor software interrupts
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+mvip:
+  common_data:
+    ADDRESS: '309'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine virtual interrupt pending bits
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Sscofpmf
+    SW_TYPE: ''
+    DESCRIPTION: Machine virtual local count overflow interrupt pending
+  hard0_3:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Machine virtual supervisor external interrupt pending
+  hard0_2:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '8:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  STIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine virtual supervisor timer interrupt pending
+  hard0_1:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '4:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine virtual supervisor software interrupt pending
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+sstatus:
+  common_data:
+    ALIAS_OF: mstatus
+    ADDRESS: '100'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor status register.
+  SD:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Summary of FS/VS/XS
+  sstatus_wpri_6:
+    FIELDS_WIDTH: '29'
+    FIELDS_RANGE: '62:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  UXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: XLEN for U-mode
+  sstatus_wpri_5:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '31:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  MXR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Make eXecutable Readable
+  SUM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: permit Supervisor User Memory access
+  sstatus_wpri_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  XS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '16:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of additional user-mode extensions and associated state
+  FS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '14:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the floating-point unit state (Must become F-ext is implemented)
+  sstatus_wpri_3:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  VS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '10:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the vector extension state
+  SPP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: previous privilege mode before entering S-mode
+  sstatus_wpri_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  UBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from U-mode'
+  SPIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: interrupt-enable bit active prior to the trap in S-mode
+  sstatus_wpri_1:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '4:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  SIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: interrupts are globally enabled when in S-mode
+  sstatus_wpri_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+stvec:
+  common_data:
+    ADDRESS: '105'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor trap handler base address.
+  BASESXLEN12warl:
+    FIELDS_WIDTH: '62'
+    FIELDS_RANGE: '63:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Top SXLEN-2 bits of BASE
+  MODE_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Modes >= 2 are not allowed
+  MODE_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Allows mode 0 (base only) or mode 1 (vectored)
+sip:
+  common_data:
+    ALIAS_OF: mip
+    ADDRESS: '144'
+    MASKED_BY: mideleg
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor interrupt pending.
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: LCOFIP
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Local Count Overflow Interrupt Pending
+  hard0_3:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SEIP
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor External Interupt Pending
+  hard0_2:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '7:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  STIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: STIP
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Timer Interrupt Pending
+  hard0_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '3:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SSIP
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Software Interrupt Pending
+sie:
+  common_data:
+    ADDRESS: '104'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor interrupt-enable register.
+  LCOFIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for supervisor-level Local Count Overflow Interrupts
+  hard0_2:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for supervisor-level External Interrupts
+  hard0_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '7:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  STIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for supervisor-level Timer Interrupts
+  hard0_0:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '3:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  SSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt-enable bit for supervisor-level Software Interrupts
+scounteren:
+  common_data:
+    ADDRESS: '106'
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor counter enable.
+  HPM31:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 31 Enable
+  HPM30:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '30:30'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 30 Enable
+  HPM29:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '29:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 29 Enable
+  HPM28:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '28:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 28 Enable
+  HPM27:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '27:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 27 Enable
+  HPM26:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '26:26'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 26 Enable
+  HPM25:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '25:25'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 25 Enable
+  HPM24:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '24:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 24 Enable
+  HPM23:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 23 Enable
+  HPM22:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 22 Enable
+  HPM21:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 21 Enable
+  HPM20:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 20 Enable
+  HPM19:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 19 Enable
+  HPM18:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 18 Enable
+  HPM17:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 17 Enable
+  HPM16:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 16 Enable
+  HPM15:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 15 Enable
+  HPM14:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 14 Enable
+  HPM13:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 13 Enable
+  HPM12:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 12 Enable
+  HPM11:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 11 Enable
+  HPM10:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 10 Enable
+  HPM9:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 9 Enable
+  HPM8:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 8 Enable
+  HPM7:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 7 Enable
+  HPM6:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 6 Enable
+  HPM5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 5 Enable
+  HPM4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 4 Enable
+  HPM3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 3 Enable
+  IR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Instruction Retired Counter Enable
+  TM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Time Counter Enable
+  CY:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cycle Counter Enable
+sscratch:
+  common_data:
+    ADDRESS: '140'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Scratch register for supervisor trap handlers.
+  sscratch:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Scratch register for supervisor trap handlers.
+sepc:
+  common_data:
+    ADDRESS: '141'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor exception program counter.
+  addr:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '63:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor exception program counter.
+scause:
+  common_data:
+    ADDRESS: '142'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor trap cause.
+  Interrupt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Indicates if the trap was caused by an interrupt
+  ExceptionCodewlrl:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Code identifying the last exception or interrupt
+stval:
+  common_data:
+    ADDRESS: '143'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor Trap Value Register
+  stval:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor bad address or instruction.
+stimecmp:
+  common_data:
+    ADDRESS: 14D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor timer register
+  stimecmp:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: FFFFFFFF
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor timer compare value
+senvcfg:
+  common_data:
+    ADDRESS: 10A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor environment configuration register.
+  wpri_2:
+    FIELDS_WIDTH: '30'
+    FIELDS_RANGE: '63:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  PMM:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 2
+    DESCRIPTION: Enables pointer masking for the next lower privilege mode
+  wpri_1:
+    FIELDS_WIDTH: '24'
+    FIELDS_RANGE: '31:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  CBZE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Cache Block Zero instruction Enable -- Enables execution of CBO.ZERO
+      in a lower privilege mode
+  CBCFE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Cache Block Clean and Flush instruction enable -- Enables execution
+      of CBO.CLEAN and CBO.FLUSH in a lower privilege mode
+  CBIE:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '5:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Cache Block Invalidate instruction Enable -- Enables the execution
+      of CBO.INVAL in a lower privilege mode
+  wpri_0:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '3:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  FIOM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Fence of I/O implies Memory
+satp:
+  common_data:
+    ADDRESS: '180'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor address translation and protection.
+  MODE:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: 63:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Address Translation and Protection Mode
+  ASID:
+    FIELDS_WIDTH: '16'
+    FIELDS_RANGE: '59:44'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Address Space Identifier
+  PPN:
+    FIELDS_WIDTH: '44'
+    FIELDS_RANGE: '43:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Physical Page Number
+srmcfg:
+  common_data:
+    ADDRESS: '181'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor resource management qualification
+  MCID:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '27:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Monitor resource usage ID
+  RCID:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '11:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '[0:F]'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: resource controller ID
+siselect:
+  common_data:
+    ADDRESS: '150'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor Indirect register select (valid range is 0 - 0xFF)
+  rsvd_63_9:
+    FIELDS_WIDTH: '55'
+    FIELDS_RANGE: '63:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  interrupts:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: '0x30 - 0x3F : Major Intr priorities0x70-0xFF: External Intr. (0x71,
+      0x73-0x7F are rsvd)Rest: Reserved'
+sireg:
+  common_data:
+    ADDRESS: '151'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor indirect register alias
+  sireg:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor indirect register alias
+stopei:
+  common_data:
+    ADDRESS: 15C
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor top external interrupt (This is marked as read-write in
+      AIA spec, but implemented as read-only for write to this CSR is ignored)
+  rsvd_63_27:
+    FIELDS_WIDTH: '37'
+    FIELDS_RANGE: '63:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  identity:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '26:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt identity
+  rsvd_15_11:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '15:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  priority:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '10:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt priority (same as identity)
+stopi:
+  common_data:
+    ADDRESS: DB0
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Supervisor top interrupt
+  rsvd_63_28:
+    FIELDS_WIDTH: '36'
+    FIELDS_RANGE: '63:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IID:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '27:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Identity
+  rsvd_15_8:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '15:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IPRIO:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Priority
+seed:
+  common_data:
+    ADDRESS: '015'
+    CSR_SIZE: '32'
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Seed CSR.
+  opst:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '31:30'
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 'Register''s Operating Status: 2''b01: WAIT, 2''b10: ES16, 2''b11:
+      DEAD'
+  rsvd_29_24:
+    FIELDS_WIDTH: '6'
+    FIELDS_RANGE: '29:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ''
+  custom:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '23:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ''
+  entropy:
+    FIELDS_WIDTH: '16'
+    FIELDS_RANGE: '15:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: 16b Entropy bits
+fflags:
+  common_data:
+    ALIAS_OF: fcsr
+    ADDRESS: '001'
+    CSR_SIZE: '5'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Accrued Exceptions
+  NV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Invalid Operation
+  DZ:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Divide by Zero
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Overflow
+  UF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Underflow
+  NX:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Inexact
+frm:
+  common_data:
+    ALIAS_OF: fcsr
+    ADDRESS: '002'
+    CSR_SIZE: '3'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: 'Rounding Mode '
+  frm:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '2:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Rounding Mode
+fcsr:
+  common_data:
+    ADDRESS: '003'
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: FP control and status register
+  reserved:
+    FIELDS_WIDTH: '24'
+    FIELDS_RANGE: '31:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Reserved Bits
+  frm:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '7:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Rounding Mode
+  NV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Invalid Operation
+  DZ:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Divide by Zero
+  OF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Overflow
+  UF:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Underflow
+  NX:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Inexact
+vstart:
+  common_data:
+    ADDRESS: 008
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Vector start position
+  vstart:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector Start Index
+vxsat:
+  common_data:
+    ALIAS_OF: vcsr
+    ADDRESS: 009
+    CSR_SIZE: '1'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Fixed-point saturate flag
+  vxsat:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector Fixed-Point Saturation Flag
+vxrm:
+  common_data:
+    ALIAS_OF: vcsr
+    ADDRESS: 00A
+    CSR_SIZE: '2'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Fixed-point rounding mode
+  vxrm:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '1:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector Fixed-Point Rounding Mode Register
+vcsr:
+  common_data:
+    ADDRESS: 00F
+    CSR_SIZE: '3'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Vector control and status register
+  vxrm:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '2:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector Fixed-Point Rounding Mode Register
+  vxsat:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector Fixed-Point Saturation Flag
+vl:
+  common_data:
+    ADDRESS: C20
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Vector length
+  vl:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector length
+vtype:
+  common_data:
+    ADDRESS: C21
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Vector data type register
+  vill:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '1'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Illegal value if set
+  reserved:
+    FIELDS_WIDTH: '55'
+    FIELDS_RANGE: '62:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Reserved if non-zero
+  vma:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector mask agnostic
+  vta:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector tail agnostic
+  vsew:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '5:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Selected element width (SEW) setting
+  vlmul:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '2:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Vector register group multiplier (LMUL) setting
+vlenb:
+  common_data:
+    ADDRESS: C22
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: VLEN/8 (vector register length in bytes)
+  vlenb:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '20'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: VLEN/8 (vector register length in bytes)
+pmpcfg0:
+  common_data:
+    ADDRESS: 3A0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  pmp7cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP7
+  pmp7cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: 62:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP7
+  pmp7cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '60:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP7
+  pmp7cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '58:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP7
+  pmp6cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '55:55'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP6
+  pmp6cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '54:53'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP6
+  pmp6cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '52:51'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP6
+  pmp6cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '50:48'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP6
+  pmp5cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '47:47'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP5
+  pmp5cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '46:45'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP5
+  pmp5cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '44:43'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP5
+  pmp5cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '42:40'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP5
+  pmp4cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '39:39'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP4
+  pmp4cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '38:37'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP4
+  pmp4cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '36:35'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP4
+  pmp4cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '34:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP4
+  pmp3cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP3
+  pmp3cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '30:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP3
+  pmp3cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '28:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP3
+  pmp3cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '26:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP3
+  pmp2cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP2
+  pmp2cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '22:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP2
+  pmp2cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '20:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP2
+  pmp2cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '18:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP2
+  pmp1cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP1
+  pmp1cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '14:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP1
+  pmp1cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP1
+  pmp1cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '10:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP1
+  pmp0cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP0
+  pmp0cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '6:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP0
+  pmp0cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '4:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP0
+  pmp0cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '2:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP0
+pmpcfg2:
+  common_data:
+    ADDRESS: 3A2
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  pmp15cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP15
+  pmp15cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: 62:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP15
+  pmp15cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '60:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP15
+  pmp15cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '58:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP15
+  pmp14cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '55:55'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP14
+  pmp14cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '54:53'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP14
+  pmp14cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '52:51'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP14
+  pmp14cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '50:48'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP14
+  pmp13cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '47:47'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP13
+  pmp13cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '46:45'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP13
+  pmp13cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '44:43'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP13
+  pmp13cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '42:40'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP13
+  pmp12cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '39:39'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP12
+  pmp12cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '38:37'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP12
+  pmp12cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '36:35'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP12
+  pmp12cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '34:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP12
+  pmp11cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP11
+  pmp11cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '30:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP11
+  pmp11cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '28:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP11
+  pmp11cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '26:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP11
+  pmp10cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP10
+  pmp10cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '22:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP10
+  pmp10cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '20:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP10
+  pmp10cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '18:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP10
+  pmp9cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP9
+  pmp9cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '14:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP9
+  pmp9cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP9
+  pmp9cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '10:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP9
+  pmp8cfg_locked:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register L (Locked) bit for PMP8
+  pmp8cfg_rsvd:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '6:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register Rsvd bits for PMP8
+  pmp8cfg_mode:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '4:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0,3
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register A (Address Matching Mode) bits for PMP8
+  pmp8cfg_rwx:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '2:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 1, 3, 4, 5, 7
+    SW_TYPE: ''
+    DESCRIPTION: PMP Config Register RWX (Read/Write/Execute) bits for PMP8
+pmpaddr0:
+  common_data:
+    ADDRESS: 3B0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP0 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP0 address bits 10:2
+pmpaddr1:
+  common_data:
+    ADDRESS: 3B1
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP1 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP1 address bits 10:2
+pmpaddr2:
+  common_data:
+    ADDRESS: 3B2
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP2 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP2 address bits 10:2
+pmpaddr3:
+  common_data:
+    ADDRESS: 3B3
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP3 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP3 address bits 10:2
+pmpaddr4:
+  common_data:
+    ADDRESS: 3B4
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP4 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP4 address bits 10:2
+pmpaddr5:
+  common_data:
+    ADDRESS: 3B5
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP5 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP5 address bits 10:2
+pmpaddr6:
+  common_data:
+    ADDRESS: 3B6
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP6 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP6 address bits 10:2
+pmpaddr7:
+  common_data:
+    ADDRESS: 3B7
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP7 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP7 address bits 10:2
+pmpaddr8:
+  common_data:
+    ADDRESS: 3B8
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP8 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP8 address bits 10:2
+pmpaddr9:
+  common_data:
+    ADDRESS: 3B9
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP9 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP9 address bits 10:2
+pmpaddr10:
+  common_data:
+    ADDRESS: 3BA
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP10 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP10 address bits 10:2
+pmpaddr11:
+  common_data:
+    ADDRESS: 3BB
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP11 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP11 address bits 10:2
+pmpaddr12:
+  common_data:
+    ADDRESS: 3BC
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP12 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP12 address bits 10:2
+pmpaddr13:
+  common_data:
+    ADDRESS: 3BD
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP13 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP13 address bits 10:2
+pmpaddr14:
+  common_data:
+    ADDRESS: 3BE
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP14 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP14 address bits 10:2
+pmpaddr15:
+  common_data:
+    ADDRESS: 3BF
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Physical memory protection configuration.
+  address_hi:
+    FIELDS_WIDTH: '45'
+    FIELDS_RANGE: '53:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: PMP15 address bits 55:11
+  address_lo:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: 1FF
+    LEGAL_VALUE: 1FF
+    SW_TYPE: ''
+    DESCRIPTION: PMP15 address bits 10:2
+tselect:
+  common_data:
+    ADDRESS: 7A0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: 'Trigger Select '
+  INDEX:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '[0:8]'
+    SW_TYPE: ''
+    DESCRIPTION: These are Trigger Registers from Debug Spec, not complete
+dcsr:
+  common_data:
+    ADDRESS: 7B0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: 'Debug Control and Status '
+  XDEBUGVER:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: '31:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Version of Debug Specification implemented
+  hard0_2:
+    FIELDS_WIDTH: '10'
+    FIELDS_RANGE: '27:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  EBREAKVS:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ebreak instructions in M-mode enter Debug Mode
+  EBREAKVU:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ebreak instructions in M-mode enter Debug Mode
+  EBREAKM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ebreak instructions in M-mode enter Debug Mode
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  EBREAKS:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ebreak instructions in S-mode enter Debug Mode
+  EBREAKU:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: ebreak instructions in U-mode enter Debug Mode
+  STEPIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Enable Interrupts during single stepping with step set
+  STOPCOUNT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Don't increment any hart-local counters while in Debug Mode or on
+      ebreak instructions causing entry into Debug Mode
+  STOPTIME:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: time CSR is frozen at the time that Debug Mode was entered
+  CAUSE:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '8:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Explains why Debug Mode was entered
+  v:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Previous Virtualization Mode
+  MPRVEN:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Enable mprv in mstatus taking effect
+  NMIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: When set, there is a Non-Maskable-Interrupt (NMI) pending for the
+      hart
+  STEP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: When set and not in Debug Mode, the hart will only execute a single
+      instruction and then enter Debug Mode
+  PRV:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '1:0'
+    RESET_VALUE: '3'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Previous Privilege Mode
+dpc:
+  common_data:
+    ADDRESS: 7B1
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Debug PC
+  DPC:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Debug PC
+DSCRATCH0:
+  common_data:
+    ADDRESS: 7B2
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Debug Scratch Register 0
+  DSCRATCH0:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Debug Scratch Register 0
+DSCRATCH1:
+  common_data:
+    ADDRESS: 7B3
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Debug Scratch Register 1
+  DSCRATCH1:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Debug Scratch Register 1
+hstatus:
+  common_data:
+    ADDRESS: '600'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor status register.
+  wpri_5:
+    FIELDS_WIDTH: '14'
+    FIELDS_RANGE: '63:50'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  HUPMM:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '49:48'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 2
+    SW_TYPE: ''
+    DESCRIPTION: Configures pointer masking according to ssnpm extension
+  wpri_4:
+    FIELDS_WIDTH: '14'
+    FIELDS_RANGE: '47:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  VSXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_TYPE: ''
+    DESCRIPTION: Controls the effective XLEN for VS-mode
+  wpri_3:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '31:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  VTSR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Makes SRET give virtual instruction exception in VS-mode
+  VTW:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Makes WFI in VS-mode raises virtual instruction exception if not
+      completed within a time limit
+  VTVM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Makes SFENCE.VMA, SINVAL.VMA, and accesses to satp raise virtual
+      instruction exceptions
+  wpri_2:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '19:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  VGEIN:
+    FIELDS_WIDTH: '6'
+    FIELDS_RANGE: '17:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Selects a guest external interrupt source for VS-level external interrupts
+  wpri_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '11:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  HU:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls whether HLV, HLVX, and HSV can be used in U-mode
+  SPVP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Previous Virtual Privilege
+  SPV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Previous Virtualization Mode
+  GVA:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Indicates a Guest Virtual Address is written into stval
+  VSBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Controls Endianness of explicit memory accesses made from VS-mode
+  wpri_0:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '4:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+hedeleg:
+  common_data:
+    ADDRESS: '602'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor exception delegation register.
+  hard0_3:
+    FIELDS_WIDTH: '40'
+    FIELDS_RANGE: '63:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_2:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: '23:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hedeleg_3:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: '19:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Exception Codes 16-19
+  hedeleg_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Exception Code 15
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hedeleg_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '13:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Exception Codes 12-13
+  hard0_0:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '11:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hedeleg_0:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Exception Codes 0-9
+hideleg:
+  common_data:
+    ADDRESS: '603'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor interrupt delegation register.
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: Sscofpmf
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0 -- Delegate Local Count Overflow Interrupt
+  hard0_5:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor External Interrupt
+  hard0_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor Timer Interrupt
+  hard0_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Delegate Virtual Supervisor Software Interrupt
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+hvip:
+  common_data:
+    ALIAS_OF: mip
+    ADDRESS: '645'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor virtual interrupt pending.
+  LCOFIP_virt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Sscofpmf
+    SW_TYPE: ''
+    DESCRIPTION: Local Count Overflow Interrupt Pending
+  hard0_5:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSEIP_virt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor External Interrupt Pending
+  hard0_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSTIP_virt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Pending
+  hard0_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Software Interrupt Pending
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+hviprio1:
+  common_data:
+    ADDRESS: '646'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor VS-level interrupt priorities 1 -- Assumed to be 0 for
+      Athena.  Lives in MC for this limited implementation
+  hviprio1:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hypervisor VS-level interrupt priorities 1
+hviprio2:
+  common_data:
+    ADDRESS: '647'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor VS-level interrupt priorities 2 -- Assumed to be 0 for
+      Athena.  Lives in MC for this limited implementation
+  hviprio2:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hypervisor VS-level interrupt priorities 2
+hip:
+  common_data:
+    ALIAS_OF: mip
+    ADDRESS: '644'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor interrupt pending.
+  SGEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Guest External Interrupt Pending
+  hard0_5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor External Interrupt Pending
+  hard0_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Pending
+  hard0_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Software Interrupt Pending
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+hie:
+  common_data:
+    ALIAS_OF: mie
+    ADDRESS: '604'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor interrupt-enable register.
+  SGEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supervisor Guest External Interrupt Enable
+  hard0_5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor External Interrupt Enable
+  hard0_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSTIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Enable
+  hard0_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  hard0_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VSSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Supervisor Software Interrupt Enable
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+hgeip:
+  common_data:
+    ADDRESS: E12
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Hypervisor guest external interrupt pending.
+  GuestExternalInterrupts:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '63:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hypervisor guest external interrupts pending bits
+  hard0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Read-only
+hgeie:
+  common_data:
+    ADDRESS: '607'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor guest external interrupt-enable register.
+  hard0_1:
+    FIELDS_WIDTH: '58'
+    FIELDS_RANGE: '63:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Read-only
+  GuestExternalInterruptswarl:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '5:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Ascalon supports up to 5 guest supervisor-level interrupt files
+  hard0_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Read-only
+henvcfg:
+  common_data:
+    ADDRESS: 60A
+    MASKED_BY: menvcfg
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor environment configuration register.
+  VSTCE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: STCE
+    SW_TYPE: ''
+    DESCRIPTION: Enables VSTimecmp for VS-mode
+  PBMTE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: PBMTE
+    SW_TYPE: ''
+    DESCRIPTION: Enables Svpbmt extension for VS-stage address translation
+  HADE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: HADE
+    SW_TYPE: ''
+    DESCRIPTION: Enables hardware updating of PTE A/D bits during VS-stage address
+      translation
+  wpri_2:
+    FIELDS_WIDTH: '27'
+    FIELDS_RANGE: '60:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  PMM:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 2
+    SW_TYPE: ''
+    DESCRIPTION: Enables pointer masking for VS-mode
+  wpri_1:
+    FIELDS_WIDTH: '24'
+    FIELDS_RANGE: '31:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  CBZE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Zero instruction Enable -- Enables execution of CBO.ZERO
+      in a lower privilege mode
+  CBCFE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Clean and Flush instruction enable -- Enables execution
+      of CBO.CLEAN and CBO.FLUSH in a lower privilege mode
+  CBIE:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '5:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cache Block Invalidate instruction Enable -- Enables the execution
+      of CBO.INVAL in a lower privilege mode
+  wpri_0:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '3:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  FIOM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Fence of I/O implies Memory
+hcounteren:
+  common_data:
+    ADDRESS: '606'
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor counter enable.
+  HPM31:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '31:31'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 31 Enable
+  HPM30:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '30:30'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 30 Enable
+  HPM29:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '29:29'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 29 Enable
+  HPM28:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '28:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 28 Enable
+  HPM27:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '27:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 27 Enable
+  HPM26:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '26:26'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 26 Enable
+  HPM25:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '25:25'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 25 Enable
+  HPM24:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '24:24'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 24 Enable
+  HPM23:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '23:23'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 23 Enable
+  HPM22:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '22:22'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 22 Enable
+  HPM21:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '21:21'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 21 Enable
+  HPM20:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '20:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 20 Enable
+  HPM19:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 19 Enable
+  HPM18:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 18 Enable
+  HPM17:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 17 Enable
+  HPM16:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '16:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 16 Enable
+  HPM15:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '15:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 15 Enable
+  HPM14:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '14:14'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 14 Enable
+  HPM13:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 13 Enable
+  HPM12:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '12:12'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 12 Enable
+  HPM11:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '11:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 11 Enable
+  HPM10:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '10:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 10 Enable
+  HPM9:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 9 Enable
+  HPM8:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 8 Enable
+  HPM7:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 7 Enable
+  HPM6:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 6 Enable
+  HPM5:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 5 Enable
+  HPM4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '4:4'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 4 Enable
+  HPM3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hardware Performance Monitoring Counter 3 Enable
+  IR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Instruction Retired Counter Enable
+  TM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Time Counter Enable
+  CY:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Cycle Counter Enable
+htimedelta:
+  common_data:
+    ADDRESS: '605'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Delta for VS/VU-mode timer.
+  htimedelta:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Delta value between time and VS/VU mode timer
+htval:
+  common_data:
+    ADDRESS: '643'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor Trap Value Register
+  htval:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hypervisor Trap Value Register
+htinst:
+  common_data:
+    ADDRESS: 64A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor trap instruction (transformed).
+  htinst:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Hypervisor trap Instruction Register
+hgatp:
+  common_data:
+    ADDRESS: '680'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor guest address translation and protection.
+  MODE:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: 63:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: 0, 8, 9, a
+    SW_TYPE: ''
+    DESCRIPTION: Address Translation and Protection Mode
+  warl0:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '59:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+  VMID:
+    FIELDS_WIDTH: '14'
+    FIELDS_RANGE: '57:44'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Machine Identifier
+  PPN:
+    FIELDS_WIDTH: '44'
+    FIELDS_RANGE: '43:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Physical Page Number
+hvien:
+  common_data:
+    ADDRESS: '608'
+    MASKED_BY: c_misa_rva23s64_O
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor virtual interrupt enables
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: Sscofpmf
+    SW_TYPE: ''
+    DESCRIPTION: Local Count Overflow Interrupt
+  hard0_0:
+    FIELDS_WIDTH: '13'
+    FIELDS_RANGE: '12:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Hardwired 0
+hvictl:
+  common_data:
+    ADDRESS: '609'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor virtual interrupt control
+  VTI:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '30:30'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual Trap Interrupt control
+  IID:
+    FIELDS_WIDTH: '6'
+    FIELDS_RANGE: '21:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Identity
+  DPR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Default Priority Rank
+  IPRIOM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: IPRIO Mode
+  IPRIO:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Priority
+vsstatus:
+  common_data:
+    ADDRESS: '200'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor status register.
+  SD:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Summary of FS/VS/XS
+  vsstatus_wpri_6:
+    FIELDS_WIDTH: '29'
+    FIELDS_RANGE: '62:34'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  UXL:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '33:32'
+    RESET_VALUE: '2'
+    LEGAL_VALUE: '2'
+    SW_TYPE: ''
+    DESCRIPTION: XLEN for VU-mode
+  vsstatus_wpri_5:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '31:20'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  MXR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '19:19'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Make eXecutable Readable
+  SUM:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '18:18'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: permit Supervisor User Memory access
+  vsstatus_wpri_4:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '17:17'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  XS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '16:15'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of additional user-mode extensions and associated state
+  FS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '14:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the floating-point unit state
+  vsstatus_wpri_3:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  VS:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '10:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: status of the vector extension state
+  SPP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '8:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: previous privilege mode before entering VS-mode
+  vsstatus_wpri_2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  UBE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '6:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: 'Endianness: non-instruction-fetch memory accesses made from VU-mode'
+  SPIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: interrupt-enable bit active prior to the trap in VS-mode
+  vsstatus_wpri_1:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '4:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  SIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: interrupts are globally enabled when in VS-mode
+  vsstatus_wpri_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+vsip:
+  common_data:
+    ALIAS_OF: mip
+    ADDRESS: '244'
+    CSR_SIZE: '16'
+    MASKED_BY: hideleg
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor interrupt pending.
+  LCOFIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    DESCRIPTION: Virtual Supervisor Local Count Overflow Interrupt Pending
+  hard0_3:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSEIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: VSEIP
+    SW_READ: R
+    DESCRIPTION: Virtual Supervisor External Interrupt Pending
+  hard0_2:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '7:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSTIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: VSTIP
+    SW_READ: R
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Pending
+  hard0_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '3:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSSIP:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: VSSIP
+    SW_WRITE: W
+    SW_READ: R
+    DESCRIPTION: Virtual Supervisor Software Interrupt Pending
+vsie:
+  common_data:
+    ADDRESS: '204'
+    CSR_SIZE: '16'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor interrupt-enable register.
+  LCOFIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '13:13'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Virtual Supervisor Local Count Overflow Interrupt Enable
+  hard0_2:
+    FIELDS_WIDTH: '3'
+    FIELDS_RANGE: '12:10'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSEIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '9:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Virtual Supervisor External Interrupt Enable
+  hard0_1:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '7:6'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSTIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '5:5'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Virtual Supervisor Timer Interrupt Enable
+  hard0_0:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '3:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    DESCRIPTION: Hardwired 0
+  VSSIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    DESCRIPTION: Virtual Supervisor Software Interrupt Enable
+vstvec:
+  common_data:
+    ADDRESS: '205'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor trap handler base address.
+  BASESXLEN12warl:
+    FIELDS_WIDTH: '62'
+    FIELDS_RANGE: '63:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Top SXLEN-2 bits of BASE
+  MODE_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Modes >= 2 are not allowed
+  MODE_0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Allows mode 0 (base only) or mode 1 (vectored)
+vsscratch:
+  common_data:
+    ADDRESS: '240'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor scratch register.
+  sscratch:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor scratch register.
+vsepc:
+  common_data:
+    ADDRESS: '241'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor exception program counter.
+  addr:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '63:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor exception program counter.
+vscause:
+  common_data:
+    ADDRESS: '242'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor trap cause.
+  Interrupt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Indicates if the trap was caused by an interrupt
+  ExceptionCodewlrl:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Code identifying the last exception or interrupt
+vstval:
+  common_data:
+    ADDRESS: '243'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtualized supervisor bad guest physical address.
+  vstval:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtualized supervisor bad guest physical address.
+vstimecmp:
+  common_data:
+    ADDRESS: 24D
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor timer register
+  vstimecmp:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: FFFFFFFF
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor timer compare value
+vsatp:
+  common_data:
+    ADDRESS: '280'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual Supervisor address translation and protection.
+  MODE:
+    FIELDS_WIDTH: '4'
+    FIELDS_RANGE: 63:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Address Translation and Protection Mode
+  ASID:
+    FIELDS_WIDTH: '16'
+    FIELDS_RANGE: '59:44'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Address Space Identifier
+  PPN:
+    FIELDS_WIDTH: '44'
+    FIELDS_RANGE: '43:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Physical Page Number
+vsiselect:
+  common_data:
+    ADDRESS: '250'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor Indirect register select (valid range is 0 - 0xFF)
+  rsvd_63_9:
+    FIELDS_WIDTH: '55'
+    FIELDS_RANGE: '63:9'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  interrupts:
+    FIELDS_WIDTH: '9'
+    FIELDS_RANGE: '8:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: '0x70-0xFF: External Intr. (0x71, 0x73-0x7F are rsvd)Rest: Inaccessible'
+vsireg:
+  common_data:
+    ADDRESS: '251'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Virtual supervisor indirect register alias
+  sireg:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Virtual supervisor indirect register alias
+vstopei:
+  common_data:
+    ADDRESS: 25C
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: This is Virtual supervisor top external interrupt (This is marked
+      as read-write in AIA spec, but implemented as read-only for write to this CSR
+      is ignored)
+  rsvd_63_27:
+    FIELDS_WIDTH: '37'
+    FIELDS_RANGE: '63:27'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  identity:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '26:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt identity
+  rsvd_15_11:
+    FIELDS_WIDTH: '5'
+    FIELDS_RANGE: '15:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved for future use
+  priority:
+    FIELDS_WIDTH: '11'
+    FIELDS_RANGE: '10:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_READ: R
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt priority (same as identity)
+vstopi:
+  common_data:
+    ADDRESS: EB0
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: Virtual supervisor top interrupt
+  rsvd_63_28:
+    FIELDS_WIDTH: '36'
+    FIELDS_RANGE: '63:28'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IID:
+    FIELDS_WIDTH: '12'
+    FIELDS_RANGE: '27:16'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Identity
+  rsvd_15_8:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '15:8'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Reserved
+  IPRIO:
+    FIELDS_WIDTH: '8'
+    FIELDS_RANGE: '7:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Interrupt Priority
+mtinst:
+  common_data:
+    ADDRESS: 34A
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine mode trap instruction (transformed).
+  mtinst:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Trap Instruction Register
+mtval2:
+  common_data:
+    ADDRESS: 34B
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine mode bad guest physical address.
+  mtval2:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Machine Second Trap Value Register
+scountovf:
+  common_data:
+    ADDRESS: DA0
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: HPM Counter Overflow bits
+  scountovf:
+    FIELDS_WIDTH: '32'
+    FIELDS_RANGE: '31:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: HPM Counter Overflow bits
+mnstatus:
+  common_data:
+    ADDRESS: '744'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Resumable NMI status
+  MNPP:
+    FIELDS_WIDTH: '2'
+    FIELDS_RANGE: '12:11'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Previous Privilege Mode
+  MNPV:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '7:7'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Previous Virtualization Mode
+  NMIE:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '3:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Non Maskable Interrupt Enable
+mnscratch:
+  common_data:
+    ADDRESS: '740'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Resumable NMI scratch register
+  mnscratch:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Resumable NMI scratch register
+mnepc:
+  common_data:
+    ADDRESS: '741'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Resumable NMI program counter
+  addr:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '63:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Resumable NMI program counter
+mncause:
+  common_data:
+    ADDRESS: '742'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Resumable NMI cause
+  Interrupt:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Indicates if the trap was caused by an interrupt
+  ExceptionCode:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Code identifying the last interrupt
+mstateen0:
+  common_data:
+    ADDRESS: 30c
+    MASKED_BY: misa
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine State Enable 0
+  SE0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the hstateen0, hstateen0h, and sstateen0 CSRs
+  ENVCFG:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the henvcfg, henvcfgh, and senvcfg CSRs
+  wpri_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  CSRIND:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to siselect, sireg*, vsiselect, vsireg* CSRs
+  AIA:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to all state introduced by the Ssaia extension
+  IMSIC:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to IMSIC state
+  CONTEXT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '57:57'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to scontext and hcontext CSRs
+  P1P13:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '56:56'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to hedelegh CSR
+  SRMCFG:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '55:55'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to Srmcfg CSR
+  wpri_0:
+    FIELDS_WIDTH: '52'
+    FIELDS_RANGE: '54:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  JVT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to JVT CSR
+  FCSR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: F
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to fcsr CSR
+  C:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to any and all custom state
+mstateen1:
+  common_data:
+    ADDRESS: 30d
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine State Enable 1
+  SE1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the hstateen1, hstateen1h, and sstateen1 CSRs
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+mstateen2:
+  common_data:
+    ADDRESS: 30e
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine State Enable 2
+  SE2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the hstateen2, hstateen2h, and sstateen2 CSRs
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+mstateen3:
+  common_data:
+    ADDRESS: 30f
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Machine State Enable 3
+  SE3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the hstateen1, hstateen1h, and sstateen1 CSRs
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+hstateen0:
+  common_data:
+    ADDRESS: 60c
+    MASKED_BY: mstateen0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor State Enable 0
+  SE0:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SE0
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the sstateen0 CSR
+  ENVCFG:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 62:62
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: ENVCFG
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the senvcfg CSR
+  wpri_1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 61:61
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  CSRIND:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 60:60
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: CSRIND
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to siselect, sireg*, vsiselect, vsireg* CSRs
+  AIA:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '59:59'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: AIA
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to all state introduced by the Ssaia extension
+  IMSIC:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '58:58'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: IMSIC
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to IMSIC state
+  CONTEXT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '57:57'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: CONTEXT
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the scontext CSR
+  wpri_0:
+    FIELDS_WIDTH: '54'
+    FIELDS_RANGE: '56:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  JVT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: JVT
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to JVT CSR
+  FCSR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: FCSR
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to fcsr CSR
+  C:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: C
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to any and all custom state
+hstateen1:
+  common_data:
+    ADDRESS: 60d
+    MASKED_BY: mstateen1
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor State Enable 1
+  SE1:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SE1
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the sstateen1 CSR
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+hstateen2:
+  common_data:
+    ADDRESS: 60e
+    MASKED_BY: mstateen2
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor State Enable 2
+  SE2:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SE2
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the sstateen2 CSR
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+hstateen3:
+  common_data:
+    ADDRESS: 60f
+    MASKED_BY: mstateen3
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Hypervisor State Enable 3
+  SE3:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 63:63
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: SE3
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to the sstateen3 CSR
+  wpri:
+    FIELDS_WIDTH: '63'
+    FIELDS_RANGE: '62:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+sstateen0:
+  common_data:
+    ADDRESS: 10c
+    CSR_SIZE: '32'
+    MASKED_BY: mstateen0
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor State Enable 0
+  wpri:
+    FIELDS_WIDTH: '29'
+    FIELDS_RANGE: '31:3'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+  JVT:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '2:2'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: JVT
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to JVT CSR
+  FCSR:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: '1:1'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    MASKED_BY: FCSR
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to fcsr CSR
+  C:
+    FIELDS_WIDTH: '1'
+    FIELDS_RANGE: 0:0
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    MASKED_BY: C
+    SW_TYPE: ''
+    DESCRIPTION: Controls access to any and all custom state
+sstateen1:
+  common_data:
+    ADDRESS: 10d
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor State Enable 1
+  wpri:
+    FIELDS_WIDTH: '32'
+    FIELDS_RANGE: '31:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+sstateen2:
+  common_data:
+    ADDRESS: 10e
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor State Enable 2
+  wpri:
+    FIELDS_WIDTH: '32'
+    FIELDS_RANGE: '31:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI
+sstateen3:
+  common_data:
+    ADDRESS: 10f
+    CSR_SIZE: '32'
+    SW_WRITE: W
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Supervisor State Enable 3
+  wpri:
+    FIELDS_WIDTH: '32'
+    FIELDS_RANGE: '31:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: '0'
+    SW_TYPE: WPRI
+    DESCRIPTION: WPRI

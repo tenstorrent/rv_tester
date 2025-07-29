@@ -18,7 +18,6 @@ cc_library(
          "@corearchcoverage//arch/sample:archsample",
          "@corearchcoverage//arch/common:points",
          "@cvm//:plusargs",
-         "//cosim/bridge:bridge"
     ],
     alwayslink = True,
     strip_include_prefix = ".",

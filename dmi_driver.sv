@@ -3,6 +3,7 @@ module dmi_driver
 import rv_tester_params:: * ;
 (
     input logic                     clk,
+    input logic                     core_clk,
     input logic                     reset_n,
     input logic                     warm_reset_sdtrig,
 
@@ -23,8 +24,8 @@ import rv_tester_params:: * ;
     input logic [31:0]              num_harts,
     input logic                     sdtrig_display,
     input logic                     nonexistent_hart,
+    input logic [31:0]              abscmd_hang_counter,
 
-    
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
     input rv_tester_pkg::dmi_resp_t dmi_resp,
@@ -53,8 +54,7 @@ import rv_tester_params:: * ;
   rv_tester_pkg::dmi_resp_t response_queue[$];
 
   rv_tester_pkg::dmi_req_t single_step_ahead_command_queue[$], single_step_quit_command_queue[$], sdtrig_debug_mode_entry_queue[$], sdtrig_trigger_command_queue[$], sdtrig_trigger_disable_command_queue[$], sdtrig_progbuf_queue[$];
-  rv_tester_pkg::dmi_req_t
-      single_step_ahead_command_queue_backup[$], single_step_quit_command_queue_backup[$];
+  rv_tester_pkg::dmi_req_t copy_sdtrig_progbuf_queue[$], copy_sdtrig_debug_mode_entry_queue[$], copy_sdtrig_trigger_command_queue[$], copy_sdtrig_trigger_disable_command_queue[$];
 
   logic command_trigger, response_trigger;
   logic terminate_d1, terminate_align;
@@ -78,17 +78,18 @@ import rv_tester_params:: * ;
   logic expect_cmd_err_excp, exception_illegal, read_cmisa_sdtrig, check_cmisa_sdtrig, cmisa_sdtrig_disabled;
 
   logic rvfi_sdtrig, disable_mem_access_checker, sdtrig_progbuf_exec, read_hartsel;
-  logic [7:0] rvfi_sdtrig_core;
+  logic [7:0] rvfi_sdtrig_core, rvfi_sdtrig_core_clr, cause_event_latched, cause_event_sync, cause_event_ff1, cause_event_ff2;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
-  int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
-  int trigger_index, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size;
+  int trigger_counter, total_command_in_sdtrig_trigger_queue_size;
+  int trigger_index, total_command_in_sdtrig_progbuf_queue_size;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
-  logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
+  logic mmr_write_32bits, mmr_write_64bits, get_data0, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
   logic ss_ndmreset, modify_hartsel;
-  logic read_data2, read_data3, get_data2, get_data3, end_of_test_cleanup;
+  logic read_data2_comp, read_data3_comp, get_data2, get_data3, end_of_test_cleanup;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value, core_id_hit, core_hartsel_hit;
   logic [7:0] DM_DebugReq_Valids_q;
+  int abscmd_counter;
   typedef struct packed {
     logic [15:0] reg_addr;
     logic [63:0] reg_data;
@@ -168,8 +169,6 @@ import rv_tester_params:: * ;
       dmcontrol_hartsel <= 0;
       dmi_command_in_step_ahead_queue_size <= 0;
       dmi_command_in_step_quit_queue_size <= 0;
-      rvfi_sdtrig <= 0;
-      rvfi_sdtrig_core <= 0;
       check_hit_for_tselect <= 0;
       to_check_tselect <= 0;
       read_tselect <= 0;
@@ -178,8 +177,7 @@ import rv_tester_params:: * ;
       read_tdata1_hit <= 0;
       mmr_write_32bits <= 0;
       mmr_write_64bits <= 0;
-      check_data0 <= 0;
-      check_data1 <= 0;
+      get_data0 <= 0;
       get_data1 <= 0;
       mmr_read_32bits <= 0;
       mmr_read_64bits <= 0;
@@ -190,8 +188,8 @@ import rv_tester_params:: * ;
       dm_hartsel <= 0;
       core_disabled <= 0;
       hart_enable_mask_value <= 1;
-      read_data2 <= 0;
-      read_data3 <= 0;
+      read_data2_comp <= 0;
+      read_data3_comp <= 0;
       get_data2 <= 0;
       get_data3 <= 0;
       expect_cmd_err_excp <= 0;
@@ -209,7 +207,9 @@ import rv_tester_params:: * ;
       sdtrig_progbuf_exec <= 0;
       read_hartsel <= 0;
       modify_hartsel <= 0;
-      
+      rvfi_sdtrig_core_clr <= 0;
+      total_command_in_sdtrig_trigger_queue_size <= 0;
+
       command_queue.delete();
       response_queue.delete();
       single_step_ahead_command_queue.delete();
@@ -218,8 +218,10 @@ import rv_tester_params:: * ;
       sdtrig_trigger_command_queue.delete();
       sdtrig_trigger_disable_command_queue.delete();
       sdtrig_progbuf_queue.delete();
-      single_step_ahead_command_queue_backup.delete();
-      single_step_quit_command_queue_backup .delete();
+      copy_sdtrig_progbuf_queue.delete();
+      copy_sdtrig_debug_mode_entry_queue.delete();
+      copy_sdtrig_trigger_command_queue.delete();
+      copy_sdtrig_trigger_disable_command_queue.delete();
 
       $display("[DMI Driver] Reset State Cleaned-up \n");
     end
@@ -259,7 +261,7 @@ import rv_tester_params:: * ;
       terminate_align <= terminate;
       terminate_d1 <= terminate_align;
     
-      if(trigger_config != 0 && (terminate_align && ~terminate_d1)) begin
+      if(trigger_config != 0 && (terminate_align && ~terminate_d1) && dmi_driver_dbg_enable) begin
         for(int core_id=0; core_id<num_harts; core_id++) begin
           for (int tselect=0; tselect<8; tselect+=2) begin
             if(trigger_config[tselect] && trigger_config[tselect+1]) begin
@@ -276,23 +278,7 @@ import rv_tester_params:: * ;
     end
   end
 
-  always @(posedge clk or negedge clk) begin
-    if(~reset_n)begin
-      rvfi_sdtrig =0;
-    end else begin
-      rvfi_sdtrig = |rvfi_sdtrig_core;
-    end
-  end
-
   always @(posedge clk or negedge clk) begin //sync the clk and use just posedge
-    for(int core_id=0; core_id<num_harts; core_id++) begin
-      if(rvfi[core_id*8].cause[63:0] === 'h21) begin
-        rvfi_sdtrig_core[core_id] = 1;
-        core_id_hit[core_id] = 1; //TODO:while for all the cores that got exception at once.
-        $display("[DMI Driver] core:%0d id hit: %0d", core_id, core_id_hit[core_id]);
-        $display("[DMI Driver] core:%0d rvfi_sdtrig_core: %0d", core_id, rvfi_sdtrig_core[core_id]);
-      end
-    end 
     if(abstr_cmd_req && rvfi[0].cause[63:0] === 'h2) begin
       exception_illegal = 1;
       $display("[DMI Driver] Exception:2 is seen while executing an abs_cmd, hence setting exception_illegal");
@@ -301,7 +287,61 @@ import rv_tester_params:: * ;
       $display("[DMI Driver] Exception != 2 during abs_cmd execution, hence clearing exception_illegal");
     end
   end
- 
+
+  //CDC synchronizer between fb_clk and core_clk.
+  //As rvfi runs on core_clk and driver runs on fb_clk we would miss the exceptions, hence clk sync is needed.
+
+  //Flop the cause_event
+  always_ff @(posedge core_clk) begin
+    if (!reset_n) begin //---> warm_reset_sdtrig
+      for (int i = 0; i < num_harts; i++) begin
+          cause_event_latched <= 0;
+      end
+    end else begin
+      for (int core_id = 0; core_id < num_harts; core_id++) begin
+        if(cause_event_latched[core_id] == cause_event_sync[core_id])
+          cause_event_latched[core_id] <= (rvfi[core_id*8].cause[63:0] == 'h21);
+      end
+    end
+  end
+
+  //Flop the latched event
+  always_ff @(posedge clk) begin
+    if (!reset_n) begin //---> warm_reset_sdtrig
+      for (int i = 0; i < num_harts; i++) begin
+          cause_event_ff1 <= 0;
+          cause_event_ff2 <= 0;
+          cause_event_sync <= 0;
+      end
+    end else begin
+      for (int i = 0; i < num_harts; i++) begin
+          cause_event_ff1[i] <= cause_event_latched[i];
+          cause_event_ff2[i] <= cause_event_ff1[i];
+          cause_event_sync[i] <= cause_event_ff2[i];
+      end
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (!reset_n) begin //---> warm_reset_sdtrig
+      rvfi_sdtrig_core <= '0;
+      core_id_hit      <= '0;
+      rvfi_sdtrig      <= '0;
+    end else begin
+      for (int i = 0; i < num_harts; i++) begin
+        if (cause_event_sync[i]) begin
+          rvfi_sdtrig_core[i] <= 1;
+          core_id_hit[i]      <= 1;
+          $display("[DMI Driver] core:%0d cause=0x21(excp:33) hit", i);
+        end else if (rvfi_sdtrig_core_clr[i]) begin
+          rvfi_sdtrig_core[i] <= 0;
+          core_id_hit[i] <= 0;
+        end
+      end
+      rvfi_sdtrig <= |rvfi_sdtrig_core;
+    end
+  end
+
   always @(posedge clk) begin
       if (!reset_n)
         DM_DebugReq_Valids_q <= 0;
@@ -559,9 +599,9 @@ import rv_tester_params:: * ;
           poll = 1;
         end else if(cmd.addr === 'h16 && cmd.op === 'h1 && (mmr_write_32bits || mmr_write_64bits))begin
           mmr_write_32bits = 0;
-          check_data0 = 1;
+          get_data0 = 1;
           poll = 1;
-          $display("Check data0 write value");
+          $display("get_data0 is set");
         end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1 && ~priority_singlestep) begin
           $display("[Sdtrig] Core resuming after sdtrig configuration");
           if(!rvfi_sdtrig) begin
@@ -610,23 +650,11 @@ import rv_tester_params:: * ;
           poll = 1;
           check_hit_bit = 0;
           read_tdata1_hit = 1;
-        end else if(check_data1 && cmd.addr === 'h4 && cmd.op === 'h2) begin
-          poll = 1;
-          get_data1 = 1;
-          check_data1 = 0;
-          //check_data2 = 1;
-          $display("get_data1:%h to compare", get_data1);
         end else if(mmr_access_rd && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
-          //read_data0_comp = 1;
           mmr_access_rd = 0;
-          read_data2 = 1;
-          $display("Read data0 to compare 32bit read");
-        end else if(read_data1 && cmd.addr === 'h5 && cmd.op === 'h1) begin
-          poll = 1;
-          read_data1 = 0;
-          read_data1_comp = 1;
-          $display("Read data1 to compare 64bit read");          
+          read_data0_comp = 1;
+          $display("read_data0_comp is set");        
         end else if(check_cmisa_sdtrig && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
           check_cmisa_sdtrig = 0;
@@ -728,23 +756,17 @@ import rv_tester_params:: * ;
         end else if (read_tdata1_hit) begin
           $display("[Poll] #534 read hit");
           dmi_req <= 41'h1100000000;
-        end else if (check_data0) begin
+        end else if(get_data0 || read_data0_comp) begin
           $display("[Poll] data0 write value for mem access");
           dmi_req <= 41'h1100000000;
-        end else if(get_data1) begin
-          $display("[Poll] data1 write value for mem access with size:64");
+        end else if(get_data1 || read_data1_comp) begin
+          $display("[Poll] data1 write value for mem access");
           dmi_req <= 41'h1500000000;
-        end else if(read_data0_comp) begin
-          $display("[Poll] data0 read value for mem access");
-          dmi_req <= 41'h1100000000;
-        end else if(read_data1_comp)begin
-          $display("[Poll] data1 read value for mem access with size:64");
-          dmi_req <= 41'h1500000000;
-        end else if(get_data2 || read_data2) begin
-          $display("[Poll] store/read the address from data2 to compare ");
+        end else if(get_data2 || read_data2_comp) begin
+          $display("[Poll] data2 write value for mem access");
           dmi_req <= 41'h1900000000;
-        end else if(get_data3 || read_data3) begin
-          $display("[Poll] store/read the address from data3 to compare ");
+        end else if(get_data3 || read_data3_comp) begin
+          $display("[Poll] data3 write value for mem access");
           dmi_req <= 41'h1d00000000;
         end else if(read_cmisa_sdtrig) begin
           $display("[Poll] data0 read value to check sdtrig field in cmisa csr");
@@ -828,6 +850,16 @@ import rv_tester_params:: * ;
                 abs_read_data = 1;
               end else begin
                 poll = 0;
+              end
+            end
+            if(abscmd_hang_counter) begin
+              if(abscmd_counter == abscmd_hang_counter)begin
+                abstr_cmd_req = 0;
+                poll = 0;
+                $display("[Poll] Clearing abc cmd poll as the core is hung; abscmd_counter: %0d", abscmd_counter);
+              end else begin
+                abscmd_counter += 1;
+                $display("[Poll] Decrementing abscmd_counter: %0d", abscmd_counter);
               end
             end
             if(expect_cmd_err_excp)begin
@@ -1128,20 +1160,24 @@ import rv_tester_params:: * ;
             end
             poll = 0;
           end
-        end else if(check_data0) begin
+        end else if(get_data0) begin
           data0_value = dmi_resp.data;
           $display("data0_value:%h", data0_value);
           if(mmr_write_64bits) begin
-            check_data1 = 1;
             mmr_write_64bits = 0;
             mmr_read_64bits = 1;
             $display("Check data1 as it's a 64 bit write");
           end else begin
             mmr_read_32bits = 1;
             $display("mmr_read_32bits is set");
-          end
-            check_data0 = 0;
-          get_data2 = 1;
+          end 
+          get_data0 = 0;
+          get_data1 = 1;
+        end else if(get_data1)begin
+          data1_value = dmi_resp.data;
+          $display("data1_value:%h", data1_value);
+          get_data1 = 0;
+          get_data2 = 1;        
         end else if(get_data2)begin
           data2_value = dmi_resp.data;
           $display("data2_value:%h", data2_value);
@@ -1151,65 +1187,58 @@ import rv_tester_params:: * ;
           data3_value = dmi_resp.data;
           $display("data3_value:%h", data3_value);
           get_data3 = 0;
-            poll = 0;
-        end else if(get_data1) begin
-          data1_value = dmi_resp.data;
-          $display("data1_value:%h", data1_value);
           poll = 0;
-          get_data1 = 0;
-        end else if(read_data2) begin
-          $display("data2_stored_value:%h data2_read_value:%h", data2_value, dmi_resp.data);
-          if(data2_value === dmi_resp.data) begin
-            read_data2 = 0;
-            read_data3 = 1;
-            $display("read_data3 is set");
-          end else begin
-            poll = 0;
-            read_data2 = 0;
-            $display("read_data2: read is not happening for the written addr");
-          end
-        end else if(read_data3) begin
-          $display("data3_stored_value:%h data3_read_value:%h", data3_value, dmi_resp.data);
-          if(data3_value === dmi_resp.data) begin
-            read_data3 = 0;
-            read_data0_comp = 1;
-            $display("read_data0_comp is set");
-          end else begin
-            poll = 0;
-            read_data3 = 0;
-            $display("read_data3: read is not happening for the written addr");
-          end
         end else if(read_data0_comp) begin
-          $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-          if(!disable_mem_access_checker) begin
+          $display("data0_stored_value:%h data0_read_value:%h", data0_value, dmi_resp.data);
+          if(disable_mem_access_checker) begin
+            poll = 0;
+            $display("Mem Access checker is disabled");
+          end else begin
             if(data0_value === dmi_resp.data) begin
-              $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-              poll = 0;
-              read_data0_comp = 0;
-              mmr_read_32bits = 0;
-              if(mmr_read_64bits) begin
-                read_data1 = 1;
-                mmr_read_64bits = 0;
-                $display("read_data1 is set");
-              end
+              read_data1_comp = 1; 
+              $display("read_data1_comp is set");
             end else begin
-              $display("Error: Mismatch scratchpad_mmr_write_data0_value: %h, scratchpad_mmr_read_data0_value: %h", data0_value, dmi_resp.data);
+              poll = 0;
+              $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data0 - Written: 0x%h, Read: 0x%h", data0_value, dmi_resp.data);
+            end
+          end
+          read_data0_comp = 0;
+        end else if(read_data1_comp) begin
+          $display("data1_stored_value:%h data1_read_value:%h", data1_value, dmi_resp.data);
+          if(data1_value === dmi_resp.data) begin
+            if(mmr_read_32bits) begin
+              mmr_read_32bits = 0;
+              poll = 0;
+              $display("all data reg read completed for 32bit read");
+            end else if(mmr_read_64bits) begin
+              read_data2_comp = 1;
+              $display("read_data2_comp is set");
             end
           end else begin
-            $display("Mem Access checker is disabled");
             poll = 0;
-            read_data0_comp = 0;
-            mmr_read_32bits = 0;
+            $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data1 - Written: 0x%h, Read: 0x%h", data1_value, dmi_resp.data);
           end
-          disable_mem_access_checker = 0;
-        end else if(read_data1_comp) begin
-          if(data1_value === dmi_resp.data) begin
-            $display("data1_value:%h, dmi_resp.data:%h", data1_value, dmi_resp.data);
-            poll = 0;
-            read_data1_comp = 0;
+          read_data1_comp = 0;
+        end else if(read_data2_comp) begin
+          $display("data2_stored_value:%h data2_read_value:%h", data2_value, dmi_resp.data);
+          if(data2_value === dmi_resp.data) begin
+            read_data3_comp = 1;
+            $display("read_data3_comp is set");
           end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data1_value: %h, scratchpad_mmr_read_data1_value: %h", data1_value, dmi_resp.data);
+            poll = 0;
+            $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data2 - Written: 0x%h, Read: 0x%h", data2_value, dmi_resp.data);
           end
+          read_data2_comp = 0;
+        end else if(read_data3_comp) begin
+          $display("data3_stored_value:%h data3_read_value:%h", data3_value, dmi_resp.data);
+          if(data3_value === dmi_resp.data) begin
+            mmr_read_64bits = 0;
+            $display("all data reg read completed");
+          end else begin
+            $display("Error: [DMI Driver] Abstract Command Memory Access Mismatch - data3 - Written: 0x%h, Read: 0x%h", data3_value, dmi_resp.data);
+          end 
+          read_data3_comp = 0;
+          poll = 0;
         end else if(read_cmisa_sdtrig) begin
           if(dmi_resp.data[23] === 0) begin
             cmisa_sdtrig_disabled = 1;
@@ -1307,21 +1336,27 @@ import rv_tester_params:: * ;
         sdtrig_progbuf_exec = 1;
         for(int num_core=0; num_core<num_harts; num_core++) begin
           $display("Executing from sdtrig prog buff queues core:%0d", num_core);
-          for(int trigger_count=0; trigger_count<8; trigger_count++)begin        
-            command_in_sdtrig_progbuf_queue_size = sdtrig_progbuf_queue.size();
+          for(int trigger_count=0; trigger_count<8; trigger_count++)begin     
+            //----> if(trigger_config[trigger_count]==1);   
+            copy_sdtrig_progbuf_queue = sdtrig_progbuf_queue;
             $display("Itrerating through for trigger_count:%h", trigger_count);
-            while(command_in_sdtrig_progbuf_queue_size > 0) begin
+            while(copy_sdtrig_progbuf_queue.size()> 0) begin
               $display("Executing the while from sdtrig prog buff queues");
-              command = sdtrig_progbuf_queue.pop_front();
-              if(command_in_sdtrig_progbuf_queue_size === (total_command_in_sdtrig_progbuf_queue_size)) begin
+              //----take a copy of the queue
+              if(copy_sdtrig_progbuf_queue.size() === (total_command_in_sdtrig_progbuf_queue_size)) begin
+                command = copy_sdtrig_progbuf_queue.pop_front();
                 command.data[25:16] = num_core;
-              end else if(command_in_sdtrig_progbuf_queue_size === (total_command_in_sdtrig_progbuf_queue_size-2)) begin
+              end else if(copy_sdtrig_progbuf_queue.size() === (total_command_in_sdtrig_progbuf_queue_size-2)) begin
+                command = copy_sdtrig_progbuf_queue.pop_front();
                 command.data[23:20] = trigger_count;
-              end else if(command_in_sdtrig_progbuf_queue_size === 1) begin
+              end else if(copy_sdtrig_progbuf_queue.size() === 1) begin
+                command = copy_sdtrig_progbuf_queue.pop_front();
                 command.data[25:16] = num_core;
+              end else begin
+                command = copy_sdtrig_progbuf_queue.pop_front();
               end
               //Resume only after iterating program buffer for all tselect to configure Action, type & dmode
-              if((tselect_conf_plusarg[trigger_count] === 1 && (command_in_sdtrig_progbuf_queue_size>1 || trigger_count === 7)) || (tselect_conf_plusarg[trigger_count] === 0 && trigger_count === 7 && command_in_sdtrig_progbuf_queue_size===1))begin // TODO: review
+              if((tselect_conf_plusarg[trigger_count] === 1 && (copy_sdtrig_progbuf_queue.size()>0 || trigger_count === 7)) || (tselect_conf_plusarg[trigger_count] === 0 && trigger_count === 7 && copy_sdtrig_progbuf_queue.size()===0))begin // TODO: review
                 $display("Executing from sdtrig_trigger_progbuf_queue");
                 $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
                     command.data);
@@ -1331,8 +1366,6 @@ import rv_tester_params:: * ;
                   do_polling();
                 end
               end
-              sdtrig_progbuf_queue.push_back(command);
-              command_in_sdtrig_progbuf_queue_size --;
             end
           end
         end
@@ -1350,7 +1383,7 @@ import rv_tester_params:: * ;
   end
 
   always @(posedge rvfi_sdtrig) begin
-    while(rvfi_sdtrig && trigger_config != 0) begin
+    while(rvfi_sdtrig && (trigger_config != 0)) begin
       if(sdtrig_progbuf_exec)begin //fixme: use command_trigger
         $display("waiting for core to exit debug mode");
         repeat(5)
@@ -1361,21 +1394,20 @@ import rv_tester_params:: * ;
         $display("trigger_counter= %h", trigger_counter);
         for(int core_id=0; core_id < num_harts; core_id++) begin
           if(core_id_hit[core_id]) begin
-            rvfi_sdtrig_core[core_id] = 0;
-            core_id_hit[core_id] = 0;
-            $display("clearing the rvfi_sdtrig for core: %0d", core_id);
             trigger_to_fire = 1;
             $display("trigger_to_fire is set after seeing exception: 33 for core:%0d", core_id);
-            command_in_sdtrig_entry_queue_size = sdtrig_debug_mode_entry_queue.size();
-            while(command_in_sdtrig_entry_queue_size > 0) begin
-              if(command_in_sdtrig_entry_queue_size==2) begin
+            copy_sdtrig_debug_mode_entry_queue = sdtrig_debug_mode_entry_queue;
+            while(copy_sdtrig_debug_mode_entry_queue.size() > 0) begin
+              if(copy_sdtrig_debug_mode_entry_queue.size()==2) begin
                 for(int tselect=0; tselect<8; tselect++)begin
                   if(tselect_conf_plusarg[tselect] === 1) begin
-                    command_in_sdtrig_trigger_queue_size = sdtrig_trigger_command_queue.size();
-                    while(command_in_sdtrig_trigger_queue_size > 0) begin
-                      command = sdtrig_trigger_command_queue.pop_front();
-                      if(command_in_sdtrig_trigger_queue_size===total_command_in_sdtrig_trigger_queue_size) begin
+                    copy_sdtrig_trigger_command_queue = sdtrig_trigger_command_queue;
+                    while(copy_sdtrig_trigger_command_queue.size() > 0) begin
+                      if(copy_sdtrig_trigger_command_queue.size()===total_command_in_sdtrig_trigger_queue_size) begin
+                        command = copy_sdtrig_trigger_command_queue.pop_front();
                         command.data = tselect;
+                      end else begin
+                        command = copy_sdtrig_trigger_command_queue.pop_front();
                       end
                       $display("Executing from sdtrig_trigger_command_queue");
                       $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
@@ -1390,16 +1422,14 @@ import rv_tester_params:: * ;
                       if (poll) begin
                         do_polling();
                       end
-                      command_in_sdtrig_trigger_queue_size--;
-                      sdtrig_trigger_command_queue.push_back(command);
                       $display("#1388 trigger_hit[core_id: %0d][tselect: %0d] = %0d",core_id, tselect,  trigger_hit[core_id][tselect]);
                     end
                     if(trigger_hit[core_id][tselect]) begin
                       to_check_cause = 1;
                       $display("Check for cause after hit");
-                      command_in_trigger_disable_queue_size = sdtrig_trigger_disable_command_queue.size();
-                      while(command_in_trigger_disable_queue_size>0)begin
-                        command = sdtrig_trigger_disable_command_queue.pop_front();
+                      copy_sdtrig_trigger_disable_command_queue = sdtrig_trigger_disable_command_queue;
+                      while(copy_sdtrig_trigger_disable_command_queue.size()>0)begin
+                        command = copy_sdtrig_trigger_disable_command_queue.pop_front();
                         $display("Executing from sdtrig_trigger_disable_command_queue");
                         $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
                           command.data);
@@ -1408,15 +1438,21 @@ import rv_tester_params:: * ;
                         if (poll) begin
                           do_polling();
                         end
-                        command_in_trigger_disable_queue_size--;
-                        sdtrig_trigger_disable_command_queue.push_back(command);
                         trigger_hit[core_id][tselect] = 0;
                       end
                       trigger_counter--;
                     end
                   end
                 end
-                command = sdtrig_debug_mode_entry_queue.pop_front();
+
+                // Setting the rvfi_sdtrig_core_clr before resuming the core
+                rvfi_sdtrig_core_clr[core_id] = 1;
+                $display("clearing the rvfi_sdtrig_core for core: %0d", core_id);
+                //Clearing rvfi_sdtrig_core_clr as it takes 1 clk cycle to clear rvfi_sdtrig_core
+                @(posedge clk);
+                  rvfi_sdtrig_core_clr[core_id] = 0;
+                              
+                command = copy_sdtrig_debug_mode_entry_queue.pop_front();
                 $display("#973 Executing from sdtrig_debug_mode_entry_queue");
                 command.data[25:16] = core_id;
                 $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
@@ -1426,10 +1462,8 @@ import rv_tester_params:: * ;
                 if (poll) begin
                   do_polling();
                 end
-                command_in_sdtrig_entry_queue_size--;
-                sdtrig_debug_mode_entry_queue.push_back(command);
-              end else if(command_in_sdtrig_entry_queue_size==1) begin
-                command = sdtrig_debug_mode_entry_queue.pop_front();
+              end else if(copy_sdtrig_debug_mode_entry_queue.size()==1) begin
+                command = copy_sdtrig_debug_mode_entry_queue.pop_front();
                 if(trigger_counter==0) begin
                   $display("Executing from sdtrig_debug_mode_entry_queue");
                   $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
@@ -1439,10 +1473,8 @@ import rv_tester_params:: * ;
                     break;
                   end
                 end
-                command_in_sdtrig_entry_queue_size--;
-                sdtrig_debug_mode_entry_queue.push_back(command);
               end else begin
-                command = sdtrig_debug_mode_entry_queue.pop_front();
+                command = copy_sdtrig_debug_mode_entry_queue.pop_front();
                 command.data[25:16] = core_id;
                 $display("Executing from sdtrig_debug_mode_entry_queue");
                 $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
@@ -1454,8 +1486,6 @@ import rv_tester_params:: * ;
                   $display("polling in progress");
                 end
                 $display("Decrementing sdtrig_debug_mode_entry_queue");
-                command_in_sdtrig_entry_queue_size--;
-                sdtrig_debug_mode_entry_queue.push_back(command);
               end
             end
           end
@@ -1473,7 +1503,7 @@ import rv_tester_params:: * ;
         $display("After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
     end
     $display("Hit and cause for all the triggers that fired has been verified and triggers disabled");
-    @(posedge clk);
+    // @(posedge clk);
   end
 
 endmodule

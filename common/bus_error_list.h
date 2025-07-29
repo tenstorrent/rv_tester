@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 #include <sstream>
+#include <cstdio>
 
 /**
  * @brief Template class for managing bus error injection lists with configurable error policies
@@ -63,10 +64,11 @@ public:
             size_t dash_pos = token.find('-');
 
             if (dash_pos == std::string::npos) {
-                // Single address
+                // Single address - align to cache line boundaries (64 bytes)
                 uint64_t addr = parse_hex_string(token);
                 if (addr != INVALID_ADDRESS) {
-                    insert(addr, addr);
+                    uint64_t aligned_addr = addr & ~0x3f;  // Align to cache line
+                    insert(aligned_addr, aligned_addr + 0x3f);  // Insert entire cache line
                 }
             } else {
                 // Address range

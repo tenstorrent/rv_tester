@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs):
+def sysmod_gen(name, packet, csr_param, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     sysmod_dpi = name + "_dpi"
     sysmod_sv = name + "_sv"
@@ -47,6 +47,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//cosim/bridge_if:bridge_if",
           "@rv_tester//cosim/bridge:bridge_plusargs",
           "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
+          "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
           "@rv_tester//cosim/utils/general:util",
           "@rv_tester//pmu:pmu_plusargs",
           "@cvm//:plusargs",
@@ -54,6 +55,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@cvm//:registry",
           "@rv_tester//sysmod:sysmod_params",
           packet + "_cc",
+          csr_param + "_cc",
         ],
         alwayslink = True,
         visibility = ["//visibility:public"],

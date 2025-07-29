@@ -231,7 +231,7 @@ private:
   // const uint32_t secret = 1;
 
   bool hart_selected(unsigned hartid) const;
-  void reset();
+  void reset(bool is_dm_only_reset=false);
   void init_debug_abstract_buffer();
   bool perform_abstract_command();
   bool has_second_scratch = true;

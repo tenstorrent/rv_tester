@@ -14,12 +14,39 @@ load("@rv_tester//cla:cla.bzl", "cla_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
+load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
-def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
+def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibility = None, cc_attrs = {}, **kwargs):
+    """Generate rv_tester build targets with CSR collateral available to all modules.
+    
+    This function generates CSR collateral files and makes them available as dependencies:
+    - csr_param_hpp: C++ header file for CSR definitions ({name}_csr_param.hpp)
+    - {name}_csr_param_sv: SystemVerilog file for CSR definitions ({name}_csr_param.sv)
+    
+    The CSR collateral is automatically included in:
+    - SystemVerilog modules: {name}_csr_param_sv is added to verilog_library deps
+    - C++ modules: {name}_csr_param_hpp is added to cc_library deps
+    
+    
+    Args:
+        name: Base name for generated targets
+        topology: Topology target 
+        csr_spec: CSR specification file
+        visibility: Target visibility
+        cc_attrs: C++ compilation attributes
+        **kwargs: Additional arguments
+    """
 
     rv_tester_dpi = name + "_dpi"
     rv_tester_assert_dpi = name + "_assert_dpi"
     rv_tester_sv = name + "_sv"
+
+    csr_param_gen(
+        name = name + "_csr_param",
+        csr_spec = csr_spec,
+        package = "csr_param",
+        cc_attrs = cc_attrs,
+    )
 
     verilog_library(
         name = name + "_harness",
@@ -47,6 +74,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     cosim_gen(
         name = name + "_cosim",
         packet = name + "_transactions",
+        csr_param = name + "_csr_param",
         topology = topology,
         harness = name + "_harness",
         cc_attrs = cc_attrs,
@@ -55,6 +83,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     sysmod_gen(
         name = name + "_sysmod",
         packet = name + "_transactions",
+        csr_param = name + "_csr_param",
         topology = topology,
         cc_attrs = cc_attrs,
     )
@@ -160,6 +189,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester_clkgen.sv",
             "@rv_tester//:rv_tester_mem.sv",
             "@rv_tester//:rv_tester_lib.sv",
+            "@rv_tester//:rv_tester_delay_resp.sv",
         ],
         deps = [
             "@cvm//:logger_sv",

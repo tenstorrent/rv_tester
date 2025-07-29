@@ -18,6 +18,7 @@ def overlay_driver_gen(name, packet, topology, harness, visibility = None, cc_at
             "@rv_tester//overlay_driver:scratchpad_random_sequence.hpp",
         ],
         deps = [
+            "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
             "@rv_tester//sysmod:sysmod_plusargs",
             "@rv_tester//transactors/axi_sw:axi_sw_mst",
             "@rv_tester//common:transactor",

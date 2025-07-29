@@ -28,7 +28,7 @@ import rv_tester_params::*;
 );
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
   import "DPI-C" context function void jtag_driver_set_scope(int unsigned location);
-  import "DPI-C" function bit jtag_driver_get_en_from_plusargs(string mode);
+  import "DPI-C" function bit jtag_driver_get_socket_en_from_plusargs(string mode);
    // -------------------------
   // C++->SV Callbacks
   // -------------------------
@@ -77,7 +77,7 @@ import rv_tester_params::*;
    bit        hard_reset_pending;        // Indicates if a hard reset is pending
    bit        soft_reset_pending;        // Indicates if a soft reset is pending
    
-
+   bit        jtag_sp_boot;
 
    initial begin
      jtag_enable_end = 0;
@@ -104,7 +104,8 @@ import rv_tester_params::*;
     if (~(reset|warm_reset) & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
-        jtag_socket_en <= jtag_driver_get_en_from_plusargs("jtag_driver_mode");
+        jtag_socket_en <= jtag_driver_get_socket_en_from_plusargs("jtag_driver_mode");
+        jtag_sp_boot   <= cvm_plusargs::get_bool("jtag_sp_boot") != '0;
       end
     end
   end
@@ -125,7 +126,7 @@ import rv_tester_params::*;
       jtag_enable_begin_sv <= jtag_enable_begin_cpp;
       jtag_enable_end <= '0;
     end else begin
-      if (jtag_socket_en  && ~|no_fetch) begin
+      if (jtag_socket_en  && (~|no_fetch | jtag_sp_boot)) begin
         tb_clocks <= tb_clocks + 1;
         jtag_socket_start <= '0;
         jtag_socket_end <= '0;
@@ -152,7 +153,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & (~no_fetch| jtag_sp_boot) & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
@@ -188,7 +189,7 @@ typedef enum logic [1:0] {
   
   bit pos_tdo_en;
 
-  assign jtag_pkt_acks[0].valid         = (state == UPDATE);
+  assign jtag_pkt_acks[0].valid         = (state == UPDATE) || (jtag_busy && (jtag_soft_reset|| jtag_hard_reset));
   assign jtag_pkt_acks[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign jtag_pkt_acks[0].data.complete     = (state == UPDATE);//upper32 bits for future use
@@ -206,6 +207,8 @@ typedef enum logic [1:0] {
       tap_sel = tap_cfg_sel;
       length = reg_length[31:0];
       jtag_quiesced = 1'b0;
+      hard_reset_pending = 1'b0;
+      soft_reset_pending = 1'b0;
       $display("[JTAG_DRIVER.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
     end
     else if(jtag_quit === 1 )begin
@@ -299,23 +302,30 @@ always @(posedge clk) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 5 cycles
         trst_active <= 1'b1; // Pull trst pin down
+        jtag_busy <= 1'b1;
+        state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
           trst_active <= 1'b0; // Release trst pin after 5 cycles
           jtag_hard_reset <= 1'b0; // Clear hard reset signal
           jtag_req.tms <= 1'b0;
+          jtag_busy <= 1'b0;
+
         end
       end
     end else if (jtag_soft_reset) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 6 cycles
-         jtag_req.tms <= 1'b1; // Keep TMS high for 5 cycles
+        jtag_req.tms <= 1'b1; // Keep TMS high for 5 cycles
+        jtag_busy <= 1'b1;
+        state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
             jtag_soft_reset <= 1'b0; // Clear soft reset after 5 cycles
             jtag_req.tms <= 1'b0;
+            jtag_busy <= 1'b0;
         end
       end
     end else begin
@@ -451,7 +461,7 @@ end
 //driving tdo 
 
 always @(posedge clk) begin
-  if (reset) begin
+  if (reset || jtag_hard_reset || jtag_soft_reset) begin
     push_idx <= 32'b0;
   end else begin
     if(read_data_valid_reg == 1'b1)begin

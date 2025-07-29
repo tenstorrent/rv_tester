@@ -35,6 +35,7 @@ class external_interrupt_sequence {
     void drive_interrupt();
     void capture_trigger_info(int32_t a, int32_t b);
     void gen_interrupt_timings();
+    uint32_t get_logical_core_id(uint32_t physical_hart_id);
 
   private:
 
@@ -44,12 +45,12 @@ class external_interrupt_sequence {
     unsigned id_;
     svScope scope_;
 
-   
-   
+
+
     cvm::rand::uniform_dist<uint32_t> rng1;
     uint32_t trigger_interrupt_count_;
 
-    
+
     uint32_t interrupts_driven = 0;
     uint32_t ext_interrupt_count_ = 0;
     uint32_t ext_trig_interrupt_count_ = 0;
@@ -59,4 +60,8 @@ class external_interrupt_sequence {
     int32_t  last_trigger     = 0;
     int32_t  current_trigger  = 0;
     bool     drive_msi_in_curr_hart;
+
+    uint32_t intr_vs_id_vgein_ = 0;
+    uint32_t intr_vs_id_random_ = 0;
+    uint32_t intr_vs_id_two_ = 0;
 };
