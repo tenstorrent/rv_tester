@@ -145,6 +145,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
+  cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
+
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
   cvm::registry::messenger.procedure<secureRegionRPC> (loc, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
 
@@ -1181,12 +1183,23 @@ whisperClient<URV>::whisperClearNmi(int hart, uint64_t time)
 {
   req.hart = hart;
   req.type = WhisperMessageType::ClearNmi;
+  req.flags = 1;  // Clear all.
   req.time = time;
 
-  if (not whisperCommand(req, reply))
-    return false;
+  return whisperCommand(req, reply);
+}
 
-  return true;
+template <typename URV>
+bool
+whisperClient<URV>::whisperClearNmiCause(int hart, uint64_t time, uint64_t cause)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::ClearNmi;
+  req.flags = 0;  // Clear one.
+  req.value = cause;
+  req.time = time;
+
+  return whisperCommand(req, reply);
 }
 
 // Static function for whisper JSON override
