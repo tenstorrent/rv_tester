@@ -196,7 +196,10 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
 {
-  cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(0, num_cores-1);
+  if (FLAGS_num_harts == 0)
+    co_return;
+
+  cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(0, FLAGS_num_harts-1);
   core_throttle = smc_mmr_index_dist();
   cvm::log(cvm::NONE, "[THUB THROTTLE]  Entered into throttle for Core {} ...... \n", core_throttle);
   co_await temp_throttle_enable();
