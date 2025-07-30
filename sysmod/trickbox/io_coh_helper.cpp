@@ -326,12 +326,16 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   /////-----------------------------
   uint32_t wresp_id = a_txn.id ;
     //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-  co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
-  if(wresp.resp != RESP_OKAY) {
-    //check correctness of response else flag error
-    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n",wresp.resp);
+
+  axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
+    wresp_channel,
+    [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
+);
+
+if (wresp.resp != axi::RESP_OKAY) {
+    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
     co_return;
-  }
+}
   ////------------------------------
   //Poke same data to whisper memory
   cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
