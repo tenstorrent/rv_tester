@@ -43,7 +43,7 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     logic fastest_clk;
-    `ifdef IXCOM_COMPILE
+    `ifdef PALLADIUM_CAKE1X
         localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
             PROFILE1_CLOCK_FREQ_MHZ,
             PROFILE2_CLOCK_FREQ_MHZ,
