@@ -2206,7 +2206,7 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   };
 
   if (FLAGS_mip_resynch && 
-      (csr_addr == MIP || csr_addr == SIP || csr_addr == HIP || csr_addr == VSIP || csr_addr == HGEIP)) {
+      (csr_addr == MIP || csr_addr == SIP || csr_addr == HIP || csr_addr == VSIP || csr_addr == HGEIP || csr_addr == MVIP)) {
     if (dut != "" && iss != "") {
       uint64_t dut_val = std::stoull(dut, nullptr, 16);
       uint64_t iss_val = std::stoull(iss, nullptr, 16);
