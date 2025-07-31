@@ -43,31 +43,31 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     logic fastest_clk;
-    `ifdef PALLADIUM_CAKE1X
-        localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
-            PROFILE1_CLOCK_FREQ_MHZ,
-            PROFILE2_CLOCK_FREQ_MHZ,
-            PROFILE3_CLOCK_FREQ_MHZ,
-            PROFILE4_CLOCK_FREQ_MHZ,
-            PROFILE5_CLOCK_FREQ_MHZ,
-            PROFILE6_CLOCK_FREQ_MHZ,
-            CLOCK_FREQ_MHZ
-        };
+    localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
+        PROFILE1_CLOCK_FREQ_MHZ,
+        PROFILE2_CLOCK_FREQ_MHZ,
+        PROFILE3_CLOCK_FREQ_MHZ,
+        PROFILE4_CLOCK_FREQ_MHZ,
+        PROFILE5_CLOCK_FREQ_MHZ,
+        PROFILE6_CLOCK_FREQ_MHZ,
+        CLOCK_FREQ_MHZ
+    };
 
-        function automatic int unsigned find_overall_max_freq(bit [6:0][NCLKS-1:0][31:0] all_freqs);
-            int unsigned max_val = 0;
-            foreach (all_freqs[i, j]) begin
-                if (all_freqs[i][j] > max_val) begin
-                    max_val = all_freqs[i][j];
-                end
+    function automatic int unsigned find_overall_max_freq(bit [6:0][NCLKS-1:0][31:0] all_freqs);
+        int unsigned max_val = 0;
+        foreach (all_freqs[i, j]) begin
+            if (all_freqs[i][j] > max_val) begin
+                max_val = all_freqs[i][j];
             end
-            return max_val;
-        endfunction
+        end
+        return max_val;
+    endfunction
 
-        localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
+    localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
+
+    `ifdef PALLADIUM_CAKE1X
         IXCclkgen #(max_clock_freq_overall) uclk (fastest_clk);
     `else
-        localparam int max_clock_freq_overall = 0;
         assign fastest_clk = '0;
     `endif
 
