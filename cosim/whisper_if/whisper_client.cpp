@@ -338,7 +338,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
