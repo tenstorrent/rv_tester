@@ -56,7 +56,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff) && (AcReqPktRfClki.user == 3);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
