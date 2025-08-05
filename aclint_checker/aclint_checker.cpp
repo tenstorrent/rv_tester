@@ -46,7 +46,7 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
         return this -> check_outstanding_transactions(signal);
     });
-    cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
+    cvm::registry::messenger.connect <clear_outstanding_txn>(loc, [this](const auto& signal) {
         return this -> clear_core_outstanding_transactions(signal);
     });
     cvm::registry::messenger.connect<svScope>(loc, [this](svScope s) {
@@ -367,9 +367,9 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     }
 }
 
-void aclint_checker::clear_core_outstanding_transactions(uint64_t signal) {
+void aclint_checker::clear_core_outstanding_transactions(const clear_outstanding_txn& signal_pkt) {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] warm_reset de-asserted, Clearing for outstanding MMR writes...\n");
-    if (!signal) return;
+    if (!signal_pkt.signal) return;
 
     cr_ac_mmr_v_.clear();
     axi_ac_cr_mmr_v_.clear();
@@ -381,7 +381,7 @@ extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {
 }
 
 extern "C" void clear_core_outstanding_transactions(cvm::topology::loc_t loc) {
-    cvm::registry::messenger.signal<uint64_t>(loc, uint64_t(1));
+    cvm::registry::messenger.signal<clear_outstanding_txn>(loc, {uint64_t(1)});
 }
 
 extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {

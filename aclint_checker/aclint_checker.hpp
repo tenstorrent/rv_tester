@@ -23,6 +23,11 @@ DECLARE_bool(aclint);
 inline uint64_t insterClusterId(uint64_t inaddr);
 inline bool in_range(uint64_t v, uint64_t a, uint64_t b);
 
+struct clear_outstanding_txn {
+    uint64_t signal;
+};
+
+
 typedef uint64_t reg_t;
 typedef struct {
     uint64_t addr;
@@ -173,7 +178,7 @@ class aclint_checker {
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
-    void clear_core_outstanding_transactions(uint64_t signal);
+    void clear_core_outstanding_transactions(const clear_outstanding_txn& signal_pkt);
     void set_scope(svScope scope);
     private:
         // cvm::file_logger log;
