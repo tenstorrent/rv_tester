@@ -1818,6 +1818,14 @@ aclint_checker:
                 width: 64
             hart:
                 width: 32
+    timesync_check:
+        domain: 1
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1

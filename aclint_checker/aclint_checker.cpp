@@ -34,6 +34,9 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::mtip_check < >> (loc, [this](const auto & v) {
         return this -> process(v);
     });
+    cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::timesync_check < >> (loc, [this](const auto & v) {
+        return this -> process(v);
+    });
     cvm::registry::messenger.connect <smc_write_pkt> (smc_monitor_loc, [this](const auto & v) {
         return this -> process(v);
     });
@@ -65,6 +68,11 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::mtip_
         cvm::log(cvm::ERROR, "Error: [{}] Expected MTIP, but MTIP[{}] not generated\n", mtip_check.clock, mtip_check.hart);
         return;
     }
+}
+
+void aclint_checker::process(const rv_tester_transactions::aclint_checker::timesync_check < > & timesync_check) {
+    cvm::log(cvm::ERROR, "Error: [{}] Expected TIMESYNC, but TIMESYNC[{}] not received\n", timesync_check.clock, timesync_check.hart);
+    return;
 }
 
 void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite) {
