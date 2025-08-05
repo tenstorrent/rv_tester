@@ -1481,6 +1481,13 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
           cvm::log(cvm::ERROR, "Error: [sysmod] MMR size should be 1,2,4,8. see string:{}\n", entry);
           return;
         }
+        
+        // Check for scb_acb_chicken with 32nd bit set
+        if (mmr == "scb_acb_chicken" && (value & (1ULL << 31))) {
+          cvm::log(cvm::NONE, "[sysmod] scb_acb_chicken IO Coherency is disabled\n");
+          FLAGS_io_coherency_disable = true;
+        }
+        
         mmr_data.push_back(std::make_tuple(addr, size, value));
       }
     }
