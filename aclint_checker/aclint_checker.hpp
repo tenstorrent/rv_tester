@@ -170,6 +170,7 @@ class aclint_checker {
     void process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite);
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
     void process(const rv_tester_transactions::aclint_checker::mtip_check < > & mtip_check);
+    void process(const rv_tester_transactions::aclint_checker::timesync_check < > & timesync_check);
     void process(const smc_write_pkt & w);
     void process(const smc_read_pkt & r);
     void process(const smc_req_pkt & read_req);
