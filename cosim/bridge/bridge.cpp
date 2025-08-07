@@ -2758,6 +2758,8 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
     bridge_log_(cvm::MEDIUM, "<{}> IMSIC write: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
 
   // Poke imsic write into whisper memory
+  bool seip_prev;
+  peek_seip(hart, m.cycle, seip_prev);
   peek_mip(hart, m.cycle, tmp_mip_prev_);
   poke_mem(hart, m.cycle, m.pa, 4, m.data, false, false);
 
@@ -2765,8 +2767,8 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   std::bitset<64> w_mip;
   bool w_seip;
   peek_mip(hart, m.cycle, w_mip);
-  check_mip_change(tmp_mip_prev_, w_mip);
   peek_seip(hart, m.cycle, w_seip);
+  check_mip_change(tmp_mip_prev_, w_mip, seip_prev, w_seip, true);
   e_mip_ = (w_mip[MEI] << MEI) | ((w_mip[SEI] | w_seip) << SEI) | (w_mip[VSEI] << VSEI) | (w_mip[SGEI] << SGEI);
 
   if (FLAGS_bridge_log) {
@@ -2780,7 +2782,7 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
     check_and_defer_interrupt(hart, m.cycle, e_mip_);
   }
 }
-void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new) {
+void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev, bool seip_new, bool consider_seip) {
   auto bits_set = mip_new.to_ullong() & ~(mip_prev.to_ullong());
   uint32_t start = 0;
   while (bits_set) {
@@ -2796,6 +2798,16 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
       deferred_mip_age_clear_[start]++;
     start++;
     bits_clr >>=1;
+  }
+  if (consider_seip) {
+    if (seip_new == seip_prev) {
+      deferred_mip_age_.erase(SEI);
+      deferred_mip_age_clear_.erase(SEI);
+    } else if (seip_new) {
+      deferred_mip_age_[SEI]++;
+    } else {
+      deferred_mip_age_clear_[SEI]++;
+    }
   }
 }
 
