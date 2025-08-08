@@ -119,6 +119,47 @@ class CsrMap:
             csr_obj.field = field_dict
             self.csr_property_dict[csr_name] = csr_obj
 
+    def resolve_param_reset_value(self, reset_val, csr_name, field_name):
+        """Helper method to resolve PARAM reset values by looking up in csr_params"""
+        if not reset_val:
+            return 0
+        
+        reset_str = str(reset_val).strip()
+        
+        # Check if the value is PARAM and we have CSR and field names
+        if reset_str.upper() == "PARAM" and csr_name and field_name:
+            # Construct parameter name: CSR_<CSR_NAME.uppercase()>_F_<field_name.uppercase()>_RESET_VALUE
+            param_name = f"CSR_{csr_name.replace('_','').upper()}_F_{field_name.replace('-', '_').upper()}_RESET_VALUE"
+            csr_reset_params = {
+                "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
+            }
+            # Look up in csr_reset_params dictionary
+            if csr_reset_params and param_name in csr_reset_params:
+                param_value = csr_reset_params[param_name]
+                # Convert parameter value to integer
+                try:
+                    if isinstance(param_value, str):
+                        param_str = param_value.strip()
+                        if param_str.lower().startswith("0x"):
+                            param_str = param_str[2:]
+                        return int(param_str, 16)
+                    else:
+                        return int(param_value)
+                except (ValueError, TypeError):
+                    return 0
+            else:
+                # Parameter not found, return 0
+                return 0
+        
+        # Not a PARAM value, try to parse as hex
+        if reset_str.lower().startswith("0x"):
+            reset_str = reset_str[2:]
+        
+        try:
+            return int(reset_str, 16)
+        except ValueError:
+            return 0
+
     def generate_hpp_file(self, output_file):
         """Generate C++ header file with CSR structures"""
         def sanitize_name(name):
@@ -157,21 +198,10 @@ class CsrMap:
             except ValueError:
                 return 0
 
-        def parse_hex_reset_val(reset_val):
+        def parse_hex_reset_val(reset_val, csr_name=None, field_name=None):
             """Convert reset value to 64-bit hex value (uint64_t)"""
-            if not reset_val:
-                return 0
-            
-            reset_str = str(reset_val).strip()
-            
-            if reset_str.lower().startswith("0x"):
-                reset_str = reset_str[2:]
-            
-            try:
-                reset_value = int(reset_str, 16) & 0xFFFFFFFFFFFFFFFF
-                return reset_value
-            except ValueError:
-                return 0
+            reset_value = self.resolve_param_reset_value(reset_val, csr_name, field_name)
+            return reset_value & 0xFFFFFFFFFFFFFFFF
 
         def parse_hex_legal_values(legal_value):
             """Convert legal value string to array of 64-bit hex values (vector<uint64_t>)"""
@@ -284,7 +314,7 @@ class CsrMap:
                     field_full_name = f"{lowercase_csr_name}.{uppercase_field_name}"
                     msb, lsb = field.range
                     width_val = field.width if field.width else "0"
-                    reset_val = parse_hex_reset_val(field.reset_val)
+                    reset_val = parse_hex_reset_val(field.reset_val, csr_name, field_name)
                     legal_values = parse_hex_legal_values(field.legal_value)
                     perf_val = parse_hex_perf_val(field.perf_val)
                     
@@ -410,20 +440,11 @@ class CsrMap:
             except ValueError:
                 return "12'h000"
 
-        def format_hex_reset_val(reset_val):
+        def format_hex_reset_val(reset_val, csr_name=None, field_name=None):
             """Convert reset value to proper hex format for SystemVerilog"""
-            if not reset_val:
-                return "64'h0000000000000000"
-            
-            reset_str = str(reset_val).strip()
-            if reset_str.lower().startswith("0x"):
-                reset_str = reset_str[2:]
-            
-            try:
-                reset_value = int(reset_str, 16) & 0xFFFFFFFFFFFFFFFF
-                return f"64'h{reset_value:016X}"
-            except ValueError:
-                return "64'h0000000000000000"
+            reset_value = self.resolve_param_reset_value(reset_val, csr_name, field_name)
+            reset_value = reset_value & 0xFFFFFFFFFFFFFFFF
+            return f"64'h{reset_value:016X}"
 
         with open(output_file, 'w') as f:
             f.write("// SystemVerilog CSR Defines Package\n")
@@ -457,7 +478,7 @@ class CsrMap:
                     
                     msb, lsb = field.range
                     width = field.width if field.width else 0
-                    reset_val = format_hex_reset_val(field.reset_val)
+                    reset_val = format_hex_reset_val(field.reset_val, csr_name, field_name)
                     
                     # Field range defines
                     f.write(f"parameter int {prefix}_MSB = {msb};\n")
@@ -466,16 +487,10 @@ class CsrMap:
                     
                     # Field reset value - extract field value from full reset value
                     field_reset_val = 0
-                    if field.reset_val:
-                        reset_str = str(field.reset_val).strip()
-                        if reset_str.lower().startswith("0x"):
-                            reset_str = reset_str[2:]
-                        try:
-                            full_reset_val = int(reset_str, 16)
-                            # Extract the field bits
-                            field_reset_val = (full_reset_val >> lsb) & ((1 << width) - 1)
-                        except ValueError:
-                            field_reset_val = 0
+                    full_reset_val = self.resolve_param_reset_value(field.reset_val, csr_name, field_name)
+                    if full_reset_val:
+                        # Extract the field bits
+                        field_reset_val = (full_reset_val >> lsb) & ((1 << width) - 1)
                     
                     f.write(f"parameter logic [{width-1}:0] {prefix}_RESET = {width}'h{field_reset_val:0{(width+3)//4}X};\n")
                     
@@ -502,15 +517,7 @@ class CsrMap:
                 full_reset_val = 0
                 for field_name, field in csr.field.items():
                     msb, lsb = field.range
-                    field_reset = 0
-                    if field.reset_val:
-                        reset_str = str(field.reset_val).strip()
-                        if reset_str.lower().startswith("0x"):
-                            reset_str = reset_str[2:]
-                        try:
-                            field_reset = int(reset_str, 16)
-                        except ValueError:
-                            field_reset = 0
+                    field_reset = self.resolve_param_reset_value(field.reset_val, csr_name, field_name)
                     
                     # Mask field reset value to field width and position it
                     field_width = msb - lsb + 1
@@ -578,7 +585,6 @@ if __name__ == "__main__":
     if not args.csr_spec:
         print("Error: --csr_spec argument is required")
         exit(1)
-        
     csr_map = CsrMap(args.csr_spec)
     csr_map.generate_hpp_file(args.csr_map_hpp)
     csr_map.generate_sv_file(args.csr_map_sv)
