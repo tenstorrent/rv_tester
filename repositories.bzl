@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="a7b73ebda70dfa236419e412fcdf0176053d55e8"
+    corearchcoverage_hash="9ea8744166ae953477d5683bd964ae0c098ee543"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="ce85585de3ca8fa47e7f2c222728511fda6f6a16"
+    whisper_hash="b2ec2e32d7625a129af5d89710852482c18c02fe"
     maybe(
         git_repository,
         name = "whisper",
@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="756fa9be702ab44a9d69ab6f111026b5889f0420"
+    checkin_script_hash="5a5a2da7982ad208dfc64639bfc90f6f454946f7"
     maybe(
         git_repository,
         name = "checkin-script",

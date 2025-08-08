@@ -136,7 +136,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
   cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
   cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
-  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, interrupt, cause);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause, bool& virt_mode) {return this->whisperCheckInterrupt(hart, interrupt, cause, virt_mode);});
   cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
   cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
@@ -145,6 +145,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
+  cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
+
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
   cvm::registry::messenger.procedure<secureRegionRPC> (loc, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
 
@@ -336,7 +338,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
@@ -1119,7 +1121,7 @@ whisperClient<URV>::whisperExitDebug(int hart)
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause)
+whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause, bool& virt_mode)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -1129,7 +1131,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& c
   if (not whisperCommand(req, reply))
     return false;
 
-  interrupt = reply.flags;
+  interrupt = reply.flags & 1;
+  virt_mode = (reply.flags & 2) != 0;
   cause = reply.value;
 
   return true;
@@ -1181,12 +1184,23 @@ whisperClient<URV>::whisperClearNmi(int hart, uint64_t time)
 {
   req.hart = hart;
   req.type = WhisperMessageType::ClearNmi;
+  req.flags = 1;  // Clear all.
   req.time = time;
 
-  if (not whisperCommand(req, reply))
-    return false;
+  return whisperCommand(req, reply);
+}
 
-  return true;
+template <typename URV>
+bool
+whisperClient<URV>::whisperClearNmiCause(int hart, uint64_t time, uint64_t cause)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::ClearNmi;
+  req.flags = 0;  // Clear one.
+  req.value = cause;
+  req.time = time;
+
+  return whisperCommand(req, reply);
 }
 
 // Static function for whisper JSON override

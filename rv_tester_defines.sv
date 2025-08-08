@@ -291,6 +291,7 @@ package rv_tester_params;
         logic [XLEN-1:0]            cause    ;
         logic                       halt     ;
         logic                       intr     ;
+        logic                       virt_mode;
         logic [4-1:0]               mode     ;
         logic [2-1:0]               ixl      ;
         logic [6-1:0]               rd_addr  ;

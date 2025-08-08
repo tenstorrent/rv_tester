@@ -240,6 +240,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     nmi_ = false;
     intr_ = true;
     excp_ = false;
+    intr_virt_mode_ = m_trap.virt_mode;
     icause_ = m_trap.cause & 0x3f;
 
   } else if (m_trap.id == EXCP) {
@@ -407,6 +408,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.excp = excp_;
   instr.ecause = ecause_;
+  instr.virt_mode = intr_virt_mode_;
 
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);

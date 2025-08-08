@@ -56,7 +56,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff) && (AcReqPktRfClki.user == 3);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
@@ -77,7 +77,12 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks;
-    always_comb assert (~violation_forcesync) else $error("[%0d] Error: Not recieved aclint force sync", clocks);
+    /* verilator lint_off WIDTH */
+    assign timesync_checks[n].valid = violation_forcesync;
+    assign timesync_checks[n].data.location = location;
+    assign timesync_checks[n].data.clock = clocks;
+    assign timesync_checks[n].data.hart = n;
+    /* verilator lint_on WIDTH */
     end
 
     //ACLINT MTIP generation checker

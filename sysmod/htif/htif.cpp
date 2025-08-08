@@ -204,11 +204,11 @@ htif::write(const transactor::write_t& w)
       if (FLAGS_htif_log) {
         std::string s(1, c);
         htif_log_.log(cvm::NONE, s);
-      } else {
+        htif_log_.flush();
+      } 
 	    pty_.write(c);
 	    putchar(c);
 	    fflush(stdout);
-      }
     }
   } else if (dev == 1 && cmd == 0) {
 	if (!FLAGS_pty) {

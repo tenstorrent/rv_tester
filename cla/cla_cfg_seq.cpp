@@ -134,12 +134,13 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla() {
 }
 
 cvm::messenger::task<void> cla_cfg_seq::configure_cla_clk_halt() {
+  cvm::rand::uniform_dist<uint32_t> cntr_rnd(16400, 24000);
 
   for(uint32_t i=0; i< 8 ; i++){
     if((mask & (1 << i))){
       cvm::log(cvm::NONE, "[cla] CLA HALT Configs for Core-{} \n",i);
       core_offset = 0x10000 * i;
-      cntr_data = (rng() % 0x2000) + 0x4000;
+      cntr_data = cntr_rnd();
       cntr_data = cntr_data << 16;
       
       co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, 0x40);
@@ -153,12 +154,13 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_clk_halt() {
 }
 
 cvm::messenger::task<void> cla_cfg_seq::configure_cla_nmi() {
+  cvm::rand::uniform_dist<uint32_t> cntr_rnd(16400, 24000);
 
   for(uint32_t i=0; i< 8 ; i++){
     if((mask & (1 << i))){
       cvm::log(cvm::NONE, "[cla] CLA NMI Configs for Core-{} \n",i);
       core_offset = 0x10000 * i;
-      cntr_data = rng()%0x2000 + 0x2000;
+      cntr_data = cntr_rnd();
       cntr_data = cntr_data << 16;
       if(reenable_nmi){
         co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, cntr_data);
@@ -178,14 +180,18 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_nmi() {
 }
 
 cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
+  cvm::rand::uniform_dist<uint32_t> wait_on_rnd(1000, 1200);
+  cvm::rand::uniform_dist<uint32_t> wait_off_rnd(300, 400);
+  cvm::rand::uniform_dist<uint32_t> event_rnd(200, 280);
+  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts-1);
   uint32_t wait_on_count,wait_off_count,event_count;
   uint32_t wdata;
 
-  wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
-  wait_off_count = (rng()% 101) + 300;    // Off Delay 300-400 CLK cycle
-  event_count = (rng()% 71) + 200;       // Event on Delay 200-270 CLK cycle
-  eap_ctrl = (54 << 7);                   // Considering 15 value as per waves
-  active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
+  wait_on_count = wait_on_rnd();    // On Delay 1000-1200 CLK cycle
+  wait_off_count = wait_off_rnd();  // Off Delay 300-400 CLK cycle
+  event_count = event_rnd();        // Event on Delay 200-270 CLK cycle
+  eap_ctrl = (54 << 7);
+  active_core = (FLAGS_num_harts == 1) ? 0 : rand_harts();
   reenable_rand_trig = 0;
   core_offset = (0x10000 * active_core);
 
