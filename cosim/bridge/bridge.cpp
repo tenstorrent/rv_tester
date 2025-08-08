@@ -1056,9 +1056,9 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  bool w_intr;
+  bool w_intr, w_virt_mode;
   uint64_t w_cause;
-  check_interrupt(hart, d.cycle, w_intr, w_cause);
+  check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
 
   if (!d.intr && !w_intr) {
     IF_DEBUG("no dut intr and no whisper intr....return");
@@ -1080,35 +1080,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   }
 
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}], d_intr:[{}] w_intr:[{}]\n", w.time, d.icause, w_cause, d.intr, w_intr);
+    bridge_log_(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}], d_intr:[{}] w_intr:[{}] DVirt_mode={} WVirt_mode={}\n", w.time, d.icause, w_cause, d.intr, w_intr, d.virt_mode, w_virt_mode);
 
-  // Currently for interrupts taken to VS mode, w_cause and d.icause differ by 1
-  // We will calculate next privilige mode to address cause mismatch issue and also for printing interrupt stats
-
-  bool valid;
-  uint64_t hideleg = 0, mideleg;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', MIDELEG, mideleg, valid)) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to peek mip\n", hart);
-    return;
-  }
-  if (hyp_enabled()) {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', HIDELEG, hideleg, valid)) && FLAGS_whisper_client_check) {
-      print(cvm::MEDIUM,"Trying to peek hideleg\n");
-      error("Hart {}: Failed to peek mip\n", hart);
-      return;
-    }
-  }
-  bool hdel = hideleg & (1ull << w_cause);
-  bool mdel = mideleg & (1ull << w_cause);
-  if (d.priv == M) { intrtopriv_ = M;}
-  else if (d.priv == HS || d.priv == U)  { intrtopriv_ = mdel ? HS : M;}
-  else if (d.priv == VS || d.priv == VU) { intrtopriv_ = mdel ? (hdel ? VS : HS) : M;}
-
-  if (intrtopriv_ == VS || intrtopriv_ == VU) {w_cause--;}
-
-  if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> Interrupt to privilege {} \n", w.time, intrtopriv_);
-
+  if (d.virt_mode != w_virt_mode)
+    if (FLAGS_bridge_log)
+      bridge_log_(cvm::MEDIUM, "<{}> Virt mode mismatch: DUT [{}] vs Whisper [{}]\n", w.time, d.virt_mode, w_virt_mode);
   // Timing sensitive resynch cases
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
@@ -1134,11 +1110,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   }
 
   // 2. DUT took older interrupt but a newer one asserted before retire
-  if (d.icause != w_cause) {
+  if (d.icause != w_cause || (d.virt_mode != w_virt_mode)) {
     IF_DEBUG("dut cause != whisper cause");
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
-        w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
+      bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch or Virtual mode mismatch [{},{}] age [{},{}]  DVirt_mode:{} WVirt_mode:{}\n",
+        w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause], d.virt_mode, w_virt_mode);
 
     std::bitset<64> timing_case_w_mip;
     peek_mip(hart, w.time, timing_case_w_mip);
@@ -2812,9 +2788,9 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
 }
 
 bool bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
-  bool w_intr;
+  bool w_intr, virt_mode;
   uint64_t w_cause;
-  check_interrupt(hart, time, w_intr, w_cause);
+  check_interrupt(hart, time, w_intr, w_cause, virt_mode);
 
   if (!w_intr)
     return false;
@@ -2843,14 +2819,14 @@ void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   deferred_intr_ = (mip != 0) ? true : false;
 }
 
-void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause) {
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperCheckInterruptRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, taken, cause)) {
+void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperCheckInterruptRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, taken, cause, virt_mode)) {
     error("Hart {}: Failed whisper API call - whisperCheckInterrupt\n", hart);
     return;
   }
 
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={}\n", cycle, taken, intr_to_string.at(static_cast<intr>(cause)));
+    bridge_log_(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.at(static_cast<intr>(cause)), virt_mode);
 }
 
 void bridge::poke_nmi(hart_id_t hart, uint64_t time) {
