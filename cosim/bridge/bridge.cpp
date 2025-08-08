@@ -50,6 +50,7 @@ DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismat
 DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei mismatch condition to match DUT");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
+DEFINE_uint32(intr_assert_timeout_resynch, 8, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
@@ -2173,7 +2174,7 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
     if (diff) {
       uint32_t bit = 0;
       while (diff) {
-        if ((diff & 1) && !(deferred_age[bit]))
+        if ((diff & 1) && !(deferred_age[bit]) && (deferred_age[bit] > FLAGS_intr_assert_timeout_resynch))
           return false;
         diff >>= 1; bit++;
       }
