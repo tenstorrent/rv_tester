@@ -1276,10 +1276,14 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_trap
     logic [63:0] cause_d1, cause_d2, cause_d3;
+    logic virt_mode_d1, virt_mode_d2, virt_mode_d3;
     always @(posedge clk) begin
       cause_d1 <= rvfi[0].cause;
+      virt_mode_d1 <= rvfi[0].virt_mode;
       cause_d2 <= cause_d1;
+      virt_mode_d2 <= virt_mode_d1;
       cause_d3 <= cause_d2;
+      virt_mode_d3 <= virt_mode_d2;
     end
     assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0);
     assign m_traps[0].data.location = location;
@@ -1287,6 +1291,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
     assign m_traps[0].data.order = rvfi[0].order;
+    assign m_traps[0].data.virt_mode = virt_mode_d3;
     assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
 
 

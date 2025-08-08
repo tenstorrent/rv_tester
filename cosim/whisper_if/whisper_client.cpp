@@ -136,7 +136,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
   cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
   cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
-  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, interrupt, cause);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause, bool& virt_mode) {return this->whisperCheckInterrupt(hart, interrupt, cause, virt_mode);});
   cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
   cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
@@ -1121,7 +1121,7 @@ whisperClient<URV>::whisperExitDebug(int hart)
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause)
+whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause, bool& virt_mode)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -1131,7 +1131,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& c
   if (not whisperCommand(req, reply))
     return false;
 
-  interrupt = reply.flags;
+  interrupt = reply.flags & 1;
+  virt_mode = (reply.flags & 2) != 0;
   cause = reply.value;
 
   return true;

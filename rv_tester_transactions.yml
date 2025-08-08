@@ -107,6 +107,8 @@ cosim:
                 width: 1
             intr:
                 width: 1
+            virt_mode:
+                width: 1
             cause:
                 width: 64
             mode:
@@ -444,6 +446,8 @@ cosim:
                 width: 64
             order:
                 width: 64
+            virt_mode:
+                width: 1
 
     m_interrupt_pend:
         domain: 1

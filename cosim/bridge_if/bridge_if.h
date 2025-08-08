@@ -224,6 +224,7 @@ typedef struct rv_instr_s {
   uint8_t priv = 3;
   bool nmi = false;
   bool intr = false;
+  bool virt_mode = false;
   bool excp = false;
   uint64_t ncause = 0;
   uint64_t icause = 0;
