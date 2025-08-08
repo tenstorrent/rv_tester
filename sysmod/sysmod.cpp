@@ -1796,7 +1796,8 @@ extern "C" {
   }
 }
 
-std::string get_set_csr_perf() {
+std::string 
+sysmod::get_set_csr_perf() {
   std::vector<std::string> csr_entries;
 
   // Pattern to match c_(fe|mc|ls|ms)cfg or c_msppc
