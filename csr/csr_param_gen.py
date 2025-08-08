@@ -21,7 +21,7 @@ class CSR:
         self.alias_of = alias_of
         self.perf_val = "0x0"  # Initialize with default value
 
-    def concat_perf_val(self):
+    def concat_perf_val(self, csr_map_instance=None):
         """Concatenate performance values from all fields in this CSR"""
         from bitstring import BitArray
         
@@ -31,26 +31,44 @@ class CSR:
         for field_name, field_property in self.field.items():
             # Use perf_val if available, otherwise fall back to reset_val
             value_to_use = None
-            if hasattr(field_property, 'perf_val') and field_property.perf_val is not None and str(field_property.perf_val).strip():
-                value_to_use = field_property.perf_val
-            elif hasattr(field_property, 'reset_val') and field_property.reset_val:
-                value_to_use = field_property.reset_val
+            resolved_value = 0
             
-            if value_to_use:
+            if hasattr(field_property, 'perf_val') and field_property.perf_val is not None and str(field_property.perf_val).strip():
+                # Use the resolve_param_perf_value method if csr_map_instance is available
+                if csr_map_instance:
+                    resolved_value = csr_map_instance.resolve_param_perf_value(field_property.perf_val, self.name, field_name)
+                else:
+                    # Fallback to original logic if no csr_map_instance
+                    val_str = str(field_property.perf_val).strip()
+                    try:
+                        if val_str.lower().startswith("0x"):
+                            val_str = val_str[2:]
+                        resolved_value = int(val_str, 16)
+                    except (ValueError, TypeError):
+                        resolved_value = 0
+                value_to_use = resolved_value
+            elif hasattr(field_property, 'reset_val') and field_property.reset_val:
+                # Use the resolve_param_reset_value method if csr_map_instance is available
+                if csr_map_instance:
+                    resolved_value = csr_map_instance.resolve_param_reset_value(field_property.reset_val, self.name, field_name)
+                else:
+                    # Fallback to original logic if no csr_map_instance
+                    val_str = str(field_property.reset_val).strip()
+                    try:
+                        if val_str.lower().startswith("0x"):
+                            val_str = val_str[2:]
+                        resolved_value = int(val_str, 16)
+                    except (ValueError, TypeError):
+                        resolved_value = 0
+                value_to_use = resolved_value
+            
+            if value_to_use is not None:
                 # Calculate start position (MSB position from the right)
                 start_pos = self.size - 1 - field_property.range[0]  # range[0] is MSB
                 
-                # Parse the value to get binary representation
-                val_str = str(value_to_use).strip()
-                
                 try:
-                    # perf_val and reset_val may or may not have "0x" prefix; handle both cases
-                    if val_str.lower().startswith("0x"):
-                        val_str = val_str[2:]
-                    val_int = int(val_str, 16)
-                    
                     # Create BitArray for this field's value
-                    field_bitarray = BitArray(length=field_property.width, uint=val_int)
+                    field_bitarray = BitArray(length=field_property.width, uint=value_to_use)
                     # Overwrite the corresponding bits in the main BitArray
                     concat_bitarray.overwrite(field_bitarray, start_pos)
                 except (ValueError, TypeError):
@@ -75,6 +93,10 @@ class CsrMap:
         with open(csr_spec, "r") as c:
             description = yaml.safe_load(c)
         self.csr_property_dict = dict()
+        # Shared parameter dictionary for both reset and performance values
+        self.csr_params = {
+            "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
+        }
         for csr_name, csr_data in description.items():
             common_data = csr_data.get("common_data", {})
             csr_address = common_data.get("ADDRESS", "0x0")
@@ -130,12 +152,9 @@ class CsrMap:
         if reset_str.upper() == "PARAM" and csr_name and field_name:
             # Construct parameter name: CSR_<CSR_NAME.uppercase()>_F_<field_name.uppercase()>_RESET_VALUE
             param_name = f"CSR_{csr_name.replace('_','').upper()}_F_{field_name.replace('-', '_').upper()}_RESET_VALUE"
-            csr_reset_params = {
-                "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
-            }
-            # Look up in csr_reset_params dictionary
-            if csr_reset_params and param_name in csr_reset_params:
-                param_value = csr_reset_params[param_name]
+            # Look up in shared csr_params dictionary
+            if self.csr_params and param_name in self.csr_params:
+                param_value = self.csr_params[param_name]
                 # Convert parameter value to integer
                 try:
                     if isinstance(param_value, str):
@@ -157,6 +176,44 @@ class CsrMap:
         
         try:
             return int(reset_str, 16)
+        except ValueError:
+            return 0
+
+    def resolve_param_perf_value(self, perf_val, csr_name, field_name):
+        """Helper method to resolve PARAM performance values by looking up in csr_params"""
+        if not perf_val:
+            return 0
+        
+        perf_str = str(perf_val).strip()
+        
+        # Check if the value is PARAM and we have CSR and field names
+        if perf_str.upper() == "PARAM" and csr_name and field_name:
+            # Construct parameter name: CSR_<CSR_NAME.uppercase()>_F_<field_name.uppercase()>_PERF_VALUE
+            param_name = f"CSR_{csr_name.replace('_','').upper()}_F_{field_name.replace('-', '_').upper()}_PERF_VALUE"
+            # Look up in shared csr_params dictionary (contains both reset and perf params)
+            if self.csr_params and param_name in self.csr_params:
+                param_value = self.csr_params[param_name]
+                # Convert parameter value to integer
+                try:
+                    if isinstance(param_value, str):
+                        param_str = param_value.strip()
+                        if param_str.lower().startswith("0x"):
+                            param_str = param_str[2:]
+                        return int(param_str, 16)
+                    else:
+                        return int(param_value)
+                except (ValueError, TypeError):
+                    return 0
+            else:
+                # Parameter not found, return 0
+                return 0
+        
+        # Not a PARAM value, try to parse as hex
+        if perf_str.lower().startswith("0x"):
+            perf_str = perf_str[2:]
+        
+        try:
+            return int(perf_str, 16)
         except ValueError:
             return 0
 
@@ -230,21 +287,10 @@ class CsrMap:
             
             return values
 
-        def parse_hex_perf_val(perf_val):
+        def parse_hex_perf_val(perf_val, csr_name=None, field_name=None):
             """Convert perf value to 64-bit hex value (uint64_t)"""
-            if not perf_val:
-                return 0
-            
-            perf_str = str(perf_val).strip()
-            
-            if perf_str.lower().startswith("0x"):
-                perf_str = perf_str[2:]
-            
-            try:
-                perf_value = int(perf_str, 16) & 0xFFFFFFFFFFFFFFFF
-                return perf_value
-            except ValueError:
-                return 0
+            perf_value = self.resolve_param_perf_value(perf_val, csr_name, field_name)
+            return perf_value & 0xFFFFFFFFFFFFFFFF
 
         with open(output_file, 'w') as f:
             f.write("#pragma once\n")
@@ -293,7 +339,7 @@ class CsrMap:
                 hex_address = parse_hex_address(csr.address)
                 lowercase_csr_name = csr_name.lower()
                 # Calculate the concatenated perf value for this CSR
-                csr_perf_val = csr.concat_perf_val()
+                csr_perf_val = csr.concat_perf_val(self)
                 csr_perf_val_int = 0
                 if csr_perf_val:
                     perf_str = str(csr_perf_val).strip()
@@ -316,7 +362,7 @@ class CsrMap:
                     width_val = field.width if field.width else "0"
                     reset_val = parse_hex_reset_val(field.reset_val, csr_name, field_name)
                     legal_values = parse_hex_legal_values(field.legal_value)
-                    perf_val = parse_hex_perf_val(field.perf_val)
+                    perf_val = parse_hex_perf_val(field.perf_val, csr_name, field_name)
                     
                     f.write(f"    field {sanitized_field_name} = {{\n")
                     f.write(f"        \"{field_full_name}\",\n")
