@@ -583,19 +583,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.tag  = d.tag;
   w.time = d.cycle;
 
-  // Handle debug interrupt
-  IF_DEBUG("check dut interrupt");
-  if (d.intr && (d.icause == 0)){
-    IF_DEBUG("dut has interrupt cause=0");
+  if ((d.intr && !d.icause && !d.virt_mode) ||  // icause is set to zero for debug mode
+      (d.excp && (d.ecause == CUSTOM_SINGLE_STEP))) {
+    // Debug mode
     return;
   }
-
-  IF_DEBUG("check dut single step");
-  if (d.excp && (d.ecause == 31)){
-    IF_DEBUG("dut single step excp cause=31");
-    return;
-  }
-
 
   check_debug_mode_entry_via_ebreak(d);
 
