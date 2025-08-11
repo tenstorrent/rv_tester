@@ -145,8 +145,9 @@ class axi_sw_mst {
         uint32_t w_q_rptr_, w_q_wptr_;
 
         std::vector<bool> ids_;
-        std::vector<bool> chk_rsp_err_ids_;
-        std::vector<bool> allow_err_resp_ids_;
+        std::vector<bool> exp_err_rsp_ids_;
+        std::vector<bool> allow_decerr_resp_ids_;
+        std::vector<bool> allow_slverr_resp_ids_;
         std::vector<size_t> sizes_;
         std::unordered_map<size_t, std::vector<uint8_t>> read_data_;
         std::vector<std::variant<axi::a_t, axi::w_t>> transactions_;

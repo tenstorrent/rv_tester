@@ -20,8 +20,8 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
-DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
-DEFINE_bool(axi_allow_ras_slverr_resp, false, "Allow Slave error responses on axi_mst transactions due to RAS error injection");
+DEFINE_bool(axi_allow_slverr_resp, false, "Allow Slave error responses on axi_mst transactions");
+DEFINE_bool(axi_allow_decerr_resp, false, "Allow Decode error responses on axi_mst transactions");
 DEFINE_bool(axi_rand_id_alloc, true, "Allow random ID allocation for axi_mst transactions");
 DEFINE_bool(axi_disable_seqid_alloc, false, "Disable Cluster AXI sequence based ID allocation");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
@@ -62,8 +62,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
       aw_q_rptr_(0), aw_q_wptr_(aw_q_max_),
       w_q_rptr_(0), w_q_wptr_(w_q_max_),
       ids_(size_t(1) << id_width_, true),
-      chk_rsp_err_ids_(size_t(1) << id_width_, true),
-      allow_err_resp_ids_(size_t(1) << id_width_, false),
+      exp_err_rsp_ids_(size_t(1) << id_width_, false),
+      allow_decerr_resp_ids_(size_t(1) << id_width_, false),
+      allow_slverr_resp_ids_(size_t(1) << id_width_, false),
       read_bytes_(0), write_bytes_(0)
 {
     name_ = cvm::topology::name(loc_);
@@ -109,9 +110,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::~axi_sw_mst() {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
-    if (used_id(b.id) && ((chk_rsp_err_ids_[b.id] && b.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[b.id] && b.resp == axi::RESP_OKAY))) {
-        if (!FLAGS_axi_allow_err_resp && !allow_err_resp_ids_[b.id] && !(FLAGS_axi_allow_ras_slverr_resp && b.resp == axi::RESP_SLVERR)) {
-            cvm::log(cvm::ERROR, "[{}] Error: bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, chk_rsp_err_ids_[b.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(b.resp));
+    if (used_id(b.id) && ((exp_err_rsp_ids_[b.id] && b.resp == axi::RESP_OKAY) || (!exp_err_rsp_ids_[b.id] && b.resp != axi::RESP_OKAY))) {
+        if (!((FLAGS_axi_allow_decerr_resp || allow_decerr_resp_ids_[b.id]) && b.resp == axi::RESP_DECERR) && !((FLAGS_axi_allow_slverr_resp || allow_slverr_resp_ids_[b.id]) && b.resp == axi::RESP_SLVERR)) {
+            cvm::log(cvm::ERROR, "[{}] Error: bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, exp_err_rsp_ids_[b.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(b.resp));
             return;
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id: {} resp: {}\n", name_, b.id, b.resp);
@@ -136,9 +137,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
-    if (used_id(r.id) && ((chk_rsp_err_ids_[r.id] && r.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[r.id] && r.resp == axi::RESP_OKAY))) {
-        if (!FLAGS_axi_allow_err_resp && !allow_err_resp_ids_[r.id] && !(FLAGS_axi_allow_ras_slverr_resp && r.resp == axi::RESP_SLVERR)) {
-            cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, chk_rsp_err_ids_[r.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(r.resp));
+    if (used_id(r.id) && ((exp_err_rsp_ids_[r.id] && r.resp == axi::RESP_OKAY) || (!exp_err_rsp_ids_[r.id] && r.resp != axi::RESP_OKAY))) {
+        if (!((FLAGS_axi_allow_decerr_resp || allow_decerr_resp_ids_[r.id]) && r.resp == axi::RESP_DECERR) && !((FLAGS_axi_allow_slverr_resp || allow_slverr_resp_ids_[r.id]) && r.resp == axi::RESP_SLVERR)) {
+            cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, exp_err_rsp_ids_[r.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(r.resp));
             return;
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
@@ -204,8 +205,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
         return;
     }
     alloc_id(a.id);
-    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
-    allow_err_resp_ids_[a.id] = a.allow_err_resp;
+    exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
+    allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
+    allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -259,8 +261,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
         }
     }
     a.id = id;
-    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
-    allow_err_resp_ids_[a.id] = a.allow_err_resp;
+    exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
+    allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
+    allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -387,12 +390,13 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
     axi::a_t a;
     a.w = false;
-    a.rsp_err_chk = req.rsp_err_chk;
+    a.exp_err_rsp = req.exp_err_rsp;
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
-    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
-    allow_err_resp_ids_[a.id] = a.allow_err_resp;
+    exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
+    allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
+    allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
     transactions_.emplace_back(a);
     push_transactions();
 }
@@ -402,12 +406,13 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) {
     axi::a_t a;
     a.w = true;
-    a.rsp_err_chk = req.rsp_err_chk;
+    a.exp_err_rsp = req.exp_err_rsp;
 
     if (!a_wrapper(req.addr, req.length, a))
         return;
-    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
-    allow_err_resp_ids_[a.id] = a.allow_err_resp;
+    exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
+    allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
+    allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
     transactions_.emplace_back(a);
 
     size_t pow2size = size_t(1) << a.size;
