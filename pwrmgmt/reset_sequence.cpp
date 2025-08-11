@@ -425,8 +425,11 @@ cvm::messenger::task<void> reset_sequence::program_mtime(rst_t rst_type) {
 }
 
 cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
+  cvm::log(cvm::NONE, "[pwrmgmt] Programming FE reset vector to 0x{:x}\n", FLAGS_resetpc);
   co_await tick();
-  co_await write(core_resetvector_mmr, SZ_8B, FLAGS_resetpc);
+  uint32_t i = 0;
+  while (i++ < FLAGS_num_harts)
+    co_await write(core_resetvector_mmr + ((i-1) * core_fuse_offset), SZ_8B, FLAGS_resetpc);
   co_await tick();
   co_return;
 }
