@@ -842,7 +842,9 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((instr.intr && (instr.icause == 0)) || (instr.excp && (instr.ecause == 31))) {
+  if ((instr.intr && !instr.icause && !intr_virt_mode_) ||
+      (instr.excp && (instr.ecause == CUSTOM_SINGLE_STEP))
+     ) {
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;
