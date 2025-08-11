@@ -1069,7 +1069,7 @@ sysmod::create_aplic() const {
     }
 
     cvm::registry::messenger.signal(axi_mst_loc,
-        transactor::write_request_t{addr, 64, data_vec, strb, true });
+        transactor::write_request_t{addr, 64, data_vec, strb, false });
     return true;
   };
   aplic->setMsiCallback(msiCallback);

@@ -86,7 +86,7 @@ public:
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
     bool is_vgien_intr = false;
-    bool rsp_err_chk = (interrupt_hart < FLAGS_num_harts)? true: false;
+    bool exp_err_rsp = (interrupt_hart < FLAGS_num_harts) ? false : true;
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
 
@@ -215,7 +215,7 @@ public:
       strb1[i] = 0x1;
     }
     if (!is_vgien_intr) {
-      cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, rsp_err_chk});
+      cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, exp_err_rsp});
     }
 
   }
