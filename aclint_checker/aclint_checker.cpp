@@ -19,7 +19,6 @@ DEFINE_bool(aclint, false, "Enable aclint checks");
 extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
-    void update_ctime_value(uint64_t value);
     int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS);
 }
 
@@ -170,13 +169,7 @@ void aclint_checker::process(const smc_write_pkt & w) {
         smc_ac_mmr_v_.insert(smc_ac_mmr_v_.begin(), m);
         popifpossible(txn_src::SMC_AC);
     }
-    else {
-        aclint_mmrs[mmr_addr].write(w.data, w.size);
-        if (w.addr == aclint_addr::CR_CTIME){
-            svSetScope(aclint_checker_scope_);
-            update_ctime_value(aclint_mmrs[mmr_addr].read());   
-        }
-    }
+    else aclint_mmrs[mmr_addr].write(w.data, w.size);
 }
 
 void aclint_checker::process(const smc_req_pkt & req_pkt) {

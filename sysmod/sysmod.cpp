@@ -1483,7 +1483,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
         }
         
         // Check for scb_acb_chicken with 32nd bit set
-        if (mmr == "scb_acb_chicken" && (value & (1ULL << 31))) {
+        if (mmr == "scb_acb_chicken" && (value & (1ULL << 32))) {
           cvm::log(cvm::NONE, "[sysmod] scb_acb_chicken IO Coherency is disabled\n");
           FLAGS_io_coherency_disable = true;
         }
