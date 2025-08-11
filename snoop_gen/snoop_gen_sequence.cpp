@@ -195,7 +195,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   ar_txn.atop  = 0;
   ar_txn.user  = 0;
   ar_txn.seqid = SNOOP_GEN_SEQ_ID;
-  ar_txn.allow_err_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+  ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
