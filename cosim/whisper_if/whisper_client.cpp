@@ -1208,11 +1208,6 @@ template <typename URV>
 void
 whisperClient<URV>::overrideWhisperJson()
 {
-  static bool whisper_json_overridden = false;
-  if (whisper_json_overridden)
-    return;
-  whisper_json_overridden = true;
-
   nlohmann::json j;
   try {
     std::ifstream f(FLAGS_whisper_json_path);
