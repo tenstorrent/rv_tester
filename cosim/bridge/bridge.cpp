@@ -938,10 +938,12 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
     return;
   }
 
-  if (!parser::find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
-      !parser::find(cosim_resynch_excp_, d.ecause) &&
-      !d.pc.error &&
-      !d.mem_read.error)
+  bool should_inject = parser::find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) ||
+                       parser::find(cosim_resynch_excp_, d.ecause) ||
+                       d.pc.error ||
+                       d.mem_read.error;
+
+  if (!should_inject)
     return;
 
   uint64_t xtval_addr = 0;
@@ -1307,6 +1309,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     IF_DEBUG("Exception found");
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
+
+
     // Vector conservative mode
     if (d.ecause == 55) {
       IF_DEBUG("resynch because excp 55");

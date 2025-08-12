@@ -120,6 +120,9 @@ class rvfi {
     uint64_t vec_cmode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
 
+    // RVDE-24355: Track memory errors during vector conservative mode
+    std::unordered_map<uint64_t, bool> vec_cmode_mem_errors_;
+
     bool patch_mode_ = false;
     uint64_t patch_mode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
