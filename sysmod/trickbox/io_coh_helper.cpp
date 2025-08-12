@@ -163,7 +163,17 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     //auto id = std::get<2>(t); 
     //auto wresp_channel_l = std::get<0>(t);
     //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-    co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+    //co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+
+    axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
+     wresp_channel,
+      [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
+    );
+
+    if (wresp.resp != axi::RESP_OKAY) {
+        cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
+      co_return;
+    }
     //std::get<1>(t) = false;
     write_in_flight = false;
   //}//;
