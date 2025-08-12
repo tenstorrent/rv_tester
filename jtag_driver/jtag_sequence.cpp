@@ -23,6 +23,7 @@ DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be drive
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file, "", "File containing jtag transaction requests");
 DEFINE_string(jtag_disabled_snippets,"", "List of jtag snippets that needs to be disabled in randoms");
+DEFINE_bool(jtag_sp_boot,false, "Jtag driver will start at reset and not wait for no_fetch deassertion");
 
 extern "C" {
   void jtag_driver_jtag_socket(uint8_t val);

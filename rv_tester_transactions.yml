@@ -107,6 +107,8 @@ cosim:
                 width: 1
             intr:
                 width: 1
+            virt_mode:
+                width: 1
             cause:
                 width: 64
             mode:
@@ -444,6 +446,8 @@ cosim:
                 width: 64
             order:
                 width: 64
+            virt_mode:
+                width: 1
 
     m_interrupt_pend:
         domain: 1
@@ -517,24 +521,12 @@ sysmod:
                 width: 64
             dut_reset_req:
                 width: 1
-    jtag_tick:
-        domain: 2
-        num: 1
-        fields:
-            advance:
-                width: 64
     overlay_tick:
         domain: 2
         num: 1
         fields:
             advance:
                 width: 64
-    jtag_rdata:
-        domain: 2
-        num: 1
-        fields:
-            rdata:
-                width: 70
     event_triggers:
         domain: 2
         num: ${TOP.PLATFORM.NHARTS}
@@ -882,6 +874,8 @@ pmu_core:
             op_retired_fp:
                 width: 24
             op_retired_vec:
+                width: 24
+            uop_retired_any:
                 width: 24
             op_complete_ld:
                 width: 24
@@ -1828,6 +1822,14 @@ aclint_checker:
                 width: 64
             hart:
                 width: 32
+    timesync_check:
+        domain: 1
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1
@@ -1931,25 +1933,25 @@ overlay_driver:
 jtag_driver:
     num: 1
     m_jtag_driver_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             cycle:
                 width: 32
     jtag_tick:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             advance:
                 width: 64
     jtag_pkt_ack:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             complete:
                 width: 1
     jtag_rdata:
-        domain: 2
+        domain: 1
         num: 1
         fields:
             rdata:

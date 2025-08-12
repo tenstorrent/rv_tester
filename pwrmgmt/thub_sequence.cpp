@@ -12,6 +12,7 @@ DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 
 extern "C" {
   void thub_blocking_sequence_tick(uint8_t val);
+  void func_tj_seq_ack(uint8_t val);
 }
 
 thub_sequence::thub_sequence
@@ -24,16 +25,18 @@ thub_sequence::thub_sequence
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
+  num_cores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+
   // main sequence thread
   if (FLAGS_thub_rand_en)
     main_thread();
 }
 
 thub_sequence::~thub_sequence() {
-  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0)){
+  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0) && tj_seq_done){
     cvm::log(cvm::ERROR,"[tj_shutdown]:- ERROR: Expected to have TJ_SHUTDOWN followed by DFS \n");
   }
-  if(FLAGS_tj_max && (tj_max_ack_rcvd == 0)){
+  if(FLAGS_tj_max && (tj_max_ack_rcvd == 0) && tj_seq_done){
     cvm::log(cvm::ERROR,"[tj_max]:- ERROR: Expected to have TJ_MAX followed by PLL Shutdown \n");
   }
   if(FLAGS_tj_shutdown || FLAGS_tj_max){
@@ -71,6 +74,7 @@ cvm::messenger::task<void> thub_sequence::main() {
     cvm::log(cvm::NONE, "[TJ Max] Enabled TJ Max via override ...... \n");
     co_await tj_max_config();
   }
+  tj_seq_done = 1;
   co_return;
 }
 
@@ -100,12 +104,15 @@ cvm::messenger::task<void> thub_sequence::wait_for_tj_max_ticks()
 
 cvm::messenger::task<void> thub_sequence::tj_max_config()
 {
+  // Note: not following Cluster Spec THUB PMNW ID as it only applies to 8 Core model
+  // For 3 Core model, THUB-0,1 is 12,11 according to Cluster Spec it is 12,9 (not applicable)
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,1);
   cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
-  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,2); // PMNW ID for THUB-0,1 is 12,9
+
   uint8_t thub_select;
   uint32_t wdata=1;
 
-  switch (FLAGS_num_harts-1) {
+  switch (num_cores-1) {
       case 0:
           thub_select = 12;     // PMNW ID for THUB-0
           break;
@@ -115,17 +122,17 @@ cvm::messenger::task<void> thub_sequence::tj_max_config()
       case 2:
           thub_select = thub_dist_3c();
           if(thub_select != 0x1) { thub_select = 12; }
-          else { thub_select = 9;} 
+          else { thub_select = 11;} 
           break;
       case 7:
           thub_select = thub_dist_8c();
           break;
       default:
-          cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+          cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
   }
 
   co_await wait_for_tj_max_ticks();
-  cvm::log(cvm::NONE, "[tj_max] Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  cvm::log(cvm::NONE, "[tj_max] Overriding sensor data for Temp HUB {} out of NCORES {} ...... \n", thub_select,num_cores);
   wdata |= (0xA00 << 5);      // Programming a high value compared to max threshold paraneters
   wdata |= (1 << 22);         // Set snapshot override control
   co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
@@ -136,7 +143,7 @@ cvm::messenger::task<void> thub_sequence::tj_max_config()
 }
 
 /*
-Sequence of steps for TJ Shudown cases would be as below.
+Sequence of steps for TJ Shutdown cases would be as below.
 
 1. Select from available THUBs to inject snapshot override
 2. wait for few SC Clks before configuring snapshot override
@@ -146,12 +153,15 @@ Sequence of steps for TJ Shudown cases would be as below.
 */
 cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
 {
+  // Note: not following Cluster Spec THUB PMNW ID as it only applies to 8 Core model
+  // For 3 Core model, THUB-0,1 is 12,11 according to Cluster Spec it is 12,9 (not applicable)
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,1);
   cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
-  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,2); // PMNW ID for THUB-0,1 is 12,9
+
   uint8_t thub_select;
   uint32_t wdata=1;
 
-  switch (FLAGS_num_harts-1) {
+  switch (num_cores-1) {
       case 0:
           thub_select = 12;     // PMNW ID for THUB-0
           break;
@@ -161,18 +171,18 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
       case 2:
           thub_select = thub_dist_3c();
           if(thub_select != 0x1) { thub_select = 12; }
-          else { thub_select = 9;} 
+          else { thub_select = 11;} 
           break;
       case 7:
           thub_select = thub_dist_8c();
           break;
       default:
-          cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+          cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
   }
 
   co_await wait_for_ticks();
   co_await wait_for_ticks();
-  cvm::log(cvm::NONE, "[tj_shutdown] Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  cvm::log(cvm::NONE, "[tj_shutdown] Overriding sensor data for Temp HUB {}  NCORES {}...... \n", thub_select,num_cores);
   wdata |= (0xA00 << 5);      // Programming a high value compared to threshold paraneters
   wdata |= (1 << 22);         // Set snapshot override control
   co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
@@ -186,6 +196,9 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
 {
+  if (FLAGS_num_harts == 0)
+    co_return;
+
   cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(0, FLAGS_num_harts-1);
   core_throttle = smc_mmr_index_dist();
   cvm::log(cvm::NONE, "[THUB THROTTLE]  Entered into throttle for Core {} ...... \n", core_throttle);
@@ -367,11 +380,15 @@ void thub_sequence::blocking_seq_tick(uint8_t val) {
 cvm::messenger::task<void> thub_sequence::tj_shutdown_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_shutdown_ack<>>(loc_);
   tj_shutdown_ack_rcvd = 1;
+  svSetScope(scope_);
+  func_tj_seq_ack(1);
   co_return;
 }
 
 cvm::messenger::task<void> thub_sequence::tj_max_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_max_ack<>>(loc_);
   tj_max_ack_rcvd = 1;
+  svSetScope(scope_);
+  func_tj_seq_ack(1);
   co_return;
 }

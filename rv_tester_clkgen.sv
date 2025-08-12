@@ -1,13 +1,19 @@
 module rv_tester_clkgen #(
-    parameter int CLOCK_FREQ_MHZ = 2000
+    parameter int CLOCK_FREQ_MHZ = 2000,
+    parameter int FASTEST_FREQ_MHZ = 2000
 ) (
+    input logic fastest_clk,
     output logic clk
 );
 
     localparam int CLOCK_PERIOD_PS = 1000000 / CLOCK_FREQ_MHZ;
 
     `ifdef IXCOM_COMPILE
-        IXCclkgen #(CLOCK_PERIOD_PS/2) uclk (clk);
+	`ifdef PALLADIUM_CAKE1X
+            IXCcake1x #(.FREQ(CLOCK_FREQ_MHZ),.BFREQ(FASTEST_FREQ_MHZ)) uclk (.clkBase(fastest_clk),.clkOut(clk));
+	`else
+	    IXCclkgen #(CLOCK_PERIOD_PS/2) uclk (clk);
+    	`endif
     `else
     `ifdef ZEBU_CLOCK_DELAY_PORT
         clockDelayPort #(CLOCK_PERIOD_PS/2,CLOCK_PERIOD_PS/2,0) ClockPort(clk);

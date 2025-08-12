@@ -129,12 +129,13 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.burst = axi::burst_t(0);
   aw_txn.lock  =0;
   aw_txn.cache  =axi::cache_mem_attr_t(0);
-  aw_txn.prot  =2;
+   //  Set PROT based on 55th bit
+  aw_txn.prot = (addr & (1ULL << 55)) ? 0 : 2;
   aw_txn.qos  =0;
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =8;
-  aw_txn.allow_err_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
+  aw_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
 
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
@@ -162,7 +163,17 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     //auto id = std::get<2>(t); 
     //auto wresp_channel_l = std::get<0>(t);
     //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-    co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+    //co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+
+    axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
+     wresp_channel,
+      [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
+    );
+
+    if (wresp.resp != axi::RESP_OKAY) {
+        cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
+      co_return;
+    }
     //std::get<1>(t) = false;
     write_in_flight = false;
   //}//;
@@ -218,12 +229,13 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   ar_txn.burst = axi::burst_t(0);
   ar_txn.lock  =0;
   ar_txn.cache  =axi::cache_mem_attr_t(0);
-  ar_txn.prot  =2;
+  //  Set PROT based on 55th bit
+  ar_txn.prot = (r.addr & (1ULL << 55)) ? 0 : 2;
   ar_txn.qos  =0;
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
-  ar_txn.allow_err_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+  ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
 
@@ -266,11 +278,13 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   a_txn.lock  =0;
   a_txn.cache  =axi::cache_mem_attr_t(0);
   a_txn.prot  =2;
+     //  Set PROT based on 55th bit
+  a_txn.prot = (txns_vec[i].addr & (1ULL << 55)) ? 0 : 2;
   a_txn.qos  =0;
   a_txn.region  =0;
   a_txn.atop  =0;
   a_txn.user  =0;
-  a_txn.allow_err_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
+  a_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
 
@@ -326,8 +340,16 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   /////-----------------------------
   uint32_t wresp_id = a_txn.id ;
     //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-  co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
- 
+
+  axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
+    wresp_channel,
+    [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
+);
+
+if (wresp.resp != axi::RESP_OKAY) {
+    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
+    co_return;
+}
   ////------------------------------
   //Poke same data to whisper memory
   cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);

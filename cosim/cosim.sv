@@ -224,6 +224,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     import "DPI-C" function longint get_max_cycle();
+    import "DPI-C" function longint get_max_stall_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
@@ -237,6 +238,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit cache_model_enabled;
     bit offline_dpi_test;                          // this disables the sending of mcmi_bypass and mcmi_insert even when to_host == 1
     bit poke_mip_timer;
+    bit timeout_scale_en;                          // enable timeout scaling via DPI calls
 
     //int mcm_value;
     longint unsigned psc_off_low  = 0;
@@ -247,17 +249,17 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
-    bit [5:0]           rd_addr     [NRET    ]; //register-retire load enable
-    bit [5:0]           frd_addr    [NRET    ]; //register-retire load enable
-    bit [5:0]           vrd_addr    [NRET    ]; //register-retire load enable
+    logic [5:0]           rd_addr     [NRET    ]; //register-retire load enable
+    logic [5:0]           frd_addr    [NRET    ]; //register-retire load enable
+    logic [5:0]           vrd_addr    [NRET    ]; //register-retire load enable
     bit                 rd_load     [NGP_REGS]; //register-retire load enable
     bit                 frd_load    [NFP_REGS];
     bit                 vrd_load    [NVC_REGS];
-    bit [GP_WIDTH-1:0]  rd_wdata    [NRET    ];
+    logic [GP_WIDTH-1:0]  rd_wdata    [NRET    ];
     bit [NGP_REGS-1:0][GP_WIDTH-1:0]  gp_wdata_in;
-    bit [FP_WIDTH-1:0]  frd_wdata   [NRET    ];
+    logic [FP_WIDTH-1:0]  frd_wdata   [NRET    ];
     bit [NFP_REGS-1:0][FP_WIDTH-1:0]  fp_wdata_in;
-    bit [VC_WIDTH-1:0]  vrd_wdata   [NRET    ];
+    logic [VC_WIDTH-1:0]  vrd_wdata   [NRET    ];
     bit [NVC_REGS-1:0][VC_WIDTH-1:0]  vc_wdata_in;
     bit                 gp_reg_written;
     bit                 fp_reg_written;
@@ -310,11 +312,11 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                    send_steps;
     bit                    rvfi_first_valid;
     bit [63:0]             val0_order;
-    bit                    rvgp_valids[NRET];
+    logic                    rvgp_valids[NRET];
     bit [NRET-1:0]         gp_loadn[NGP_REGS-1:0];
     bit                    gp_load[NGP_REGS-1:0];
-    bit                    rvfp_valids[NRET];
-    bit                    rvvc_valids[NRET];
+    logic                    rvfp_valids[NRET];
+    logic                    rvvc_valids[NRET];
     bit [NRET-1:0]         sc_rw;                           // instr= sc..  poke
     bit [NRET-1:0]         csr_rw;                          // instr= csr..  poke
     bit [NRET-1:0]         msret;                           // instr= mret or sret  poke
@@ -356,23 +358,23 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NBYPASS-1:0][63:0]  eot_bypass_data;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
     bit [NINSERT-1:0][63:0]  eot_insert_data;                // end-of-test event found in mcmi_insert ifc
-    longint unsigned       mcmi_write_addr[NWRITE-1:0]; 
-    longint unsigned       mcmi_write_data[NWRITE-1:0];  
-    longint unsigned       mcmi_insert_addr[NINSERT-1:0];  
-    longint unsigned       mci_insert_data[NINSERT-1:0];   
-    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];    
-    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];     
+    longint unsigned       mcmi_write_addr[NWRITE-1:0];
+    longint unsigned       mcmi_write_data[NWRITE-1:0];
+    longint unsigned       mcmi_insert_addr[NINSERT-1:0];
+    longint unsigned       mci_insert_data[NINSERT-1:0];
+    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];
+    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];
     bit [46:0]             eot_write_fail;                 // end-of-test code mcm_writes
     bit [46:0]             eot_insert_fail;                // end-of-test code mcm_inserts
     bit [46:0]             eot_bypass_fail;                 // end-of-test code mcm_byapss
     bit                    eot_write_pass;                 // end-of-test code mcm_writes
     bit                    eot_insert_pass;                // end-of-test code mcm_inserts
     bit                    eot_bypass_pass;                 // end-of-test code mcm_byapss
-    bit                    eot_exit_pass;                  
-    bit [46:0]             eot_exit_fail;                  
-    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of instructioncs retired this clock 
-    bit [$clog2(NRET+1)-1:0] valid_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
-    bit [63:0]             instr_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
+    bit                    eot_exit_pass;
+    bit [46:0]             eot_exit_fail;
+    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of instructioncs retired this clock
+    bit [$clog2(NRET+1)-1:0] valid_icnt[NRET-1:0];          // number of instructions retired up to this retire index
+    bit [63:0]             instr_icnt[NRET-1:0];          // number of instructions retired up to this retire index
     bit [NRET-1:0]         instr_imax;
 
     bit                    eot_found;                       // end-of-test event found
@@ -410,8 +412,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [63:0]          eoti_data;
 
     // Timeout checks
-    int max_stall_cycle = 50000;
-    longint unsigned max_cycle = 0;
+    longint unsigned max_stall_cycle;
+    longint unsigned max_cycle;
     longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
@@ -614,9 +616,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         for(int i = 0; i < 2; i = i+1) begin
           if(reset) begin
             writeback_cl_addr_d1[i] <= '0;
-            dfetch_cl_addr_d1[i] <= '0; 
-            flush_cl_addr_d1 <= '0; 
-            devict_cl_addr_d1 <= '0;        
+            dfetch_cl_addr_d1[i] <= '0;
+            flush_cl_addr_d1 <= '0;
+            devict_cl_addr_d1 <= '0;
           end
 
           if(devict_cl_valid) begin
@@ -1109,10 +1111,10 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_inserts[n].data.data_vec = mcmi_insert[n].data[255:0];
         assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
         assign m_mcmi_inserts[n].data.elem_idx = mcmi_insert[n].elem_idx;
-        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
-                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
+        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &
+                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) &
                                       mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_insert_data[n] = (eot_insert_found[n] == 1'b1) ?  mcmi_insert[n].data[63:0] : '0; 
+        assign eot_insert_data[n] = (eot_insert_found[n] == 1'b1) ?  mcmi_insert[n].data[63:0] : '0;
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
 /* verilator lint_on WIDTHEXPAND */
@@ -1134,14 +1136,14 @@ localparam CAM_IHBIT = CAM_IBITS;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
-        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
+        assign mcmi_write_data[n] = mcmi_write[n].data[63:0];
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_write_addr[n] = mcmi_write[n].addr;
 /* verilator lint_on WIDTHEXPAND */
-        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
-                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
+        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &
+                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) &
                                       mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0; 
+        assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0;
     end
 
 
@@ -1168,7 +1170,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &
                                       mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) &
                                       mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0; 
+        assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0;
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_bypass_addr[n] = mcmi_bypass[n].addr;
 /* verilator lint_on WIDTHEXPAND */
@@ -1182,10 +1184,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     //   eoti-offline : for offline_dpi capture  (only sent during offline_dpi caputure)
     //----------------------------------------------------------------------------------------------------
 
-    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
+    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0;
 
     always_comb begin
-        eoti_data = '0; 
+        eoti_data = '0;
         for (int n = 0; n < NWRITE; n++) begin
            eoti_data |= eot_write_data[n];
         end
@@ -1196,7 +1198,7 @@ localparam CAM_IHBIT = CAM_IBITS;
            eoti_data |= eot_bypass_data[n];
         end
     end
-    
+
     logic eot_valid;
     assign eot_valid = MCMI_EN &  ~dut_reset & eot_found;
 
@@ -1210,7 +1212,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign offline_eotis[0].valid =  eot_valid & (offline_dpi | offline_dpi_test);
     assign offline_eotis[0].data = m_eoti_normals[0].data;
-    
+
 
 
     // m_mcmi_ifetch
@@ -1246,7 +1248,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
     assign m_mcmi_devicts[0].data.location = location;
     assign m_mcmi_devicts[0].data.cycle = devict_cl_valid ? clocks : '0;
-    assign m_mcmi_devicts[0].data.hart = NUM;        
+    assign m_mcmi_devicts[0].data.hart = NUM;
     assign m_mcmi_devicts[0].data.addr = (devict_cl_addr >> 6) << 6; // align to cacheline boundary
 
     // m_mcmi_flush
@@ -1274,10 +1276,14 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_trap
     logic [63:0] cause_d1, cause_d2, cause_d3;
+    logic virt_mode_d1, virt_mode_d2, virt_mode_d3;
     always @(posedge clk) begin
       cause_d1 <= rvfi[0].cause;
+      virt_mode_d1 <= rvfi[0].virt_mode;
       cause_d2 <= cause_d1;
+      virt_mode_d2 <= virt_mode_d1;
       cause_d3 <= cause_d2;
+      virt_mode_d3 <= virt_mode_d2;
     end
     assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0);
     assign m_traps[0].data.location = location;
@@ -1285,6 +1291,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
     assign m_traps[0].data.order = rvfi[0].order;
+    assign m_traps[0].data.virt_mode = virt_mode_d3;
     assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
 
 
@@ -1320,30 +1327,16 @@ localparam CAM_IHBIT = CAM_IBITS;
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
     always @(posedge clk) begin
-      if(dut_core_reset) begin
+      if(~dut_core_reset) begin
         nmi_pend_d1 <= nmi_pend;
       end
-      if(~nmi_pend_d1.nmi) begin
-        nmi_pend_d1.clai <= nmi_pend.clai;
-      end
-      if(~nmi_pend_d1.clai) begin
-        nmi_pend_d1.nmi <= nmi_pend.nmi;
-      end
+      else nmi_pend_d1 <= '0;
     end
     assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
-    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
-
-    function automatic bit [63:0] get_nmi_cause(rv_tester_pkg::nmi_t n);
-      bit [63:0] cause = '0;
-      if (n.nmi)
-        cause = 2;
-      else if (n.clai)
-        cause = 3;
-      return cause;
-    endfunction
+    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
+    assign m_core_nmis[0].data.nmi_cause = ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (~nmi_pend.nmi & nmi_pend_d1.nmi)) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.clai & nmi_pend_d1.clai)) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
     // m_interrupt_pend
     logic [63:0] mip_d1, mip_timer, mip_timer_d1;
@@ -1385,11 +1378,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [CSRLEN-1:0] C_STOPI      = 'hDB0;
     localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
     localparam logic [CSRLEN-1:0] C_MENVCFG    = 'h30A;
+    localparam logic [CSRLEN-1:0] C_HVIP       = 'h645;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~dut_core_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG})) ||
+         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG, C_HVIP})) ||
           (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
@@ -1415,43 +1409,52 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
-    logic        should_update_max_cycle;
+    logic        max_cycle_timeout_detect;
     logic [63:0] updated_max_cycle;
     logic        max_cycle_update_valid;
+    logic        max_stall_cycle_timeout_detect;
+    logic [63:0] updated_max_stall_cycle;
+    logic        max_stall_cycle_update_valid;
 
+    /* verilator lint_off WIDTHEXPAND */
     always_ff @(posedge tb_clk) begin
       if (reset) begin
-        should_update_max_cycle <= 0;
+        max_cycle_timeout_detect <= 0;
+        max_stall_cycle_timeout_detect <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-        should_update_max_cycle <= 1;
+        max_cycle_timeout_detect <= 1;
+        if (timeout_scale_en) begin
+          updated_max_cycle       <= get_max_cycle();
+          max_cycle_update_valid  <= 1;
+        end
+      end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        max_stall_cycle_timeout_detect <= 1;
+        if (timeout_scale_en) begin
+          updated_max_stall_cycle <= get_max_stall_cycle();
+          max_stall_cycle_update_valid <= 1;
+        end
       end else begin
-        should_update_max_cycle <= 0;
-      end
-    end
-
-    // Capture DPI result only when triggered
-    always_ff @(posedge tb_clk) begin
-      if (should_update_max_cycle) begin
-        updated_max_cycle       <= get_max_cycle();
-        max_cycle_update_valid  <= 1;
-      end else begin
+        max_cycle_timeout_detect <= 0;
+        max_stall_cycle_timeout_detect <= 0;
         max_cycle_update_valid  <= 0;
+        max_stall_cycle_update_valid <= 0;
       end
     end
 
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
-        max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
-        cosim_period = cvm_plusargs::get_int("cosim_period");
-        max_instructions = cvm_plusargs::get_ulongint("max_instr");
-        nharts = cvm_plusargs::get_int("num_harts");
-        hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
-        debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
-        debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
+        max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+        cosim_period <= cvm_plusargs::get_int("cosim_period");
+        max_instructions <= cvm_plusargs::get_ulongint("max_instr");
+        nharts <= cvm_plusargs::get_int("num_harts");
+        hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
+        debug_entry_pc_arg <= cvm_plusargs::get_ulongint("debug_entry_pc");
+        debug_exit_pc_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc");
         //mcm_value  = cvm_plusargs::get_int("mcm");
-        psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
-        psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
+        psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
+        psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
+        timeout_scale_en <= (cvm_plusargs::get_bool("timeout_scale_en") != '0);
 
 
         /* verilator lint_on BLKSEQ */
@@ -1465,11 +1468,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
           boot_done <= '1;
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
-          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
-        end
         if (max_cycle_update_valid) begin
           if (max_cycle < updated_max_cycle) begin
             max_cycle <= updated_max_cycle;
@@ -1479,9 +1477,24 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
+        end else if (!timeout_scale_en && max_cycle_timeout_detect && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
-          cosim_terminate_sent <= '1;
+          cosim_terminate_sent <= 1'b1;
+        end
+        if (max_stall_cycle_update_valid) begin
+          if (max_stall_cycle < updated_max_stall_cycle) begin
+            max_stall_cycle <= updated_max_stall_cycle;
+            $display("\nHart %0d:  Updated max_stall_cycle=%0d", NUM, updated_max_stall_cycle);
+          end else if (cycles_since_retire > max_stall_cycle) begin
+            $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
+        end else if (!timeout_scale_en && max_stall_cycle_timeout_detect && cosim_terminate_sent == '0) begin
+          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          cosim_terminate();
+          cosim_terminate_sent <= 1'b1;
         end
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
@@ -1490,5 +1503,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         end
       end
     end
+    /* verilator lint_on WIDTHEXPAND */
 
 endmodule

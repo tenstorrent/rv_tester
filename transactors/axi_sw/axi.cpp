@@ -53,10 +53,11 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     cvm::registry::messenger.procedure<configure_error_rpc>(loc, [this] () { return this->configure_error(); });
     cvm::registry::messenger.procedure<enable_error_rpc>(loc, [this] () { return this->enable_error(); });
     cvm::registry::messenger.procedure<disable_error_rpc>(loc, [this] () { return this->disable_error(); });
-    cvm::registry::messenger.procedure<check_error_rpc>(loc, [this] (addr_t addr) { return this->check_error(addr); });
+    cvm::registry::messenger.procedure<check_error_rpc>(loc, [this] (addr_t addr, size_t& count) { return this->check_error(addr, count); });
 
     hang_list_.parse(FLAGS_axi_resp_hang_addr);
     setup_error_lists();
+
     // Enable when test start label is observed
     if (FLAGS_axi_err_after_test_start) {
         disable_error();
@@ -101,7 +102,7 @@ void axi::disable_error() {
     cvm::log(cvm::HIGH, "[axi] disable error resp for {}\n", tag_);
 }
 
-bool axi::check_error(addr_t addr) {
+bool axi::check_error(addr_t addr, size_t& count) {
     bool has_slverr = slverr_list_.check_inject_error(addr, READ);
     bool has_decerr = decerr_list_.check_inject_error(addr, READ);
 
@@ -113,10 +114,19 @@ bool axi::check_error(addr_t addr) {
     bool slverr_count_nonzero = slverr_count.has_value() && slverr_count.value().get() > 0;
     bool decerr_count_nonzero = decerr_count.has_value() && decerr_count.value().get() > 0;
 
-    cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}, slverr_count={}, decerr_count={}\n", addr, has_slverr,
-      has_decerr, slverr_count.has_value() ? slverr_count.value().get() : 0, decerr_count.has_value() ? decerr_count.value().get() : 0);
+    size_t slverr_count_val = slverr_count.has_value() ? slverr_count.value().get() : 0;
+    size_t decerr_count_val = decerr_count.has_value() ? decerr_count.value().get() : 0;
 
-    return (error_en_ && ((has_slverr && slverr_count_nonzero) || (has_decerr && decerr_count_nonzero)));
+    // Set count based on priority: slverr first, then decerr, else 0
+    count = (has_slverr && slverr_count_nonzero) ? slverr_count_val :
+            (has_decerr && decerr_count_nonzero) ? decerr_count_val : 0;
+
+    cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}, slverr_count={}, decerr_count={}, returned_count={}\n",
+             addr, has_slverr, has_decerr, slverr_count_val, decerr_count_val, count);
+
+    bool has_error = error_en_ && ((has_slverr && slverr_count_nonzero) || (has_decerr && decerr_count_nonzero));
+
+    return has_error;
 }
 
 axi::~axi() {
@@ -237,6 +247,9 @@ cvm::messenger::task<void> axi::operator()() {
             upper_wrap_boundary = lower_wrap_boundary + dtsize;
         }
 
+        // Single write response for all write transfers. Give DECERR priority over SLVERR.
+        axi::resp_t write_resp = RESP_OKAY;
+
         for (addr_t n = 1; n <= burst_len; n++) {
 
             addr_t lower_byte_lane = addr - addr/data_bus_bytes * data_bus_bytes;
@@ -290,9 +303,6 @@ cvm::messenger::task<void> axi::operator()() {
                             w.strb
                     );
 
-                    // Resp
-                    axi::resp_t write_resp = RESP_OKAY;
-
                     // Check and increment counters for error injection policies
                     bool inject_slverr = error_en_ && slverr_list_.check_inject_error(addr, WRITE);
                     bool inject_decerr = error_en_ && decerr_list_.check_inject_error(addr, WRITE);
@@ -301,7 +311,7 @@ cvm::messenger::task<void> axi::operator()() {
                     if (error_en_ && slverr_list_.find(addr)) {
                         auto count = slverr_list_.incr_count(addr, WRITE);
                         if (inject_slverr) {
-                            write_resp = RESP_SLVERR;
+                            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_SLVERR));
                             cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
                             num_slverr_resp_++;
                         }
@@ -309,14 +319,11 @@ cvm::messenger::task<void> axi::operator()() {
                     if (error_en_ && decerr_list_.find(addr)) {
                         auto count = decerr_list_.incr_count(addr, WRITE);
                         if (inject_decerr) {
-                            write_resp = RESP_DECERR;
+                            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_DECERR));
                             cvm::log(cvm::HIGH, "[axi] decerr write resp addr={:#x} count={}\n", addr, count.value());
                             num_decerr_resp_++;
                         }
                     }
-
-                    b_q_.enqueue(b_t(a.id, write_resp));
-                    cvm::log(cvm::HIGH, "[axi] b: id={}, addr={:#x}, resp={}\n", a.id, addr, +write_resp);
                 }
 
                 if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {
@@ -378,6 +385,12 @@ cvm::messenger::task<void> axi::operator()() {
                     aligned = true;
                 }
             }
+        }
+
+        // We should only generate a single B response regardless of burst length.
+        if (a.w) {
+          b_q_.enqueue(b_t(a.id, write_resp));
+          cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
         }
     }
 }

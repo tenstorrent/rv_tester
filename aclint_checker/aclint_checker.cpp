@@ -19,7 +19,6 @@ DEFINE_bool(aclint, false, "Enable aclint checks");
 extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
-    void update_ctime_value(uint64_t value);
     int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS);
 }
 
@@ -34,6 +33,9 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::mtip_check < >> (loc, [this](const auto & v) {
         return this -> process(v);
     });
+    cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::timesync_check < >> (loc, [this](const auto & v) {
+        return this -> process(v);
+    });
     cvm::registry::messenger.connect <smc_write_pkt> (smc_monitor_loc, [this](const auto & v) {
         return this -> process(v);
     });
@@ -46,7 +48,7 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
         return this -> check_outstanding_transactions(signal);
     });
-    cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
+    cvm::registry::messenger.connect <clear_outstanding_txn>(loc, [this](const auto& signal) {
         return this -> clear_core_outstanding_transactions(signal);
     });
     cvm::registry::messenger.connect<svScope>(loc, [this](svScope s) {
@@ -65,6 +67,11 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::mtip_
         cvm::log(cvm::ERROR, "Error: [{}] Expected MTIP, but MTIP[{}] not generated\n", mtip_check.clock, mtip_check.hart);
         return;
     }
+}
+
+void aclint_checker::process(const rv_tester_transactions::aclint_checker::timesync_check < > & timesync_check) {
+    cvm::log(cvm::ERROR, "Error: [{}] Expected TIMESYNC, but TIMESYNC[{}] not received\n", timesync_check.clock, timesync_check.hart);
+    return;
 }
 
 void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite) {
@@ -116,10 +123,7 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
         size_t sz = (axi_ac_write.mask == 0xFF) ?  3 :
                     (axi_ac_write.mask == 0x0F) ?  2 :
                     (axi_ac_write.mask == 0x03) ?  1 : 0;
-        if (mmrReadReqFlag[mmr_addr].first != 0 && mmrReadReqFlag[mmr_addr].second == 0) 
-            mmrReadReqFlag[mmr_addr].second = mmrReadReqFlag[mmr_addr].first;
-        else if (mmrReadReqFlag[mmr_addr].first != 0) 
-            ++mmrReadReqFlag[mmr_addr].second;
+
         aclint_mmrs[mmr_addr].write(axi_ac_write.data, sz);
         
         if (user == 3) {
@@ -160,45 +164,42 @@ void aclint_checker::process(const smc_write_pkt & w) {
     m.datavalid = false;
     
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC WRITE: addr {:#x} data {:#x} size {:#x} mask {:#x}\n", w.addr, w.data, w.size, sz_mask);
+    if (mmrReqFlags[mmr_addr].writes) --mmrReqFlags[mmr_addr].writes;
     if (!(w.addr == aclint_addr::CR_CTIME || w.addr == aclint_addr::CR_WTIME)) {
         smc_ac_mmr_v_.insert(smc_ac_mmr_v_.begin(), m);
         popifpossible(txn_src::SMC_AC);
     }
-    else {
-        aclint_mmrs[mmr_addr].write(w.data, w.size);
-        if (w.addr == aclint_addr::CR_CTIME){
-            svSetScope(aclint_checker_scope_);
-            update_ctime_value(aclint_mmrs[mmr_addr].read());   
-        }
-    }
+    else aclint_mmrs[mmr_addr].write(w.data, w.size);
 }
 
-void aclint_checker::process(const smc_req_pkt & read_req) {
+void aclint_checker::process(const smc_req_pkt & req_pkt) {
     if (!FLAGS_aclint) return;
-    auto mmr_addr = static_cast<aclint_addr>(read_req.addr);
-    if (aclint_mmrs.find(mmr_addr) == aclint_mmrs.end()) {
+    auto mmr_addr = static_cast<aclint_addr>(req_pkt.addr);
+    if (aclint_mmrs.find(mmr_addr) == aclint_mmrs.end()) return;
+
+    if (req_pkt.req_type == smc_txn_type::SMC_READ) {
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ REQ: addr {:#x}\n", req_pkt.addr);
+        // If read req is true, check for any writes when true, if write happens then set the second to true
+        ++mmrReqFlags[mmr_addr].reads;
         return;
     }
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ REQ: addr {:#x}\n", read_req.addr);
-    // If read req is true, check for any writes when true, if write happens then set the second to true
-    ++mmrReadReqFlag[mmr_addr].first;
-    return;
+    else {
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC WRITE REQ: addr {:#x}\n", req_pkt.addr);
+        ++mmrReqFlags[mmr_addr].writes;
+        return;
+    }
 }
 
 void aclint_checker::process(const smc_read_pkt & r) {
     auto mmr_addr = static_cast<aclint_addr>(r.addr);
     if (aclint_mmrs.find(mmr_addr) == aclint_mmrs.end()) return;
     // Ignore read check if write happened after the read req is issued from smc
-    if (mmrReadReqFlag[mmr_addr].first && mmrReadReqFlag[mmr_addr].second) {
-        --mmrReadReqFlag[mmr_addr].first;
-        --mmrReadReqFlag[mmr_addr].second;
+    if (mmrReqFlags[mmr_addr].reads && mmrReqFlags[mmr_addr].writes) {
+        --mmrReqFlags[mmr_addr].reads;
         cvm::log(cvm::HIGH, "[ACLINT CHECKER] Ignore SMC-AC READ: addr {:#x} data {:#x}, Data overwritten\n", r.addr, r.data);
         return;
     }
-    if (mmrReadReqFlag[mmr_addr].first > 0) {
-        if (--mmrReadReqFlag[mmr_addr].first == 0)     // Read carried without in between writes hence deasserting guard
-            mmrReadReqFlag[mmr_addr].second = 0;
-    }
+    if (mmrReqFlags[mmr_addr].reads) --mmrReqFlags[mmr_addr].reads;
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ: addr {:#x} data {:#x} size {:#x}B resp {}\n", r.addr, r.data, (1 << r.size), r.resp);
     if (r.size == 1 || r.size == 0) {
         if (r.data == 0 && r.resp == 3) return;
@@ -219,10 +220,12 @@ void aclint_checker::process(const smc_read_pkt & r) {
     if (mmr_addr == aclint_addr::AC_MTIME && FLAGS_aclint) {
         uint64_t mtime_expected = get_mtime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t mtime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
-        if ((mtime_actual < mtime_expected) &&
-            (mtime_actual >= (mtime_expected - 80))){
+        uint64_t mtime_expected_lower = (mtime_expected - 80);
+        if (in_range(mtime_actual, mtime_expected_lower, mtime_expected)){
+            if (mmrReqFlags[mmr_addr].reads) mmrReqFlags[mmr_addr].reads = 0;
             cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = MTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         } else {
+            if (mmrReqFlags[mmr_addr].reads) return;    // Ignoring mismatch as read req was issued before data was overwritten.
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         }
     } 
@@ -329,6 +332,16 @@ inline uint64_t insterClusterId(uint64_t inaddr) {
     return  (upper | lower | BASE_ADDR);
 }
 
+inline bool in_range(uint64_t v, uint64_t a, uint64_t b) {
+    if (a <= b) {
+        // straight range: [a..b]
+        return v >= a && v <= b;
+    } else {
+        // wrapped range: [a..2^64–1] ∪ [0..b]
+        return v >= a || v <= b;
+    }
+}
+
 void aclint_checker::set_scope(svScope s) {
     aclint_checker_scope_ = s;
 }
@@ -355,9 +368,9 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     }
 }
 
-void aclint_checker::clear_core_outstanding_transactions(uint64_t signal) {
+void aclint_checker::clear_core_outstanding_transactions(const clear_outstanding_txn& signal_pkt) {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] warm_reset de-asserted, Clearing for outstanding MMR writes...\n");
-    if (!signal) return;
+    if (!signal_pkt.signal) return;
 
     cr_ac_mmr_v_.clear();
     axi_ac_cr_mmr_v_.clear();
@@ -369,7 +382,7 @@ extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {
 }
 
 extern "C" void clear_core_outstanding_transactions(cvm::topology::loc_t loc) {
-    cvm::registry::messenger.signal<uint64_t>(loc, uint64_t(1));
+    cvm::registry::messenger.signal<clear_outstanding_txn>(loc, {uint64_t(1)});
 }
 
 extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {

@@ -18,6 +18,8 @@
 #include <string>
 #include "rv_tester_transactions.hpp"
 
+// Function declarations
+
 class sysmod {
 
   public:
@@ -131,4 +133,5 @@ class sysmod {
     void store_inval_crsp(const inval_crsp_s& payld, bool);
     void set_secure_region(std::string region);
     void configure_uninit_read_callbacks();
+    std::string get_set_csr_perf();
 };

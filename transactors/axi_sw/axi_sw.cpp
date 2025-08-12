@@ -87,6 +87,7 @@ extern "C" {
   void axi_sw_b_reset();
   void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
   void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+  void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
   void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 }
 
@@ -165,23 +166,32 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
   position = std::distance(a_window_.begin(), it);
   axi::a_t aaa = *it;
 
+  cvm::log(cvm::FULL, "[axi_sw] Picking position {} of {} a's\n", position, a_window_.size());
+
   if (aaa.w) {
     // stupid way to check write data is available
-    unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
-          return p.w;
-        });
+    unsigned prior_writes = 0;
+    // TODO: change this to std:;reduce
+    for (auto it = a_window_.begin(); it != (a_window_.begin() + position); ++it)
+      if (it->w)
+        prior_writes += (it->len + 1);
 
-    if (w_in_front >= w_window_.size())
+    size_t burst_len = aaa.len + 1;
+    if ((prior_writes + burst_len) > w_window_.size()) {
+      cvm::log(cvm::FULL, "[axi_sw] Insufficient write packets for burst_len={} in w window={}\n", burst_len, w_window_.size());
       co_return false;
+    }
 
     a_window_.erase(it);
     co_await a(std::move(aaa));
 
     // we're guaranteed to not co_await in a() if aw, so this is safe to do
-    auto it2 = w_window_.begin() + w_in_front;
-    axi::w_t ww = *it2;
-    w_window_.erase(it2);
-    co_await this->w(std::move(ww));
+    auto it2 = w_window_.begin() + prior_writes;
+    for (unsigned i = 0; i < burst_len; ++i) {
+      axi::w_t ww = *it2;
+      it2 = w_window_.erase(it2);
+      co_await this->w(std::move(ww));
+    }
   }
   else {
     a_window_.erase(it);
@@ -196,7 +206,8 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
 
-    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
+    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,
+                           axi::cache_mem_attr_t(aw.cache), aw.prot, aw.qos, aw.region, aw.atop, aw.user};
 
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
@@ -214,7 +225,9 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     read_bytes_ = read_bytes_ + (1ull << ar.size);
 
-    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user};
+    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,
+                           axi::cache_mem_attr_t(ar.cache), ar.prot, ar.qos, ar.region, 0, ar.user};
+
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
     else {
@@ -323,14 +336,14 @@ bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
         d += fmt::format("{:02x}", r.data[i]);
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
-    uint16_t latency =  cvm::rand::lcg::generate(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    uint16_t latency =  cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
 
-    if(data_width_ == 64)
-        axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
-    else if(data_width_ == 512)
-        axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
-    else
-        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    switch (data_width_) {
+      case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 256: axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency); break;
+      case 512: axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency); break;
+      default:  cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    }
 
     return true;
 }
@@ -349,14 +362,17 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        assert(scope_ && "scope_ not set before pushing r_dpi callback");
-        cvm::registry::callbacks.push(
-            scope_,
-              [this]() {
-                  std::lock_guard<std::mutex> l(r_dpi_mutex_);
-                  r_dpi();
-              }
-        );
+        if (!scope_) {
+          cvm::log(cvm::ERROR, "Error: scope_ not set before pushing r_dpi callback\n");
+        } else {
+          cvm::registry::callbacks.push(
+              scope_,
+                [this]() {
+                    std::lock_guard<std::mutex> l(r_dpi_mutex_);
+                    r_dpi();
+                }
+          );
+        }
       }
     }
 }
@@ -373,7 +389,7 @@ bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
 
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
-    uint8_t latency = cvm::rand::lcg::generate(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
     axi_sw_b(b.id, b.resp, latency);
     return true;
 }

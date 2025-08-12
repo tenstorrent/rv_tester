@@ -166,9 +166,10 @@ module axi_sw #(
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
+            automatic byte unsigned _unused;
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
-                automatic byte unsigned _ = axi_sw_set_scope(LOCATION);
+                _unused = axi_sw_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end
@@ -195,6 +196,7 @@ module axi_sw #(
         export "DPI-C" function axi_sw_r_``S;
 
     `AXI_SW_R_SIZED(8)
+    `AXI_SW_R_SIZED(32)
     `AXI_SW_R_SIZED(64)
 
     `undef AXI_SW_R_SIZED
@@ -654,8 +656,9 @@ module axi_sw_mst #(
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
+            automatic byte unsigned _unused;
             if (LOCATION != cvm_topology::nil) begin
-                automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
+                _unused = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end

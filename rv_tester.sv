@@ -42,6 +42,35 @@ module rv_tester
     logic  profile5_clk [NCLKS-1:0];
     logic  profile6_clk [NCLKS-1:0];
 
+    logic fastest_clk;
+    localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
+        PROFILE1_CLOCK_FREQ_MHZ,
+        PROFILE2_CLOCK_FREQ_MHZ,
+        PROFILE3_CLOCK_FREQ_MHZ,
+        PROFILE4_CLOCK_FREQ_MHZ,
+        PROFILE5_CLOCK_FREQ_MHZ,
+        PROFILE6_CLOCK_FREQ_MHZ,
+        CLOCK_FREQ_MHZ
+    };
+
+    function automatic int unsigned find_overall_max_freq(bit [6:0][NCLKS-1:0][31:0] all_freqs);
+        int unsigned max_val = 0;
+        foreach (all_freqs[i, j]) begin
+            if (all_freqs[i][j] > max_val) begin
+                max_val = all_freqs[i][j];
+            end
+        end
+        return max_val;
+    endfunction
+
+    localparam int max_clock_freq_overall = find_overall_max_freq(ALL_PROFILE_FREQS);
+
+    `ifdef PALLADIUM_CAKE1X
+        IXCclkgen #(max_clock_freq_overall) uclk (fastest_clk);
+    `else
+        assign fastest_clk = '0;
+    `endif
+
     if (EXTERNAL_CLOCK) begin
         assign clk[TB_CLK_IDX] = clk_ext[TB_CLK_IDX];
         for (genvar c = 1; c < NCLKS; c++) begin
@@ -50,20 +79,22 @@ module rv_tester
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
             `ifdef CLK_MUX_UNSUPPORTED
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
+
             `else
             if(c == REF_CLK_IDX) begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[REF_CLK_IDX]), .fastest_clk(fastest_clk));
             end else if (c == TB_CLK_IDX ) begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX])) clkgen(.clk(clk[TB_CLK_IDX]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[TB_CLK_IDX]), .fastest_clk(fastest_clk));
             end else begin 
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(def_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile1_clkgen(.clk(profile1_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile2_clkgen(.clk(profile2_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile3_clkgen(.clk(profile3_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile4_clkgen(.clk(profile4_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile5_clkgen(.clk(profile5_clk[c]), .fastest_clk(fastest_clk));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .fastest_clk(fastest_clk));
+
 
                 clk_mux_glitch_free #(
                     .NUM_INPUTS(7),
@@ -201,6 +232,7 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
+    int abscmd_hang_counter = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -224,7 +256,9 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
+    int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
+    LU cvm_debug_cycle_on = '0;
+    LU cvm_debug_cycle_off = '0;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -283,6 +317,7 @@ module rv_tester
         rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
 
+
         `ifndef NO_TIMESTAMP
             current_time <= $time;
         `else
@@ -324,6 +359,19 @@ module rv_tester
         end
 
     end
+
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (!rv_tester_reset && cvm_debug_cycle_off > 0) begin
+            if (curr_cvm_verbosity != cvm_debug_verbosity && clocks >= cvm_debug_cycle_on && clocks <= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_debug_verbosity);
+                curr_cvm_verbosity <= cvm_debug_verbosity;
+            end else if (curr_cvm_verbosity != cvm_verbosity && clocks >= cvm_debug_cycle_off) begin
+                cvm_logger::set_verbosity(cvm_verbosity);
+                curr_cvm_verbosity <= cvm_verbosity;
+            end
+        end
+    end
+
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
@@ -400,7 +448,7 @@ module rv_tester
     */
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
-        automatic int _;
+        automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
         if (rv_tester_reset) begin
 
@@ -424,14 +472,15 @@ module rv_tester
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             // Using nested function calls in cvm as Palladium doesn't support strings
-            cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
-            gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+            _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+            _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
             warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
+      
             eot_addr                        <= eot_get_addr();
             eot_status                      <= 1;
             eot_syscall                     <= 0;
@@ -459,14 +508,13 @@ module rv_tester
             clk_profile                     <= cvm_plusargs::get_int("clk_profile");
             dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks                      <= cvm_verbosity >= gen_clocks_verbosity;
-            gen_timestamp                   <= cvm_verbosity >= gen_timestamp_verbosity;
+            gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
+            gen_timestamp                   <= _cvm_verbosity >= _gen_timestamp_verbosity;
             rv_tester_enable_llc            <= cvm_plusargs::get_bool("rv_tester_enable_llc") != '0;
             rv_tester_mem_bypass_cache      <= cvm_plusargs::get_bool("rv_tester_mem_bypass_cache") != '0;
             rv_tester_mem_delay             <= cvm_plusargs::get_int("rv_tester_mem_delay");
             assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
             sdtrig_display                  <= cvm_plusargs::get_bool("sdtrig_display") != '0;
-
             dm_model_bypass                 <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable                    <= cvm_plusargs::get_int("debug_enable");
             trace_en                        <= cvm_plusargs::get_bool("trace_en") != '0;
@@ -479,6 +527,13 @@ module rv_tester
             ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
+            abscmd_hang_counter  <= cvm_plusargs::get_int("abscmd_hang_counter");
+
+            cvm_verbosity        <= _cvm_verbosity;
+            curr_cvm_verbosity   <= _cvm_verbosity;
+            cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+            cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+            cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
 
         end
         clock_mode           <= clk_profile[2:0];
@@ -781,6 +836,7 @@ module rv_tester
         .num_harts,
         .sdtrig_display,
         .nonexistent_hart,
+        .abscmd_hang_counter,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -966,7 +1022,7 @@ module rv_tester
                 .warm_reset_req(warm_reset_req),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
-                .core_no_fetch(|core_no_fetch),
+                .core_no_fetch(&core_no_fetch),
                 .tj_shutdown(tj_shutdown),
                 .tj_max(tj_max),
                 .pll_dfs_done(pll_dfs_done),
@@ -1014,7 +1070,7 @@ module rv_tester
             .jtag_req,
             .jtag_tck_trst,
             .jtag_resp,
-          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(1,0,0)
         );
 
 
@@ -1102,7 +1158,8 @@ module rv_tester
         .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
-        .terminate,
+        .terminate(terminate),
+        .AcChk_pll_interrupts_in(AcChk_pll_interrupts_in),
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),
         .AcReqPktRfClki(AcReqPktRfClki),

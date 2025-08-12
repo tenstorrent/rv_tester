@@ -32,7 +32,7 @@ class transactor {
     struct read_request_t {
         uint64_t addr;
         size_t length;
-        bool rsp_err_chk = true;
+        bool exp_err_rsp = false;
     };
 
     struct write_response_t {
@@ -44,7 +44,7 @@ class transactor {
         size_t length;
         std::vector<uint8_t> data;
         std::vector<bool> strb;
-        bool rsp_err_chk = true;
+        bool exp_err_rsp = false;
     };
 
     transactor(cvm::topology::loc_t loc, const std::string& tag)

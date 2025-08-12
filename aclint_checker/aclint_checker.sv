@@ -20,6 +20,7 @@ import rv_tester_params:: * ;
         input logic[63: 0] AcMtimei,
         input logic[8: 0] AcMtipi,
         input logic SmcMtipi,
+        input logic AcChk_pll_interrupts_in,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -55,7 +56,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff) && (AcReqPktRfClki.user == 3);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
@@ -76,7 +77,12 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks;
-    always_comb assert (~violation_forcesync) else $error("[%0d] Error: Not recieved aclint force sync", clocks);
+    /* verilator lint_off WIDTH */
+    assign timesync_checks[n].valid = violation_forcesync;
+    assign timesync_checks[n].data.location = location;
+    assign timesync_checks[n].data.clock = clocks;
+    assign timesync_checks[n].data.hart = n;
+    /* verilator lint_on WIDTH */
     end
 
     //ACLINT MTIP generation checker
@@ -163,20 +169,23 @@ import rv_tester_params:: * ;
         end
     end
 
-    logic [63:0] AcChkCtime, AcChkCtime_updated;
-    bit AcChkCtime_write;
+    logic AcCrSynci_valid_any;
+    always_comb begin
+        AcCrSynci_valid_any = 1'b0;
+        for (int i = 0; i < NHARTS; i++) begin
+            AcCrSynci_valid_any |= AcCrSynci[i].valid;
+        end
+    end
+
+    logic [63:0] AcChkCtime;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
+        // If the mtime is written, update the ctime
         else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
-        else if (AcChkCtime_write) AcChkCtime <= AcChkCtime_updated;
+        // If the core syncs, update the ctime
+        else if (AcCrSynci_valid_any) AcChkCtime <= AcCrSynci[0].data;
         else AcChkCtime <= AcChkCtime;
-        /* verilator lint_on BLKSEQ */
-    end
-
-    always @(posedge rf_clk) begin
-        /* verilator lint_off BLKSEQ */
-        if (AcChkCtime == AcChkCtime_updated) AcChkCtime_write = 0;
         /* verilator lint_on BLKSEQ */
     end
 
@@ -248,15 +257,11 @@ import rv_tester_params:: * ;
     endfunction
     export "DPI-C" function get_ctime_value;
 
-    function void update_ctime_value(longint unsigned value);
-        AcChkCtime_write = 1;
-        AcChkCtime_updated = value;
-    endfunction
-    export "DPI-C" function update_ctime_value;
-
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
     always @(posedge terminate) begin
-        if (!reset && enable_checks) check_outstanding_transactions(location);
+        // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
+        // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
+        if (!reset && !AcChk_pll_interrupts_in && enable_checks) check_outstanding_transactions(location);
     end
 
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);

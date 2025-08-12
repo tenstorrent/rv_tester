@@ -139,6 +139,7 @@ class rvfi {
     bool ucode_ = false;
     bool nmi_ = false;
     bool intr_ = false;
+    bool intr_virt_mode_ = false;
     bool excp_ = false;
     bool pc_error_ = false;
     bool mem_error_ = false;

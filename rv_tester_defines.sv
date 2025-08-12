@@ -291,6 +291,7 @@ package rv_tester_params;
         logic [XLEN-1:0]            cause    ;
         logic                       halt     ;
         logic                       intr     ;
+        logic                       virt_mode;
         logic [4-1:0]               mode     ;
         logic [2-1:0]               ixl      ;
         logic [6-1:0]               rd_addr  ;
@@ -525,6 +526,7 @@ package rv_tester_params;
         OP_RETIRED_CSR,
         OP_RETIRED_FP,
         OP_RETIRED_VEC,
+        UOP_RETIRED_ANY,
         OP_COMPLETE_LD,
         OP_COMPLETE_ST,
         OP_COMPLETE_INT,
@@ -978,12 +980,13 @@ package rv_tester_params;
     input  rv_tester_params::smc_req_top    smc_axi_req_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::ac_cr_sync AcCrSynci  [rv_tester_params::NHARTS-1:0], \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPkti, \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
-    output logic [63:0] AcMtimei, \
-    output logic AcWarmReset, \
-    output logic [8:0]  AcMtipi, \
-    output logic SmcMtipi, \
+    output rv_tester_params::cr_ac_axi_pkt AcReqPkti,                              \
+    output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki,                         \
+    output logic [63:0] AcMtimei,                                                  \
+    output logic AcWarmReset,                                                      \
+    output logic [8:0]  AcMtipi,                                                   \
+    output logic SmcMtipi,                                                         \
+    output logic AcChk_pll_interrupts_in,                                          \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
@@ -1080,13 +1083,14 @@ package rv_tester_params;
     rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;      \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0]; \
-    rv_tester_params::cr_ac_axi_pkt AcReqPkti; \
-    rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
-    logic [63:0] AcMtimei; \
-    logic AcWarmReset; \
-    logic [8:0]  AcMtipi;  \
-    logic SmcMtipi; \
+    rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0];                          \
+    rv_tester_params::cr_ac_axi_pkt AcReqPkti;                                                      \
+    rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki;                                                 \
+    logic [63:0] AcMtimei;                                                                          \
+    logic AcWarmReset;                                                                              \
+    logic [8:0]  AcMtipi;                                                                           \
+    logic SmcMtipi;                                                                                 \
+    logic AcChk_pll_interrupts_in;                                                                  \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

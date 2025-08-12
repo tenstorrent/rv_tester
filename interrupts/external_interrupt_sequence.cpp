@@ -152,7 +152,7 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_tick() {
 void external_interrupt_sequence::drive_interrupt(){
   unsigned intr_num = 1;
   unsigned intr_file = 0;
-  unsigned intr_hart = id_;
+  unsigned intr_hart = get_logical_core_id(id_);
   unsigned intr_vs_id = 0;
   bool is_vgien_intr = false;
 	unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
@@ -164,12 +164,12 @@ void external_interrupt_sequence::drive_interrupt(){
 	}while(((1<< intr_file)& disable_flags) != 0);
 
   intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
-  cvm::log(cvm::MEDIUM,"[ExtInterruptSeq] Driving interrupt for hart: {}, intr_num: {}\n", id_, intr_num);
+  cvm::log(cvm::MEDIUM,"[ExtInterruptSeq] Driving interrupt for Physical hart: {}, intr_num: {}\n", id_, intr_num);
 
 	if(!FLAGS_disable_vs_imsic_intr)
     intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
   if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;
-  cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
+  cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt logical hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
 
    uint32_t addr;
    if(intr_file == 0x0){
@@ -299,3 +299,21 @@ void external_interrupt_sequence::drive_interrupt(){
    }
 
   }
+
+uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart_id) {
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  uint32_t logical_id = 0;
+  
+  // Parse the hart enable ID string and find the logical position
+  while (std::getline(ss, token, ',')) {
+    uint64_t hart_id = std::stoull(token);
+    if (hart_id == physical_hart_id) {
+      return logical_id;
+    }
+    logical_id++;
+  }
+  
+  // Return invalid value if physical hart ID not found
+  return 0xFFFFFFFF;
+}

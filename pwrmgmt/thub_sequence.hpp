@@ -58,8 +58,8 @@ class thub_sequence {
 
     svScope scope_;
     cvm::topology::loc_t loc_, smc_axi_loc_;
-    uint32_t core_throttle;
+    uint32_t core_throttle,num_cores;
     bool tj_max_ack_rcvd=0;
     bool tj_shutdown_ack_rcvd=0;
-
+    bool tj_seq_done=0;
 };

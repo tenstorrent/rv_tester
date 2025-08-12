@@ -426,6 +426,7 @@ namespace {
       CSR(C_LSCFG13,        0xBDD, "c_lscfg13"   ,  true)                      \
       CSR(C_LSCFG14,        0xBDE, "c_lscfg14"   ,  true)                      \
       CSR(C_LSCFG15,        0xBDF, "c_lscfg15"   ,  true)                      \
+      CSR(C_MSCFG1,         0xBE9, "c_mscfg1"    ,  true)                      \
       CSR(C_MSPPC,          0xBF0, "c_msppc"     ,  true)                      \
       CSR(C_ASYNCINTSTATUS, 0xBF2, "c_asyncintstatus")                         \
       CSR(MSTATEEN0,        0x30C, "mstateen0")                                \
@@ -455,7 +456,7 @@ namespace {
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
       CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)              \
-      CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, true)              \
+      CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, false)              \
       CSR(C_MISA_RVA23U64_O,           0xBCB, "c_misa_rva23u64_O", true, true, 0, true)              \
       CSR(C_MISA_RVA23S64_M,           0xBCC, "c_misa_rva23s64_M", true, true, 0, true)              \
       CSR(C_MISA_RVA23S64_O,           0xBCD, "c_misa_rva23s64_O", true, true, 0, true)              \
@@ -475,7 +476,7 @@ namespace {
     };
 #undef CSRS
 
-    const std::array<mmr_entry, 409> mmrs {{
+    const std::array<mmr_entry, 419> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
@@ -884,7 +885,17 @@ namespace {
         {"sc_dbg_any_change",             0x1AF340},
         {"sc_dbg_mux_control_A",          0x1AF388},
         {"sc_dbg_mux_control_B",          0x1AF390},
-        {"sc_chicken_bits",               0x421a0040}
+        {"sc_chicken_bits",               0x421a0040},
+        {"scb_cab_chicken",               0x421a0fc8},
+        {"scb_acb_chicken",               0x421a0fd0},
+        {"sc_pmu_select_0",               0x421a0140},
+        {"sc_pmu_select_1",               0x421a0148},
+        {"sc_pmu_select_2",               0x421a0150},
+        {"sc_pmu_select_3",               0x421a0158},
+        {"sc_pmu_select_4",               0x421a0160},
+        {"sc_pmu_select_5",               0x421a0168},
+        {"sc_pmu_select_6",               0x421a0170},
+        {"sc_pmu_select_7",               0x421a0178}
     }};
 
     enum patch_mode {
@@ -938,6 +949,7 @@ namespace {
         LD_GUEST_PAGE_FAULT     = 21,
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_SINGLE_STEP      = 31,
         CUSTOM_VEC_CMODE        = 55
     } excp;
 

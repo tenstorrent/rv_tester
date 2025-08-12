@@ -49,6 +49,7 @@ public:
   //   - AMO
   //   - Table Walks
   //   - Exceptions/interrupt
+  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
@@ -183,10 +184,12 @@ private:
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
   void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
-  void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause);
+  void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
+  void poke_nmi(hart_id_t hart, uint64_t time);
   void clear_nmi(hart_id_t hart, uint64_t time);
+  void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip);
   void peek_seip(hart_id_t hart, uint64_t time, bool& seip);
@@ -204,9 +207,10 @@ private:
   bool is_renamed_csr(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
-  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
+  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
+
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
-  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle=0);
+  bool resynch_on_instr(const hart_id_t& hart, const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
   void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool clint_read(const uint64_t& pa);
   bool tbox_read(const uint64_t& pa);
@@ -219,15 +223,14 @@ private:
   bool unsupported_mmr_access(const uint64_t& pa);
   bool unsupported_csr_access(const std::string& instr);
   bool hpm_counter_read(const std::string& instr);
-  bool mip_mismatch(const std::string& instr);
-  bool topi_mismatch(const std::string& instr);
-  bool topei_mismatch(const std::string& instr);
+  bool intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
   void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
+  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev=false, bool seip_new=false, bool consider_seip=false);
 
 private:
 
@@ -302,6 +305,8 @@ private:
   CacCore csr_cac_;
 
   uint64_t order_ = 0;
+  uint64_t prev_dut_trap_cause_ = 0;
+  uint64_t prev_dut_trap_order_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
@@ -346,12 +351,14 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
+  std::unordered_map<uint64_t, uint64_t> nmis_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
   std::bitset<64> mip_ = 0;
@@ -363,11 +370,11 @@ private:
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
+  std::unordered_map<uint32_t, uint32_t> deferred_mip_age_, deferred_mip_age_clear_;
+  std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
-  bool pre_undeferred_intr_;
-  bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;

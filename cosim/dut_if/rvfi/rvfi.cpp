@@ -172,9 +172,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   prev_uop_tag_ = m_rvfi.order;
 
-  if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
-      vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
-
   if (patch_mode_) {
     if (!patch_mode_first_tag_) {
       patch_mode_first_tag_ = m_rvfi.order;
@@ -184,6 +181,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
     log(cvm::HIGH, "Patch mode tag={} first_tag={}\n", m_rvfi.order, patch_mode_first_tag_);
   }
+
+  if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
+      vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
 
   if (!m_rvfi.last_uop)
     return;
@@ -248,6 +248,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     nmi_ = false;
     intr_ = true;
     excp_ = false;
+    intr_virt_mode_ = m_trap.virt_mode;
     icause_ = m_trap.cause & 0x3f;
 
   } else if (m_trap.id == EXCP) {
@@ -271,6 +272,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
       vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
+    if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order);
   }
 }
 
@@ -403,7 +405,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = vec_cmode_ ? vec_cmode_first_tag_ : patch_mode_ && FLAGS_patch_mode_tag_override? patch_mode_first_tag_ : m_rvfi.order;
+  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ ? vec_cmode_first_tag_ : m_rvfi.order;
   instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
@@ -419,6 +421,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.excp = excp_;
   instr.ecause = ecause_;
+  instr.virt_mode = intr_virt_mode_;
 
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);
@@ -863,7 +866,9 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((instr.intr && (instr.icause == 0)) || (instr.excp && (instr.ecause == 31))) {
+  if ((instr.intr && !instr.icause && !intr_virt_mode_) ||
+      (instr.excp && (instr.ecause == CUSTOM_SINGLE_STEP))
+     ) {
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;
@@ -934,17 +939,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.cycle  = m_mcmi_read.cycle;
   m.opcode  = m_mcmi_read.opcode;
   // Handle tags
-  if (vec_cmode_tags_.contains(m_mcmi_read.order))
-      m.tag = vec_cmode_tags_[m_mcmi_read.order];
-  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  }
-  else if (patch_mode_tags_.contains(m_mcmi_read.order))
+  if (patch_mode_tags_.contains(m_mcmi_read.order))
       m.tag = patch_mode_tags_[m_mcmi_read.order];
   else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_read.order >= patch_mode_first_tag_)) {
       patch_mode_tags_.emplace(m_mcmi_read.order, patch_mode_first_tag_);
       m.tag = patch_mode_first_tag_;
+  }
+  else if (vec_cmode_tags_.contains(m_mcmi_read.order))
+      m.tag = vec_cmode_tags_[m_mcmi_read.order];
+  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
   } else
       m.tag = m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
@@ -1148,17 +1153,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   mem_t m;
   m.valid = true;
   // Handle tags
-  if (vec_cmode_tags_.contains(m_mcmi_insert.order))
-      m.tag = vec_cmode_tags_[m_mcmi_insert.order];
-  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  }
-  else if (patch_mode_tags_.contains(m_mcmi_insert.order))
+  if (patch_mode_tags_.contains(m_mcmi_insert.order))
       m.tag = patch_mode_tags_[m_mcmi_insert.order];
   else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_insert.order >= patch_mode_first_tag_)) {
       patch_mode_tags_.emplace(m_mcmi_insert.order, patch_mode_first_tag_);
       m.tag = patch_mode_first_tag_;
+  }
+  else if (vec_cmode_tags_.contains(m_mcmi_insert.order))
+      m.tag = vec_cmode_tags_[m_mcmi_insert.order];
+  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
   } else
       m.tag = m_mcmi_insert.order;
   m.cycle = m_mcmi_insert.cycle;
@@ -1236,19 +1241,19 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   mem_t m;
   m.valid = true;
   // Handle tags
-  if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
-    m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
-
-  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-
-  } else if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
+  if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
     m.tag = patch_mode_tags_[m_mcmi_bypass.order];
 
   } else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
     patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
     m.tag = patch_mode_first_tag_;
+
+  } else if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
+    m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
+
+  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
 
   } else {
     m.tag = m_mcmi_bypass.order;
@@ -1276,7 +1281,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         sc_bypass_.emplace(m.tag, m);
         return;
       }
-      if(m_mcmi_bypass.attr == 0x1000) {
+      if((m_mcmi_bypass.attr == 0x1000) && (!m.v_ext)) {
         bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
         // Setting the Cache flag to true for CBO
       }
@@ -1644,9 +1649,22 @@ bool rvfi::check_axi_error(uint64_t addr) {
     // Check all AXI instances
     for (const auto& loc : cvm::topology::get_from_type(type)) {
         if (loc != cvm::topology::null) {
-            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr);
+            size_t count = 0;
+            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr, count);
             if (has_error) {
-                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured\n", addr);
+                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured, count={}\n", addr, count);
+                return true;
+            }
+        }
+    }
+
+    // Also check NCIO_AXI instances
+    for (const auto& loc : cvm::topology::get_from_type("NCIO_AXI")) {
+        if (loc != cvm::topology::null) {
+            size_t count = 0;
+            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr, count);
+            if (has_error) {
+                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured (NCIO_AXI), count={}\n", addr, count);
                 return true;
             }
         }
@@ -1685,6 +1703,10 @@ extern "C" {
 
 extern "C" long long get_max_cycle() {
     return FLAGS_max_cycle;
+}
+
+extern "C" long long get_max_stall_cycle() {
+  return FLAGS_max_stall_cycle;
 }
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
