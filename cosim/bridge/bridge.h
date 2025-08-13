@@ -179,6 +179,7 @@ private:
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -366,6 +367,7 @@ private:
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
+
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
@@ -379,6 +381,8 @@ private:
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
+  std::unordered_map<uint64_t, bool> hw_intr_set_;
+  std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
