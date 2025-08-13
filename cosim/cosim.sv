@@ -779,9 +779,28 @@ localparam CAM_IHBIT = CAM_IBITS;
 
      // m_reset
     logic dut_reset_d1, dut_core_reset_d1;
+    logic suppress_interrupts;
+
     always @(posedge clk) begin
         dut_reset_d1 <= dut_reset;
         dut_core_reset_d1 <= dut_core_reset;
+
+        // Logic to distinguish between reset states and low power states
+        // suppress_interrupts is true for:
+        // - Cold reset: dut_core_reset high, dut_reset low (initially)
+        // - Warm reset: dut_core_reset high, dut_reset high
+        // suppress_interrupts is false for:
+        // - Low power: dut_core_reset high, dut_reset low (but previously had normal operation)
+        if (reset) begin
+            suppress_interrupts <= 1'b1;  // Start in suppressed state
+        end else if (~dut_core_reset & ~dut_reset) begin
+            suppress_interrupts <= 1'b0;  // Clear suppression during normal operation
+        end else if (dut_core_reset & dut_reset) begin
+            suppress_interrupts <= 1'b1;  // Warm reset: suppress
+        end
+        // For dut_core_reset high & dut_reset low: maintain current state
+        // This allows low power (coming from normal operation) to not suppress
+        // while cold reset (from initial state) continues to suppress
     end
     assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
     assign m_resets[0].data.location    = location;
@@ -1285,7 +1304,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       cause_d3 <= cause_d2;
       virt_mode_d3 <= virt_mode_d2;
     end
-    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0);
+    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~suppress_interrupts & (cause_d3 != 0);
     assign m_traps[0].data.location = location;
     assign m_traps[0].data.cycle = clocks;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
@@ -1332,7 +1351,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       end
       else nmi_pend_d1 <= '0;
     end
-    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
     assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
@@ -1347,7 +1366,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       mip_d1 <= interrupt_pend.mip;
       seip_d1 <= interrupt_pend.seip;
     end
-    assign m_interrupt_pends[0].valid = ~dut_core_reset & interrupt_pend.valid & rvfi_enabled;
+    assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
     assign m_interrupt_pends[0].data.cycle = clocks;
     assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
@@ -1360,7 +1379,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
 
     // m_imsic_msi
-    assign m_imsic_msis[0].valid = ~dut_core_reset && imsic_msi.valid && rvfi_enabled;
+    assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
@@ -1382,7 +1401,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
-      assign m_mtimes[n].valid = ~dut_core_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
+      assign m_mtimes[n].valid = ~suppress_interrupts && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
          ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG, C_HVIP})) ||
           (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
@@ -1392,7 +1411,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // mtime packets from mip bits
-      assign m_mtimes[NRET].valid = ~dut_core_reset && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
+      assign m_mtimes[NRET].valid = ~suppress_interrupts && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
       assign m_mtimes[NRET].data.location = location;
       assign m_mtimes[NRET].data.cycle = clocks;
       assign m_mtimes[NRET].data.mtime = mtime;
