@@ -47,6 +47,8 @@ DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch c
 DEFINE_uint64(mip_resynch_threshold, 256, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
 DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch condition");
 DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
+DEFINE_bool(hw_ras_interrupt_resynch, true, "Resynch whisper with dut state for hw ras mismatch which can only be cleared from hardware source, LO PRI RAS, HI_PRI_RAS or BUSERR");
+
 DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei mismatch condition to match DUT");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
@@ -665,6 +667,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
   post_step_satp_write_poke(hart, d, w);
+  post_step_csr_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
     IF_DEBUG("excp_in_debug_mode==1 ..reset status and return");
@@ -1366,6 +1369,21 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
 bool bridge::is_custom_excp(uint64_t cause) {
   return (cause >= 25 && cause <= 55);
+}
+
+void bridge::post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+  uint32_t csr_addr;
+  if (FLAGS_hw_ras_interrupt_resynch && cosim_util::is_csr_opcode(w.opcode, csr_addr) && csr_addr == MIP) {
+    uint64_t hw_mip = 0;
+    for (auto& [ir, val] : hw_intr_set_)
+      hw_mip |= (val ? (uint64_t(1) << ir) : 0);
+    if (hw_mip) {
+      bridge_log_(cvm::MEDIUM, "Hart: {} <{}> Poking MIP with hw_mip: {:#x}\n", hart, d.cycle, hw_mip);
+      std::bitset<64> mip;
+      peek_mip(hart, d.cycle, mip);
+      poke_mip(hart, d.cycle, mip | std::bitset<64>(hw_mip));
+    }
+  }
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
@@ -2657,6 +2675,23 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     deferred_mip_age_.erase(count++);
     deferred_mip_age_clear_.erase(count++);
     ull >>= 1;
+  }
+
+  // RVTOOLS-4557: These interrupts when asserted from a HW source cannot be cleared by software write(CSRRW/CSRRC)
+  // They will be cleared by MMR writes.
+  // Thus any CSRRW/CSRRC to MIP needs to be poked to whisper with this case
+  // see post_step_csr_poke on the poking to Whisper
+  for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit)}) {
+    if (i.mip_set[ir] && i.hw)
+      hw_intr_set_[ir] = true;
+    if (i.mip_clr[ir]) {
+      hw_intr_clear_cycle_[ir] = i.cycle;
+      hw_intr_set_[ir] = false;
+    }
+    if (i.mip_set[ir] && hw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
+      hw_intr_set_[ir] = true;
+      poke_local_interrupt(hart, i.cycle, std::bitset<64>(ir));
+    }
   }
 
   // Handling needed only for hw interrupts
