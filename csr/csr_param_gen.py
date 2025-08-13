@@ -95,11 +95,11 @@ class CsrMap:
         self.csr_property_dict = dict()
         # Shared parameter dictionary for both reset and performance values
         self.csr_params = {
-            "CSR_CMCCFG_F_VLPRFSIZE_RESET_VALUE": 12,
-            "CSR_CMCCFG_F_VECPRFSIZE_RESET_VALUE": 96,
-            "CSR_CMCCFG_F_FPPRFSIZE_RESET_VALUE": 44,
-            "CSR_CMCCFG_F_INTPRFSIZE_RESET_VALUE": 96,
-            "CSR_CMCCFG_F_ROBSIZE_RESET_VALUE": 100,
+            "CSR_CMCCFG_F_VLPRFSIZE_RESET_VALUE": 64,
+            "CSR_CMCCFG_F_VECPRFSIZE_RESET_VALUE": 160,
+            "CSR_CMCCFG_F_FPPRFSIZE_RESET_VALUE": 184,
+            "CSR_CMCCFG_F_INTPRFSIZE_RESET_VALUE": 224,
+            "CSR_CMCCFG_F_ROBSIZE_RESET_VALUE": 256,
             "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
             
         }
