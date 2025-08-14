@@ -209,8 +209,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
-            "@opensrc-tech_cells_generic//:tech_cells_generic",
-            "@rv_tester//:rv_tester_clk_mux_glitch_free"
+            "@opensrc-tech_cells_generic//:tech_cells_generic"
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],

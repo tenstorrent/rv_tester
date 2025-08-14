@@ -96,7 +96,7 @@ module rv_tester
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .fastest_clk(fastest_clk));
 
 
-                rv_tester_clk_mux_glitch_free #(
+                clk_mux_glitch_free #(
                     .NUM_INPUTS(7),
                     .CLOCK_DURING_RESET(1)
                 ) i_clk_mux (
