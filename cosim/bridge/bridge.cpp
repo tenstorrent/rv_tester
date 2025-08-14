@@ -77,6 +77,7 @@ DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_nmi_age, 16, "Number of instructions allowed to retire before a pending nmi should be taken");
+DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
 
@@ -1014,6 +1015,9 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   }
 
+  if (FLAGS_bridge_log)
+    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+
   // Timing sensitive resynch cases
   // 1. DUT took nmi that deasserted before retire
   if (d.nmi && (nmis_.find(d.ncause) == nmis_.end()) && (prev_nmi_.valid != nmi_.valid)) {
@@ -1023,15 +1027,8 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   }
 
-  if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
-
-  // Poke nmi into whisper
-  if (nmi_poke_pending_) {
-    clear_nmi(hart, d.cycle); // clear all previous NMI
-    poke_nmi(hart, d.cycle);
-    nmi_poke_pending_ = false;
-  }
+  if (nmi_poke_pending_)
+    poke_dut_nmi(hart, d.cycle, d.ncause);
   nmi_taken_count_++;
 }
 
@@ -1273,7 +1270,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
   }
 
   // Clear nmi on first step after taking timing sensitive nmi
-  if (d.nmi && !nmi_.valid && prev_nmi_.valid) { // TODO handle multiple nmis
+  if (d.nmi && (nmis_.find(d.ncause) == nmis_.end())) {
     clear_nmi(hart, d.cycle, d.ncause);
   }
 }
@@ -2857,10 +2854,18 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
     bridge_log_(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.at(static_cast<intr>(cause)), virt_mode);
 }
 
-void bridge::poke_nmi(hart_id_t hart, uint64_t time) {
-  if (FLAGS_bridge_log) bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: nmis\n", time);
-  for (const auto& cause : nmis_)
-    poke_nmi(hart, time, cause.first);
+void bridge::poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause) {
+
+  clear_nmi(hart, time); // clear all previous NMI
+  uint64_t dut_age = FLAGS_max_nmi_resynch_age;
+  if (nmis_.find(dcause) != nmis_.end())
+    dut_age = dut_age < nmis_[dcause] ? dut_age : nmis_[dcause];
+  nmi_poke_pending_ = false;
+  for (const auto& [cause, age] : nmis_)
+    if ((cause == dcause) || (age >= dut_age))
+      poke_nmi(hart, time, cause);
+    else
+      nmi_poke_pending_ = true; // not all NMIs poked
 }
 
 void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
@@ -2985,7 +2990,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
   }
   if (nmi_poke_pending_ && !nmi_poke_in_debug_mode_) {
-    poke_nmi(d.hart, d.cycle); // If NMI was pending before entering debug mode, poke it now
+    poke_nmi(d.hart, d.cycle, nmi_.cause); // If NMI was pending before entering debug mode, poke it now
     nmi_poke_in_debug_mode_ = true;
   }
 }
