@@ -28,6 +28,12 @@ verilog_library(
     visibility = ["//visibility:public"],
 )
 
+verilog_library(
+    name = "rv_tester_clk_mux_glitch_free",
+    srcs = ["rv_tester_clk_mux_glitch_free.sv"],
+    visibility = ["//visibility:public"],
+)
+
 bool_flag(
     name = "cosim",
     build_setting_default = True,
