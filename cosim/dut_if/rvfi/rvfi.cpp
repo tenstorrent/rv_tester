@@ -165,6 +165,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
     pc_error_ = m_rvfi.pc_error;
     mem_error_ = m_rvfi.mem_error;
+
+
     return;
   }
 
@@ -220,6 +222,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   trap_addr_ = 0;
   pc_error_ = false;
   mem_error_ = false;
+
+  // RVDE-24355: Clean up conservative mode memory errors when vec_cmode_ is cleared
+  if (!vec_cmode_ && !vec_cmode_mem_errors_.empty()) {
+    cvm::log(cvm::HIGH, "[RVDE-24355] Clearing vector conservative mode memory errors\n");
+    vec_cmode_mem_errors_.clear();
+  }
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -256,6 +264,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
+
+      // RVDE-24355: Store memory error for conservative mode vector instruction
+      if (mem_error_) {
+        vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
+      }
     } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
       vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
@@ -614,8 +627,19 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.pa = m_rvfi.mem_paddr;
   instr.mem_read.data = m_rvfi.mem_rdata;
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
+  // RVDE-24355: Check if this instruction tag has a stored conservative mode memory error
+  bool vec_cmode_mem_error = false;
+  if (vec_cmode_mem_errors_.find(instr.tag) != vec_cmode_mem_errors_.end()) {
+    vec_cmode_mem_error = vec_cmode_mem_errors_[instr.tag];
+  }
+  instr.mem_read.error = m_rvfi.mem_error || mem_error_ || vec_cmode_mem_error;
   instr.mem_read.attr = m_rvfi.mem_attr;
-  instr.mem_read.error = m_rvfi.mem_error || mem_error_;
+
+  // RVDE-24355: Track memory errors during conservative mode (for any UOP, not just vector-looking ones)
+  if ((m_rvfi.mem_error || mem_error_) && vec_cmode_) {
+    // Store memory error for the conservative mode tag (this will be applied to the final UOP sent to whisper)
+    vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
+  }
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
@@ -624,7 +648,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
-  instr.mem_write.error = m_rvfi.mem_error || mem_error_;
+  instr.mem_write.error = m_rvfi.mem_error || mem_error_ || vec_cmode_mem_error;
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
