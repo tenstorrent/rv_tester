@@ -154,7 +154,8 @@ public:
 
   bool dmi_read(unsigned address, uint32_t *value);
   bool dmi_write(unsigned address, uint32_t value);
-
+  
+  void configure();
   // Called for every cycle the JTAG TAP spends in Run-Test/Idle.
   // void run_test_idle();
 
