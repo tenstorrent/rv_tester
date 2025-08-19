@@ -83,6 +83,7 @@ class reset_sequence {
     cvm::messenger::task<void> program_thub_max_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
+    cvm::messenger::task<void> init_smc_ras_ibf_filters();
 
     cvm::messenger::task<void> batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool exp_err_rsp = false );
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool exp_err_rsp = false);
