@@ -205,7 +205,7 @@ private:
   uint64_t expected_load_data;
   bool mem_load_check = false;
   uint8_t load_req_id;
-  loc_t loc;
+  cvm::topology::loc_t loc;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 
