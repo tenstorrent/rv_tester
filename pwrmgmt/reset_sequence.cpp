@@ -40,6 +40,7 @@ DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram reg
 DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
+DEFINE_bool(init_smc_cpl_ras_ibf, false, "Enable filter programming for CPL to access RAS MMRs ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
@@ -274,6 +275,9 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
   }
+  if(FLAGS_init_smc_cpl_ras_ibf) {
+    co_await init_smc_ras_ibf_filters();
+  }
 
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
@@ -306,6 +310,9 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
 
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
+  }
+  if(FLAGS_init_smc_cpl_ras_ibf) {
+    co_await init_smc_ras_ibf_filters();
   }
   co_await init_csr();
   co_await rmw_csr();
@@ -1056,6 +1063,17 @@ cvm::messenger::task<void> reset_sequence::init_smc_filters() {
   co_await write(cpl_in_filter5_addr_l, SZ_8B, 0x40000, boot_interface);
   co_await write(cpl_in_filter5_addr_h, SZ_8B, 0x4FFFF, boot_interface);
   co_await write(cpl_in_filter5_config, SZ_8B, 0x80000000000F0113, boot_interface);
+
+  co_return;
+};
+
+cvm::messenger::task<void> reset_sequence::init_smc_ras_ibf_filters() {
+
+  co_await tick();
+  // CPL AXI in filter programming for accessing RAS CPL MMRs
+  co_await write(cpl_in_filter6_addr_l, SZ_8B, 0x3A000, boot_interface);
+  co_await write(cpl_in_filter6_addr_h, SZ_8B, 0x3A0E0, boot_interface);
+  co_await write(cpl_in_filter6_config, SZ_8B, 0x8000000000003113, boot_interface);
 
   co_return;
 };
