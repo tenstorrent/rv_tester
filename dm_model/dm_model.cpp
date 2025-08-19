@@ -96,7 +96,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   //   cvm::log(cvm::NONE,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
   // }
   
-  cvm::log(cvm::NONE,"\nConstructing DM Model.. \n");
+  cvm::log(cvm::NONE,"\nConstructing DM Model.. with loc %d\n",loc);
   reset();
 }
 
