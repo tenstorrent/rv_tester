@@ -32,7 +32,7 @@ uint32_t hart_haltreq_hg, hart_abscmd, hartsel;
 REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
 DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
 
-debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 + 4 : 0) + (4 * config.progbufsize)),
+debug_module_t::debug_module_t(cvm::topology::loc_t dm_loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 + 4 : 0) + (4 * config.progbufsize)),
                                                                      debug_progbuf_start(debug_data_start - program_buffer_bytes),
                                                                      debug_abstract_start(debug_progbuf_start - debug_abstract_size * 4),
                                                                     //  custom_base(0),
@@ -41,22 +41,22 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                      hart_array_mask(max_hartid + 1)
 //  rti_remaining(0)
 {
+  loc = dm_loc;
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req<>>(loc, [this](const auto &v)
+  //                                                                             { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_resp<>>(loc, [this](const auto &v)
+  //                                                                              { return this->process(v); });
 
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req<>>(loc, [this](const auto &v)
-                                                                              { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_resp<>>(loc, [this](const auto &v)
-                                                                               { return this->process(v); });
-
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_cmd<>>(loc, [this](const auto &v)
-                                                                                  { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_data<>>(loc, [this](const auto &v)
-                                                                                   { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store<>>(loc, [this](const auto &v)
-                                                                               { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
-                                                                              { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_req<>>(loc, [this](const auto &v)
-                                                                               { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_cmd<>>(loc, [this](const auto &v)
+  //                                                                                 { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_data<>>(loc, [this](const auto &v)
+  //                                                                                  { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store<>>(loc, [this](const auto &v)
+  //                                                                              { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
+  //                                                                             { return this->process(v); });
+  // cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_req<>>(loc, [this](const auto &v)
+  //                                                                              { return this->process(v); });
 
   // Define a processor array (for the number of harts)
   for (size_t i = 0; i < max_hartid; i++)
@@ -96,8 +96,27 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   //   cvm::log(cvm::NONE,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
   // }
   
-  cvm::log(cvm::NONE,"\nConstructing DM Model.. \n");
+  cvm::log(cvm::NONE,"\nConstructing DM Model.. with loc %d\n",loc);
   reset();
+}
+
+void debug_module_t::configure(){
+
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req<>>(loc, [this](const auto &v)
+                                                                              { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_resp<>>(loc, [this](const auto &v)
+                                                                               { return this->process(v); });
+
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_cmd<>>(loc, [this](const auto &v)
+                                                                                  { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_data<>>(loc, [this](const auto &v)
+                                                                                   { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store<>>(loc, [this](const auto &v)
+                                                                               { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
+                                                                              { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_req<>>(loc, [this](const auto &v)
+                                                                               { return this->process(v); });
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status)
