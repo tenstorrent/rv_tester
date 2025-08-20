@@ -19,7 +19,7 @@ scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc,
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST",0);
   r_channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
-  
+
   // nmi sequence threads
   if (FLAGS_sp_xtor_rand_en) {
     random_mode_thread();
@@ -38,6 +38,14 @@ void scratchpad_random_sequence::random_mode_thread() {
 };
 
 cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
+
+  // Get SC-NUM_WAYS
+  co_await tick();
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("SC", 0), "SC_NUM_WAYS").second;
+  uint64_t sc_fuse_mask = (1ULL << nways) - 1;
+  all_sc_ways_disabled = (FLAGS_sc_dis_ways_mask & sc_fuse_mask) == sc_fuse_mask;
+  cvm::log(cvm::MEDIUM, "[scratchpad_random_sequence] sc_num_ways: {}, sc_dis_ways_mask: {:#x}, all_sc_ways_disabled: {}\n", nways, FLAGS_sc_dis_ways_mask, all_sc_ways_disabled);
+
   while (FLAGS_sp_xtor_en) {
     // Wait for next tick generated after a random interval "nmi_interval"
     co_await tick();
@@ -241,6 +249,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
     ar_txn.is_manual_id = true;
     ar_txn.manual_id = 0x301;
   }
+  ar_txn.exp_err_rsp = all_sc_ways_disabled;
 
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
@@ -347,6 +356,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
     aw_txn.is_manual_id = true;
     aw_txn.manual_id =  0x303;
   }
+  aw_txn.exp_err_rsp = all_sc_ways_disabled;
 
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);

@@ -93,6 +93,7 @@ class scratchpad_random_sequence {
     bool  sc_slice_array_initial_done = false;
     bool  sc_polling_done = false;
     bool  send_wr_to_odd_network = false;
+    bool  all_sc_ways_disabled = false;
 
 
     cvm::topology::loc_t axi_mst_loc_l;
