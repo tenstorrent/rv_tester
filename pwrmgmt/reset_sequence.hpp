@@ -77,17 +77,18 @@ class reset_sequence {
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);
     cvm::messenger::task<void> disabled_mmr_csr_check();
     cvm::messenger::task<void> program_fe_resetvector();
-    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk = true);
+    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool exp_err_rsp = false);
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
     cvm::messenger::task<void> program_thub_max_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
+    cvm::messenger::task<void> init_smc_ras_ibf_filters();
 
-    cvm::messenger::task<void> batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk = true );
-    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool rsp_err_chk = true);
-    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC, bool rsp_err_chk = true);
-    cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk = true);
+    cvm::messenger::task<void> batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool exp_err_rsp = false );
+    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool exp_err_rsp = false);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC, bool exp_err_rsp = false);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool exp_err_rsp = false);
     cvm::messenger::task<void>csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
     cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint32_t unit,uint64_t addr);
     cvm::messenger::task<void>init_csr();
@@ -99,8 +100,8 @@ class reset_sequence {
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
     std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
 
-    cvm::messenger::task<bool> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
-    cvm::messenger::task<bool> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
+    cvm::messenger::task<bool> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool exp_err_rsp = false);
+    cvm::messenger::task<bool> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool exp_err_rsp = false);
 
     uint64_t fuse_val();
     uint64_t core_fuse_val();

@@ -179,15 +179,16 @@ private:
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
   void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
-  void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause);
+  void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
-  void poke_nmi(hart_id_t hart, uint64_t time);
+  void poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause);
   void clear_nmi(hart_id_t hart, uint64_t time);
   void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
@@ -230,7 +231,7 @@ private:
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
-  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new);
+  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev=false, bool seip_new=false, bool consider_seip=false);
 
 private:
 
@@ -366,6 +367,7 @@ private:
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
+
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
@@ -379,6 +381,8 @@ private:
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
+  std::unordered_map<uint64_t, bool> hw_intr_set_;
+  std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;

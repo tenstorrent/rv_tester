@@ -949,6 +949,7 @@ namespace {
         LD_GUEST_PAGE_FAULT     = 21,
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_SINGLE_STEP      = 31,
         CUSTOM_VEC_CMODE        = 55
     } excp;
 

@@ -107,6 +107,8 @@ cosim:
                 width: 1
             intr:
                 width: 1
+            virt_mode:
+                width: 1
             cause:
                 width: 64
             mode:
@@ -444,6 +446,8 @@ cosim:
                 width: 64
             order:
                 width: 64
+            virt_mode:
+                width: 1
 
     m_interrupt_pend:
         domain: 1
@@ -1814,6 +1818,14 @@ aclint_checker:
                 width: 1
             check_2:
                 width: 1
+            clock:
+                width: 64
+            hart:
+                width: 32
+    timesync_check:
+        domain: 1
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
             clock:
                 width: 64
             hart:
