@@ -34,7 +34,7 @@ class cla_cfg_seq {
 
   private:
 
-    bool nmi_event, reenable_nmi, reenable_rand_trig;
+    bool nmi_event, reenable_nmi, reenable_rand_trig, end_cla_cfg_seq=0;
     uint32_t core_offset;
     uint32_t eap_ctrl, active_core, mask, cntr_data, cnt_loop_max;
     uint32_t nmi_total_cnt, trig_total_cnt;
