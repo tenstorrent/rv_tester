@@ -53,6 +53,7 @@ DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei m
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_uint32(intr_assert_timeout_resynch, 8, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
+DEFINE_uint32(dut_mip_resynch_age, 1, "a newly asserted interrupt may not show up in the MIP if the next instruction is CSRR MIP");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
@@ -1040,9 +1041,13 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     hw_mip_age_ = 0;
   if (prev_e_mip_ != e_mip_ || msi_.size() != 0)
     e_mip_age_ = 0;
-  for (auto& [key, value] : deferred_mip_age_)
+  for (auto& [key, value] : whisper_mip_age_)
     value++;
-  for (auto& [key, value] : deferred_mip_age_clear_)
+  for (auto& [key, value] : whisper_mip_age_clear_)
+    value++;
+  for (auto& [key, value] : dut_mip_age_)
+    value++;
+  for (auto& [key, value] : dut_mip_age_clear_)
     value++;
 
   // Proceed only if DUT takes interrupt
@@ -2181,13 +2186,12 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   if (!cosim_util::is_csr_opcode(d.opcode, csr_addr))
     return false;
   bridge_log_(cvm::MEDIUM, "<{}> Trying to Resynch: Reason=[intr_csrs_mismatch] [csr_addr={:#x}] instr: {}\n", cycle, csr_addr, instr);
-  auto is_match = [] (uint64_t diff, std::unordered_map<uint32_t, uint32_t>& deferred_age) {
-    if (diff) {
-      uint32_t bit = 0;
-      while (diff) {
-        if ((diff & 1) && !(deferred_age[bit]) && (deferred_age[bit] > FLAGS_intr_assert_timeout_resynch))
+  auto is_match = [] (uint64_t diff, std::unordered_map<uint32_t, uint32_t>& deferred_age, uint32_t threshold_age) {
+    for (uint32_t bit=0; diff>0; diff>>=1, bit++) {
+      if (diff & 1) {
+        auto it = deferred_age.find(bit);
+        if (it == deferred_age.end() || (deferred_age[bit] > threshold_age))
           return false;
-        diff >>= 1; bit++;
       }
     }
     return true;
@@ -2206,11 +2210,17 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
         return true;
       }
       bool match = true;
-      match &= is_match(dut_val_diff, deferred_mip_age_clear_);
-      match &= is_match(iss_val_diff, deferred_mip_age_);
+      match &= is_match(dut_val_diff, whisper_mip_age_clear_, FLAGS_intr_assert_timeout_resynch);
+      match &= is_match(iss_val_diff, whisper_mip_age_, FLAGS_intr_assert_timeout_resynch);
       if (match) {
-        IF_DEBUG("mip condition");
         bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Recently Deferred Interrupt] [dut={:#x}, iss={:#x}]\n", cycle, dut_val, iss_val);
+        return true;
+      }
+      match = true;
+      match &= is_match(dut_val_diff, dut_mip_age_clear_, FLAGS_dut_mip_resynch_age);
+      match &= is_match(iss_val_diff, dut_mip_age_,       FLAGS_dut_mip_resynch_age);
+      if (match) {
+        bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Recent DUT Interrupt] [dut={:#x}, iss={:#x}]\n", cycle, dut_val, iss_val);
         return true;
       }
     }
@@ -2671,13 +2681,20 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   e_mip_ = (i.mip[MEI] << MEI) | ((i.mip[SEI] | i.seip) << SEI);
 
   auto ull = mip_.to_ullong();
-  uint32_t count = 0;
-  while (ull) {
-    deferred_mip_age_.erase(count++);
-    deferred_mip_age_clear_.erase(count++);
-    ull >>= 1;
+  for (uint32_t count=0; ull>0; ull>>=1, count++)
+  {
+    if (ull & 1) {
+      whisper_mip_age_.erase(count);
+      whisper_mip_age_clear_.erase(count);
+    }
+    if (i.mip_set[count])
+      dut_mip_age_[count] = 1;
+
+    if (i.mip_clr[count])
+      dut_mip_age_clear_[count] = 1;
   }
 
+// ================================================================================================================
   // RVTOOLS-4557: These interrupts when asserted from a HW source cannot be cleared by software write(CSRRW/CSRRC)
   // They will be cleared by MMR writes.
   // Thus any CSRRW/CSRRC to MIP needs to be poked to whisper with this case
@@ -2694,6 +2711,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       poke_local_interrupt(hart, i.cycle, std::bitset<64>(ir));
     }
   }
+// ================================================================================================================
 
   // Handling needed only for hw interrupts
   if (!i.hw)
@@ -2792,7 +2810,7 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
   uint32_t start = 0;
   while (bits_set) {
     if (bits_set & 1)
-      deferred_mip_age_[start]++;
+      whisper_mip_age_[start]++;
     start++;
     bits_set >>=1;
   }
@@ -2800,18 +2818,18 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
   start = 0;
   while (bits_clr) {
     if (bits_clr & 1)
-      deferred_mip_age_clear_[start]++;
+      whisper_mip_age_clear_[start]++;
     start++;
     bits_clr >>=1;
   }
   if (consider_seip) {
     if (seip_new == seip_prev) {
-      deferred_mip_age_.erase(SEI);
-      deferred_mip_age_clear_.erase(SEI);
+      whisper_mip_age_.erase(SEI);
+      whisper_mip_age_clear_.erase(SEI);
     } else if (seip_new) {
-      deferred_mip_age_[SEI]++;
+      whisper_mip_age_[SEI]++;
     } else {
-      deferred_mip_age_clear_[SEI]++;
+      whisper_mip_age_clear_[SEI]++;
     }
   }
 }
@@ -2904,8 +2922,8 @@ void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
 }
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
-  deferred_mip_age_.clear();
-  deferred_mip_age_clear_.clear();
+  whisper_mip_age_.clear();
+  whisper_mip_age_clear_.clear();
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: mip={:#x}\n", time, mip.to_ullong());
 
