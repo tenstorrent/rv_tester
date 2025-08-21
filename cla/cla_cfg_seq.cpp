@@ -88,6 +88,7 @@ cvm::messenger::task<void> cla_cfg_seq::cla_main() {
     cvm::rand::uniform_dist<uint32_t> again_loop(300, 500);
     cnt_loop_max = again_loop();
     co_await wait_for_clocks(cnt_loop_max);
+    if(end_cla_cfg_seq) { break; }
 
   }
 
@@ -100,7 +101,9 @@ cvm::messenger::task<void> cla_cfg_seq::wait_for_clocks(uint32_t max) {
     if(elf_completed && (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en)) {
       co_await clear_pend_nmi_on_terminate();
       terminate_test(1);
+      end_cla_cfg_seq = 1;
       elf_completed = 0;
+      cnt_loop = max;
     }
     co_await tick();
   }

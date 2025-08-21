@@ -22,6 +22,7 @@ import rv_tester_params::*;
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.CLA.ID, NUM);
   bit cla_cfg_en = 0;
+  logic terminate_from_rv_tester_d1;
 
   always @(posedge tb_clk) begin
     if (tb_reset) begin
@@ -34,7 +35,7 @@ import rv_tester_params::*;
       end
     end
 
-    if(terminate_from_rv_tester) begin
+    if(terminate_from_rv_tester && ~terminate_from_rv_tester_d1) begin
       cla_send_elf_terminate();
     end
   end
@@ -51,6 +52,7 @@ import rv_tester_params::*;
   logic [NHARTS-1:0] core_no_fetch_d1;
   int unsigned dut_clocks = 0;
   always @(posedge clk) begin
+    terminate_from_rv_tester_d1 <= terminate_from_rv_tester;
     core_no_fetch_d1 <= core_no_fetch;
     dut_clocks <= dut_clocks + 1;
   end
