@@ -1257,14 +1257,7 @@ import rv_tester_params:: * ;
     $display("[DMI Execution] Starting the execution of Debug Commands");
     if (command_trigger > 0) begin
       while (command_queue.size() > 0 && single_step_started != 1) begin
-        if (dmi_warm_reset) begin
-          command = command_queue.pop_front();
-        end else begin
-          wait(dmi_warm_reset);
-          command.addr = 'h10;
-          command.op = rv_tester_pkg::DTM_READ;
-          command.data = 'h00000000;
-        end
+        command = command_queue.pop_front();
         if(trigger_config > 0 && (command_queue.size() == 3)) begin
           command_hg[1] = command_queue.pop_front();
           for(int ii=0; ii<num_harts; ii++)begin

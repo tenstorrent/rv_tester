@@ -341,9 +341,14 @@ void debug_module_t::init_debug_abstract_buffer(){
   debug_module_t::write32(debug_abstract, i++, ebreak()); // 4 (high)
 }
 
-void debug_module_t::reset(bool is_dm_only_reset)
+void debug_module_t::reset(bool dm_model_reset)
 {
-  cvm::log(cvm::NONE,"\nReset DM Model.. \n");
+  if (dm_model_reset) {
+    cvm::log(cvm::NONE,"\nReset DM Model.. \n");
+  }
+  else {
+    cvm::log(cvm::NONE,"\nReset Non-DM CSRs and harts \n");
+  }
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
 
   // Keeping everything available, but will get it from fuse map
@@ -360,10 +365,10 @@ void debug_module_t::reset(bool is_dm_only_reset)
   for (const auto &[hart_id, hart] : harts)
   { // harts
     hart->halt_request = hart->HR_NONE;
+    hart_state[hart_id].halted = false;
     hart_state[hart_id].resumeack = false;
   }
 
-  memset(&dmcontrol, 0, sizeof(dmcontrol));
   memset(&dmcs2, 0, sizeof(dmcs2));
 
   memset(&abstractcs, 0, sizeof(abstractcs));
@@ -372,7 +377,8 @@ void debug_module_t::reset(bool is_dm_only_reset)
 
   memset(&abstractauto, 0, sizeof(abstractauto));
  
-  if (!is_dm_only_reset) {
+  if (dm_model_reset) {
+    memset(&dmcontrol, 0, sizeof(dmcontrol));
     memset(&dmstatus, 0, sizeof(dmstatus));
     dmstatus.impebreak = config.support_impebreak;
     dmstatus.authenticated = !config.require_authentication;
@@ -380,7 +386,7 @@ void debug_module_t::reset(bool is_dm_only_reset)
     for (auto &ele : hart_state)
     { // Add havereset for all the core
       ele.havereset = true;
-  }
+    }
   }
 
   cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x388); //Fixed value as per the implementation
@@ -680,7 +686,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     {
     case DM_DMCONTROL:
     {
-      result = set_field(result, DM_DMCONTROL_HALTREQ, dmcontrol.haltreq);
+      result = set_field(result, DM_DMCONTROL_HALTREQ, 0);
       result = set_field(result, DM_DMCONTROL_RESUMEREQ, dmcontrol.resumereq);
       result = set_field(result, DM_DMCONTROL_ACKHAVERESET, dmcontrol.ackhavereset);
       result = set_field(result, DM_DMCONTROL_HARTSELHI,
@@ -1273,6 +1279,8 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       dmcontrol.resumereq = get_field(value, DM_DMCONTROL_RESUMEREQ);
       dmcontrol.hartreset = get_field(value, DM_DMCONTROL_HARTRESET);
       dmcontrol.ndmreset = get_field(value, DM_DMCONTROL_NDMRESET);
+      if (dmcontrol.ndmreset)
+        reset(false);
       if (config.support_hasel)
         dmcontrol.hasel = get_field(value, DM_DMCONTROL_HASEL);
       else
