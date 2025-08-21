@@ -1069,7 +1069,7 @@ sysmod::create_aplic() const {
     }
 
     cvm::registry::messenger.signal(axi_mst_loc,
-        transactor::write_request_t{addr, 64, data_vec, strb, true });
+        transactor::write_request_t{addr, 64, data_vec, strb, false });
     return true;
   };
   aplic->setMsiCallback(msiCallback);
@@ -1483,7 +1483,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
         }
         
         // Check for scb_acb_chicken with 32nd bit set
-        if (mmr == "scb_acb_chicken" && (value & (1ULL << 31))) {
+        if (mmr == "scb_acb_chicken" && (value & (1ULL << 32))) {
           cvm::log(cvm::NONE, "[sysmod] scb_acb_chicken IO Coherency is disabled\n");
           FLAGS_io_coherency_disable = true;
         }
@@ -1796,7 +1796,8 @@ extern "C" {
   }
 }
 
-std::string get_set_csr_perf() {
+std::string 
+sysmod::get_set_csr_perf() {
   std::vector<std::string> csr_entries;
 
   // Pattern to match c_(fe|mc|ls|ms)cfg or c_msppc

@@ -136,7 +136,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
   cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
   cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
-  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, interrupt, cause);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause, bool& virt_mode) {return this->whisperCheckInterrupt(hart, interrupt, cause, virt_mode);});
   cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
   cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
@@ -157,7 +157,7 @@ bool
 whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
                                     uint16_t ncores, bool standalone, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
-  overrideWhisperJson();
+  overrideWhisperJson(standalone);
   args_str.insert(args_str.end(), {"--config" , FLAGS_whisper_json_path});
   args_str.insert(args_str.end(), {"--cores" , std::to_string(ncores)});
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc()) });
@@ -230,18 +230,11 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   system  = session->defineSystem(args, config);
   if (system == nullptr)  return false;
   bool ok = session->configureSystem(args, config);
-  if (ok) {
-    if (standalone)
-      system->setAplicAutoForwardViaMsi(false);
+  if (ok && standalone) {                          // remove this block and integrate with override json
+   system->setAplicAutoForwardViaMsi(false);       // currently, these dont have a mapping in whisper json
     for (unsigned i=0; i<system->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
-      if (standalone) {
-        hart->setWfiTimeout(0);
-        hart->setAclintDeliverInterrupts(false); 
-      } else {
-        hart->autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
-        hart->setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
-      }
+      hart->setAclintDeliverInterrupts(false); 
     }
   }
   return ok;
@@ -1121,7 +1114,7 @@ whisperClient<URV>::whisperExitDebug(int hart)
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause)
+whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause, bool& virt_mode)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -1131,7 +1124,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& c
   if (not whisperCommand(req, reply))
     return false;
 
-  interrupt = reply.flags;
+  interrupt = reply.flags & 1;
+  virt_mode = (reply.flags & 2) != 0;
   cause = reply.value;
 
   return true;
@@ -1205,29 +1199,35 @@ whisperClient<URV>::whisperClearNmiCause(int hart, uint64_t time, uint64_t cause
 // Static function for whisper JSON override
 template <typename URV>
 void
-whisperClient<URV>::overrideWhisperJson()
+whisperClient<URV>::overrideWhisperJson(bool standalone)
 {
-  static bool whisper_json_overridden = false;
-  if (whisper_json_overridden)
-    return;
-  whisper_json_overridden = true;
+  static std::string original_whisper_json_path = "";
+  if (original_whisper_json_path == "")
+    original_whisper_json_path = FLAGS_whisper_json_path;
 
   nlohmann::json j;
   try {
-    std::ifstream f(FLAGS_whisper_json_path);
+    std::ifstream f(original_whisper_json_path);
     j = nlohmann::json::parse(f);
   }
   catch (...) {
     cvm::log(cvm::ERROR, "Error: Unable to parse whisper_json:{}\n", FLAGS_whisper_json_path);
   }
-  bool changed = false;
 
-  if (FLAGS_whisper_vmvr_ignore_vill) {
+  if (standalone)
+    j["wfi_timeout"] = 0;
+  
+  if (!standalone)
+    j["auto_increment_timer"] = FLAGS_whisper_auto_increment_timer;
+
+  if (j.contains("aclint"))
+    if (!standalone)
+      j["aclint"]["time_adjust"] = FLAGS_whisper_aclint_time_adjust;
+
+  if (FLAGS_whisper_vmvr_ignore_vill)
     j["vector"]["vmvr_ignore_vill"] = true;
-    changed = true;
-  }
+
   if (FLAGS_derr_interrupt_num_override && (FLAGS_derr_interrupt_num_override != FLAGS_derr_interrupt_num_default)) {
-    changed = true;
     if (j.contains("csr") and j["csr"].contains("mie") and j["csr"]["mie"].contains("mask")) {
       auto data = ((std::stoull(std::string(j["csr"]["mie"]["mask"]), nullptr, 0)) | (1ull << FLAGS_derr_interrupt_num_override)) & ~(1ull << FLAGS_derr_interrupt_num_default);
       j["csr"]["mie"]["mask"] = fmt::format("{:#x}", data);
@@ -1237,13 +1237,12 @@ whisperClient<URV>::overrideWhisperJson()
       j["csr"]["mip"]["mask"] = fmt::format("{:#x}", data);
     }
   }
-  if (changed) {
-    std::string whisper_override_json = "whisper_override.json";
-    cvm::log (cvm::MEDIUM, "Overriding whisper json, FLAGS_whisper_json now set to {}\n", whisper_override_json);
-    std::ofstream o(whisper_override_json);
-    o <<  std::setw(4) << j << std::endl;
-    FLAGS_whisper_json_path=whisper_override_json;
-  }
+
+  std::string whisper_override_json = standalone? "whisper_standalone.json" : "whisper_cosim.json";
+  cvm::log (cvm::MEDIUM, "Overriding whisper json, FLAGS_whisper_json now set to {}\n", whisper_override_json);
+  std::ofstream o(whisper_override_json);
+  o <<  std::setw(4) << j << std::endl;
+  FLAGS_whisper_json_path=whisper_override_json;
 }
 
 template class whisperClient<uint32_t>;

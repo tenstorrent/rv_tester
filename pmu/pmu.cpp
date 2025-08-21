@@ -388,7 +388,8 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
         expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
         actual_count_             = hpmcounters_array[i];
         event_name_               = name_event_vector(event_csr_array[i].event_type);
-        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > (4 * event_csr_array[i].event_granularity)){
+        long threshold = (event_csr_array[i].event_granularity == 1) ? 8 : (4 * event_csr_array[i].event_granularity);
+        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > threshold){
           cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i+3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
         }
       }

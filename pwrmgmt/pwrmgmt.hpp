@@ -110,6 +110,9 @@ namespace {
   constexpr uint32_t cpl_in_filter5_config      =  smc_local_base + 0x150A0;
   constexpr uint32_t cpl_in_filter5_addr_l      =  smc_local_base + 0x150A8;
   constexpr uint32_t cpl_in_filter5_addr_h      =  smc_local_base + 0x150B0;
+  constexpr uint32_t cpl_in_filter6_config      =  smc_local_base + 0x150C0;
+  constexpr uint32_t cpl_in_filter6_addr_l      =  smc_local_base + 0x150C8;
+  constexpr uint32_t cpl_in_filter6_addr_h      =  smc_local_base + 0x150D0;
   constexpr uint32_t cpl_out_filter0_config     =  smc_local_base + 0x16000;
   constexpr uint32_t cpl_out_filter0_addr_l     =  smc_local_base + 0x16008;
   constexpr uint32_t cpl_out_filter0_addr_h     =  smc_local_base + 0x16010;
