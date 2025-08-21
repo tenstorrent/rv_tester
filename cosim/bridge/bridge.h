@@ -372,7 +372,7 @@ private:
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
 
-  std::unordered_map<uint32_t, uint32_t> whisper_mip_age_, whisper_mip_age_clear_, dut_mip_age_, dut_mip_age_clear_;
+  std::unordered_map<uint32_t, uint32_t> whisper_mip_age_, whisper_mip_clr_age_, dut_mip_age_, dut_mip_clr_age_;
   std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
 
   bool prev_resync_excp_defer_intr_ = 0;
