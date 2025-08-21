@@ -53,7 +53,7 @@ DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei m
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_uint32(intr_assert_timeout_resynch, 8, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
-DEFINE_uint32(dut_mip_resynch_age, 1, "a newly asserted interrupt may not show up in the MIP if the next instruction is CSRR MIP");
+DEFINE_uint32(dut_mip_resynch_age, 2, "a newly asserted interrupt may not show up in the MIP if the next instruction is CSRR MIP");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
@@ -1043,11 +1043,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     e_mip_age_ = 0;
   for (auto& [key, value] : whisper_mip_age_)
     value++;
-  for (auto& [key, value] : whisper_mip_age_clear_)
+  for (auto& [key, value] : whisper_mip_clr_age_)
     value++;
   for (auto& [key, value] : dut_mip_age_)
     value++;
-  for (auto& [key, value] : dut_mip_age_clear_)
+  for (auto& [key, value] : dut_mip_clr_age_)
     value++;
 
   // Proceed only if DUT takes interrupt
@@ -1091,7 +1091,9 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     IF_DEBUG("dut intr==1 and whisper intr==0");
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
-    if (prev_hw_mip_[d.icause]) {
+    if ((prev_hw_mip_[d.icause]) ||
+        ((dut_mip_clr_age_.find(d.icause) != dut_mip_clr_age_.end()) && dut_mip_clr_age_[d.icause] <= FLAGS_dut_mip_resynch_age)
+       ) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch: Resynch and keep going. cause: {})\n", w.time, d.icause);
       if (d.icause != 9) {
         std::bitset<64> mip = 0;
@@ -2210,14 +2212,14 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
         return true;
       }
       bool match = true;
-      match &= is_match(dut_val_diff, whisper_mip_age_clear_, FLAGS_intr_assert_timeout_resynch);
+      match &= is_match(dut_val_diff, whisper_mip_clr_age_, FLAGS_intr_assert_timeout_resynch);
       match &= is_match(iss_val_diff, whisper_mip_age_, FLAGS_intr_assert_timeout_resynch);
       if (match) {
         bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Recently Deferred Interrupt] [dut={:#x}, iss={:#x}]\n", cycle, dut_val, iss_val);
         return true;
       }
       match = true;
-      match &= is_match(dut_val_diff, dut_mip_age_clear_, FLAGS_dut_mip_resynch_age);
+      match &= is_match(dut_val_diff, dut_mip_clr_age_, FLAGS_dut_mip_resynch_age);
       match &= is_match(iss_val_diff, dut_mip_age_,       FLAGS_dut_mip_resynch_age);
       if (match) {
         bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Recent DUT Interrupt] [dut={:#x}, iss={:#x}]\n", cycle, dut_val, iss_val);
@@ -2685,13 +2687,16 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   {
     if (ull & 1) {
       whisper_mip_age_.erase(count);
-      whisper_mip_age_clear_.erase(count);
+      whisper_mip_clr_age_.erase(count);
     }
     if (i.mip_set[count])
       dut_mip_age_[count] = 1;
-
+  }
+  ull = i.mip_clr.to_ullong();
+  for (uint32_t count=0; ull>0; ull>>=1, count++)
+  {
     if (i.mip_clr[count])
-      dut_mip_age_clear_[count] = 1;
+      dut_mip_clr_age_[count] = 1;
   }
 
 // ================================================================================================================
@@ -2818,18 +2823,18 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
   start = 0;
   while (bits_clr) {
     if (bits_clr & 1)
-      whisper_mip_age_clear_[start]++;
+      whisper_mip_clr_age_[start]++;
     start++;
     bits_clr >>=1;
   }
   if (consider_seip) {
     if (seip_new == seip_prev) {
       whisper_mip_age_.erase(SEI);
-      whisper_mip_age_clear_.erase(SEI);
+      whisper_mip_clr_age_.erase(SEI);
     } else if (seip_new) {
       whisper_mip_age_[SEI]++;
     } else {
-      whisper_mip_age_clear_[SEI]++;
+      whisper_mip_clr_age_[SEI]++;
     }
   }
 }
@@ -2923,7 +2928,7 @@ void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
   whisper_mip_age_.clear();
-  whisper_mip_age_clear_.clear();
+  whisper_mip_clr_age_.clear();
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: mip={:#x}\n", time, mip.to_ullong());
 
