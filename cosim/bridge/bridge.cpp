@@ -2854,8 +2854,12 @@ bool bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
     return false;
   }
 
-   defer_interrupt(hart, time, mip.to_ullong() | (1 << w_cause) | w_defer_mip);
-   return true;
+  auto defer_cause_mip = 1 << w_cause;
+  if (w_cause == MTI || w_cause == STI)
+    defer_cause_mip |= 1<<STI | 1<<VSTI;
+
+  defer_interrupt(hart, time, mip.to_ullong() | defer_cause_mip | w_defer_mip);
+  return true;
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
