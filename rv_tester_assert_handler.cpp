@@ -25,6 +25,6 @@ extern "C" {
     }
 
     // If not waived, cvm::ERROR
-    cvm::log(cvm::ERROR, "\nError: {}\n", msg_str);
+    cvm::log(cvm::ERROR, "\n{}\n", msg_str);
   }
 }
