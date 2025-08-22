@@ -171,7 +171,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     );
 
     if (wresp.resp != axi::RESP_OKAY) {
-        cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
+        cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
       co_return;
     }
     //std::get<1>(t) = false;
@@ -347,7 +347,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
 );
 
 if (wresp.resp != axi::RESP_OKAY) {
-    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", wresp.resp);
+    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
     co_return;
 }
   ////------------------------------
