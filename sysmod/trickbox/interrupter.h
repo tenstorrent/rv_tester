@@ -197,7 +197,7 @@ public:
       }
 
     }else{
-       cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
+       cvm::log(cvm::ERROR, "Error: [Trickbox] Wrong IMSIC interrupt file specified\n");
     }
     uint32_t length1 = 0x40;
     // std::vector<uint8_t> data1 = {interrupt_num};
@@ -258,7 +258,7 @@ protected:
         unsigned intr_vs_id = 0;
 	unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
         if(disable_flags == 0x7)
-	      cvm::log(cvm::ERROR, "[Trickbox] Cant generate IMSIC interrupts when all interrupts are disabled \n");
+	      cvm::log(cvm::ERROR, "Error:[Trickbox] Cant generate IMSIC interrupts when all interrupts are disabled \n");
 
 	do{
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr

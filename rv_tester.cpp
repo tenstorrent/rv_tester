@@ -137,7 +137,7 @@ static std::string process_preload_file(int num_ways, int num_sets, int num_bloc
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
         preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, num_sets, num_blocks, num_ways, addr_width, data_width);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
-            cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
+            cvm::log(cvm::ERROR, "Error: CSV conversion failed; no preload files generated.");
             return "";
         }
         for (int w = 0; w < num_ways; w++) {
@@ -237,7 +237,7 @@ extern "C" {
         if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
             return;
         if (m.size() > no_addr_rules) {
-            cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+            cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
         std::string preloadStr = process_preload_file(num_ways, num_sets, num_blocks, addr_width, data_width);

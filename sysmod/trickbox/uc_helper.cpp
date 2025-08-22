@@ -103,7 +103,7 @@ void
 
   if (addr == uc_helper_base) {
     if (t_data > 0)
-      cvm::log(cvm::ERROR, "[UC_Helper] Only Clearing of UC_helper Status allowed, Illegal to set status bit manually \n");
+      cvm::log(cvm::ERROR, "Error: [UC_Helper] Only Clearing of UC_helper Status allowed, Illegal to set status bit manually \n");
     tx_status = t_data & 0x1;
 
   } else if(addr == (uc_helper_base + 0x100)) {

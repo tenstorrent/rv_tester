@@ -34,10 +34,10 @@ thub_sequence::thub_sequence
 
 thub_sequence::~thub_sequence() {
   if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0) && tj_seq_done){
-    cvm::log(cvm::ERROR,"[tj_shutdown]:- ERROR: Expected to have TJ_SHUTDOWN followed by DFS \n");
+    cvm::log(cvm::ERROR,"[tj_shutdown]:- Error: Expected to have TJ_SHUTDOWN followed by DFS \n");
   }
   if(FLAGS_tj_max && (tj_max_ack_rcvd == 0) && tj_seq_done){
-    cvm::log(cvm::ERROR,"[tj_max]:- ERROR: Expected to have TJ_MAX followed by PLL Shutdown \n");
+    cvm::log(cvm::ERROR,"[tj_max]:- Error: Expected to have TJ_MAX followed by PLL Shutdown \n");
   }
   if(FLAGS_tj_shutdown || FLAGS_tj_max){
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"tj_max_ack\": \"{}\"}}\n", tj_max_ack_rcvd);
@@ -128,7 +128,7 @@ cvm::messenger::task<void> thub_sequence::tj_max_config()
           thub_select = thub_dist_8c();
           break;
       default:
-          cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
+          cvm::log(cvm::ERROR, "Error: [tj_max] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
   }
 
   co_await wait_for_tj_max_ticks();
@@ -177,7 +177,7 @@ cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
           thub_select = thub_dist_8c();
           break;
       default:
-          cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
+          cvm::log(cvm::ERROR, "Error: [tj_shutdown] Invalid FLGAS_num_cores seen.. {} .... \n",num_cores);
   }
 
   co_await wait_for_ticks();

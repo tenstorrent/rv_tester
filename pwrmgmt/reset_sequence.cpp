@@ -941,7 +941,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     for (auto i : patch_cfg) {
       data = co_await read(i.first + offset, SZ_8B);
       if (data != i.second)
-        cvm::log(cvm::ERROR, "[pwrmgmt] patch registers check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", i.first, i.second, data );
+        cvm::log(cvm::ERROR, "Error: [pwrmgmt] patch registers check addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", i.first, i.second, data );
       else
         cvm::log(cvm::NONE, "[pwrmgmt]  patch registers check : addr 0x{:x} , data 0x{:x} \n", i.first, data );
     };
@@ -990,7 +990,7 @@ cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
               co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,3);   // PMNW ID for THUB-3 
               break;
           default:
-              cvm::log(cvm::ERROR, "ERROR: [tj_max] Invalid NHARTS seen.. {} .... \n",num_cores_);
+              cvm::log(cvm::ERROR, "Error: [tj_max] Invalid NHARTS seen.. {} .... \n",num_cores_);
       }
   }
   co_return;
@@ -1032,7 +1032,7 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
     else
       exp_data = patch_ram[addr];
   if (exp_data != actual_data)
-      cvm::log(cvm::ERROR, "[pwrmgmt] patch ram check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
+      cvm::log(cvm::ERROR, "Error: [pwrmgmt] patch ram check addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
     else
       cvm::log(cvm::NONE, "[pwrmgmt]  patch ram check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
   };  
@@ -1113,7 +1113,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
     if (!exp_err_rsp && !ignore_check) {
       exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
       if ((exp_data != actual_data))
-        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
+        cvm::log(cvm::ERROR, "Error: [pwrmgmt] Fuse reg read check addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
       else
         cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
     }
@@ -1138,7 +1138,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
       actual_data = co_await read(addr, SZ_8B, boot_interface);
       exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
       if (exp_data != actual_data)
-        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg lock check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
+        cvm::log(cvm::ERROR, "Error:[pwrmgmt] Fuse reg lock check addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
       else
         cvm::log(cvm::MEDIUM, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
     } 
@@ -1153,7 +1153,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
     for (uint32_t i=0; i<FLAGS_num_harts; ++i) { 
         physical_id = co_await read(core_physical_id_mmr + i * core_fuse_offset, SZ_8B, interface);
         if (id[i] != (physical_id & 0x7))
-          cvm::log(cvm::ERROR, "[pwrmgmt] Core ID to Virtual ID mapping ERROR : Virtual id 0x{:x} ,  Expected Core ID :0x{:x}, Actual Core ID : 0x{:x} \n", i, id[i], (physical_id & 0x7) );
+          cvm::log(cvm::ERROR, "Error: [pwrmgmt] Core ID to Virtual ID mapping Virtual id 0x{:x} ,  Expected Core ID :0x{:x}, Actual Core ID : 0x{:x} \n", i, id[i], (physical_id & 0x7) );
         else
           cvm::log(cvm::NONE, "[pwrmgmt]  Core ID to Virtual ID mapping is correct : Virtual id 0x{:x} , Core ID : 0x{:x}  \n", i, id[i] );
     };
@@ -1194,7 +1194,7 @@ cvm::messenger::task<void> reset_sequence::mmr_read_write_check(uint64_t addr, i
   co_await write(addr, SZ_8B, wr_data, interface, exp_err_rsp);
   data = co_await read(addr, SZ_8B, interface, exp_err_rsp);
   if ((wr_data!=data) & !exp_err_rsp)
-    cvm::log(cvm::ERROR, "[pwrmgmt] ERROR: MMR read to addr 0x{:x} failed.  Expected :0x{:x}, Actual : 0x{:x} \n", addr, wr_data, data );
+    cvm::log(cvm::ERROR, "[pwrmgmt] Error: MMR read to addr 0x{:x} failed.  Expected :0x{:x}, Actual : 0x{:x} \n", addr, wr_data, data );
   else
     cvm::log(cvm::NONE, "[pwrmgmt]  MMR read to addr 0x{:x}, data 0x{:x}\n", addr, data );
 };

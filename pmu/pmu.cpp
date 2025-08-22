@@ -359,7 +359,7 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
         filtered_pmc_event = filtered_event_map.find((pmc_checker.event_id & 0xffff0000)>>16);
         if (pmc_event == event_map.end() && filtered_pmc_event == filtered_event_map.end()){
           if(!FLAGS_ignore_pmc_reprogram){
-            cvm::log(cvm::ERROR, "ERROR: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
+            cvm::log(cvm::ERROR, "Error: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
           }
           else{
             cvm::log(cvm::NONE, "WARNING: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
@@ -390,7 +390,7 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
         event_name_               = name_event_vector(event_csr_array[i].event_type);
         long threshold = (event_csr_array[i].event_granularity == 1) ? 8 : (4 * event_csr_array[i].event_granularity);
         if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > threshold){
-          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i+3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
+          cvm::log(cvm::ERROR, "Error: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i+3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
         }
       }
     }

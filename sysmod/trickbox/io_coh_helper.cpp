@@ -59,7 +59,7 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     data[0] = rdata_byte_vec[read_counter];
     read_counter++;
     }else{
-    cvm::log(cvm::ERROR, "[io_coh_helper] read request exceeded programmed read size: {:#x} \n", tx_size);
+    cvm::log(cvm::ERROR, "Error:[io_coh_helper] read request exceeded programmed read size: {:#x} \n", tx_size);
     }
 
   }
@@ -387,7 +387,7 @@ void
 
   if (addr == io_coh_helper_base) {
     if (t_data > 0)
-      cvm::log(cvm::ERROR, "[io_coh_helper] Only Clearing of io_coh_helper Status allowed, Illegal to set status bit manually \n");
+      cvm::log(cvm::ERROR, "Error:[io_coh_helper] Only Clearing of io_coh_helper Status allowed, Illegal to set status bit manually \n");
     tx_status = t_data & 0x1;
     wdata_vec = {};
 
@@ -429,7 +429,7 @@ void
     
     if(tx_type == 0){
     if(wdata_vec.size()!= tx_size){
-      cvm::log(cvm::ERROR, "[io_coh_helper] wdata vector size doesnt match programmed size \n");
+      cvm::log(cvm::ERROR, "Error: [io_coh_helper] wdata vector size doesnt match programmed size \n");
 
     }else{
       overlay_write(tx_addr);

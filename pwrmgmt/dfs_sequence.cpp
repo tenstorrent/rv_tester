@@ -68,7 +68,7 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
     pll_parameter_reg = pll_parameters0;
     pll_under_dfs = 0;
   } else {
-    cvm::log(cvm::ERROR, " No PLLs active\n");
+    cvm::log(cvm::ERROR, "Error: No PLLs active\n");
   }
 
   uint32_t clock_profile = (rand()%6)+1;
@@ -94,7 +94,7 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
 
     count++;
     if (count > FLAGS_pll_dfs_timeout)
-      cvm::log(cvm::ERROR, "PLL dfs not done after {} soc clocks\n", FLAGS_pll_dfs_timeout);
+      cvm::log(cvm::ERROR, "Error: PLL dfs not done after {} soc clocks\n", FLAGS_pll_dfs_timeout);
   }
   cvm::log(cvm::MEDIUM, "[dfs_sequence] Core frequency change successful. DFS complete\n");
   co_return;

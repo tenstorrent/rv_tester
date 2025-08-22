@@ -82,7 +82,7 @@ bool memmap::parse() {
           std::string log_str;
           log_str += fmt::format("\n\n");
           log_str += fmt::format("****************************************** \n");
-          log_str += fmt::format(" ERROR: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
+          log_str += fmt::format(" Error: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
           log_str += fmt::format("****************************************** \n");
           cvm::log(cvm::NONE, fmt::to_string(log_str));
           overlapDetected = true;
@@ -96,7 +96,7 @@ bool memmap::parse() {
         cvm::log(cvm::LOW,"\n\n");
         cvm::log(cvm::LOW,"******************************************************* \n");
         cvm::log(cvm::LOW,"******************************************************* \n");
-        cvm::log(cvm::ERROR,"\nERROR: Memmap.json check failed, Stopping simulation memmap.json has overlaps \n");
+        cvm::log(cvm::ERROR,"\nError: Memmap.json check failed, Stopping simulation memmap.json has overlaps \n");
         cvm::log(cvm::LOW,"******************************************************* \n");
         cvm::log(cvm::LOW,"******************************************************* \n");
         assert(false);
