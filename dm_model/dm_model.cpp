@@ -97,7 +97,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t dm_loc, unsigned) : program_
   // }
   
   cvm::log(cvm::NONE,"\nConstructing DM Model.. with loc %d\n",loc);
-  reset();
+  reset(true);
 }
 
 void debug_module_t::configure(){
