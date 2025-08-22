@@ -89,8 +89,20 @@ public:
     cvm::log(cvm::FULL, "[Debugger]: Tick, timer:{} advance:{}\n",timer_,advance);
     if(timer_ > (5*advance)){ 
     checkDebugEvents();
-
-    drive_csv_dmi_cmds();
+    if (cmd_exc_trig_rcv){ 
+      unsigned upper_dmi_data = 0;
+      unsigned lower_dmi_data = 0;
+      unsigned hart = 0;
+      upper_dmi_data = t_data_buf >> 32;
+      lower_dmi_data = t_data_buf & 0xffffffff;
+      hart = 0;                                               // hart bits position TBD, till TBD it is always zero
+      trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
+      cmd_exc_trig_rcv = false;
+      t_data_buf = 0;
+    }
+    else{
+      drive_csv_dmi_cmds();
+    }
     }
   }
 
@@ -275,6 +287,7 @@ private:
   uint64_t cmd_trigger_rand_debug = 3000;
   uint32_t rand_dbg_entry_cmd_trigger = 0;
   uint32_t file_parsing_done = 0; 
+  uint64_t t_data_buf = 0
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
@@ -305,5 +318,6 @@ private:
   std::string dbg_snippets_name = "";
   bool dut_reset_req = false;
   bool ndm_reset_occured = false;
+  bool cmd_exc_trig_rcv = false;
   uint64_t clocks=0,divisor=0;
 };

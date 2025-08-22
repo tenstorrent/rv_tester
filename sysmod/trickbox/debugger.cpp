@@ -439,13 +439,9 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
   if (addr == debugger_command_exec_trigger && !FLAGS_random_dbg_entry)
   {
     cvm::log(cvm::NONE, "[Trickbox] Debugger command Execution trigger\n");
-    unsigned upper_dmi_data = 0;
-    unsigned lower_dmi_data = 0;
-    unsigned hart = 0;
-    upper_dmi_data = t_data >> 32;
-    lower_dmi_data = t_data & 0xffffffff;
-    hart = 0;                                               // hart bits position TBD, till TBD it is always zero
-    trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
+    cmd_exc_trig_rcv = true;
+    t_data_buf = t_data;
+    // trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
   }
 
   if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !ndm_reset_occured)
