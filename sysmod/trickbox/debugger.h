@@ -287,7 +287,7 @@ private:
   uint64_t cmd_trigger_rand_debug = 3000;
   uint32_t rand_dbg_entry_cmd_trigger = 0;
   uint32_t file_parsing_done = 0; 
-  uint64_t t_data_buf = 0
+  uint64_t t_data_buf = 0;
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
