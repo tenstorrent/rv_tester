@@ -68,7 +68,7 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
     pll_parameter_reg = pll_parameters0;
     pll_under_dfs = 0;
   } else {
-    cvm::log(cvm::ERROR, " No PLLs active\n");
+    cvm::log(cvm::ERROR, "Error: No PLLs active\n");
   }
 
   uint32_t clock_profile = (rand()%6)+1;
