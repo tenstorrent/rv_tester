@@ -278,7 +278,7 @@ void jtag_sequence::parse_jtag_from_csv() {
           cond_log(cvm::FULL, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_lower: {}\n", jtag_req.jtag_ip_data_lower);
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
 
         try {
@@ -286,7 +286,7 @@ void jtag_sequence::parse_jtag_from_csv() {
           cond_log(cvm::FULL, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_upper: {}\n", jtag_req.jtag_ip_data_upper);
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       } else {
         try {
@@ -294,7 +294,7 @@ void jtag_sequence::parse_jtag_from_csv() {
           jtag_req.jtag_ip_data_upper = 0;
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       }
       if ((jtag_req.jtag_cmd < 3) || (jtag_req.jtag_cmd == 6) || (jtag_req.jtag_cmd == 4)) {
@@ -302,7 +302,7 @@ void jtag_sequence::parse_jtag_from_csv() {
           jtag_req.jtag_length_data = std::stoul(length, nullptr, 10);
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       } else if (jtag_req.jtag_cmd == 12) {
         jtag_req.jtag_length_data = 64;
@@ -319,7 +319,7 @@ void jtag_sequence::parse_jtag_from_csv() {
       // cvm::log(cvm::MEDIUM, "Pushing jtag request: op {} addr {:#x} data {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data);
     }
   } else {
-    cvm::log(cvm::ERROR, "[jtag_sequence]Error: Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
+    cvm::log(cvm::ERROR, "Error: [jtag_sequence] Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
     jtag_quit();
   }
 
@@ -388,7 +388,7 @@ void jtag_sequence::process_input_string(std::string line) {
     jtag_req.jtag_cmd = 11;
 
   } else {
-    cvm::log(cvm::ERROR, "[jtag_sequence]Error: unknown command {} in jtag cfg file {}\n", jtag_cmd, FLAGS_jtag_input_file_path);
+    cvm::log(cvm::ERROR, "Error: [jtag_sequence] unknown command {} in jtag cfg file {}\n", jtag_cmd, FLAGS_jtag_input_file_path);
   }
 
   if (jtag_req.jtag_cmd < 3 || jtag_req.jtag_cmd == 4) {
@@ -547,7 +547,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
             cond_log(cvm::MEDIUM, "[jtag_sequence] jtag check opcode Passed! expected 0x{:x} got 0x{:x} tap_select is {} \n", lower_jtag_data, convertedArray[0], tapToString(tap_cfg_sel));
           } else {
             // FAIL
-            cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", lower_jtag_data, convertedArray[0], tapToString(tap_cfg_sel));
+            cvm::log(cvm::ERROR, "\nError: [jtag_sequence] jtag check opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", lower_jtag_data, convertedArray[0], tapToString(tap_cfg_sel));
             jtag_quit();
           }
         } else if (jtag_cmd == 12) {
@@ -557,7 +557,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
           } else {
             // FAIL
             cvm::log(cvm::MEDIUM, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask 0x{:x} expected 0x{:x} tap_select is {} \n", convertedArray[0], lower_jtag_data, jtag_cm_value, tapToString(tap_cfg_sel));
-            cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", jtag_cm_value, (convertedArray[0] & lower_jtag_data), tapToString(tap_cfg_sel));
+            cvm::log(cvm::ERROR, "\nError: [jtag_sequence] jtag check mask opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", jtag_cm_value, (convertedArray[0] & lower_jtag_data), tapToString(tap_cfg_sel));
             jtag_quit();
           }
         }
@@ -595,7 +595,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
           cond_log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -637,7 +637,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
       }
 
       if (jtag_cmd == 6) {  // le loop end, checkbitNum, CheckbitValue
-        cvm::log(cvm::ERROR, "ERROR: [jtag_sequence] jtag loop end detected without loop start \n");
+        cvm::log(cvm::ERROR, "Error: [jtag_sequence] jtag loop end detected without loop start \n");
         jtag_quit();
       }
 
@@ -711,7 +711,7 @@ void jtag_sequence::drive_jtag_cmds() {
         } else {
           // FAIL
           cvm::log(cvm::MEDIUM, "[jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n", reg_length_data, loop_rdata, lower_jtag_data, mask, (1 << reg_length_data));
-          cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_sel{} \n", lower_jtag_data, result, tapToString(tap_cfg_sel));
+          cvm::log(cvm::ERROR, "\nError: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_sel{} \n", lower_jtag_data, result, tapToString(tap_cfg_sel));
           jtag_quit();
         }
         jtag_cmd_q.pop();  // pop front eleme7t
@@ -763,7 +763,7 @@ void jtag_sequence::drive_jtag_cmds() {
           cond_log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
 
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
+          cvm::log(cvm::ERROR, "Error: [jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -805,7 +805,7 @@ void jtag_sequence::drive_jtag_cmds() {
       }
 
       if (jtag_cmd == 6) {  // le loop end, checkbitNum, CheckbitValue
-        cvm::log(cvm::ERROR, "ERROR: [jtag_sequence] jtag loop end detected without loop start \n");
+        cvm::log(cvm::ERROR, "Error: [jtag_sequence] jtag loop end detected without loop start \n");
       }
 
     } else {

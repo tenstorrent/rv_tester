@@ -46,7 +46,7 @@ static std::tuple<bool, uint64_t, uint64_t> get_uint64_pair(std::string_view val
     using std::operator""sv;
     auto range = std::views::split(value, ":"sv);
     if (std::distance(range.begin(), range.end()) != 2) {
-      cvm::log(cvm::ERROR, "Expecting <min>:<max> format for add response latency range: %s\n", value);
+      cvm::log(cvm::ERROR, "Error: Expecting <min>:<max> format for add response latency range: %s\n", value);
       return {false, 0, 0};
     }
 
@@ -56,7 +56,7 @@ static std::tuple<bool, uint64_t, uint64_t> get_uint64_pair(std::string_view val
     auto max = std::stoull(std::string((*it).begin(), (*it).end()), nullptr, 0);
 
     if ((min >= max) || (max >= 65536)) {
-      cvm::log(cvm::ERROR, "Invalid add response latency range: %s, must be <= 65535 and min < max\n", value);
+      cvm::log(cvm::ERROR, "Error: Invalid add response latency range: %s, must be <= 65535 and min < max\n", value);
       return {false, min, max};
     }
     return {true, min, max};

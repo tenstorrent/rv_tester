@@ -163,7 +163,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
   if (FLAGS_debug_enable == 0x2 || FLAGS_debug_enable == 0x0) { //TODO: Add flags when AXI traffic is enabled via DTM
     if (dmi_resp.resp != 0x2){
       if (!FLAGS_dm_model_check_bypass)
-        cvm::log(cvm::ERROR, "[Error] Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp);
+        cvm::log(cvm::ERROR, "Error: Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp);
       else
         cvm::log(cvm::NONE, "[Mismatch] Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp); 
     }
@@ -174,7 +174,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
   {
     if ((actual_data != req_expect) && !dmstatus.ndmresetpending){
       if(!FLAGS_dm_model_check_bypass)
-        cvm::log(cvm::ERROR, "[Error] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
+        cvm::log(cvm::ERROR, "Error: Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
       else
         cvm::log(cvm::NONE, "[Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect); 
     }
@@ -187,7 +187,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
 
         if ((masked_actual_data != masked_req_expect)){
           if(!FLAGS_dm_model_check_bypass)
-            cvm::log(cvm::ERROR, "[Error] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect);
+            cvm::log(cvm::ERROR, "Error: Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect);
           else
             cvm::log(cvm::NONE, "[Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect); 
         }
@@ -257,7 +257,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
       else {
         reflow_flags = false;
         if (!FLAGS_dm_model_check_bypass)
-          cvm::log(cvm::ERROR, "[Error] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+          cvm::log(cvm::ERROR, "Error: The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
         else 
           cvm::log(cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
       }
@@ -321,7 +321,7 @@ if (dm_req.dm_ms_req) {
     cvm::log(cvm::MEDIUM, "DM VID/PID CHECKER :: Correct DM req includes Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
              dm_req.dm_ms_req, dmcontrol.hartsel, expected_pid);
   } else {
-    cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER :: Incorrect DM req does not include Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
+    cvm::log(cvm::ERROR, "Error: DM VID/PID CHECKER :: Incorrect DM req does not include Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
              dm_req.dm_ms_req, dmcontrol.hartsel, expected_pid);
   }
 }
@@ -453,7 +453,7 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
   }
 
   if (!FLAGS_dm_model_check_bypass)
-    cvm::log(cvm::ERROR, "ERROR: invalid load from debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
+    cvm::log(cvm::ERROR, "Error: invalid load from debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
   else
     cvm::log(cvm::NONE, "Mismatch: invalid load from debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
 
@@ -593,7 +593,7 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
   }
 
   if (!FLAGS_dm_model_check_bypass)
-    cvm::log(cvm::ERROR, "ERROR: invalid store to debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
+    cvm::log(cvm::ERROR, "Error: invalid store to debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
   else
     cvm::log(cvm::NONE, "Mismatch: invalid store to debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
 
@@ -829,7 +829,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       result = 0;
 
       if (!FLAGS_dm_model_check_bypass & !FLAGS_dry_space_access)
-        cvm::log(cvm::ERROR, "Unexpected Register [Maybe not part of this implementation]. Returning Error.\n");
+        cvm::log(cvm::ERROR, "Error: Unexpected Register [Maybe not part of this implementation]. Returning Error.\n");
       else 
         cvm::log(cvm::NONE, "Unexpected Register [Maybe not part of this implementation] \n");
 

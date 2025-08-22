@@ -120,7 +120,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
 
   // ---- Unknown write ----
   else {
-	  cvm::log(cvm::ERROR, "[Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
+	  cvm::log(cvm::ERROR, "Error:[Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
   }
 
 

@@ -185,13 +185,13 @@ class jtag_sequence {
           if (FLAGS_continue_on_jtag_err) {
             cond_log(cvm::LOW, "[jtag_sequence]: Ignoring jtag Maximum number of polling attempts reached {}\n",loop_execution_cnt);
          } else {
-            cvm::log(cvm::ERROR, "[jtag_sequence]: ERROR: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+            cvm::log(cvm::ERROR, "Error: [jtag_sequence]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
             jtag_quit();
           }
         }
       }
    } else {
-      cvm::log(cvm::ERROR, "[jtag_sequence]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
+      cvm::log(cvm::ERROR, "Error: [jtag_sequence]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
       jtag_quit();
     }
   }
@@ -381,7 +381,7 @@ class jtag_sequence {
       jtag_rdata_shifted = jtag_rdata>>1;
       jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
     } else { //
-      cvm::log(cvm::ERROR, "\n[jtag_sequence] Data check not allowed for tap {}\n", tap_cfg_sel);
+      cvm::log(cvm::ERROR, "\nError: [jtag_sequence] Data check not allowed for tap {}\n", tap_cfg_sel);
       jtag_quit();
     }
 

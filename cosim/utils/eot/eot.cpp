@@ -80,14 +80,14 @@ void eot::init_tohost_addr() {
   // 3. htif address from memmap
   std::map<std::string, memmap_entry_t> m;
   if(!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
-      cvm::log(cvm::ERROR, "Unable to get memmap\n");
+      cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
 
   if (m.count("htif") > 0) {
     tohost_addr_ = m.at("htif").base;
     FLAGS_tohost = tohost_addr_;
     cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", tohost_addr_);
   } else {
-    cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
+    cvm::log(cvm::ERROR, "Error: [eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
 }
 
@@ -218,7 +218,7 @@ void eot::eot_terminate(bool passed) {
 void eot::mem_checks_snoop() {
   std::map<std::string, memmap_entry_t> m;
   if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
-    cvm::log(cvm::ERROR, "Unable to get memmap\n");
+    cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
   uint64_t secure_mem_region_start;
@@ -335,7 +335,7 @@ eot::~eot() {
        return; 
     for(const auto i : instr_count_) {
         if (i < FLAGS_min_instr) {
-            cvm::log(cvm::ERROR, "Hart:<{}> Error: instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
+            cvm::log(cvm::ERROR, "Error: Hart:<{}> instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
         }
         h++;
     }

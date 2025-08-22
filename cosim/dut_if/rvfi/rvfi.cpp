@@ -1537,7 +1537,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Hart {}: Failed mcm devict\n", m_mcmi_devict.hart);
+    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict\n", m_mcmi_devict.hart);
     return;
   }
 
@@ -1559,7 +1559,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_f
   }
 
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart, m_mcmi_flush.cycle, m_mcmi_flush.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Hart {}: Failed mcm devict\n", m_mcmi_flush.hart);
+    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict\n", m_mcmi_flush.hart);
     return;
   }
 }
@@ -1575,7 +1575,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
 
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback\n");
     return;
   }
 
@@ -1592,7 +1592,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_
 
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_dfetch.cycle, m_mcmi_dfetch.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback\n");
     return;
   }
 
