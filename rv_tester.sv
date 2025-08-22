@@ -172,7 +172,7 @@ module rv_tester
     logic warm_reset_en = 0;
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
-    logic warm_reset_sdtrig;
+    logic dmi_warm_reset;
 
     int num_resets = -1;
     int num_builds = -1;
@@ -719,22 +719,21 @@ module rv_tester
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;
     logic ndmreset_ack_clocks_latched = 1'b0;
+    logic warm_reset_latched;
+
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
+        warm_reset_latched <= warm_reset;  // Track previous state of warm_reset
         if(cold_reset === 1'b0)begin
-        if (!dut_reset_req) begin
+        if (!dut_reset_req && (warm_reset_latched == 1'b1) && (warm_reset == 1'b0)) begin
             ndmreset_ack_clocks_latched <= 1'b0;
             ndmreset_ack <= 1'b0;
         end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
             ndmreset_ack_clocks <= clocks;
             ndmreset_ack_clocks_latched <= 1'b1;
         end
-        //else begin
-        //    ndmreset_ack_clocks_latched <= 1'b0;
-        //    ndmreset_ack <= 1'b0;
-        //end
-     /* verilator lint_off WIDTHEXPAND */
-        if (ndmreset_ack_clocks_latched && (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))) begin
+        /* verilator lint_off WIDTHEXPAND */
+        else if (ndmreset_ack_clocks_latched && (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))) begin
         /* verilator lint_on WIDTHEXPAND */
             ndmreset_ack <= 1'b1;
         end
@@ -818,7 +817,7 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .core_clk(dut_clk[CORE_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
-        .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
+        .dmi_warm_reset(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
         .rand_dmi_driver_dly,
         .hart_enable_mask,

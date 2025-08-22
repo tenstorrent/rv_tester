@@ -97,7 +97,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t dm_loc, unsigned) : program_
   // }
   
   cvm::log(cvm::NONE,"\nConstructing DM Model.. with loc %d\n",loc);
-  reset();
+  reset(true,true);
 }
 
 void debug_module_t::configure(){
@@ -341,9 +341,17 @@ void debug_module_t::init_debug_abstract_buffer(){
   debug_module_t::write32(debug_abstract, i++, ebreak()); // 4 (high)
 }
 
-void debug_module_t::reset(bool is_dm_only_reset)
+void debug_module_t::reset(bool core_reset, bool dm_reset)
 {
-  cvm::log(cvm::NONE,"\nReset DM Model.. \n");
+  if (core_reset && dm_reset) {
+    cvm::log(cvm::NONE,"\n[DM_MODEL] Reset:: Full reset\n");
+  }
+  else if (core_reset) {
+    cvm::log(cvm::NONE,"\n[DM_MODEL] Reset:: Core only\n");
+  }
+  else if (dm_reset) {
+    cvm::log(cvm::NONE,"\n[DM_MODEL] Reset:: DM registers only\n");
+  }
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
 
   // Keeping everything available, but will get it from fuse map
@@ -356,39 +364,42 @@ void debug_module_t::reset(bool is_dm_only_reset)
 
     cvm::log(cvm::HIGH,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
   }
-  
-  for (const auto &[hart_id, hart] : harts)
-  { // harts
-    hart->halt_request = hart->HR_NONE;
-    hart_state[hart_id].resumeack = false;
-  }
 
-  memset(&dmcontrol, 0, sizeof(dmcontrol));
-  memset(&dmcs2, 0, sizeof(dmcs2));
-
-  memset(&abstractcs, 0, sizeof(abstractcs));
-  abstractcs.datacount = sizeof(dmdata) / 4;
-  abstractcs.progbufsize = config.progbufsize;
-
-  memset(&abstractauto, 0, sizeof(abstractauto));
- 
-  if (!is_dm_only_reset) {
+  if (dm_reset) { 
     memset(&dmstatus, 0, sizeof(dmstatus));
+    memset(&dmcontrol, 0, sizeof(dmcontrol));
     dmstatus.impebreak = config.support_impebreak;
     dmstatus.authenticated = !config.require_authentication;
     dmstatus.version = 3;
+
+    memset(&abstractcs, 0, sizeof(abstractcs));
+    abstractcs.datacount = sizeof(dmdata) / 4;
+    abstractcs.progbufsize = config.progbufsize;
+
+    memset(&abstractauto, 0, sizeof(abstractauto));
+
+    // Initialize the Debug Abstract Command Buffer
+    init_debug_abstract_buffer();
+
+    cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x388); //Fixed value as per the implementation
+    cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
+    cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
+  }
+  if (core_reset) {
+    memset(&dmcs2, 0, sizeof(dmcs2));
+    
+    for (const auto &[hart_id, hart] : harts)
+    { // harts
+      hart->halt_request = hart->HR_NONE;
+      hart_state[hart_id].halted = false;
+      hart_state[hart_id].resumeack = false;
+    }
+    
     for (auto &ele : hart_state)
     { // Add havereset for all the core
       ele.havereset = true;
+    }
   }
-  }
-
-  cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x388); //Fixed value as per the implementation
-  cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
-  cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
-
-  // Initialize the Debug Abstract Command Buffer
-  init_debug_abstract_buffer();
 }
 
 bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
@@ -680,7 +691,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     {
     case DM_DMCONTROL:
     {
-      result = set_field(result, DM_DMCONTROL_HALTREQ, dmcontrol.haltreq);
+      result = set_field(result, DM_DMCONTROL_HALTREQ, 0);
       result = set_field(result, DM_DMCONTROL_RESUMEREQ, dmcontrol.resumereq);
       result = set_field(result, DM_DMCONTROL_ACKHAVERESET, dmcontrol.ackhavereset);
       result = set_field(result, DM_DMCONTROL_HARTSELHI,
@@ -1264,7 +1275,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
     {
       cvm::log(cvm::HIGH, "Inside the DMCONTROL Write Event - 001 with num harts:{:#x}\n", harts.size());
       if (!dmcontrol.dmactive && get_field(value, DM_DMCONTROL_DMACTIVE)) 
-        reset(true);
+        reset(false,true);
       dmcontrol.dmactive = get_field(value, DM_DMCONTROL_DMACTIVE);
       if (!dmstatus.authenticated || !dmcontrol.dmactive)
         return true;
@@ -1273,6 +1284,8 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       dmcontrol.resumereq = get_field(value, DM_DMCONTROL_RESUMEREQ);
       dmcontrol.hartreset = get_field(value, DM_DMCONTROL_HARTRESET);
       dmcontrol.ndmreset = get_field(value, DM_DMCONTROL_NDMRESET);
+      if (dmcontrol.ndmreset)
+        reset(true,false);
       if (config.support_hasel)
         dmcontrol.hasel = get_field(value, DM_DMCONTROL_HASEL);
       else

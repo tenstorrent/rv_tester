@@ -5,7 +5,7 @@ import rv_tester_params:: * ;
     input logic                     clk,
     input logic                     core_clk,
     input logic                     reset_n,
-    input logic                     warm_reset_sdtrig,
+    input logic                     dmi_warm_reset,
 
     input logic                     dmi_driver_dbg_enable,
     input logic [31:0]              rand_dmi_driver_dly,
@@ -247,7 +247,7 @@ import rv_tester_params:: * ;
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
 
-    if ((~reset_n || end_of_test_cleanup) || (~warm_reset_sdtrig && (trigger_config != 0))) begin
+    if ((~reset_n || end_of_test_cleanup) || (~dmi_warm_reset && (trigger_config != 0))) begin
       reset_cleanup();
     end
   end
@@ -853,7 +853,7 @@ import rv_tester_params:: * ;
               end
             end
             if(abscmd_hang_counter) begin
-              if(abscmd_counter == abscmd_hang_counter)begin
+              if(abscmd_counter == abscmd_hang_counter || ~dmi_warm_reset)begin
                 abstr_cmd_req = 0;
                 poll = 0;
                 $display("[Poll] Clearing abc cmd poll as the core is hung; abscmd_counter: %0d", abscmd_counter);
