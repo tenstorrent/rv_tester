@@ -117,39 +117,6 @@ typedef enum : uint64_t {
     CR_CTIME           = 0x4200'0008
 } aclint_addr;
 
-std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
-    {AC_MTIMECMP0,   {"AC_MTIMECMP0", 0x4218'8000, 8, 0xffffffff}},
-    {AC_MTIMECMP1,   {"AC_MTIMECMP1", 0x4218'8008, 8, 0xffffffff}},
-    {AC_MTIMECMP2,   {"AC_MTIMECMP2", 0x4218'8010, 8, 0xffffffff}},
-    {AC_MTIMECMP3,   {"AC_MTIMECMP3", 0x4218'8018, 8, 0xffffffff}},
-    {AC_MTIMECMP4,   {"AC_MTIMECMP4", 0x4218'8020, 8, 0xffffffff}},
-    {AC_MTIMECMP5,   {"AC_MTIMECMP5", 0x4218'8028, 8, 0xffffffff}},
-    {AC_MTIMECMP6,   {"AC_MTIMECMP6", 0x4218'8030, 8, 0xffffffff}},
-    {AC_MTIMECMP7,   {"AC_MTIMECMP7", 0x4218'8038, 8, 0xffffffff}},
-    {AC_MTIMECMP8,   {"AC_MTIMECMP8", 0x4218'8040, 8, 0xffffffff}},
-    {AC_MTIME,       {"AC_MTIME", 0x4218'0000, 8, 0x0, 0x0, 0xffffffffffffffff}},
-    {AC_CLUSTERFUSE, {"AC_CLUSTERFUSE", 0x4218'FFF8, 8, 0x0, 0xffffffffffffffff, 0xffffffffffffffff}},
-    {AC_TIMESYNC,    {"AC_TIMESYNC", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
-    {CR_WTIME,       {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0xffffffffffffffff}},
-    {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
-};
-
-std::unordered_map<aclint_addr, pendingRequests> mmrReqFlags = {
-    {AC_MTIMECMP0   , {0, 0}},
-    {AC_MTIMECMP1   , {0, 0}},
-    {AC_MTIMECMP2   , {0, 0}},
-    {AC_MTIMECMP3   , {0, 0}},
-    {AC_MTIMECMP4   , {0, 0}},
-    {AC_MTIMECMP5   , {0, 0}},
-    {AC_MTIMECMP6   , {0, 0}},
-    {AC_MTIMECMP7   , {0, 0}},
-    {AC_MTIMECMP8   , {0, 0}},
-    {AC_MTIME       , {0, 0}},
-    {AC_TIMESYNC    , {0, 0}},
-    {AC_CLUSTERFUSE , {0, 0}},
-    {CR_WTIME       , {0, 0}},
-    {CR_CTIME       , {0, 0}}
-};
 
 
 class aclint_checker {
@@ -185,15 +152,49 @@ class aclint_checker {
         // cvm::file_logger log;
         void reset();
 
-    std::vector < MmrWr > cr_ac_mmr_v_;
-    std::vector < MmrWr > axi_ac_cr_mmr_v_;
-    std::vector < MmrWr > axi_ac_smc_mmr_v_;
-    std::vector < MmrWr > smc_ac_mmr_v_;
-    const uint64_t cluster_id_end_ = 25;
-    const uint64_t cluster_id_start_ = 21;
-    const uint64_t mmr_base_start_ = 27;
-    int unsigned smc_monitor_loc = cvm::topology::get_from_type("PLATFORM", 0);
-    svScope aclint_checker_scope_;
+        std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
+            {AC_MTIMECMP0,   {"AC_MTIMECMP0", 0x4218'8000, 8, 0xffffffff}},
+            {AC_MTIMECMP1,   {"AC_MTIMECMP1", 0x4218'8008, 8, 0xffffffff}},
+            {AC_MTIMECMP2,   {"AC_MTIMECMP2", 0x4218'8010, 8, 0xffffffff}},
+            {AC_MTIMECMP3,   {"AC_MTIMECMP3", 0x4218'8018, 8, 0xffffffff}},
+            {AC_MTIMECMP4,   {"AC_MTIMECMP4", 0x4218'8020, 8, 0xffffffff}},
+            {AC_MTIMECMP5,   {"AC_MTIMECMP5", 0x4218'8028, 8, 0xffffffff}},
+            {AC_MTIMECMP6,   {"AC_MTIMECMP6", 0x4218'8030, 8, 0xffffffff}},
+            {AC_MTIMECMP7,   {"AC_MTIMECMP7", 0x4218'8038, 8, 0xffffffff}},
+            {AC_MTIMECMP8,   {"AC_MTIMECMP8", 0x4218'8040, 8, 0xffffffff}},
+            {AC_MTIME,       {"AC_MTIME", 0x4218'0000, 8, 0x0, 0x0, 0xffffffffffffffff}},
+            {AC_CLUSTERFUSE, {"AC_CLUSTERFUSE", 0x4218'FFF8, 8, 0x0, 0xffffffffffffffff, 0xffffffffffffffff}},
+            {AC_TIMESYNC,    {"AC_TIMESYNC", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
+            {CR_WTIME,       {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0xffffffffffffffff}},
+            {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
+        };
+
+        std::unordered_map<aclint_addr, pendingRequests> mmrReqFlags = {
+            {AC_MTIMECMP0   , {0, 0}},
+            {AC_MTIMECMP1   , {0, 0}},
+            {AC_MTIMECMP2   , {0, 0}},
+            {AC_MTIMECMP3   , {0, 0}},
+            {AC_MTIMECMP4   , {0, 0}},
+            {AC_MTIMECMP5   , {0, 0}},
+            {AC_MTIMECMP6   , {0, 0}},
+            {AC_MTIMECMP7   , {0, 0}},
+            {AC_MTIMECMP8   , {0, 0}},
+            {AC_MTIME       , {0, 0}},
+            {AC_TIMESYNC    , {0, 0}},
+            {AC_CLUSTERFUSE , {0, 0}},
+            {CR_WTIME       , {0, 0}},
+            {CR_CTIME       , {0, 0}}
+        };
+
+        std::vector < MmrWr > cr_ac_mmr_v_;
+        std::vector < MmrWr > axi_ac_cr_mmr_v_;
+        std::vector < MmrWr > axi_ac_smc_mmr_v_;
+        std::vector < MmrWr > smc_ac_mmr_v_;
+        const uint64_t cluster_id_end_ = 25;
+        const uint64_t cluster_id_start_ = 21;
+        const uint64_t mmr_base_start_ = 27;
+        int unsigned smc_monitor_loc = cvm::topology::get_from_type("PLATFORM", 0);
+        svScope aclint_checker_scope_;
 };
 
 #endif
