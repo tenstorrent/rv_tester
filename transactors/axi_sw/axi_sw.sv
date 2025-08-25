@@ -261,7 +261,8 @@ module axi_sw #(
       int unsigned lfsr_seed_``tx = '0;                                              \
       int unsigned lfsr_mask_``tx = '0;                                              \
       int unsigned lfsr_out_``tx;                                                    \
-      logic tx``_ready_random = (lfsr_out_``tx & lfsr_mask_``tx``) == 32'd0;           \
+      logic tx``_ready_random;                                                       \
+      assign tx``_ready_random = (lfsr_out_``tx & lfsr_mask_``tx``) == 32'd0;        \
       cvm_lfsr #(                                                                    \
           .WIDTH(32'd32),                                                            \
           .NUM_TAPS(32'd4),                                                          \
