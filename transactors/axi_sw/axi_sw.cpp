@@ -228,6 +228,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,
                            axi::cache_mem_attr_t(ar.cache), ar.prot, ar.qos, ar.region, 0, ar.user};
 
+    ++pending_reads_;
     if (FLAGS_axi_sw_reorder_window <= 1)
       co_await a(std::move(aa));
     else {
@@ -268,6 +269,14 @@ void axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t
             d.notify_one();
         }
     } _(*r_q_ptr.done);
+
+    // It's possible that we flush on the same cycle due to a normal rptr update.
+    // We allow this to pass on sim since we would flush it on the same cycle, but on zebu
+    // we would almost certainly timeout, so we return an error.
+    if (pending_reads_ == 0 and not FLAGS_cb_async) {
+      *r_q_ptr.successful = true;
+      return;
+    }
 
     cvm::log(cvm::FULL, "[axi_sw] r_q_ptr_blocking_update: [rptr={} clock={}]\n", r_q_ptr.r_ptr, r_q_ptr.clock);
     assert(r_q_ptr.clock > r_dpi_fifo_.rptr_update_time_);
@@ -354,6 +363,7 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       auto [valid, result] = axi_->r(false);
       if (!valid)
         break;
+      --pending_reads_;
       cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_dpi_fifo_.wptr_, r_dpi_fifo_.rptr_);
       r_dpi_fifo_.wptr_ = (r_dpi_fifo_.wptr_ + 1) % r_dpi_fifo_.ptr_max_;
       {
