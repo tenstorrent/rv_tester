@@ -1071,6 +1071,20 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (FLAGS_bridge_log)
       bridge_log_(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
+    uint64_t w_defer_mip = 0;
+    bool valid;
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::DeferredInterrupts, w_defer_mip, valid)|| !valid) && FLAGS_whisper_client_check)
+      error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
+    if (!(w_defer_mip & (1ull << w_cause)) && intr_age_[w_cause] <= 1) {
+      // Defer interrupt if not already deferred but only if it appears at mret boundary etc
+      // DUT/Whisper are expected to take any pending interrupt
+      std::bitset<64> w_mip;
+      peek_mip(hart, w.time, w_mip);
+      if (w_mip[w_cause]) {
+       bridge_log_(cvm::MEDIUM, "<{}> Interrupt cause:[{}] not deferred earlier, deferring (possibly mret)\n", w.time, w_cause);
+       defer_interrupt(hart, w.time, (w_defer_mip | (uint64_t)1 << w_cause));
+      }
+    }
     // Check that interrupt age is not beyond threshold
     if ((intr_age_[w_cause] > FLAGS_max_pend_intr_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
       error("Hart {}: Whisper wants to take interrupt, DUT does not. wcause: [{}], timeout: [{}] retires\n",
