@@ -1464,6 +1464,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       if (reset) begin
         /* verilator lint_off BLKSEQ */
         max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+        max__cycle <= cvm_plusargs::get_int("max_cycle");
         cosim_period <= cvm_plusargs::get_int("cosim_period");
         max_instructions <= cvm_plusargs::get_ulongint("max_instr");
         nharts <= cvm_plusargs::get_int("num_harts");

@@ -67,7 +67,7 @@ DEFINE_bool(csr_rd_check, true, "Enable cosim checks on sw csr writes");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on hw csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_bool(flags_check, true, "Enable cosim checks on fflags");
-DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
+DEFINE_uint64(max_cycle, 10000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
