@@ -14,6 +14,8 @@
 
 #include "rv_tester_transactions.hpp"
 
+DECLARE_bool(cb_async);
+
 struct axi_sw_defs {
 
     typedef std::uint32_t r_q_ptr_t   ;
@@ -122,6 +124,8 @@ class axi_sw {
 
         uint16_t add_latency_min_ = 0;
         uint16_t add_latency_max_ = 1;
+
+        uint64_t pending_reads_ = 0;
 
     public:
 
