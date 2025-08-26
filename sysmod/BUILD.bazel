@@ -30,7 +30,9 @@ exports_files(glob(["sysmod.*", "device.*", "pm_common.*","sysmod_params.hpp", "
 cc_library(
     name    = "sysmod_params",
     hdrs    =[
-        "sysmod_params.hpp"
+        "sysmod_params.hpp",
+        "sysmod_rpc.h",
+        "device.h"
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],
