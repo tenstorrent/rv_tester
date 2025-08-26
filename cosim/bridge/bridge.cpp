@@ -2739,6 +2739,8 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Handling needed only for hw interrupts
   if (!i.hw)
     return;
+  if (i.hw && i.mip_clr[LCOFI])
+    error("Hart {}: LCOFI can only be cleared by software write (not HW)\n", hart);
 
   // Handle each interrupt category
   // External
