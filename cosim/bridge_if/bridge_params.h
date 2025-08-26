@@ -20,8 +20,6 @@ namespace {
     constexpr uint64_t pmm_hstatus_mask_lo = 48;
     constexpr uint64_t pmm_cfgs_mask_lo = 32;
     constexpr uint64_t pmm_mask_size = 2;
-    constexpr uint64_t boot_rand_mmr_offset = 0x7000;
-    constexpr uint64_t boot_rand_csr_offset = 0x8000;
     constexpr uint64_t time_csr = 0xC01;
     constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
