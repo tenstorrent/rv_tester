@@ -157,8 +157,9 @@ bool
 whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
                                     uint16_t ncores, bool standalone, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
-  overrideWhisperJson(standalone);
-  args_str.insert(args_str.end(), {"--config" , FLAGS_whisper_json_path});
+  auto config_file = overrideWhisperJson(standalone);
+  cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
+  args_str.insert(args_str.end(), {"--config" , config_file});
   args_str.insert(args_str.end(), {"--cores" , std::to_string(ncores)});
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc()) });
   args_str.insert(args_str.end(), {"--nmevec", std::to_string(getNmiExceptionPc()) });
@@ -1198,17 +1199,14 @@ whisperClient<URV>::whisperClearNmiCause(int hart, uint64_t time, uint64_t cause
 
 // Static function for whisper JSON override
 template <typename URV>
-void
+std::string
 whisperClient<URV>::overrideWhisperJson(bool standalone)
 {
-  static std::string original_whisper_json_path = "";
-  if (original_whisper_json_path == "")
-    original_whisper_json_path = FLAGS_whisper_json_path;
-
   nlohmann::json j;
   try {
-    std::ifstream f(original_whisper_json_path);
-    j = nlohmann::json::parse(f);
+    std::ifstream ifs(FLAGS_whisper_json_path);
+    j = nlohmann::json::parse(ifs);
+    ifs.close();
   }
   catch (...) {
     cvm::log(cvm::ERROR, "Error: Unable to parse whisper_json:{}\n", FLAGS_whisper_json_path);
@@ -1239,10 +1237,10 @@ whisperClient<URV>::overrideWhisperJson(bool standalone)
   }
 
   std::string whisper_override_json = standalone? "whisper_standalone.json" : "whisper_cosim.json";
-  cvm::log (cvm::MEDIUM, "Overriding whisper json, FLAGS_whisper_json now set to {}\n", whisper_override_json);
   std::ofstream o(whisper_override_json);
   o <<  std::setw(4) << j << std::endl;
-  FLAGS_whisper_json_path=whisper_override_json;
+  o.close();
+  return whisper_override_json;
 }
 
 template class whisperClient<uint32_t>;
