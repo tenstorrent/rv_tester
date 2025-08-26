@@ -1720,10 +1720,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                   error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
                   return;
                 }
-                if (addr == medeleg.address) {
-                  mask = 0xF00400;
-                  update_csr(hart, src_t::dut, medeleg.address, value, mask, false, false);
-                }
               }
             }
             misa_h_ = 1;
