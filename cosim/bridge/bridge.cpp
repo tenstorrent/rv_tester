@@ -193,8 +193,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
-    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
-        FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(10000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
+        FLAGS_max_cycle = (10000000 + (nharts-1)*75000);
         print(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
     }
     if((FLAGS_max_instr < static_cast<gflags::uint64>(100000 + (nharts - 1) * 20000)) && (FLAGS_max_instr != 0) && (FLAGS_eot != "max_instr") && (nharts != 1)){
