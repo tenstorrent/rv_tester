@@ -248,7 +248,7 @@ private:
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
     // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
     {0x30C, "mstateen0"},
-    {0x60C, "hstateen0"},
+    // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
     {0x10C, "sstateen0"}
   };
 
