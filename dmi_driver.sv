@@ -574,6 +574,7 @@ import rv_tester_params:: * ;
         end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
           if(!dmi_warm_reset) begin
             wait(dmi_warm_reset);
+            repeat(4) @(posedge clk);
             $display("[Poll] Reflow acknowledge havereset");
             reflow_ack_havereset = 1;
           end
