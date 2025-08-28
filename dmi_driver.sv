@@ -65,7 +65,7 @@ import rv_tester_params:: * ;
   logic [31:0] ahead_queue_cnt, quit_queue_cnt, cnt;
   logic single_step_started, single_step_quit;
   logic abs_read, abs_write, abs_read_data, sdtrig_fire, halted_sdtrig;
-  logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, ack_havereset, remove_core_from_haltg, remove_core_from_resumeg;
+  logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, reflow_ack_havereset, ack_havereset, remove_core_from_haltg, remove_core_from_resumeg;
   logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq, core_disabled;
   logic [9:0] dm_hartsel, core_rg_check, core_ignore_resumepoll;
   logic [2:0] core_halt_index, core_resume_index;
@@ -135,6 +135,7 @@ import rv_tester_params:: * ;
       core_ignore_rreq <= 0;
       remove_core_from_haltg <= 0;
       remove_core_from_resumeg <= 0;
+      reflow_ack_havereset <= 0;
       ack_havereset <= 0;
       sdtrig_fire <= 0;
       halted_sdtrig <= 0;
@@ -571,8 +572,15 @@ import rv_tester_params:: * ;
           remove_core_from_resumeg = 1;
           poll = 1;
         end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
-          $display("[Poll] Acknowledge havereset");
-          ack_havereset = 1;
+          if(!dmi_warm_reset) begin
+            wait(dmi_warm_reset);
+            $display("[Poll] Reflow acknowledge havereset");
+            reflow_ack_havereset = 1;
+          end
+          else begin
+            $display("[Poll] Acknowledge havereset");
+            ack_havereset = 1;
+          end
           poll = 1;
         end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
           $display("[Single step] step bit configured in dcsr");
@@ -714,6 +722,9 @@ import rv_tester_params:: * ;
         end else if (core_resumeg_rreq) begin
           $display("[Poll] Read Haltsum reg");
           dmi_req <= 41'h10100000000;
+        end else if (reflow_ack_havereset) begin
+          $display("[Poll] wait for warm_reset to go low and havereset to be 1");
+          dmi_req <= 41'h4210000001;
         end else if (ack_havereset) begin
           $display("[Poll] Read dmstatus to clear anyhavereset and allhavereset");
           dmi_req <= 41'h4500000000;
@@ -1004,6 +1015,10 @@ import rv_tester_params:: * ;
           core_in_resume_grp[core_resume_index] = 0;
           remove_core_from_resumeg = 0;
           poll = 0;
+        end else if (reflow_ack_havereset) begin
+          $display("[Poll] reflow_ack_havereset is cleared");
+          ack_havereset = 1;
+          reflow_ack_havereset = 0;
         end else if(ack_havereset && ~dmi_resp.data[19:18])begin
           ack_havereset = 0;
           poll = 0;
