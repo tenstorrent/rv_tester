@@ -126,6 +126,11 @@ private:
           std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
+  bool flags_bridge_log_;
+  template <typename... Args>
+      void bridge_log(Args&&... args) {
+        if (flags_bridge_log_) bridge_log_(std::forward<Args>(args)...);
+      }
 
 private:
 
