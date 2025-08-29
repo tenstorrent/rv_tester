@@ -668,7 +668,7 @@ whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, u
   req.time = time;
   req.value= value;
   req.size = size;
-  req.address  = addr;
+  req.address  = addr & ~FLAGS_pa_mask;
   req.instrTag = instrTag;
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
@@ -700,7 +700,7 @@ whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag
   req.type = WhisperMessageType::McmRead;
   req.time = time;
   req.instrTag = instrTag;
-  req.address = addr;
+  req.address = addr & ~FLAGS_pa_mask;
   req.size = size; // Total size in bytes
   req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
