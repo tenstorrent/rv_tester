@@ -27,6 +27,7 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   debugger_file_load_trigger = addr + 0x10000;
   dmi_driver_status_addr = addr + 0x500;
   dmi_driver_num_cmds_addr = addr + 0x600;
+  dmi_driver_warm_reset_addr = addr + 0x700;
   reset();
 
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
@@ -67,9 +68,10 @@ debugger::~debugger()
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
-  cvm::log(cvm::HIGH, "[Debugger]:Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+  cvm::log(cvm::HIGH, "[Debugger]:Debug module status :{:#x} cmds in queue :{:#x} warm reset :{:#x}\n", i.status,i.commands_in_queue,i.warm_reset);
   status = i.status;
   commands_in_queue = i.commands_in_queue;
+  warm_reset = i.warm_reset;
 }
 
 void debugger::get_all_csv_templates()
@@ -408,6 +410,11 @@ debugger::read(uint64_t addr, size_t , data_t& data)
     cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger num cmds in queue : {:#x}\n",commands_in_queue);
     data[0] = commands_in_queue;
   } 
+  if (addr == dmi_driver_warm_reset_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger warm reset : {:#x}\n",warm_reset);
+    data[0] = warm_reset;
+  }
   co_return;
 }
 void debugger::read_dev(uint64_t addr, size_t ,  data_t& data ){
@@ -425,6 +432,11 @@ void debugger::read_dev(uint64_t addr, size_t ,  data_t& data ){
     cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger num cmds in queue : {:#x}\n",commands_in_queue);
     data[0] = commands_in_queue;
   } 
+  if (addr == dmi_driver_warm_reset_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger warm reset : {:#x}\n",warm_reset);
+    data[0] = warm_reset;
+  }
   return;
 }
 void debugger::write(uint64_t addr, size_t, const data_t &data,
