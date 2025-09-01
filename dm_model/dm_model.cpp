@@ -121,9 +121,13 @@ void debug_module_t::configure(){
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status)
 {
-  cvm::log(cvm::HIGH, "Model recieved dmi status: status {:#x} cmds in queue {:#x}\n", dmi_status.status, dmi_status.commands_in_queue);
+  cvm::log(cvm::NONE, "Model recieved dmi status: status {:#x} cmds in queue {:#x} warm_reset {:#x}\n", dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset);
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue});
+  cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset});
+  if (!dmi_status.warm_reset) {
+    cvm::log(cvm::NONE, "[DM_MODEL] Warm reset\n");
+    reset(true, false);
+  }
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req)

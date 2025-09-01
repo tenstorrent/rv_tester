@@ -20,6 +20,7 @@ module dm_model #(
   input logic [7:0] DM_DebugReq_Valids,
   input logic                                            dmi_status,
   input logic [31:0]                                     dmi_commands_in_queue,
+  input logic                                            dmi_warm_reset,
   `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
 );
 
@@ -27,10 +28,13 @@ module dm_model #(
 
     logic dm_mem_tx_rd_data_resp_vld;
     logic [7:0] DM_DebugReq_Valids_q;
-
-    // assign dmi_statuss[0].valid = !reset;
-    // assign dmi_statuss[0].status = dmi_status;
-    // assign dmi_statuss[0].commands_in_queue = dmi_commands_in_queue;
+    logic dmi_warm_reset_q;
+    
+    assign dmi_statuss[0].valid = (dmi_warm_reset_q != dmi_warm_reset);
+    assign dmi_statuss[0].data.location = location;
+    assign dmi_statuss[0].data.status = dmi_status;
+    assign dmi_statuss[0].data.commands_in_queue = dmi_commands_in_queue;
+    assign dmi_statuss[0].data.warm_reset = dmi_warm_reset;
 
     assign dmi_reqs[0].valid = !reset && dmi_req_valid;
     assign dmi_reqs[0].data.location = location;
@@ -77,5 +81,9 @@ module dm_model #(
         DM_DebugReq_Valids_q <= 0;
       else
         DM_DebugReq_Valids_q <= DM_DebugReq_Valids;
+    end
+    
+    always @(posedge clk) begin
+      dmi_warm_reset_q <= dmi_warm_reset;
     end
 endmodule

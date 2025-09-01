@@ -875,6 +875,7 @@ module rv_tester
         .dm_mem_tx_wr_data_be,
         .dmi_status,
         .dmi_commands_in_queue,
+        .dmi_warm_reset(~reset[WARM_RESET_IDX]),
         .misc_signals,
         .DM_DebugReq_Valids(DM_DebugReq_Valids),
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)

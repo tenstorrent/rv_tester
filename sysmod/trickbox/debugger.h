@@ -196,6 +196,7 @@ public:
   typedef struct{ 
         unsigned status;
         unsigned commands_in_queue;
+        unsigned warm_reset;
   }dmi_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
@@ -281,8 +282,10 @@ private:
   uint64_t debugger_file_load_trigger = 0x9060000;
   uint64_t dmi_driver_status_addr = 0x9061000;
   uint64_t dmi_driver_num_cmds_addr = 0x9061000;
+  uint64_t dmi_driver_warm_reset_addr = 0x9061000;
   uint32_t status;
   uint32_t commands_in_queue;
+  uint32_t warm_reset;
   uint64_t checkpoint_triggers_pending = 0;
   uint64_t cmd_trigger_rand_debug = 3000;
   uint32_t rand_dbg_entry_cmd_trigger = 0;
