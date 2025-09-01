@@ -177,12 +177,12 @@ public:
             // 70% chance to pick VS ID with HGEIE set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein && (hgeie_data != (1ULL << vgein))) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein || (hgeie_data != (1ULL << vgein))) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein && (hgeie_data != (0x3e & ~(1ULL << vgein)))) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein || (hgeie_data != (0x3e & ~(1ULL << vgein)))) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
           }
 
           // Drive second interrupt
