@@ -267,7 +267,7 @@ void external_interrupt_sequence::drive_interrupt(){
             do {
               second_vs_id = (rng1() % 5) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
-            // Chosen VS should not be equal to vgein, and if none of the HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
+            // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
 
           // Drive second interrupt
