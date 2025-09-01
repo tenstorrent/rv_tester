@@ -79,12 +79,13 @@ public:
 
   }
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
-  virtual void driveMSIInterrupt(unsigned t_data)
+  virtual void driveMSIInterrupt(uint64_t t_data)
   {
     uint8_t interrupt_num = t_data & 0xfff;
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
+    unsigned disable_vs_id_randomisation = (t_data>>40) & 0x1;
     bool is_vgien_intr = false;
     bool exp_err_rsp = (interrupt_hart < FLAGS_num_harts) ? false : true;
 
@@ -105,7 +106,7 @@ public:
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x301, data_misa, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : MISA in drive_interrupt()\n", interrupt_hart);
 
-      if ((data_misa >> 7) & 0x1) { // guest external interrupts based on hstatus.VGEIN
+      if (((data_misa >> 7) & 0x1) && !disable_vs_id_randomisation)  { // guest external interrupts based on hstatus.VGEIN
         is_vgien_intr = true;
         uint64_t data;
         uint64_t mask;
@@ -177,12 +178,12 @@ public:
             // 70% chance to pick VS ID with HGEIE set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein || (hgeie_data != (1ULL << vgein))) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgien))) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein || (hgeie_data != (0x3e & ~(1ULL << vgein)))) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgien)) != ~(1ULL<<vgien) && (hgeie_data & (1ULL << second_vs_id))));
           }
 
           // Drive second interrupt
@@ -192,7 +193,7 @@ public:
         }
       } else {
         is_vgien_intr = false;
-        vs_id = (rng() % 5) + 1; // Range [1,5]
+        if (!disable_vs_id_randomisation) vs_id = (rng() % 5) + 1; // Range [1,5]
         addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
       }
 
@@ -252,7 +253,7 @@ protected:
     //RANDOM imsic_intr
     if(FLAGS_random_imsic_intr && (intr_count <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
-        unsigned intr_num = 1;
+        uint64_t intr_num = 1;
         unsigned intr_file = 0;
         unsigned intr_hart = 0;
         unsigned intr_vs_id = 0;
