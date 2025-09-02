@@ -12,7 +12,8 @@ import rv_tester_params:: * ;
         input dut_reset,
         input cold_resetn,
         input warm_reset,
-        input bit terminate,
+        input terminated,
+        input terminate_now,
         input ac_cr_sync AcCrSynci[NHARTS - 1: 0],
         input rvfi_t[TOTAL_NRETS - 1: 0] rvfi,
         input cr_ac_axi_pkt AcReqPkti,
@@ -258,10 +259,10 @@ import rv_tester_params:: * ;
     export "DPI-C" function get_ctime_value;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
-    always @(posedge terminate) begin
+    always @(posedge tb_clk) begin
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
-        if (!reset && !AcChk_pll_interrupts_in && enable_checks) check_outstanding_transactions(location);
+        if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location);
     end
 
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
