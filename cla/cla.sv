@@ -47,12 +47,12 @@ import rv_tester_params::*;
   int unsigned tb_clocks = 0;
   always @(posedge tb_clk) begin
     tb_clocks <= tb_clocks + 1;
+    terminate_from_rv_tester_d1 <= terminate_from_rv_tester;
   end
 
   logic [NHARTS-1:0] core_no_fetch_d1;
   int unsigned dut_clocks = 0;
   always @(posedge clk) begin
-    terminate_from_rv_tester_d1 <= terminate_from_rv_tester;
     core_no_fetch_d1 <= core_no_fetch;
     dut_clocks <= dut_clocks + 1;
   end
