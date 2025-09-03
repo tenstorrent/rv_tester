@@ -261,6 +261,10 @@ module rv_tester
     LU cvm_debug_cycle_off = '0;
     logic dut_terminate_any;
     logic ntrace_terminate;
+    
+    // Termination condition variables for better readability
+    logic sysmod_cosim_dmi_terminate;
+    logic core_terminate_conditions;
 
     reg [9:0] dut_reset_req_shift_reg;
 
@@ -279,8 +283,12 @@ module rv_tester
 
     assign dut_terminate_any = dut_terminate;
 
+    // Extract common termination conditions for better readability
+    assign sysmod_cosim_dmi_terminate = (sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
+    assign core_terminate_conditions = dut_terminate_any || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
+    
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
-    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+    assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
     assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
@@ -475,7 +483,7 @@ module rv_tester
             _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
             _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
             _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
-            warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
+            warm_reset_en               <= pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
@@ -545,6 +553,12 @@ module rv_tester
         if (warm_reset_en && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
+        
+        // Deassert warm_reset_en when any termination condition is met
+        if (core_terminate_conditions) begin
+            warm_reset_en <= 0;
+        end
+
 
     end
 

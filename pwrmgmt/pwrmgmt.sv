@@ -69,7 +69,7 @@ import rv_tester_params::*;
   always @(posedge clk[TB_CLK_IDX]) begin
     if (warm_reset_tick) begin
       warm_reset_clocks <= 0;
-    end else if (warm_reset_en & (reset_count < target_reset_count) & ~core_no_fetch) begin
+    end else if (warm_reset_en & (reset_count < target_reset_count) & ~core_no_fetch & ~warm_reset) begin
       warm_reset_clocks <= warm_reset_clocks + 1;
     end
   end
