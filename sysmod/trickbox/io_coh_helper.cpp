@@ -170,7 +170,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
       [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
     );
 
-    if (wresp.resp != axi::RESP_OKAY) {
+    if (!aw_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
         cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
       co_return;
     }
@@ -178,7 +178,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     write_in_flight = false;
   //}//;
   //cvm::registry::messenger.fork(l, t);
-
+  if(wresp.resp == axi::RESP_OKAY){
   //Poke same data to whisper memory
   cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
@@ -191,6 +191,9 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   }
   }
    num_writes++;
+}else{
+  cvm::log(cvm::NONE, "[io_coh_helper] Backdoor whisper poke NOT DONE because of bad response addr{:#x} \n",addr);
+}
     co_return;
 }
 
@@ -346,11 +349,12 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
     [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
 );
 
-if (wresp.resp != axi::RESP_OKAY) {
+if (!a_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
     cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
     co_return;
 }
   ////------------------------------
+  if (wresp.resp == axi::RESP_OKAY) {
   //Poke same data to whisper memory
   cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
@@ -363,6 +367,9 @@ if (wresp.resp != axi::RESP_OKAY) {
   }
   }
   num_writes++;
+  }else{
+    cvm::log(cvm::NONE, "[io_coh_helper] Backdoor whisper poke NOT DONE  because of bad response burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
+  }
   }
 
   }
