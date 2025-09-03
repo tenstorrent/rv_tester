@@ -875,6 +875,7 @@ module rv_tester
         .dm_mem_tx_wr_data_be,
         .dmi_status,
         .dmi_commands_in_queue,
+        .dmi_warm_reset(~reset[WARM_RESET_IDX]),
         .misc_signals,
         .DM_DebugReq_Valids(DM_DebugReq_Valids),
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
@@ -1157,7 +1158,8 @@ module rv_tester
         .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
-        .terminate(terminate),
+        .terminated(terminated),
+        .terminate_now(terminate_now),
         .AcChk_pll_interrupts_in(AcChk_pll_interrupts_in),
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),

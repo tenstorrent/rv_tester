@@ -1346,15 +1346,17 @@ localparam CAM_IHBIT = CAM_IBITS;
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
     always @(posedge clk) begin
-      if(~dut_core_reset) begin
+      if(suppress_interrupts) begin
+        nmi_pend_d1 <= '0;
+      end
+      else begin
         nmi_pend_d1 <= nmi_pend;
       end
-      else nmi_pend_d1 <= '0;
     end
     assign m_core_nmis[0].valid = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
+    assign m_core_nmis[0].data.nmi_assert = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai));
     assign m_core_nmis[0].data.nmi_cause = ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (~nmi_pend.nmi & nmi_pend_d1.nmi)) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.clai & nmi_pend_d1.clai)) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
     // m_interrupt_pend
