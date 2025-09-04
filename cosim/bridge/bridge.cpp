@@ -1352,7 +1352,8 @@ void bridge::post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisp
       bridge_log(cvm::MEDIUM, "Hart: {} <{}> Poking MIP with hw_mip: {:#x}\n", hart, d.cycle, hw_mip);
       std::bitset<64> mip;
       peek_mip(hart, d.cycle, mip);
-      poke_mip(hart, d.cycle, mip | std::bitset<64>(hw_mip));
+      if (mip.to_ullong() != (mip.to_ullong() | hw_mip))
+        poke_mip(hart, d.cycle, mip | std::bitset<64>(hw_mip));
     }
   }
 }
@@ -2783,7 +2784,7 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
     return;
   }
 
-  bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.at(static_cast<intr>(cause)), virt_mode);
+  bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.count(static_cast<intr>(cause))? intr_to_string.at(static_cast<intr>(cause)) : std::to_string(cause), virt_mode);
 }
 
 void bridge::poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause) {
