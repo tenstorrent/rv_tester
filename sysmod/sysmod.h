@@ -115,6 +115,7 @@ class sysmod {
     unsigned id_;
     unsigned id()   { return id_; }
     std::vector<std::unique_ptr<device> > devices_;
+    std::unique_ptr<device> fallback_null_dev_;
     std::map<std::string, memmap_entry_t> memmap_;
 
     uint64_t ticks_ = 0;

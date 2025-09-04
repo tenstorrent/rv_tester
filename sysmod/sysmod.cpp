@@ -1225,6 +1225,9 @@ sysmod::compose() {
 
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 
+    // Create fallback null_dev for unmapped addresses
+    fallback_null_dev_ = std::make_unique<null_dev>("fallback_null_dev", 0, 0, loc_);
+
     assert(masters.size() > 0);
 
     // Configure uninitialized read callbacks for memory devices
@@ -1242,11 +1245,12 @@ sysmod::dev(uint64_t addr) {
       addr = addr & ~FLAGS_pa_mask;
   }
   for (auto& d : devices_) {
-    if (d->has_addr(addr))
+    if (d->has_addr(addr)){
       return d.get();
+    }
   }
   cvm::log(cvm::ERROR, "Error: [sysmod] Address not mapped: {:#x}\n", addr);
-  return nullptr;
+  return fallback_null_dev_.get();
 }
 
 device*
