@@ -83,7 +83,8 @@ module rv_tester_fifo #(
     if ((D & (D-1)) != 0)
         $error("Depth %0d not a power of 2, modulo operator below is going to be more gates", D);
 
-    ptr_t rptr, wptr;
+    ptr_t rptr, wptr, rptr_nxt, wptr_nxt;
+    T rmw_data;
     T ram[D];
 
     assign size  = wptr - rptr;
@@ -93,21 +94,43 @@ module rv_tester_fifo #(
     assign pop_ptr  = rptr;
     localparam int M = D > 1 ? $clog2(D) : 1;
 
+    always_comb begin
+        rptr_nxt = rptr + ptr_t'(pop);
+        wptr_nxt = wptr + ptr_t'(push);
+    end
+
+    if (ENABLE_RANDOM_ACCESS_WRITE) begin
+        assign rmw_data = (ram[wr_idx] & ~wr_mask) | (wr_data & wr_mask);
+    end
+
+    function automatic idx_t ptr_to_idx(ptr_t p);
+        return M'(p % ptr_t'(D));
+    endfunction
+
     always_ff @(posedge clk) begin
         if (!reset_n) begin
             // Properly initialize all signals during reset
             rptr <= '0;
             wptr <= '0;
-            
         end else begin
             // Normal operation
-            rptr <= rptr + ptr_t'(pop);
-            wptr <= wptr + ptr_t'(push);
+            rptr <= rptr_nxt;
+            wptr <= wptr_nxt;
+
             if (push) begin
-                ram[M'(wptr % ptr_t'(D))] <= d;
+                ram[ptr_to_idx(wptr)] <= d;
             end
+
             if (ENABLE_RANDOM_ACCESS_WRITE && wr_en) begin
-                ram[idx_t'(wr_idx)] <= (ram[idx_t'(wr_idx)] & ~wr_mask) | (wr_data & wr_mask);
+                ram[wr_idx] <= rmw_data;
+            end
+
+            if (push && wptr == rptr) begin
+                q <= d;
+            end else if (ENABLE_RANDOM_ACCESS_WRITE && wr_en && wr_idx == ptr_to_idx(rptr_nxt)) begin
+                q <= rmw_data;
+            end else begin
+                q <= ram[ptr_to_idx(rptr_nxt)];
             end
         end
     end
@@ -116,7 +139,5 @@ module rv_tester_fifo #(
         else $error("pushing when fifo is full");
     pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
         else $error("popping when fifo is empty");
-
-    assign q = ram[M'(rptr % ptr_t'(D))];
 
 endmodule
