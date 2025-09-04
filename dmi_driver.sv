@@ -1362,7 +1362,7 @@ import rv_tester_params:: * ;
               if(copy_sdtrig_progbuf_queue.size() === (total_command_in_sdtrig_progbuf_queue_size)) begin
                 command = copy_sdtrig_progbuf_queue.pop_front();
                 command.data[25:16] = num_core;
-              end else if(copy_sdtrig_progbuf_queue.size() === (total_command_in_sdtrig_progbuf_queue_size-2)) begin
+              end else if(copy_sdtrig_progbuf_queue.size() === (total_command_in_sdtrig_progbuf_queue_size-4)) begin
                 command = copy_sdtrig_progbuf_queue.pop_front();
                 command.data[23:20] = trigger_count;
               end else if(copy_sdtrig_progbuf_queue.size() === 1) begin
