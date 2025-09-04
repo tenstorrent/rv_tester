@@ -1209,7 +1209,7 @@ whisperClient<URV>::overrideWhisperJson(bool standalone)
     ifs.close();
   }
   catch (...) {
-    cvm::log(cvm::ERROR, "Error: Unable to parse whisper_json:{}\n", FLAGS_whisper_json_path);
+    cvm::log(cvm::ERROR, "Error: Unable to parse whisper json from +whisper_json_path\n");
   }
 
   if (standalone)
