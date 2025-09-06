@@ -223,7 +223,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
 
   args.parseCmdLineArgs(args_str);
   WdRiscv::HartConfig config;
-  if (!config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
+  if (!config.loadConfigFile(config_file.c_str()))
     return false;
 
   session = std::make_shared<WdRiscv::Session<URV>>();
