@@ -107,7 +107,13 @@ void
     tx_status = t_data & 0x1;
 
   } else if(addr == (uc_helper_base + 0x100)) {
-    tx_addr = t_data;
+    if((t_data & (1ULL << 55))){
+      tx_addr = t_data & ~(1ULL <<55);
+      cvm::log(cvm::NONE, "[UC_HELPER] Secure Address Detected {:#x} \n",t_data);
+      cvm::log(cvm::NONE, "[UC_HELPER] Memory Operations will happen withpout looking at secure (55th) bit in address {:#x} \n",t_data);
+    } else {
+       tx_addr = t_data;
+    }
     cvm::log(cvm::HIGH, "[UC_HELPER] Transfer Start Addr {:#x} \n",t_data);
 
   } else if(addr ==(uc_helper_base + 0x200)) {
