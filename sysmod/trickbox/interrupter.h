@@ -86,7 +86,7 @@ public:
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
     unsigned disable_vs_id_randomisation = (t_data>>40) & 0x1;
-    bool is_vgien_intr = false;
+    bool is_vgein_intr = false;
     bool exp_err_rsp = (interrupt_hart < FLAGS_num_harts) ? false : true;
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
@@ -107,7 +107,7 @@ public:
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : MISA in drive_interrupt()\n", interrupt_hart);
 
       if (((data_misa >> 7) & 0x1) && !disable_vs_id_randomisation)  { // guest external interrupts based on hstatus.VGEIN
-        is_vgien_intr = true;
+        is_vgein_intr = true;
         uint64_t data;
         uint64_t mask;
         uint64_t poke_mask;
@@ -178,12 +178,14 @@ public:
             // 70% chance to pick VS ID with HGEIE set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+            // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
               second_vs_id = (rng() % 5) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
+            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
+            // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
 
           // Drive second interrupt
@@ -192,7 +194,7 @@ public:
           intr_vs_id_two_++;
         }
       } else {
-        is_vgien_intr = false;
+        is_vgein_intr = false;
         if (!disable_vs_id_randomisation) vs_id = (rng() % 5) + 1; // Range [1,5]
         addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
       }
@@ -215,7 +217,7 @@ public:
       data1[i] = currentByte;
       strb1[i] = 0x1;
     }
-    if (!is_vgien_intr) {
+    if (!is_vgein_intr) {
       cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, exp_err_rsp});
     }
 
