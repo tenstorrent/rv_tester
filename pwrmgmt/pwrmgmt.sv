@@ -16,6 +16,7 @@ import rv_tester_params::*;
   input logic tj_max,
   input logic pll_dfs_done,
   input logic pll_shutdown_done,
+  input logic terminate,
   output logic cold_reset,
   output logic warm_reset,
   output logic warm_reset_req,
@@ -81,7 +82,7 @@ import rv_tester_params::*;
     warm_reset_tick <= 0;
     pll_dfs_done_d1 <= pll_dfs_done;
     pll_shutdown_done_d1 <= pll_shutdown_done;
-    if (warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
+    if (!terminate & warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
       $display("[%0d] [pwrmgmt] Warm reset now", warm_reset_clocks);
       warm_reset_tick <= 1;
     end
