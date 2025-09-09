@@ -1725,6 +1725,8 @@ dm_model:
                 width: 32
             warm_reset:
                 width: 1
+            debug_hold:
+                width: 1
     dmi_req:
         domain: 2
         num: 1

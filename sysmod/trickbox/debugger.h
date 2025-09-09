@@ -194,9 +194,10 @@ public:
     unsigned data;
   };
   typedef struct{ 
-        unsigned status;
-        unsigned commands_in_queue;
-        unsigned warm_reset;
+    unsigned status;
+    unsigned commands_in_queue;
+    unsigned warm_reset;
+    unsigned debug_hold;
   }dmi_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)

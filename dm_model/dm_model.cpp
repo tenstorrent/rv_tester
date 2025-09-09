@@ -121,12 +121,16 @@ void debug_module_t::configure(){
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status)
 {
-  cvm::log(cvm::NONE, "Model recieved dmi status: status {:#x} cmds in queue {:#x} warm_reset {:#x}\n", dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset);
+  cvm::log(cvm::NONE, "Model recieved dmi status: status {:#x} cmds in queue {:#x} warm_reset {:#x} debug_hold {:#x}\n", dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset, dmi_status.debug_hold);
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset});
-  if (!dmi_status.warm_reset) {
-    cvm::log(cvm::NONE, "[DM_MODEL] Warm reset\n");
+  cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset, dmi_status.debug_hold});
+  if (!dmi_status.warm_reset && dmi_status.debug_hold) {
+    cvm::log(cvm::NONE, "[DM_MODEL] Warm reset with Debug hold\n");
     reset(true, false);
+  }
+  if (!dmi_status.warm_reset && !dmi_status.debug_hold) {
+    cvm::log(cvm::NONE, "[DM_MODEL] Warm reset without Debug hold\n");
+    reset(true, true);
   }
 }
 
@@ -370,6 +374,12 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
   }
 
   if (dm_reset) { 
+    for (const auto &[hart_id, hart] : harts)
+    { // harts
+      hart->halt_request = hart->HR_NONE;
+      hart_state[hart_id].halted = false;
+      hart_state[hart_id].resumeack = false;
+    }
     memset(&dmstatus, 0, sizeof(dmstatus));
     memset(&dmcontrol, 0, sizeof(dmcontrol));
     dmstatus.impebreak = config.support_impebreak;
@@ -391,13 +401,6 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
   }
   if (core_reset) {
     memset(&dmcs2, 0, sizeof(dmcs2));
-    
-    for (const auto &[hart_id, hart] : harts)
-    { // harts
-      hart->halt_request = hart->HR_NONE;
-      hart_state[hart_id].halted = false;
-      hart_state[hart_id].resumeack = false;
-    }
     
     for (auto &ele : hart_state)
     { // Add havereset for all the core
