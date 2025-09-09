@@ -1041,6 +1041,7 @@ module rv_tester
                 .tj_max(tj_max),
                 .pll_dfs_done(pll_dfs_done),
                 .pll_shutdown_done(pll_shutdown_done),
+                .terminate(terminate),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
