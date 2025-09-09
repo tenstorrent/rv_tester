@@ -739,12 +739,10 @@ module rv_tester
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         warm_reset_latched <= warm_reset;  // Track previous state of warm_reset
+        if(cold_reset === 1'b0)begin
         if ((warm_reset_latched == 1'b1) && (warm_reset == 1'b0))  begin
             warm_reset_deasserted <= 1'b1;
         end
-
-        if(cold_reset === 1'b0)begin
-        //if (!dut_reset_req && (warm_reset_latched == 1'b1) && (warm_reset == 1'b0)) begin
         if (!dut_reset_req && warm_reset_deasserted)  begin
             ndmreset_ack_clocks_latched <= 1'b0;
             ndmreset_ack <= 1'b0;
