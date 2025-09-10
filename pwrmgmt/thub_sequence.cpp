@@ -33,7 +33,7 @@ thub_sequence::thub_sequence
 }
 
 thub_sequence::~thub_sequence() {
-  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0) && tj_seq_done){
+  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0)){
     cvm::log(cvm::ERROR,"[tj_shutdown]:- Error: Expected to have TJ_SHUTDOWN followed by DFS \n");
   }
   if(FLAGS_tj_max && (tj_max_ack_rcvd == 0) && tj_seq_done){
