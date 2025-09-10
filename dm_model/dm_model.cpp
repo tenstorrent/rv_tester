@@ -126,11 +126,11 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_status<
   cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue, dmi_status.warm_reset, dmi_status.debug_hold});
   if (!dmi_status.warm_reset && dmi_status.debug_hold) {
     cvm::log(cvm::NONE, "[DM_MODEL] Warm reset with Debug hold\n");
-    reset(true, false);
+    reset(true,false);
   }
   if (!dmi_status.warm_reset && !dmi_status.debug_hold) {
     cvm::log(cvm::NONE, "[DM_MODEL] Warm reset without Debug hold\n");
-    reset(true, true);
+    reset(true,true);
   }
 }
 
@@ -377,7 +377,6 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
     for (const auto &[hart_id, hart] : harts)
     { // harts
       hart->halt_request = hart->HR_NONE;
-      hart_state[hart_id].halted = false;
       hart_state[hart_id].resumeack = false;
     }
     memset(&dmstatus, 0, sizeof(dmstatus));
@@ -401,6 +400,14 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
   }
   if (core_reset) {
     memset(&dmcs2, 0, sizeof(dmcs2));
+
+    if (!dmcontrol.haltreq)
+    {
+      for (const auto &[hart_id, hart] : harts)
+      { // harts
+        hart_state[hart_id].halted = false;
+      }
+    }
     
     for (auto &ele : hart_state)
     { // Add havereset for all the core
@@ -1291,8 +1298,6 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       dmcontrol.resumereq = get_field(value, DM_DMCONTROL_RESUMEREQ);
       dmcontrol.hartreset = get_field(value, DM_DMCONTROL_HARTRESET);
       dmcontrol.ndmreset = get_field(value, DM_DMCONTROL_NDMRESET);
-      if (dmcontrol.ndmreset)
-        reset(true,false);
       if (config.support_hasel)
         dmcontrol.hasel = get_field(value, DM_DMCONTROL_HASEL);
       else
@@ -1387,6 +1392,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
             // cvm::log(cvm::HIGH, "debug_rom_flags resume set :{:#x}, :{:#x}\n", hart_id, debug_rom_flags[hart_id]);
             hart_state[hart_id].resumeack = false;
             dmcontrol.resumereq = false;
+            hart_state[hart_id].halted = false;
           }
           if (dmcontrol.hartreset && hart_available(hart_id))
           {
