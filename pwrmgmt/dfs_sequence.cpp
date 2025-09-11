@@ -3,6 +3,9 @@
 #include "rv_tester/rv_tester_plusargs.h"
 #include "fmt/ranges.h"
 
+// DPI import to control clock mode from SystemVerilog
+// extern "C" void rv_tester_set_clock_mode(unsigned int new_clock_mode); // TODO: Fix DPI export visibility issue
+
 REGISTRY_register(dfs_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(dfs_rand_en, false, "Enable random dfs injection in the sim");
@@ -55,32 +58,39 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
   pll_status_reg_s reg_status;
   pll_control_reg_s reg_control;
   pll_interrupts_reg_s reg_interrupts;
-  auto data = co_await read(pll_status, SZ_4B);
   uint64_t pll_parameter_reg = 0;
+  auto data = co_await read(pll_status, SZ_4B);
   reg_status.unpack(static_cast<uint32_t>(data));
-  uint8_t pll_under_dfs = 0;
-  if (reg_status.pll0_locked) {
-    cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL0 is active\n");
-    pll_parameter_reg = pll_parameters1;
-    pll_under_dfs = 1;
-  } else if (reg_status.pll1_locked){
-    cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL1 is active\n");
-    pll_parameter_reg = pll_parameters0;
-    pll_under_dfs = 0;
+  // Check if PLLs are both active and locked for DFS operation
+  bool pll0_usable = reg_status.pll0_active && reg_status.pll0_locked;
+  bool pll1_usable = reg_status.pll1_active && reg_status.pll1_locked;
+
+  if (pll0_usable) {
+    cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL0 is active and locked\n");
+  } else if (pll1_usable) {
+    cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL1 is active and locked\n");
   } else {
-    cvm::log(cvm::ERROR, "Error: No PLLs active\n");
+    cvm::log(cvm::ERROR, "[dfs_sequence] Error: No PLLs are active and locked (PLL0: active=%d locked=%d, PLL1: active=%d locked=%d)\n", 
+             static_cast<int>(reg_status.pll0_active), static_cast<int>(reg_status.pll0_locked), 
+             static_cast<int>(reg_status.pll1_active), static_cast<int>(reg_status.pll1_locked));
+    co_return; // Early return to prevent DFS operation when no usable PLLs
   }
 
   uint32_t clock_profile = (rand()%6)+1;
   auto loc = cvm::topology::get_from_type("CLKI", 0);
   uint32_t pll_dfs_freq = cvm::topology::list_attr(loc, fmt::format("PROFILE{}_CLOCK_FREQ_MHZ",clock_profile)).second[1];
-  cvm::log(cvm::MEDIUM, "[dfs_sequence] Core frequency is being changed to {} based on clk_profile {}\n", pll_dfs_freq, clock_profile);
+  uint32_t ref_clk_freq = cvm::topology::list_attr(loc, fmt::format("PROFILE{}_CLOCK_FREQ_MHZ",clock_profile)).second[4];
+  cvm::log(cvm::MEDIUM, "[dfs_sequence] Core frequency is being changed to {} MHz based on clk_profile {} and ref_clk_freq {}\n", pll_dfs_freq, clock_profile, ref_clk_freq);
+  
+  // Set the clock mode in SystemVerilog to match the selected profile
+  // rv_tester_set_clock_mode(clock_profile); // TODO: Fix DPI export visibility issue
   
   uint32_t freq_ratio = 2400 / pll_dfs_freq;
   co_await write(pll_parameter_reg, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx));
+
+  // Set up control register for DFS request
   reg_control.pll_dfs_req = 1;
-  reg_control.pll_sel_override = 1;
-  reg_control.pll_sel = 4 + pll_under_dfs;
+
   reg_control.dis_inactive_pll_shutdown = 0;
   co_await write(pll_control, SZ_4B, static_cast<uint64_t>(reg_control.pack()));
 
