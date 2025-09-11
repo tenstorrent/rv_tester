@@ -81,7 +81,7 @@ public:
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
   virtual void driveMSIInterrupt(uint64_t t_data)
   {
-    uint8_t interrupt_num = t_data & 0xfff;
+    uint32_t interrupt_num = t_data & 0xfff;
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
