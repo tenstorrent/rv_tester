@@ -266,20 +266,20 @@ module rv_tester
     logic sysmod_cosim_dmi_terminate;
     logic core_terminate_conditions;
 
-    reg [9:0] dut_reset_req_shift_reg;
+    reg [49:0] dut_reset_req_shift_reg;
 
     logic rerun_now_ff;
 
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
         if (cold_reset)
-            dut_reset_req_shift_reg <= {10{1'b0}};
+            dut_reset_req_shift_reg <= {50{1'b0}};
         else
-            dut_reset_req_shift_reg <= {dut_reset_req_shift_reg[8:0], dut_reset_req};
+            dut_reset_req_shift_reg <= {dut_reset_req_shift_reg[48:0], dut_reset_req};
             /* verilator lint_on SYNCASYNCNET */
     end
 
-    assign shifted_dut_reset_req = dut_reset_req_shift_reg[9];
+    assign shifted_dut_reset_req = dut_reset_req_shift_reg[49];
 
     assign dut_terminate_any = dut_terminate;
 
@@ -781,6 +781,16 @@ module rv_tester
         rv_tester_error_terminate.terminate = '1;
     endfunction
     export "DPI-C" function rv_tester_terminate;
+
+    function void rv_tester_set_clock_mode (input int unsigned new_clock_mode);
+        if (new_clock_mode <= 3'b110) begin
+            clock_mode <= new_clock_mode[2:0];
+            $display("<%0d> rv_tester_set_clock_mode: clock_mode changed to %0d", clocks, new_clock_mode);
+        end else begin
+            $display("<%0d> rv_tester_set_clock_mode: Invalid clock_mode %0d, valid range is 0-6", clocks, new_clock_mode);
+        end
+    endfunction
+    export "DPI-C" function rv_tester_set_clock_mode;
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, dut_clk[CORE_CLK_IDX]);
     `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
