@@ -117,6 +117,7 @@ class rvfi {
     uint64_t prev_branch_tag_ = 0;
 
     bool     vec_cmode_ = false;
+    uint64_t vec_cmode_pc_addr_ = 0;
     uint64_t vec_cmode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
 

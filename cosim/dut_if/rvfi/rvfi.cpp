@@ -218,6 +218,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   excp_ = false;
   nmi_ = false;
   vec_cmode_ = false;
+  vec_cmode_pc_addr_ = 0;
   trap_insn_ = 0;
   trap_addr_ = 0;
   pc_error_ = false;
@@ -264,7 +265,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
-
+      vec_cmode_pc_addr_ = m_trap.pc_addr;
       // RVDE-24355: Store memory error for conservative mode vector instruction
       if (mem_error_) {
         vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
@@ -405,7 +406,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ ? vec_cmode_first_tag_ : m_rvfi.order;
+  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_paddr ? vec_cmode_first_tag_ : m_rvfi.order;
   instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);

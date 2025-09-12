@@ -446,6 +446,10 @@ cosim:
                 width: 64
             order:
                 width: 64
+            pc_addr:
+                width: ${TOP.PLATFORM.VALEN}
+            insn:
+                width: 32
             virt_mode:
                 width: 1
 
