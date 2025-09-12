@@ -218,8 +218,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   excp_ = false;
   nmi_ = false;
   vec_cmode_ = false;
-  is_cmode_trap_store_ = false;
-  is_cmode_trap_load_ = false;
   vec_cmode_pc_addr_ = 0;
   trap_insn_ = 0;
   trap_addr_ = 0;
@@ -268,8 +266,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
       vec_cmode_pc_addr_ = m_trap.pc_addr;
-      is_cmode_trap_store_ = (m_trap.insn & 0x7F) == 0x27;
-      is_cmode_trap_load_ = (m_trap.insn & 0x7F) == 0x7;
       // RVDE-24355: Store memory error for conservative mode vector instruction
       if (mem_error_) {
         vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
@@ -952,7 +948,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   }
   else if (vec_cmode_tags_.contains(m_mcmi_read.order))
       m.tag = vec_cmode_tags_[m_mcmi_read.order];
-  else if (m_mcmi_read.v_ext && vec_cmode_ && is_cmode_trap_load_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
+  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
   } else
@@ -1166,7 +1162,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   }
   else if (vec_cmode_tags_.contains(m_mcmi_insert.order))
       m.tag = vec_cmode_tags_[m_mcmi_insert.order];
-  else if (m_mcmi_insert.v_ext && vec_cmode_ && is_cmode_trap_store_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
+  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
   } else
@@ -1256,7 +1252,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   } else if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
     m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
 
-  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && is_cmode_trap_store_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
+  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
 
