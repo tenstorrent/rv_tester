@@ -2350,7 +2350,23 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   }
 
   if (debug_mode_ || (m.pa>=sep_base_ && ((m.pa + m.size) < sep_end_))) {
-    poke_mem(hart, m.cycle, m.pa, m.size, m.data, false, false);
+    if (m.v_ext) {
+      // For vector operations, use data_vec and split into chunks
+      std::vector<uint64_t> data_chunks = create_dword_vec(m.data_vec);
+      
+      // Calculate how many 8-byte chunks we need based on actual size
+      size_t num_chunks = (m.size + 7) / 8; // Round up division
+      
+      for (size_t i = 0; i < num_chunks && i < data_chunks.size(); ++i) {
+        uint64_t chunk_addr = m.pa + (i * 8);
+        uint8_t chunk_size = std::min(8, (int)(m.size - i * 8));
+        if (chunk_size > 0) {
+          poke_mem(hart, m.cycle, chunk_addr, chunk_size, data_chunks[i], false, false);
+        }
+      }
+    } else {
+      poke_mem(hart, m.cycle, m.pa, m.size, m.data, false, false);
+    }  
   }
 
   if (m.v_ext){
