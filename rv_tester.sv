@@ -228,6 +228,7 @@ module rv_tester
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
+    int disable_dmi_responce_ready = 0;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
@@ -509,6 +510,7 @@ module rv_tester
             cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout                <= cvm_plusargs::get_int("dmi_poll_timeout");
+            disable_dmi_responce_ready      <= cvm_plusargs::get_bool("disable_dmi_responce_ready");
             ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
             trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout                   <= cvm_plusargs::get_int("flush_timeout");
@@ -869,6 +871,7 @@ module rv_tester
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
+        .disable_dmi_responce_ready,
 
         .dmi_req_valid,
         .dmi_req,
