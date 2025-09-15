@@ -510,7 +510,7 @@ module rv_tester
             cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout                <= cvm_plusargs::get_int("dmi_poll_timeout");
-            disable_dmi_responce_ready      <= cvm_plusargs::get_bool("disable_dmi_responce_ready");
+            disable_dmi_responce_ready      <= cvm_plusargs::get_int("disable_dmi_responce_ready");
             ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
             trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout                   <= cvm_plusargs::get_int("flush_timeout");
