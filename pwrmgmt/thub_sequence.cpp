@@ -10,9 +10,14 @@ DEFINE_string(thub_interval, "5:5", "soc cycle interval between thub tick in the
 DEFINE_string(thub_width, "1:1", "soc cycle width of thub tick in the sim");
 DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 
+bool terminate;
+
 extern "C" {
   void thub_blocking_sequence_tick(uint8_t val);
   void func_tj_seq_ack(uint8_t val);
+  void thub_send_elf_terminate(){
+    terminate = 1;  
+  }
 }
 
 thub_sequence::thub_sequence
@@ -97,6 +102,11 @@ cvm::messenger::task<void> thub_sequence::wait_for_tj_max_ticks()
 
   for(uint32_t i =0; i< thub_wait_clk; i++)
   {
+    if(terminate){
+      cvm::log(cvm::NONE, "[tj_max] Elf Terminate observed ...... \n");
+      terminate = 0;
+      i = thub_wait_clk;
+    }
     co_await tick();
   };
   co_return;
