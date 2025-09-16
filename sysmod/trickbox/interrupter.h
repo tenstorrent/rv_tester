@@ -79,9 +79,9 @@ public:
 
   }
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
-  virtual void driveMSIInterrupt(uint64_t t_data)
+  virtual void driveMSIInterrupt(uint64_t intr_num, uint64_t t_data)
   {
-    uint32_t interrupt_num = t_data & 0xfff;
+    uint64_t interrupt_num = intr_num;
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
@@ -148,10 +148,10 @@ public:
             data.push_back(0x0);
             strb.push_back(0x0);
           }
-          for (uint8_t i = 0; i < 4; ++i) {
+          for (uint8_t i = 0; i < 8; ++i) {
             uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
             data[i] = currentByte;
-            strb[i] = 0x1;
+            if(i < 4) strb[i] = 0x1;
           }
           cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
         } else {
@@ -165,10 +165,10 @@ public:
             data.push_back(0x0);
             strb.push_back(0x0);
           }
-          for (uint8_t i = 0; i < 4; ++i) {
+          for (uint8_t i = 0; i < 8; ++i) {
             uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
             data[i] = currentByte;
-            strb[i] = 0x1;
+            if(i < 4) strb[i] = 0x1;
           }
           cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
 
@@ -212,10 +212,10 @@ public:
       data1.push_back(0x0);
       strb1.push_back(0x0);
     }
-    for (uint8_t i = 0; i < 4; ++i) {
+    for (uint8_t i = 0; i < 8; ++i) {
       uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
       data1[i] = currentByte;
-      strb1[i] = 0x1;
+      if(i < 4) strb1[i] = 0x1;
     }
     if (!is_vgein_intr) {
       cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, exp_err_rsp});
@@ -267,18 +267,18 @@ protected:
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng() % (FLAGS_imsic_intr_threshold ));
+  intr_num =  (rng() & (FLAGS_imsic_intr_mask ));
   if(!FLAGS_disable_vs_imsic_intr)
-          intr_num = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+          intr_num = (rng() & (FLAGS_imsic_vs_intr_mask )) ; //gen iter between 1 to max simul instr
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
-
-        intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold + 1)) ; //gen iter between 1 to max simul instr
+  
+        uint32_t intr_addr = (intr_num & 0xfff)|(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
-        driveMSIInterrupt(intr_num);
+        driveMSIInterrupt(intr_num, intr_addr);
         if(limit_interrupts){
           intr_count++;
         }

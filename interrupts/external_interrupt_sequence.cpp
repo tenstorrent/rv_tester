@@ -163,12 +163,12 @@ void external_interrupt_sequence::drive_interrupt(){
     intr_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
+  intr_num =  (rng1() & (FLAGS_imsic_intr_mask ));
   cvm::log(cvm::MEDIUM,"[ExtInterruptSeq] Driving interrupt for Physical hart: {}, intr_num: {}\n", id_, intr_num);
 
 	if(!FLAGS_disable_vs_imsic_intr)
-    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
-  if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;
+    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) + 1; //gen iter between 1 to GEILEN
+  if(intr_file == 0x02) intr_num &= FLAGS_imsic_vs_intr_mask;
   cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt logical hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
 
    uint32_t addr;
