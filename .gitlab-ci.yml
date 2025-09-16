@@ -33,6 +33,9 @@ smoke:
 
 notify_riscv_cluster:
     stage: notify
+    rules:
+        # https://tenstorrent.atlassian.net/wiki/spaces/RVRTLDV/pages/1421574263/Ascalon+-+Dependency+Freeze+Plan
+        - if: '$CI_COMMIT_BRANCH =~ /^ascalon\/ea\/a0/ && $CI_PIPELINE_SOURCE == "push"'
     extends:
         - .notify-template
     trigger:
