@@ -367,6 +367,7 @@ private:
   std::unordered_map<uint64_t, uint64_t> nmis_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
+  uint64_t mvip_;
   std::bitset<64> mip_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;

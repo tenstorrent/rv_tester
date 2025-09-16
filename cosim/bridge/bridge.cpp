@@ -2855,6 +2855,11 @@ void bridge::poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
     error("Hart {}: Failed to poke mip csr\n", hart);
     return;
   }
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', MVIP, mvip_, false, false, valid)) && FLAGS_whisper_client_check) {
+    error("Hart {}: Failed to poke mvip csr\n", hart);
+    return;
+  }
+
 }
 
 void bridge::peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip) {
@@ -2864,6 +2869,11 @@ void bridge::peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip) {
     error("Hart {}: Failed to peek mip\n", hart);
     return;
   }
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', MVIP, mvip_, valid)) && FLAGS_whisper_client_check) {
+    error("Hart {}: Failed to peek mvip\n", hart);
+    return;
+  }
+
   bridge_log(cvm::MEDIUM, "<{}> Whisper peek: mip: {:#x}\n", time, w_mip);
   mip = std::bitset<64>(w_mip);
 }
