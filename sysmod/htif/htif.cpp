@@ -205,7 +205,7 @@ htif::write(const transactor::write_t& w)
         std::string s(1, c);
         htif_log_.log(cvm::NONE, s);
         htif_log_.flush();
-      } 
+      }
 	    pty_.write(c);
 	    putchar(c);
 	    fflush(stdout);
