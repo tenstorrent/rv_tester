@@ -179,13 +179,21 @@ import rv_tester_params:: * ;
     end
 
     logic [63:0] AcChkCtime;
+    logic AcCrSynci_valid_any_prev;
+    
+    // Capture previous value for rising edge detection
+    always @(posedge rf_clk) begin
+        if (dut_reset) AcCrSynci_valid_any_prev <= 1'b0;
+        else AcCrSynci_valid_any_prev <= AcCrSynci_valid_any;
+    end
+    
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
         // If the mtime is written, update the ctime
         else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
-        // If the core syncs, update the ctime
-        else if (AcCrSynci_valid_any) AcChkCtime <= AcCrSynci[0].data;
+        // If the core syncs (rising edge detection), update the ctime
+        else if (AcCrSynci_valid_any && !AcCrSynci_valid_any_prev) AcChkCtime <= AcCrSynci[0].data;
         else AcChkCtime <= AcChkCtime;
         /* verilator lint_on BLKSEQ */
     end
