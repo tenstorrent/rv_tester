@@ -34,8 +34,9 @@ DEFINE_string(isa, "", "Override isa spec");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
-DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
-DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
+DEFINE_string(whisper_stdin,  "", "Redirect whisper stdin");
+DEFINE_string(whisper_stdout, "", "Redirect whisper stdout");
+DEFINE_string(whisper_stderr, "", "Redirect whisper stderr");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint32(whisper_deterministic, 100, "Equivalent to Whisper's deterministic");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
@@ -185,9 +186,17 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       args_str.insert(args_str.end(), {"--binary", bin});
   }
   if (FLAGS_isa      != "")            args_str.insert(args_str.end(), {"--isa", FLAGS_isa});
-  if (FLAGS_whisper_stdout_null)       args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
-  if (FLAGS_whisper_stdin_null)        args_str.insert(args_str.end(), {"--stdin",  "/dev/null"});
-  if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr",     FLAGS_stee_secure_region});
+
+  if (FLAGS_whisper_stderr != "")      args_str.insert(args_str.end(), {"--stderr", FLAGS_whisper_stderr});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stderr", "/dev/null"});
+
+  if (FLAGS_whisper_stdout != "")      args_str.insert(args_str.end(), {"--stdout", FLAGS_whisper_stdout});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
+
+  if (FLAGS_whisper_stdin  != "")      args_str.insert(args_str.end(), {"--stdin",  FLAGS_whisper_stdin});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stdin", "/dev/null"});
+
+  if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr", FLAGS_stee_secure_region});
 
   if (!standalone && FLAGS_eot_mem_check && FLAGS_whisper_data_lines == "")
     FLAGS_whisper_data_lines = "whisper_data_lines.log";
