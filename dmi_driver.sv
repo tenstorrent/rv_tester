@@ -29,6 +29,7 @@ import rv_tester_params:: * ;
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
     input rv_tester_pkg::dmi_resp_t dmi_resp,
+    input logic [31:0]              disable_dmi_responce_ready,
 
     output logic                          dmi_req_valid,
     output rv_tester_pkg::dmi_req_t       dmi_req,
@@ -421,19 +422,25 @@ import rv_tester_params:: * ;
     end
   endtask : do_file_writes
 
+  int i = 0;
   task drive_dmi_cmd(input rv_tester_pkg::dmi_req_t cmd);
     begin
       repeat (rand_dmi_driver_dly) begin
         @(posedge clk);
       end
+      $display("popping cmd=%d", i);
       @(posedge clk) dmi_req_valid <= '1;
       dmi_req <= cmd;
       wait (dmi_req_ready == 1);
       @(posedge clk) dmi_req_valid <= '0;
       wait (dmi_resp_valid == 1);
-      @(posedge clk) dmi_resp_ready <= 1;
-      response_queue.push_back(dmi_resp);
+      if(i >= disable_dmi_responce_ready) begin
+        @(posedge clk) dmi_resp_ready <= 1;
+        response_queue.push_back(dmi_resp);
+      end
       @(posedge clk) dmi_resp_ready <= 0;
+      i=i+1;
+      $display("i=%d", i);
     end
   endtask : drive_dmi_cmd
 
