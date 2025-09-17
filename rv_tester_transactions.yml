@@ -244,6 +244,8 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
+            attr:
+                width: 32
             data:
                 width: ${TOP.PLATFORM.XLEN}
             v_ext:
