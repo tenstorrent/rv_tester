@@ -705,7 +705,7 @@ whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmRead(hart, time, instrTag, addr, size, value[0], elemIx, field, valid);
+    return whisperMcmRead(hart, time, instrTag, addr, size, value[0], elemIx, field, cache, valid);
   }
 
   WhisperFlags wflags;
