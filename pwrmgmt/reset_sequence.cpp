@@ -52,6 +52,7 @@ DEFINE_string(rmw_csr_resetseq, "", "+rmw_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1
 DEFINE_string(rmw_mmr_resetseq, "", "+rmw_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>:<mask>,... ");
 DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
 DEFINE_bool(fuse_based_clock_gating, true, "Enable clock gating based on fuse programming");
+DEFINE_uint32(jtag_drain_cycles, 100, "Number of cycles to drain pending jtag transaction");
 
 extern "C" {
   void pwrmgmt_init();
@@ -196,9 +197,12 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Assert force_ref_clk
   force_ref_clk(1);
-
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  int32_t warm_reset_cycles = 16;
+  if (FLAGS_jtag_en) {
+    warm_reset_cycles += FLAGS_jtag_drain_cycles; // cycles to drain pending jtag transaction
+  }
+  // Wait for warm_reset_cycles clock ticks
+  for (int i=0; i<warm_reset_cycles; ++i)
     co_await tick();
 
   // Assert holds
