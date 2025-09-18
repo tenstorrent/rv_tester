@@ -234,6 +234,7 @@ module rv_tester
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
     int abscmd_hang_counter = 0;
+    bit warm_reset_directed_en = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -351,7 +352,7 @@ module rv_tester
         end
 
         num_resets <= num_resets + int'(warm_reset_now);
-        if (warm_reset_en && (num_resets < 0)) begin
+        if ((warm_reset_en || warm_reset_directed_en) && (num_resets < 0)) begin
             num_resets          <= 0;
         end
 
@@ -537,7 +538,8 @@ module rv_tester
             ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
-            abscmd_hang_counter  <= cvm_plusargs::get_int("abscmd_hang_counter");
+            abscmd_hang_counter             <= cvm_plusargs::get_int("abscmd_hang_counter");
+            warm_reset_directed_en          <= cvm_plusargs::get_bool("warm_reset_directed_en") != '0;
 
             cvm_verbosity        <= _cvm_verbosity;
             curr_cvm_verbosity   <= _cvm_verbosity;
