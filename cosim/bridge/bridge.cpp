@@ -3164,8 +3164,12 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
   // Special handling for mip
-  if (addr == MIP)
-    return mip_.to_ullong();
+  if (addr == MIP) {
+    std::bitset<64> mip;
+    peek_mip(hart, uint64_t(0), mip);
+    return mip.to_ullong();
+  }
+
 
   std::vector<bool> bool_vec;
   std::vector<uint64_t> dword_vec;
