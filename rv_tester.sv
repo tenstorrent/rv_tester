@@ -352,7 +352,7 @@ module rv_tester
         end
 
         num_resets <= num_resets + int'(warm_reset_now);
-        if ((warm_reset_en || warm_reset_directed_en) && (num_resets < 0)) begin
+        if (warm_reset_en && (num_resets < 0)) begin
             num_resets          <= 0;
         end
 
@@ -554,7 +554,7 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        if (warm_reset_en && (num_resets < 0)) begin
+        if ((warm_reset_en  || warm_reset_directed_en) && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
         
