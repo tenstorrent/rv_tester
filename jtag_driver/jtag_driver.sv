@@ -97,10 +97,10 @@ import rv_tester_params::*;
 
   always @(posedge clk) begin
     reset_d1 <= reset|warm_reset;
-    if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
-      jtag_req.tms <= '0;
-      jtag_req.tdi <= '0;
-    end
+    // if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
+    //   jtag_req.tms <= '0;
+    //   jtag_req.tdi <= '0;
+    // end
     if (~(reset|warm_reset) & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
@@ -273,6 +273,10 @@ assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 assign jtag_reset_begin = jtag_reset_begin_cpp ^ jtag_reset_begin_sv;
 
 always @(posedge clk) begin
+  if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
+    jtag_req.tms <= '0;
+    jtag_req.tdi <= '0;
+  end
   if (jtag_reset_begin) begin
         reset_delay_counter <= reset_delay_counter + 1; // Increment counter
         if (reset_delay_counter == reset_delay_count) begin
@@ -288,8 +292,8 @@ always @(posedge clk) begin
         end
   end
   if (!jtag_driver_en) begin
-    jtag_req.tms <= 1'b0;
-    jtag_req.tdi <= 1'b0;
+    // jtag_req.tms <= 1'b0;
+    // jtag_req.tdi <= 1'b0;
     trst_active  <=  1'b1;
   end else if (reset || jtag_hard_reset || jtag_soft_reset) begin
     state <= IDLE;
