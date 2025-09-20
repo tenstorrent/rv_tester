@@ -11,7 +11,7 @@ extern "C" {
   void terminate_ntrace_test_func(uint8_t val);
 
   uint8_t trace_stop_on_wrap_en_func() {
-    return FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_dst_stop_on_wrap_seq_en;
+    return FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_dst_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot;
   }
 }
 
@@ -28,13 +28,14 @@ trace_stop_on_wrap_sequence::trace_stop_on_wrap_sequence
     [this](svScope s) { return this->set_scope(s); }
   );
 
-  if(FLAGS_ntrace_stop_on_wrap_seq_en) {
+  if (FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot) {
     ntrace_main_thread();
   }
 
   if (FLAGS_dst_stop_on_wrap_seq_en) {
     dst_main_thread();
   }
+
 }
 
 trace_stop_on_wrap_sequence::~trace_stop_on_wrap_sequence() {
@@ -80,13 +81,21 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::ntrace_main() {
   cvm::log(cvm::MEDIUM, "[trace] Starting NTrace stop-on-wrap sequence\n");
 
   while (true) {
-
-    // co_await poll_ntrace_ram_en(ENABLE);
+    co_await poll_ntrace_ram_en(ENABLE);
     co_await poll_ntrace_ram_en(DISABLE);
     co_await disable_ntrace_encoder();
     co_await disable_trace_funnel();
     co_await reset_ntrace_ram();
-    co_await read_ntrace_ram();
+
+    auto is_sram_mode = !((co_await read(tr_ram_control, SZ_4B)) & ~tr_ram_mem_mode_mask);
+    if (is_sram_mode) {
+      co_await read_ntrace_ram();
+    }
+
+    if (FLAGS_enable_ntrace_in_boot) {
+      co_await reset_trace_funnel();
+      co_return;
+    }
 
     for (int cnt_loop=0; cnt_loop<800; cnt_loop++) {
       co_await tick();
@@ -180,7 +189,7 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::disable_ntrace_encoder()
   cvm::log(cvm::MEDIUM, "[trace] Disabling NTrace Encoder....\n");
 
   auto data = co_await read(tr_te_control, SZ_4B);
-  data &= tr_te_control_enable_mask;
+  data &= FLAGS_enable_ntrace_in_boot ? tr_te_control_active_mask : tr_te_control_enable_mask;
   co_await write(tr_te_control, SZ_4B, data);
 
   while(true) {
@@ -479,7 +488,7 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::write(uint64_t addr, siz
   }
 
   cvm::log(cvm::MEDIUM, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
-  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, 64, byte_array, strb});
+  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, sz, byte_array, strb});
 
   if (!block)
     co_return;
