@@ -216,7 +216,7 @@ void external_interrupt_sequence::drive_interrupt(){
           } else {
             // 30% chance to use random VS ID != VGEIN
             do {
-              intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while (intr_vs_id == vgein);
             intr_vs_id_random_++;
           }
@@ -259,13 +259,13 @@ void external_interrupt_sequence::drive_interrupt(){
           if ((rng1() % 100) < 70) {
             // 70% chance to pick VS ID with HGEIE set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
@@ -277,7 +277,7 @@ void external_interrupt_sequence::drive_interrupt(){
         }
       } else {
         is_vgein_intr = false;
-        intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+        intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
         addr = msi_vs_file_addr+ (intr_vs_id << 12) + (intr_hart << 18);
       }
    }else{

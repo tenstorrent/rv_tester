@@ -134,7 +134,7 @@ public:
           } else {
             // 30% chance to use random VS ID != VGEIN
             do {
-              vs_id = (rng() % 5) + 1; // Range [1,5]
+              vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while (vs_id == vgein);
             intr_vs_id_random_++;
           }
@@ -177,13 +177,13 @@ public:
           if ((rng() % 100) < 70) {
             // 70% chance to pick VS ID with HGEIE set
             do {
-              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
-              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
@@ -195,7 +195,7 @@ public:
         }
       } else {
         is_vgein_intr = false;
-        if (!disable_vs_id_randomisation) vs_id = (rng() % 5) + 1; // Range [1,5]
+        if (!disable_vs_id_randomisation) vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
         addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
       }
 
@@ -267,14 +267,15 @@ protected:
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng() & (FLAGS_imsic_intr_mask ));
-  if(!FLAGS_disable_vs_imsic_intr)
-          intr_num = (rng() & (FLAGS_imsic_vs_intr_mask )) ; //gen iter between 1 to max simul instr
+  cvm::rand::uniform_dist<uint64_t> rand_intr_num_64b(0, UINT64_MAX);
+  intr_num =  (rand_intr_num_64b() & (FLAGS_imsic_intr_mask));
+  if(!FLAGS_disable_vs_imsic_intr && intr_file == 2)
+          intr_num = (rand_intr_num_64b() & (FLAGS_imsic_vs_intr_mask )) ; //gen iter between 1 to max simul instr
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold + 1)) ; //gen iter between 1 to max simul instr
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold)) + 1 ; //gen iter between 1 to max simul instr
   
         uint32_t intr_addr = (intr_num & 0xfff)|(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
