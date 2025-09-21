@@ -50,8 +50,7 @@ DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismat
 DEFINE_bool(hw_ras_interrupt_resynch, true, "Resynch whisper with dut state for hw ras mismatch which can only be cleared from hardware source, LO PRI RAS, HI_PRI_RAS or BUSERR");
 
 DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei mismatch condition to match DUT");
-DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
-DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
+DEFINE_bool(intr_timeout_resynch, false, "Ignore whisper timeout error condition");
 DEFINE_uint32(intr_assert_timeout_resynch, 16, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
 DEFINE_uint32(dut_mip_resynch_age, 2, "a newly asserted interrupt may not show up in the MIP if the next instruction is CSRR MIP");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
@@ -1027,11 +1026,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     value++;
   for (auto& [key, value] : dut_mip_clr_age_)
     value++;
-
-  // Proceed only if DUT takes interrupt
-  if (hw_mip_ == 0 && prev_hw_mip_ == 0 && !d.intr) {
-    return;
-  }
 
   bool w_intr, w_virt_mode;
   uint64_t w_cause;
