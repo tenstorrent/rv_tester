@@ -35,7 +35,7 @@
                                                                                \
     always @(posedge clk) begin                                                \
         automatic logic popped_nxt = (reset_n) ? (pop): '0;                    \
-        popped <=  popped_nxt;                                                 \
+        popped <=  popped_nxt | sys_reset;                                     \
         rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(popped_nxt) : '0; \
         name``_wptr   <= name``_wptr_nxt;                                      \
     end                                                                        \
