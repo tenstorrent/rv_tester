@@ -120,7 +120,7 @@ module rv_tester
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
-    import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
+    import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
     import "DPI-C" context function void rv_tester_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
@@ -602,7 +602,7 @@ module rv_tester
 
             end
 
-            shutdowned = rv_tester_shutdown_registry() != '0;
+            shutdowned = rv_tester_shutdown_registry(unconditional_terminate) != '0;
             `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
             fml_shutdowned = shutdowned;
             `endif
