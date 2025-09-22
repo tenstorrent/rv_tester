@@ -1,17 +1,22 @@
 #include "trace_stop_on_wrap_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "fmt/ranges.h"
+#include <filesystem>
 
 REGISTRY_register(trace_stop_on_wrap_sequence, TRACE, cvm::registry::all);
 
 DEFINE_bool(ntrace_stop_on_wrap_seq_en, false, "Enable ntrace_stop_on_wrap_seq_en_sequence in the sim");
 DEFINE_bool(dst_stop_on_wrap_seq_en, false, "Enable dst_stop_on_wrap_seq_en_sequence in the sim");
 
+DEFINE_bool(ntrace_usecase_enable_in_hang, false, "Enable NTrace in the hardware hang/stall case in the sim");
+DEFINE_uint32(max_stall_detect_cycle, 1000, "Maximum cycles for core hang/stall detection in the sim");
+
 extern "C" {
   void terminate_ntrace_test_func(uint8_t val);
+  void warm_reset_release_corehang_func(uint8_t val);
 
   uint8_t trace_stop_on_wrap_en_func() {
-    return FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_dst_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot;
+    return FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_dst_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot || FLAGS_ntrace_usecase_enable_in_hang;
   }
 }
 
@@ -28,7 +33,11 @@ trace_stop_on_wrap_sequence::trace_stop_on_wrap_sequence
     [this](svScope s) { return this->set_scope(s); }
   );
 
-  if (FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot) {
+  if (std::filesystem::exists("bypass_axi_hang.txt")) {
+    FLAGS_ntrace_usecase_enable_in_hang = false;
+  }
+
+  if (FLAGS_ntrace_stop_on_wrap_seq_en || FLAGS_enable_ntrace_in_boot || FLAGS_ntrace_usecase_enable_in_hang) {
     ntrace_main_thread();
   }
 
@@ -73,6 +82,12 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::core_no_fetch()
   co_return;
 }
 
+cvm::messenger::task<void> trace_stop_on_wrap_sequence::detect_core_hang()
+{
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::trace::m_detect_core_hang<>>(loc_);
+  co_return;
+}
+
 cvm::messenger::task<void> trace_stop_on_wrap_sequence::ntrace_main() {
 
   // Wait for no fetch
@@ -81,12 +96,33 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::ntrace_main() {
   cvm::log(cvm::MEDIUM, "[trace] Starting NTrace stop-on-wrap sequence\n");
 
   while (true) {
+    if (FLAGS_ntrace_usecase_enable_in_hang) {
+      cvm::log(cvm::MEDIUM, "[trace] Detecting core hang in NTrace stop-on-wrap sequence\n");
+      co_await detect_core_hang();
+      cvm::log(cvm::MEDIUM, "[trace] Detected core hang in NTrace stop-on-wrap sequence\n");
+
+      co_await disable_ntrace_encoder();
+      co_await disable_trace_funnel();
+      co_await reset_ntrace_ram();
+      auto is_sram_mode = !((co_await read(tr_ram_control, SZ_4B)) & ~tr_ram_mem_mode_mask);
+      if (is_sram_mode) {
+        co_await read_ntrace_ram();
+      }
+      co_await reset_trace_funnel();
+
+      std::ofstream fbypass_axi_hang("bypass_axi_hang.txt");
+      fbypass_axi_hang << "Warm Reset Occurred";
+      fbypass_axi_hang.close();
+
+      warm_reset_request(1);
+      co_return;
+    }
+
     co_await poll_ntrace_ram_en(ENABLE);
     co_await poll_ntrace_ram_en(DISABLE);
     co_await disable_ntrace_encoder();
     co_await disable_trace_funnel();
     co_await reset_ntrace_ram();
-
     auto is_sram_mode = !((co_await read(tr_ram_control, SZ_4B)) & ~tr_ram_mem_mode_mask);
     if (is_sram_mode) {
       co_await read_ntrace_ram();
@@ -189,7 +225,7 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::disable_ntrace_encoder()
   cvm::log(cvm::MEDIUM, "[trace] Disabling NTrace Encoder....\n");
 
   auto data = co_await read(tr_te_control, SZ_4B);
-  data &= FLAGS_enable_ntrace_in_boot ? tr_te_control_active_mask : tr_te_control_enable_mask;
+  data &= (FLAGS_enable_ntrace_in_boot || FLAGS_ntrace_usecase_enable_in_hang) ? tr_te_control_active_mask : tr_te_control_enable_mask;
   co_await write(tr_te_control, SZ_4B, data);
 
   while(true) {
@@ -528,5 +564,15 @@ void trace_stop_on_wrap_sequence::terminate_test(uint8_t terminate_test)
     [terminate_test]() {
       cvm::log(cvm::MEDIUM, "[trace] Test {} \n", terminate_test ? " terminated" : "not terminated");
       terminate_ntrace_test_func(terminate_test);
+    });
+}
+
+void trace_stop_on_wrap_sequence::warm_reset_request(uint8_t warm_reset_req)
+{
+  cvm::registry::callbacks.push(
+    scope_,
+    [warm_reset_req]() {
+      cvm::log(cvm::MEDIUM, "[trace] warm_reset_request = {} \n", warm_reset_req);
+      warm_reset_release_corehang_func(warm_reset_req);
     });
 }

@@ -151,6 +151,7 @@ module rv_tester
     logic pwrmgmt_force_ref_clk;
     logic terminate_ntrace_test;
     logic terminate_dst_trace_seq;
+    logic warm_reset_release_hang;
     logic terminate_cla_seq;
     logic reset_window;
     logic cold_reset;
@@ -235,6 +236,7 @@ module rv_tester
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
     int abscmd_hang_counter = 0;
+    int max_stall_detect_cycle = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -538,7 +540,8 @@ module rv_tester
             ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
-            abscmd_hang_counter  <= cvm_plusargs::get_int("abscmd_hang_counter");
+            abscmd_hang_counter             <= cvm_plusargs::get_int("abscmd_hang_counter");
+            max_stall_detect_cycle          <= cvm_plusargs::get_int("max_stall_detect_cycle");
 
             cvm_verbosity        <= _cvm_verbosity;
             curr_cvm_verbosity   <= _cvm_verbosity;
@@ -940,6 +943,7 @@ module rv_tester
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
     logic [NHARTS-1:0] boot_done;
+    logic [NHARTS-1:0][31:0]cycles_since_retire;
 `ifndef NO_COSIM
     `ifndef CACHE_MODEL_EN
     // Dummy variables to prevent X - props #FIXME : remove later when making cache model default
@@ -994,6 +998,7 @@ module rv_tester
           .addr_map(addr_map),
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
+          .cycles_since_retire(cycles_since_retire[c]),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
           `ifdef CACHE_MODEL_EN
@@ -1062,6 +1067,7 @@ module rv_tester
                 .pll_dfs_done(pll_dfs_done),
                 .pll_shutdown_done(pll_shutdown_done),
                 .terminate(terminate),
+                .warm_reset_release_hang(warm_reset_release_hang),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -1147,6 +1153,9 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(dut_reset[AXI_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
+        .cycles_since_retire(cycles_since_retire),
+        .max_stall_detect_cycle(max_stall_detect_cycle),
+        .warm_reset_release_hang(warm_reset_release_hang),
         .terminate_ntrace_test(terminate_ntrace_test),
         .terminate_dst_trace_seq(terminate_dst_trace_seq),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
