@@ -633,14 +633,6 @@ module rv_tester
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
         terminated_1T <= terminated;
 
-        if (warm_reset_now) begin
-            /* verilator lint_off BLKSEQ */
-            warm_reset_clocks = soc_clocks;
-            /* verilator lint_on BLKSEQ */
-        end
-
-        warm_reset_req_d1 <= warm_reset_req;
-        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
     end
 
     // sys_reset per clock domain
@@ -731,6 +723,14 @@ module rv_tester
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         dut_reset_req_d1 <= dut_reset_req;
         shifted_dut_reset_req_d1 <= shifted_dut_reset_req;
+        if (warm_reset_now) begin
+            /* verilator lint_off BLKSEQ */
+            warm_reset_clocks = soc_clocks;
+            /* verilator lint_on BLKSEQ */
+        end
+
+        warm_reset_req_d1 <= warm_reset_req;
+        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
     end
     assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup;
 
