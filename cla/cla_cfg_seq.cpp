@@ -7,13 +7,14 @@ REGISTRY_register(cla_cfg_seq, CLA, cvm::registry::all);
 DEFINE_bool(cla_clk_halt, false, "Enable CLA clk halt events");
 DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
 DEFINE_bool(cla_rand_nmi_trig_en, false, "Enable CLA NMI/XTrigger events");
+DEFINE_bool(cla_custom_action_en, false, "CLA custom actions enable");
 
 bool elf_completed;
 
 extern "C" {
   void terminate_cla_cfg_seq_func(uint8_t val);
   uint8_t cla_cfg_seq_en_func() {
-    return (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en || FLAGS_cla_clk_halt);
+    return (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en || FLAGS_cla_clk_halt || FLAGS_cla_custom_action_en);
   }
   void cla_send_elf_terminate() {
     elf_completed = 1;
@@ -35,6 +36,9 @@ cla_cfg_seq::cla_cfg_seq
   if(FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en || FLAGS_cla_clk_halt) {
     cla_main_thread();
   }
+  if(FLAGS_cla_custom_action_en) {
+    cla_custom_action_thread();
+  }
 
 }
 
@@ -45,6 +49,15 @@ void cla_cfg_seq::cla_main_thread()
 {
   auto *task = +[] (cla_cfg_seq* m) -> cvm::messenger::task<void> {
     co_await m->cla_main();
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, this);
+};
+
+void cla_cfg_seq::cla_custom_action_thread()
+{
+  auto *task = +[] (cla_cfg_seq* m) -> cvm::messenger::task<void> {
+    co_await m->cla_custom_action_main();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
@@ -327,6 +340,73 @@ cvm::messenger::task<void> cla_cfg_seq::write(uint64_t addr, size_t sz, uint64_t
   co_return;
 }
 
+cvm::messenger::task<void> cla_cfg_seq::cla_custom_action_main() {
+
+  cvm::rand::uniform_dist<uint32_t> total_action_cnt(20, 50);
+  cvm::rand::uniform_dist<uint32_t> cnt_loop(20000, 25000);
+
+  custom_action_cnt = total_action_cnt();
+  cnt_loop_max = cnt_loop();
+  // Wait for no fetch
+  co_await core_no_fetch();
+  cvm::log(cvm::NONE, "[cla] Starting CLA Custom Action sequence Total Count {} \n", custom_action_cnt);
+
+  for(uint32_t i=0; i< custom_action_cnt; i++) {
+    co_await configure_cla_custom_action();
+    co_await wait_for_clocks(cnt_loop_max);
+    co_await disable_cla_custom_action();
+  }
+  co_return;
+}
+
+/************************************************************
+                    CLA Action Sequence
+NODE0_EAP0: CNTR0_TGT_MATCH , CLEAR_CNT0 moved to NODE1
+NODE0_EAP1: ALWAYS ON , INCR_CNT0 , Custom action for FE 0xA [1010]
+NODE1_EAP0: CNTR1_TGT_MATCH , CLEAR_CNT1 moved to NODE2
+NODE1_EAP1: ALWAYS ON , INCR_CNT1 , Custom action for FE 0x5 [0101]
+NODE2_EAP0: CNTR2_TGT_MATCH , CLEAR_CNT2 moved to NODE0
+NODE2_EAP1: ALWAYS ON , INCR_CNT2
+************************************************************/
+
+cvm::messenger::task<void> cla_cfg_seq::configure_cla_custom_action() {
+  cvm::rand::uniform_dist<uint32_t> trig_cnt(1, 200);
+  cvm::rand::uniform_dist<uint32_t> off_cnt(400, 500);
+
+  for(uint32_t i=0; i< FLAGS_num_harts ; i++){
+    cvm::log(cvm::NONE, "[cla] CLA Custom Action Configs for Core-{} \n",i);
+    core_offset = 0x10000 * i;
+    co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (0x1B00 | 0x40));
+    cntr_data = trig_cnt();
+    cntr_data = cntr_data << 16;
+    co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, cntr_data);
+    cntr_data = trig_cnt();
+    cntr_data = cntr_data << 16;
+    co_await write((cdbg_cla_counter1 + core_offset), SZ_8B, cntr_data);
+    cntr_data = off_cnt();
+    cntr_data = cntr_data << 16;
+    co_await write((cdbg_cla_counter2 + core_offset), SZ_8B, cntr_data);
+    co_await write((cdbg_node0_eap0_cfg + core_offset), SZ_8B, 0x100045);
+    co_await write((cdbg_node0_eap1_cfg + core_offset), SZ_8B, 0x3310010040);
+    co_await write((cdbg_node1_eap0_cfg + core_offset), SZ_8B, 0x130056);
+    co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x3200010051);
+    co_await write((cdbg_node2_eap0_cfg + core_offset), SZ_8B, 0x160064);
+    co_await write((cdbg_node2_eap1_cfg + core_offset), SZ_8B, 0x10062);
+    co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (0x1B00 | 0x60));
+  }
+
+  co_return;
+}
+
+cvm::messenger::task<void> cla_cfg_seq::disable_cla_custom_action() {
+
+  for(uint32_t i=0; i< FLAGS_num_harts ; i++){
+    cvm::log(cvm::NONE, "[cla] Disable CLA Custom Action Configs for Core-{} \n",i);
+    core_offset = 0x10000 * i;
+    co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (0x1B00 | 0x40));
+  }
+  co_return;
+}
 
 cvm::messenger::task<void> cla_cfg_seq::csr_write(uint32_t core_id, uint32_t unit, uint64_t addr, uint64_t data) {
   transactor::read_t read_req ;

@@ -37,13 +37,17 @@ class cla_cfg_seq {
     bool nmi_event, reenable_nmi, reenable_rand_trig, end_cla_cfg_seq=0;
     uint32_t core_offset;
     uint32_t eap_ctrl, active_core, mask, cntr_data, cnt_loop_max;
-    uint32_t nmi_total_cnt, trig_total_cnt;
+    uint32_t nmi_total_cnt, trig_total_cnt, custom_action_cnt;
     void cla_main_thread();
+    void cla_custom_action_thread();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> core_no_fetch();
 
     cvm::messenger::task<void> cla_main();
+    cvm::messenger::task<void> cla_custom_action_main();
+    cvm::messenger::task<void> configure_cla_custom_action();
+    cvm::messenger::task<void> disable_cla_custom_action();
     
     cvm::messenger::task<void> configure_cla();
     cvm::messenger::task<void> disable_cla();
