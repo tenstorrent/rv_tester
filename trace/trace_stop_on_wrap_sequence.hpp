@@ -25,6 +25,7 @@ class trace_stop_on_wrap_sequence {
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> core_no_fetch();
+    cvm::messenger::task<void> detect_core_hang();
 
     cvm::messenger::task<void> ntrace_main();
     cvm::messenger::task<void> dst_main();
@@ -56,6 +57,7 @@ class trace_stop_on_wrap_sequence {
     std::vector<uint8_t> convert_to_byte_array(uint64_t data, uint8_t shift);
 
     void terminate_test(uint8_t terminate_test);
+    void warm_reset_request(uint8_t warm_reset_req);
 
   private:
 

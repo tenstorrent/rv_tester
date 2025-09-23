@@ -294,6 +294,9 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await rmw_mmr();
   co_await program_fe_resetvector();
   co_await program_mtime(rst_type);
+  if (FLAGS_enable_ntrace_in_boot) {
+    co_await enable_ntrace();
+  }
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
@@ -1494,6 +1497,38 @@ cvm::messenger::task<void> reset_sequence::rmw_csr()
     cvm::log(cvm::ERROR, "Error: unable to parse +rmw_csr_resetseq={}\n", FLAGS_rmw_csr_resetseq);
     co_return;
   }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::enable_ntrace() {
+  // NTrace UseCase Scenario: Added support for NTrace Enable in boot [Stop-on-wrap only]
+  uint64_t tr_ram_start_addr      = 0x0;
+  uint64_t tr_ram_end_addr        = 0x1000;
+  uint32_t tr_ram_mem_mode        = 0x1;    // SMEM
+  uint32_t tr_ram_wrap_mode       = 0x1;    // Stop-on-wrap
+  uint32_t tr_ram_mem_mode_idx    = 4;
+  uint32_t tr_ram_wrap_mode_idx   = 8;
+  uint32_t tr_ram_on              = 0x3;
+  uint32_t tr_funnel_disinput_val = 0x0;
+  uint32_t tr_funnel_on           = 0x3;
+  uint32_t tr_te_on               = 0x7;
+  uint32_t tr_te_frame_cfg        = 0x102FF0;
+
+  // Configure NTrace RAM
+  co_await write(tr_ram_start_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_rp_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_wp_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_limit_low, SZ_8B, tr_ram_end_addr);
+  co_await write(tr_ram_control, SZ_4B, (tr_ram_wrap_mode << tr_ram_wrap_mode_idx) | (tr_ram_mem_mode << tr_ram_mem_mode_idx) | tr_ram_on);
+
+  // Configure Trace Funnel
+  co_await write(tr_funnel_disinput, SZ_4B, tr_funnel_disinput_val);
+  co_await write(tr_funnel_control, SZ_4B, tr_funnel_on);
+
+  // Configure NTrace Encoder
+  co_await write(cdbg_tr_frame_cfg, SZ_4B, tr_te_frame_cfg);
+  co_await write(tr_te_control, SZ_4B, tr_te_on);
 
   co_return;
 }

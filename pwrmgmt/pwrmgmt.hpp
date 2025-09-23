@@ -343,6 +343,17 @@ namespace {
     }
   };
   
+  // NTrace MMRs 
+  constexpr uint32_t tr_ram_control            = 0x4208'0000;
+  constexpr uint32_t tr_ram_start_low          = 0x4208'0010;
+  constexpr uint32_t tr_ram_limit_low          = 0x4208'0018;
+  constexpr uint32_t tr_ram_wp_low             = 0x4208'0020;
+  constexpr uint32_t tr_ram_rp_low             = 0x4208'0028; 
+  constexpr uint32_t tr_funnel_control         = 0x4208'1000;
+  constexpr uint32_t tr_funnel_disinput        = 0x4208'1008;
+  constexpr uint32_t cdbg_tr_frame_cfg         = 0x4200'21A8;
+  constexpr uint32_t tr_te_control             = 0x4200'1000;
+
 }
 
 class pwrmgmt {
