@@ -785,15 +785,17 @@ module rv_tester
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
-    function void rv_tester_set_clock_mode (input int unsigned new_clock_mode);
-        if (new_clock_mode <= 3'b110) begin
-            clock_mode <= new_clock_mode[2:0];
-            $display("<%0d> rv_tester_set_clock_mode: clock_mode changed to %0d", clocks, new_clock_mode);
-        end else begin
-            $display("<%0d> rv_tester_set_clock_mode: Invalid clock_mode %0d, valid range is 0-6", clocks, new_clock_mode);
-        end
-    endfunction
-    export "DPI-C" function rv_tester_set_clock_mode;
+    /* RVDE-27024
+    * function void rv_tester_set_clock_mode (input int unsigned new_clock_mode);
+    *     if (new_clock_mode <= 3'b110) begin
+    *         clock_mode <= new_clock_mode[2:0];
+    *         $display("<%0d> rv_tester_set_clock_mode: clock_mode changed to %0d", clocks, new_clock_mode);
+    *     end else begin
+    *         $display("<%0d> rv_tester_set_clock_mode: Invalid clock_mode %0d, valid range is 0-6", clocks, new_clock_mode);
+    *     end
+    * endfunction
+    * export "DPI-C" function rv_tester_set_clock_mode;
+    */
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, dut_clk[CORE_CLK_IDX]);
     `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
