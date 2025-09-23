@@ -136,6 +136,7 @@ import rv_tester_params::*;
     input longint eot_addr,
     input bit poke_event_in,
     output bit poke_event_out,
+    output int cycles_since_retire,
     output rv_tester_pkg::terminate_t terminate,
     input logic disable_checks,
     output logic boot_done,
@@ -422,7 +423,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [PA_WIDTH-1:0] debug_exit_pc;
     longint unsigned debug_entry_pc_arg;
     longint unsigned debug_exit_pc_arg;
-    int cycles_since_retire;
     int hart_enable_mask;
     int nharts;
     longint unsigned hart;

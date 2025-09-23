@@ -98,6 +98,8 @@ DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Loa
 DEFINE_bool(overlay_mmr_check, true, "Enable Scratchpad MMR read/write data checks from Overlay port");
 // CLUSTER AXI->SC-SP Performance testing
 DEFINE_bool(cluster_axi_sp_perf, false, "Enable Cluster AXI->SC-SP Performance testing");
+// Enable NTrace during boot
+DEFINE_bool(enable_ntrace_in_boot, false, "Enable NTrace during boot");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <regex>
+#include <filesystem>
 #include "axi.h"
 #include "cvm/logger.hpp"
 
@@ -55,7 +56,9 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     cvm::registry::messenger.procedure<disable_error_rpc>(loc, [this] () { return this->disable_error(); });
     cvm::registry::messenger.procedure<check_error_rpc>(loc, [this] (addr_t addr, size_t& count) { return this->check_error(addr, count); });
 
-    hang_list_.parse(FLAGS_axi_resp_hang_addr);
+    if (!std::filesystem::exists("bypass_axi_hang.txt")) {
+        hang_list_.parse(FLAGS_axi_resp_hang_addr);
+    }
     setup_error_lists();
 
     // Enable when test start label is observed
