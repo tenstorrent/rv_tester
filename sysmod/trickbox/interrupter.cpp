@@ -15,8 +15,8 @@
  DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
- DEFINE_int32(imsic_intr_threshold, 256, "imsic_intr interrupts threshold value");
- DEFINE_int32(imsic_vs_intr_threshold, 63, "imsic_vs_intr interrupts threshold value");
+ DEFINE_uint64(imsic_intr_mask, 0xff, "imsic_intr interrupts mask value");
+ DEFINE_uint64(imsic_vs_intr_mask, 0x3f, "imsic_vs_intr interrupts mask value");
  DEFINE_int32(imsic_vs_id_threshold, 5, "imsic guest file id threshold value");
  DEFINE_int32(imsic_hart_threshold, 1, "harts threshold value");
  DEFINE_int32(imsic_intr_start_delay, 5000, "delay after which random interrupts should start");
@@ -91,7 +91,8 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0]
     //mask:    0xfff                   0xfff        0xf                  0xfff
     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
-    driveMSIInterrupt(t_data);
+    uint64_t intr_num = t_data & 0xfff;
+    driveMSIInterrupt(intr_num, t_data);
   }
   else if ((addr > interrupter_base) && (addr < (interrupter_base + 0x1000))) {
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write delayed - addr={:#x} data={:#x}\n", addr, t_data);
