@@ -3017,7 +3017,7 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
     }
   }
   if (addr == HGATP) {
-    uint64_t mode = (get_csr(id_, src_t::dut, HGATP) | (data & mask)) >> 60;
+    uint64_t mode = (data & mask) >> 60;
     bool valid_mode = false;
     for (uint16_t hgatp_valid_mode : hgatp_valid_modes) {
       if (mode == hgatp_valid_mode) {
@@ -3028,7 +3028,8 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
     if (!valid_mode) {
       result = result & 0xfffffffffffffffULL;
     } else {
-      result = result & ((mode << 60) | 0xfffffffffffffffULL);
+      uint64_t mode_mask = get_csr(id_, src_t::dut, HGATP)>>60 | mode;
+      result = result & ((mode_mask << 60) | 0xfffffffffffffffULL);
     }
   }
 
