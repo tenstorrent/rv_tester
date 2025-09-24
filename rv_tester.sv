@@ -151,6 +151,7 @@ module rv_tester
     logic pwrmgmt_force_ref_clk;
     logic terminate_ntrace_test;
     logic terminate_dst_trace_seq;
+    logic warm_reset_release_hang;
     logic terminate_cla_seq;
     logic reset_window;
     logic cold_reset;
@@ -187,6 +188,7 @@ module rv_tester
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
+    logic jtag_driver_en;
 
 
     logic terminate_1T = '0;
@@ -235,6 +237,7 @@ module rv_tester
     bit nonexistent_hart = 0;
     int abscmd_hang_counter = 0;
     bit warm_reset_directed_en = 0;
+    int max_stall_detect_cycle = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -291,7 +294,7 @@ module rv_tester
     
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_driver_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -540,6 +543,7 @@ module rv_tester
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
             abscmd_hang_counter             <= cvm_plusargs::get_int("abscmd_hang_counter");
             warm_reset_directed_en          <= cvm_plusargs::get_bool("warm_reset_directed_en") != '0;
+            max_stall_detect_cycle          <= cvm_plusargs::get_int("max_stall_detect_cycle");
 
             cvm_verbosity        <= _cvm_verbosity;
             curr_cvm_verbosity   <= _cvm_verbosity;
@@ -597,7 +601,7 @@ module rv_tester
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
                 end else if (quiesce_counter == 0) begin
                     $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-                end else begin
+                end else  begin 
                     $display("\n<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
 
@@ -786,15 +790,17 @@ module rv_tester
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
-    function void rv_tester_set_clock_mode (input int unsigned new_clock_mode);
-        if (new_clock_mode <= 3'b110) begin
-            clock_mode <= new_clock_mode[2:0];
-            $display("<%0d> rv_tester_set_clock_mode: clock_mode changed to %0d", clocks, new_clock_mode);
-        end else begin
-            $display("<%0d> rv_tester_set_clock_mode: Invalid clock_mode %0d, valid range is 0-6", clocks, new_clock_mode);
-        end
-    endfunction
-    export "DPI-C" function rv_tester_set_clock_mode;
+    /* RVDE-27024
+    * function void rv_tester_set_clock_mode (input int unsigned new_clock_mode);
+    *     if (new_clock_mode <= 3'b110) begin
+    *         clock_mode <= new_clock_mode[2:0];
+    *         $display("<%0d> rv_tester_set_clock_mode: clock_mode changed to %0d", clocks, new_clock_mode);
+    *     end else begin
+    *         $display("<%0d> rv_tester_set_clock_mode: Invalid clock_mode %0d, valid range is 0-6", clocks, new_clock_mode);
+    *     end
+    * endfunction
+    * export "DPI-C" function rv_tester_set_clock_mode;
+    */
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, dut_clk[CORE_CLK_IDX]);
     `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
@@ -941,6 +947,7 @@ module rv_tester
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
     logic [NHARTS-1:0] boot_done;
+    logic [NHARTS-1:0][31:0]cycles_since_retire;
 `ifndef NO_COSIM
     `ifndef CACHE_MODEL_EN
     // Dummy variables to prevent X - props #FIXME : remove later when making cache model default
@@ -995,6 +1002,7 @@ module rv_tester
           .addr_map(addr_map),
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
+          .cycles_since_retire(cycles_since_retire[c]),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
           `ifdef CACHE_MODEL_EN
@@ -1038,6 +1046,7 @@ module rv_tester
     localparam RESET_SOC_CLOCKS = 20;
     assign init_pulse = (clocks < RESET_TB_CLOCKS);
     assign warm_reset_pulse = (soc_clocks > RESET_SOC_CLOCKS) && (soc_clocks < (warm_reset_clocks + RESET_SOC_CLOCKS));
+    assign jtag_driver_en = jtag_en && ~sysmod_terminate.terminate;
     generate
         if (PWRMGMT_EN) begin : pwrmgmt
             pwrmgmt #(
@@ -1062,6 +1071,7 @@ module rv_tester
                 .pll_dfs_done(pll_dfs_done),
                 .pll_shutdown_done(pll_shutdown_done),
                 .terminate(terminate),
+                .warm_reset_release_hang(warm_reset_release_hang),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -1100,7 +1110,7 @@ module rv_tester
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
-            .jtag_driver_en(jtag_en||dmi_driver_dbg_enable),
+            .jtag_driver_en((jtag_driver_en||dmi_driver_dbg_enable)),
             .jtag_quiesced(jtag_quiesced),
             .jtag_req,
             .jtag_tck_trst,
@@ -1147,6 +1157,9 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(dut_reset[AXI_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
+        .cycles_since_retire(cycles_since_retire),
+        .max_stall_detect_cycle(max_stall_detect_cycle),
+        .warm_reset_release_hang(warm_reset_release_hang),
         .terminate_ntrace_test(terminate_ntrace_test),
         .terminate_dst_trace_seq(terminate_dst_trace_seq),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)

@@ -95,6 +95,7 @@ class reset_sequence {
     cvm::messenger::task<void>init_mmr();
     cvm::messenger::task<void>rmw_csr();
     cvm::messenger::task<void>rmw_mmr();
+    cvm::messenger::task<void> enable_ntrace();
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);

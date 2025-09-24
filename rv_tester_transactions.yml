@@ -1915,6 +1915,9 @@ trace:
         fields:
             cycle:
                 width: 32
+    m_detect_core_hang:
+        domain: 2
+        num: 1
 cla:
     num: 1
     m_core_no_fetch:
