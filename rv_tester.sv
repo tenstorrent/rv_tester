@@ -236,6 +236,7 @@ module rv_tester
     bit sdtrig_display = 0;
     bit nonexistent_hart = 0;
     int abscmd_hang_counter = 0;
+    bit warm_reset_directed_en = 0;
     int max_stall_detect_cycle = 0;
 
     int trace_timeout = 50000;
@@ -541,6 +542,7 @@ module rv_tester
             num_harts                       <= cvm_plusargs::get_int("num_harts");
             cluster_axi_sp_perf             <= cvm_plusargs::get_bool("cluster_axi_sp_perf") != '0;
             abscmd_hang_counter             <= cvm_plusargs::get_int("abscmd_hang_counter");
+            warm_reset_directed_en          <= cvm_plusargs::get_bool("warm_reset_directed_en") != '0;
             max_stall_detect_cycle          <= cvm_plusargs::get_int("max_stall_detect_cycle");
 
             cvm_verbosity        <= _cvm_verbosity;
@@ -556,7 +558,7 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        if (warm_reset_en && (num_resets < 0)) begin
+        if ((warm_reset_en  || warm_reset_directed_en) && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
         
@@ -635,14 +637,6 @@ module rv_tester
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
         terminated_1T <= terminated;
 
-        if (warm_reset_now) begin
-            /* verilator lint_off BLKSEQ */
-            warm_reset_clocks = soc_clocks;
-            /* verilator lint_on BLKSEQ */
-        end
-
-        warm_reset_req_d1 <= warm_reset_req;
-        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
     end
 
     // sys_reset per clock domain
@@ -733,6 +727,14 @@ module rv_tester
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         dut_reset_req_d1 <= dut_reset_req;
         shifted_dut_reset_req_d1 <= shifted_dut_reset_req;
+        if (warm_reset_now) begin
+            /* verilator lint_off BLKSEQ */
+            warm_reset_clocks = soc_clocks;
+            /* verilator lint_on BLKSEQ */
+        end
+
+        warm_reset_req_d1 <= warm_reset_req;
+        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
     end
     assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup;
 

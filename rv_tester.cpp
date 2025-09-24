@@ -71,6 +71,7 @@ DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel a
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
 DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
+DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))
