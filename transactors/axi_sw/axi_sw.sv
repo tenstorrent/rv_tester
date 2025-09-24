@@ -21,26 +21,26 @@
     endfunction                                            \
     export "DPI-C" function name``_reset;
 
-`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, pop, popped, empty, out, rptr) \
-    localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];         \
-    localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];         \
-    localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);               \
-                                                                               \
-    T name``_q[DEPTH];                                                         \
-    name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                    \
-                                                                               \
-    assign name``_size  = name``_wptr - rptr;                                  \
-//  assign full  = name``_size == name``_D;                                    \
-    assign empty = name``_size == '0;                                          \
-                                                                               \
-    always @(posedge clk) begin                                                \
-        automatic logic popped_nxt = (reset_n) ? (pop): '0;                    \
-        popped <=  popped_nxt | sys_reset;                                     \
-        rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(popped_nxt) : '0; \
-        name``_wptr   <= name``_wptr_nxt;                                      \
-    end                                                                        \
-                                                                               \
-    assign out = name``_q[name``_idx_t'(rptr % name``_D)];                     \
+`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, update_rptr, rptr_updated, empty, out, rptr) \
+    localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];               \
+    localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];               \
+    localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);                     \
+                                                                                     \
+    T name``_q[DEPTH];                                                               \
+    name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                          \
+                                                                                     \
+    assign name``_size  = name``_wptr - rptr;                                        \
+//  assign full  = name``_size == name``_D;                                          \
+    assign empty = name``_size == '0;                                                \
+                                                                                     \
+    always @(posedge clk) begin                                                      \
+        automatic logic rptr_updated_nxt = (reset_n) ? (update_rptr): '0;            \
+        rptr_updated <=  rptr_updated_nxt | sys_reset;                               \
+        rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(rptr_updated_nxt) : '0; \
+        name``_wptr   <= name``_wptr_nxt;                                            \
+    end                                                                              \
+                                                                                     \
+    assign out = name``_q[name``_idx_t'(rptr % name``_D)];                           \
     `AXI_SW_DPI_FIFO_RESET(name)
 
 module axi_sw #(
