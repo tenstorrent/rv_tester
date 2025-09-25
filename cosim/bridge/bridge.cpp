@@ -2692,8 +2692,9 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
 }
 
 void bridge::poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip) {
-  poke_mip(hart, cycle, mip_);
-  check_and_defer_interrupt(hart, cycle, l_mip);
+  peek_mip(hart, cycle, mip_);
+  poke_mip(hart, cycle, mip_ | l_mip);
+  check_and_defer_interrupt(hart, cycle, mip_ | l_mip);
 }
 
 void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
