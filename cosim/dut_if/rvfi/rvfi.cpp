@@ -935,7 +935,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
     return;
 
   mem_t m;
-  bool cacheable = (m_mcmi_read.attr & 0x1000) == 0x1000;
   m.valid  = true;
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
@@ -1011,12 +1010,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           }
           m.data_vec = value;
           m.elem_idx = m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
         }
       }
       else {
         m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
       }
   } else {
       std::bitset<32> mask = m_mcmi_read.mask;
@@ -1066,7 +1065,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                   std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
                   m.data_vec = value;
                   m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
                 }
               } else{
                 m.pa = start_addr;
@@ -1074,7 +1073,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                 std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
                 m.data_vec = value;
                 m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
               }
               start_addr = addresses[i];
               size = 1;
@@ -1103,7 +1102,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           }
           std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
           m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
         }
       } else{
         m.pa = start_addr;
@@ -1111,7 +1110,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
         std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
         m.data_vec = value;
         m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
       }
   }
   if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {

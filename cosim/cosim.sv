@@ -1105,7 +1105,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
         assign m_mcmi_reads[n].data.mask = mcmi_read[n].mask;
         assign m_mcmi_reads[n].data.data = mcmi_read[n].data[63:0];
-        assign m_mcmi_reads[n].data.attr = mcmi_read[n].attr;
         assign m_mcmi_reads[n].data.data_vec = mcmi_read[n].data[255:0];
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
