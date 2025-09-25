@@ -379,6 +379,7 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
       hart->halt_request = hart->HR_NONE;
       hart_state[hart_id].resumeack = false;
     }
+    memset(&dmdata, 0, sizeof(dmdata));
     memset(&dmstatus, 0, sizeof(dmstatus));
     memset(&dmcontrol, 0, sizeof(dmcontrol));
     dmstatus.impebreak = config.support_impebreak;
