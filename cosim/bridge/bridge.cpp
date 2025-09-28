@@ -2197,7 +2197,6 @@ bool bridge::htif_read(const uint64_t& pa) {
 
 bool bridge::hpm_counter_read(const std::string& instr) {
   if ((instr.find("hpmcounter") != std::string::npos) ||
-      (instr.find("instret") != std::string::npos) ||
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
       (instr.find("vstimecmp") != std::string::npos) ||
