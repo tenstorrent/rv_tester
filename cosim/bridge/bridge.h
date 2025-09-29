@@ -257,6 +257,18 @@ private:
     {0x10C, "sstateen0"}
   };
 
+    // Bit masks for fields that are masked by misa.H in each CSR
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
+    {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
+    {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
+    {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
+    {0x244, 0x0000000000001444}, // sip: same as mip (alias)
+    {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
+    {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
+  };
+  
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
