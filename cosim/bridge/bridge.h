@@ -63,7 +63,7 @@ public:
   //   - Read (Ld completion)
   //   - Insert (St merge buffer insertion)
   //   - Write (St cache write)
-  virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
