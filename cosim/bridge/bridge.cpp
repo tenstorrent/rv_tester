@@ -1645,13 +1645,21 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                 mask = 0xffffffffffffffffULL;
                 update_csr(hart, src_t::iss, addr, value, mask, false, false);
                 bool valid = false;
-                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, value, false, false, valid)) && FLAGS_whisper_client_check) {
+                uint64_t peek_value = 0;
+                uint64_t poke_value = 0;
+                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                  return;
+                }
+                valid = false;
+                poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
                   error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
                   return;
                 }
                 if (addr == medeleg.address) {
                   mask = 0xF00400;
-                  update_csr(hart, src_t::dut, medeleg.address, value, mask, false, false);
+                  update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
                 }
               }
             }
@@ -1674,7 +1682,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         }
       }
       if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
-        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask));
+        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);     
       }
     }
   }
