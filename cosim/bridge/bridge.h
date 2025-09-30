@@ -322,6 +322,7 @@ private:
   rv_instr_t w_;
   rv_instr_t pd_;
 
+  uint32_t priv_mode_ = 3;
   uint32_t step_ = 1;
   uint32_t cycle_ = 1;
   uint64_t whisper_time_=0;

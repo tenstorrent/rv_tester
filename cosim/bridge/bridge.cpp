@@ -551,6 +551,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
+  priv_mode_ = d.priv;
 
   if ((d.cycle >= FLAGS_bridge_debug_cycle) & (FLAGS_bridge_debug_cycle > 0) & !debug_on_) {
      print(cvm::MEDIUM,"Setting debug_on_ = true\n");
@@ -2144,6 +2145,12 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
       if (iss_val == cac_csr_val) {
         bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[Recent HW update] [dut={:#x}, iss={:#x}, cac={:#x}]\n", cycle, dut_val, iss_val, cac_csr_val);
         return true;
+      }
+      if ((csr_addr == VSIP) ||
+          ((priv_mode_==VU || (priv_mode_==VS)) && (csr_addr == SIP))
+          ) {
+        dut_val_diff <<= 1;
+        iss_val_diff <<= 1;
       }
       bool match = true;
       match &= is_match(dut_val_diff, whisper_mip_clr_age_, FLAGS_intr_assert_timeout_resynch);
