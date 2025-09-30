@@ -283,7 +283,7 @@ extern "C" {
 
         cvm::log(cvm::NONE, "[registry] shutdown...\n");
         if (unconditional_terminate) {
-            return 1; // return 1 to force unconditional termination
+            return cvm::registry::shutdown();
         }
         else {
             return cvm::registry::shutdown_all_except(dm_loc);
