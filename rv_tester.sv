@@ -1205,6 +1205,7 @@ module rv_tester
         .reset(sys_reset[TB_CLK_IDX]),
         .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
+        .warm_reset_req(warm_reset_req),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminated(terminated),
         .terminate_now(terminate_now),

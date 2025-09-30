@@ -346,19 +346,18 @@ void aclint_checker::set_scope(svScope s) {
     aclint_checker_scope_ = s;
 }
 
-void aclint_checker::check_outstanding_transactions(uint64_t signal) {
+void aclint_checker::check_outstanding_transactions(uint64_t clocks) {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Checking for outstanding MMR writes...\n");
-    if (!signal) return;
     
     std::string error_str = "";
     if (!cr_ac_mmr_v_.empty()) {
-        error_str += fmt::format("Error: {} Outstanding CORE-ACLINT MMR writes\n", cr_ac_mmr_v_.size());
+        error_str += fmt::format("[{}] Error: {} Outstanding CORE-ACLINT MMR writes\n", clocks, cr_ac_mmr_v_.size());
     } else {
         cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     }
 
     if (!smc_ac_mmr_v_.empty()) {
-        error_str += fmt::format("Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
+        error_str += fmt::format("[{}] Error: {} Outstanding SMC-ACLINT MMR writes\n", clocks, smc_ac_mmr_v_.size());
     } else {
         cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
     }
@@ -377,8 +376,8 @@ void aclint_checker::clear_core_outstanding_transactions(const clear_outstanding
 
 }
 
-extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {
-    cvm::registry::messenger.signal<uint64_t>(loc, uint64_t(1));
+extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc, uint64_t clocks) {
+    cvm::registry::messenger.signal<uint64_t>(loc, clocks);
 }
 
 extern "C" void clear_core_outstanding_transactions(cvm::topology::loc_t loc) {
