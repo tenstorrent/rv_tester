@@ -185,6 +185,7 @@ module rv_tester
     bit [NHARTS-1:0] poke_event_out;
     bit poke_event_in;
     bit jtag_en = 0;
+    bit jtag_use_soc_clk = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
@@ -535,6 +536,7 @@ module rv_tester
             cla_en                          <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
             overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en                         <= cvm_plusargs::get_bool("jtag_en") != '0;
+            jtag_use_soc_clk                 <= cvm_plusargs::get_bool("jtag_use_soc_clk") != '0;
             rand_dmi_driver_dly             <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask                <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count                      <= '0;
@@ -1098,24 +1100,29 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
+    
+    // JTAG clock selection logic
+    logic jtag_clk_selected;
+    assign jtag_clk_selected = jtag_use_soc_clk ? dut_clk[SOC_CLK_IDX] : dut_clk[REF_CLK_IDX];
+    
     jtag_driver #(
           .NUM(0),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PARAMS(0)
         )jtag_driver
         (
-            .clk(dut_clk[REF_CLK_IDX]),
+            .clk(jtag_clk_selected),
             .reset(reset[COLD_RESET_IDX]),
             .warm_reset(reset[WARM_RESET_IDX]),
-            .dut_clk(dut_clk[TB_CLK_IDX]),
-            .dut_reset(dut_reset[TB_CLK_IDX]),
+            .dut_clk(dut_clk[SOC_CLK_IDX]),
+            .dut_reset(dut_reset[SOC_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
             .jtag_driver_en((jtag_driver_en||dmi_driver_dbg_enable)),
             .jtag_quiesced(jtag_quiesced),
             .jtag_req,
             .jtag_tck_trst,
             .jtag_resp,
-          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(1,0,0)
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(3,0,0)
         );
 
 

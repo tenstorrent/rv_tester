@@ -69,15 +69,14 @@ import rv_tester_params::*;
    bit        jtag_reset_begin_sv;
    bit        jtag_soft_reset;
    bit        jtag_hard_reset;
-   bit        [2:0] reset_counter;       // Counter for up to 1000 cycles
-   bit        [9:0] reset_delay_count;        // Counter for 5 cycles of trst assertion
-   bit        [9:0] reset_delay_counter;       
-   bit        reset_counter_active;      // Indicates if the reset counter is active
-   bit        trst_active;               // Indicates if trst is being asserted
+   bit        [2:0] reset_counter;       // Counter for reset cycles
+   bit        [9:0] reset_delay_count;        // Counter for cycles of trst assertion
+   bit        [9:0] reset_delay_counter;
    bit        hard_reset_pending;        // Indicates if a hard reset is pending
    bit        soft_reset_pending;        // Indicates if a soft reset is pending
    
    bit        jtag_sp_boot;
+   bit [31:0] jtag_idle_cycles;
 
    initial begin
      jtag_enable_end = 0;
@@ -106,6 +105,7 @@ import rv_tester_params::*;
         jtag_driver_set_scope(location);
         jtag_socket_en <= jtag_driver_get_socket_en_from_plusargs("jtag_driver_mode");
         jtag_sp_boot   <= cvm_plusargs::get_bool("jtag_sp_boot") != '0;
+        jtag_idle_cycles <= cvm_plusargs::get_int("jtag_idle_cycles") ;
       end
     end
   end
@@ -153,7 +153,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & (~no_fetch| jtag_sp_boot) & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & (~no_fetch| jtag_sp_boot) & ((dut_clocks % 40) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
@@ -177,6 +177,7 @@ typedef enum logic [1:0] {
 
   logic read_data_valid = '0;
   bit [31:0] delay_counter = '0;
+  bit waiting_after_delay = '0;
 
   bit jtag_req_begin = '0;
   bit jtag_req_begin_d = '0;
@@ -188,6 +189,12 @@ typedef enum logic [1:0] {
   bit dr ='0;
   
   bit pos_tdo_en;
+  bit tck_enable;
+
+  // Enable TCK only during active JTAG operations, after delay, and reset operations
+  assign tck_enable = jtag_driver_en && 
+                      ((state == SHIFT_DR) || (state == SHIFT_IR) || (state == UPDATE) || 
+                       waiting_after_delay || jtag_hard_reset || jtag_soft_reset);
 
   assign jtag_pkt_acks[0].valid         = (state == UPDATE) || (jtag_busy && (jtag_soft_reset|| jtag_hard_reset));
   assign jtag_pkt_acks[0].data.location = location;
@@ -266,17 +273,14 @@ typedef enum logic [1:0] {
   endfunction
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
-  assign jtag_tck_trst.tck = jtag_driver_en ? clk: 1'b0;
-  assign jtag_tck_trst.trst = (reset & ~((dut_clocks > 30) && (dut_clocks <100))) || trst_active;
+  assign jtag_tck_trst.tck = tck_enable ? clk: 1'b0;
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 assign jtag_reset_begin = jtag_reset_begin_cpp ^ jtag_reset_begin_sv;
 
 always @(posedge clk) begin
-  if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
-    jtag_req.tms <= '0;
-    jtag_req.tdi <= '0;
-  end
+  // TRST logic
+  //jtag_hard_reset <= (reset & ~((dut_clocks > 30) && (dut_clocks <100)));
   if (jtag_reset_begin) begin
         reset_delay_counter <= reset_delay_counter + 1; // Increment counter
         if (reset_delay_counter == reset_delay_count) begin
@@ -291,36 +295,36 @@ always @(posedge clk) begin
           end
         end
   end
-  if (!jtag_driver_en) begin
-    // jtag_req.tms <= 1'b0;
-    // jtag_req.tdi <= 1'b0;
-    trst_active  <=  1'b1;
-  end else if (reset || jtag_hard_reset || jtag_soft_reset) begin
+  if (!jtag_driver_en || reset) begin
+    jtag_req.tms <= 1'b0;
+    jtag_req.tdi <= 1'b0;
+    jtag_tck_trst.trst  <=  1'b1;
+  end else if (jtag_hard_reset || jtag_soft_reset) begin
     state <= IDLE;
     shiftCount <= 32'b0;
     read_data_valid <= 1'b0;
     delay_counter <= 32'b0;
+    waiting_after_delay <= 1'b0;
     jtag_req.tdi <= 1'b0;
    
     if (jtag_hard_reset) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 5 cycles
-        trst_active <= 1'b1; // Pull trst pin down
+        jtag_tck_trst.trst <= 1'b1; // Pull trst pin down
         jtag_busy <= 1'b1;
         state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
-          trst_active <= 1'b0; // Release trst pin after 5 cycles
+          jtag_tck_trst.trst <= 1'b0; // Release trst pin after 5 cycles
           jtag_hard_reset <= 1'b0; // Clear hard reset signal
           jtag_req.tms <= 1'b0;
           jtag_busy <= 1'b0;
-
         end
       end
     end else if (jtag_soft_reset) begin
       if (reset_counter == 0) begin
-        reset_counter <= 3'b101; // Initialize counter for 6 cycles
+        reset_counter <= 3'b101; // Initialize counter for 5 cycles
         jtag_req.tms <= 1'b1; // Keep TMS high for 5 cycles
         jtag_busy <= 1'b1;
         state <= IDLE;
@@ -332,11 +336,9 @@ always @(posedge clk) begin
             jtag_busy <= 1'b0;
         end
       end
-    end else begin
-      jtag_req.tms <= 1'b0;
-    end
+    end 
   end else begin
-    trst_active   <= 0 ;
+    jtag_tck_trst.trst   <= 0 ;
     reset_counter <= 0 ;
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
@@ -360,13 +362,21 @@ always @(posedge clk) begin
         if(dr == 1'b1) begin
           dr <=  1'b0;
         end 
-        if(delay_counter < 32'd10) begin
-          delay_counter <= delay_counter + 32'b1;
+        
+        // Handle after delay when transitioning from UPDATE to IDLE
+        if (waiting_after_delay) begin
+          if (delay_counter < jtag_idle_cycles) begin
+            delay_counter <= delay_counter + 32'b1;
+            jtag_busy <= 1'b1;
+          end else begin
+            waiting_after_delay <= 1'b0;
+            delay_counter <= 0;
+            jtag_busy <= 1'b0;
+          end
         end
-        else if (jtag_req_begin && delay_counter >= 32'd10) begin 
+        else if (jtag_req_begin ) begin 
           // Interpret command and data, set state accordingly
           jtag_req_begin_d <= 1'b1;
-          delay_counter <= 0;
           case (command_l)
             2'b10: begin
                     state <= IDLE;
@@ -447,6 +457,8 @@ always @(posedge clk) begin
 
         if (shiftCount == 32'd2) begin
           jtag_req.tms <= 1'b0;
+          waiting_after_delay <= 1'b1;
+          delay_counter <= 0;
           state <= IDLE;
           shiftCount <= 0;
         end
