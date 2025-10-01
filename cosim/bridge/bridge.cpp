@@ -985,7 +985,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
   if (!nmi_poke_pending_ && !d.nmi)
     return;
 
-  if (!d.nmi && nmi_poke_pending_) {
+  if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ == NO_PATCH) {
     for (auto& [key, value] : nmis_) {
       bridge_log(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
       value++;
@@ -1035,7 +1035,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  if (!d.intr && w_intr) {
+  if (!d.intr && w_intr && !debug_mode_ && patch_mode_ == NO_PATCH) {
     intr_age_[w_cause]++;
     bridge_log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
