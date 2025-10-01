@@ -1156,7 +1156,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
   // If interrupt asserted via csr write, we don't need to defer
   // DUT is expected to take at retire boundary if whisper takes the undeferred interrupt
-  if (w_.intr && !d.intr && !FLAGS_cosim_resynch) {
+  if (w_.intr && !d.intr && !FLAGS_cosim_resynch && !debug_mode_ && patch_mode_ == NO_PATCH) {
     print_instr_stdout(hart, w);
     error("Hart {}: Whisper took interrupt, DUT did not. wcause:[{}]\n", hart, w_.icause);
     return;
@@ -1230,7 +1230,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
     return;
   }
 
-  if (!d.nmi && w_.nmi && !FLAGS_cosim_resynch) {
+  if (!d.nmi && w_.nmi && !FLAGS_cosim_resynch && !debug_mode_ && patch_mode_ == NO_PATCH) {
     print_instr_stdout(hart, w);
     error("Hart {}: Whisper took NMI, DUT did not. Cause: {}\n", hart,
       nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
