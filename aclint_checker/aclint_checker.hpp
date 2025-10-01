@@ -145,7 +145,7 @@ class aclint_checker {
     void popifpossible(txn_src v_type);
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
-    void check_outstanding_transactions(uint64_t signal);
+    void check_outstanding_transactions(uint64_t clocks);
     void clear_core_outstanding_transactions(const clear_outstanding_txn& signal_pkt);
     void set_scope(svScope scope);
     private:

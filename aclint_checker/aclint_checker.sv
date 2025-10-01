@@ -22,6 +22,7 @@ import rv_tester_params:: * ;
         input logic[8: 0] AcMtipi,
         input logic SmcMtipi,
         input logic AcChk_pll_interrupts_in,
+        input logic warm_reset_req,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -266,16 +267,13 @@ import rv_tester_params:: * ;
     endfunction
     export "DPI-C" function get_ctime_value;
 
-    import "DPI-C" function void check_outstanding_transactions(int unsigned location);
+    import "DPI-C" function void check_outstanding_transactions(int unsigned location, longint unsigned clocks);
+    import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
     always @(posedge tb_clk) begin
+        if ($rose(warm_reset_req) || $fell(warm_reset)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
-        if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location);
-    end
-
-    import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
-    always @(negedge warm_reset) begin
-        clear_core_outstanding_transactions(location);
+        else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location, clocks);
     end
 
   function automatic logic [3:0] get_hart_ret(int n);
