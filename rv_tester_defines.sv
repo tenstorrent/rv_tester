@@ -1095,4 +1095,18 @@ package rv_tester_params;
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
+
+`define Z_KEEPER_INIT(clk,num) \
+   bit [num-1:0] z_keeper_data_vec;\
+   bit           z_keeper_load, z_keeper_send, z_keeper_data;\
+   assign z_keeper_data = | z_keeper_data_vec;\
+   dpi_keeper_ctrl i_dpi_keeper_ctrl(clk , z_keeper_load, z_keeper_data);
+
+`define Z_KEEPER_DATA(clk,num,data) \
+   bit [$bits(data)-1:0] data``_keeper_reg;\
+   always @(posedge clk) data``_keeper_reg <= (z_keeper_load==1'b1) ? data : {1'b0,data``_keeper_reg[$bits(data)-1:1]};\
+   assign z_keeper_data_vec[num-1] = data``_keeper_reg[0];
+
+
+
 endpackage

@@ -1711,6 +1711,11 @@ extern "C" long long get_max_stall_cycle() {
   return FLAGS_max_stall_cycle;
 }
 
+extern "C" void dpi_keeper_send_data(svBit data) {
+    cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n",data);
+    return;
+}
+
 bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
     // Define the regex pattern to find 'c' followed by digits
     std::regex pattern(R"(c(\d+))");
