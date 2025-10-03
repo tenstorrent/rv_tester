@@ -63,9 +63,7 @@ module rv_tester_delay_resp #(
 
     typedef struct packed {
         logic [AxiIdWidth-1:0] orig_req_id;
-        r_chan_t [MaxBeatsPerBurst-1:0] r;
         int unsigned pop_time;
-        logic r_valid;
     } fifo_entry_t;
 
     typedef struct packed {
@@ -73,7 +71,7 @@ module rv_tester_delay_resp #(
         beat_count_t resp_beat_counter;
     } beat_tracker_t;
     
-    index_t push_idx, wr_idx;
+    index_t push_idx, pop_idx, wr_idx;
     logic push_en, pop_en, wr_en;
     logic fifo_full, fifo_empty;
     logic[$clog2(MaxInFlight+1)-1:0] write_ptr, read_ptr;
@@ -82,32 +80,50 @@ module rv_tester_delay_resp #(
 
     beat_tracker_t beat_tracker[MaxInFlight-1:0];
     beat_count_t output_beat_idx, next_output_beat_idx;
+    logic resp_complete;
 
     // Internal signals
     fifo_entry_t push_entry, pop_entry;
-    fifo_entry_t resp_data_mask, resp_data;
+
+    // R channel RAM signals
+    logic r_ram_wr_en;
+    logic[$clog2(MaxInFlight * MaxBeatsPerBurst)-1:0] r_ram_wr_addr, r_ram_rd_addr;
+    r_chan_t r_ram_wr_data, r_ram_rd_data;
 
     // FIFO instantiation
     rv_tester_fifo #(
         .D(MaxInFlight),
         .T(fifo_entry_t),
-        .ENABLE_RANDOM_ACCESS_WRITE(1)
+        .ENABLE_RANDOM_ACCESS_WRITE(0)
     ) rv_fifo (
         .clk(clk_i),
         .reset_n(rst_ni),
         .push(push_en),
         .d(push_entry),
-        .wr_en(wr_en),
-        .wr_idx(wr_idx),
-        .wr_data(resp_data),
-        .wr_mask(resp_data_mask),
         .pop(pop_en),
         .q(pop_entry),
         .size(),
         .full(fifo_full),
         .empty(fifo_empty),
         .push_ptr(write_ptr),
-        .pop_ptr(read_ptr)
+        .pop_ptr(read_ptr),
+        .push_idx(push_idx),
+        .pop_idx(pop_idx)
+    );
+
+    // R channel data RAM instantiation
+    rv_tester_ram #(
+        .SIZE(MaxInFlight * MaxBeatsPerBurst),
+        .DATA_TYPE(r_chan_t),
+        .NUM_WRITE_PORTS(1),
+        .NUM_READ_PORTS(1)
+    ) r_ram (
+        .clk(clk_i),
+        .wr_en('{r_ram_wr_en}),
+        .wr_addr('{r_ram_wr_addr}),
+        .wr_data('{r_ram_wr_data}),
+        .rd_addr('{r_ram_rd_addr}),
+        .rd_data('{r_ram_rd_data})
     );
 
     // ID tagging for master requests - use index directly as ID
@@ -127,9 +143,7 @@ module rv_tester_delay_resp #(
             if (ar_req_check && !fifo_full) begin
                 push_entry <= '{
                     orig_req_id: slv_req_ar_i.id,
-                    r: '{default: '0},
                     pop_time: global_timer + delay_cycles,
-                    r_valid: 1'b0,
                     default: '0
                 };
                 push_en <= 1'b1;
@@ -171,27 +185,35 @@ module rv_tester_delay_resp #(
 
         // Internal signal defaults
         pop_en = '0;
-        wr_en = '0;
-        resp_data = '{default: '0};
-        resp_data_mask = '{default: '0};
+        r_ram_wr_en = '0;
+        r_ram_wr_addr = '0;
+        r_ram_wr_data = '0;
+        r_ram_rd_addr = '0;
 
         // Signal assignments
-        push_idx = write_ptr[$clog2(MaxInFlight)-1:0];
         // Extract FIFO index from response ID
         wr_idx = index_t'(mst_resp_i.r.id[FIFO_IDX_WIDTH-1:0]);  // Modulo operation
         ar_req_check = slv_req_ar_valid_i && mst_resp_i.ar_ready;
         next_output_beat_idx = output_beat_idx;
 
+        // Calculate RAM addresses using FIFO indices
+        // For reading: use pop_idx from FIFO and current beat index
+        r_ram_rd_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((pop_idx * MaxBeatsPerBurst) + output_beat_idx);
+
+        // Check if response is complete for this FIFO entry
+        // Response is complete when we have received all expected beats
+        resp_complete = (beat_tracker[pop_idx].resp_beat_counter == beat_tracker[pop_idx].total_beats);
+
         // Handle delayed read responses
-        if (!fifo_empty && global_timer >= pop_entry.pop_time && pop_entry.r_valid && slv_req_r_ready_i) begin
+        if (!fifo_empty && global_timer >= pop_entry.pop_time && resp_complete && slv_req_r_ready_i) begin
             slv_resp_o.r_valid = 1'b1;
-            slv_resp_o.r.data = pop_entry.r[output_beat_idx].data;
+            slv_resp_o.r.data = r_ram_rd_data.data;
             slv_resp_o.r.id = pop_entry.orig_req_id;
-            slv_resp_o.r.resp = pop_entry.r[output_beat_idx].resp;
-            slv_resp_o.r.last = pop_entry.r[output_beat_idx].last;
-            slv_resp_o.r.user = pop_entry.r[output_beat_idx].user;
-            
-            if (pop_entry.r[output_beat_idx].last) begin
+            slv_resp_o.r.resp = r_ram_rd_data.resp;
+            slv_resp_o.r.last = r_ram_rd_data.last;
+            slv_resp_o.r.user = r_ram_rd_data.user;
+
+            if (r_ram_rd_data.last) begin
                 next_output_beat_idx = '0;
                 pop_en = 1'b1;
             end else begin
@@ -200,30 +222,10 @@ module rv_tester_delay_resp #(
         end
 
         // Store incoming read responses
-        if (mst_resp_i.r_valid) begin
-            resp_data = '{
-                orig_req_id: '0,
-                r: '{default: '0},
-                pop_time: '0,
-                r_valid: '1,
-                default: '0
-            };
-            // Set the specific array element after struct creation
-            resp_data.r[beat_tracker[wr_idx].resp_beat_counter] = mst_resp_i.r;
-            
-            // Build mask to only update the specific r array element and r_valid
-            resp_data_mask = '{
-                orig_req_id: '0,
-                r: '{default: '0},
-                pop_time: '0,
-                r_valid: '1,
-                default: '0
-            };
-            // Enable mask for the specific array element being updated
-            resp_data_mask.r[beat_tracker[wr_idx].resp_beat_counter] = '1;
-            
-            wr_en = 1'b1;
-        end
+        // Calculate RAM address for this beat using FIFO index
+        r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * MaxBeatsPerBurst) + beat_tracker[wr_idx].resp_beat_counter);
+        r_ram_wr_data = mst_resp_i.r;
+        r_ram_wr_en = mst_resp_i.r_valid;
     end
 `ifdef ASSERTION_ENABLE
     // Beat counter assertions
