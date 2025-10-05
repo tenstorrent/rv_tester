@@ -984,8 +984,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   if (!nmi_poke_pending_ && !d.nmi)
     return;
-
-  if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ == NO_PATCH) {
+  if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH ) {
     for (auto& [key, value] : nmis_) {
       bridge_log(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
       value++;
@@ -997,7 +996,9 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   }
 
-  bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+  if (!debug_mode_ && patch_mode_ != IN_PATCH){
+    bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+  }
 
   // Timing sensitive resynch cases
   // 1. DUT took nmi that deasserted before retire
@@ -1007,9 +1008,10 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   }
 
-  if (nmi_poke_pending_)
+  if (nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH){
     poke_dut_nmi(hart, d.cycle, d.ncause);
-  nmi_taken_count_++;
+    nmi_taken_count_++;
+  }
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1035,7 +1037,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  if (!d.intr && w_intr && !debug_mode_ && patch_mode_ == NO_PATCH) {
+  if (!d.intr && w_intr && !debug_mode_ && patch_mode_ != IN_PATCH) {
     intr_age_[w_cause]++;
     bridge_log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
@@ -1156,7 +1158,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
   // If interrupt asserted via csr write, we don't need to defer
   // DUT is expected to take at retire boundary if whisper takes the undeferred interrupt
-  if (w_.intr && !d.intr && !FLAGS_cosim_resynch && !debug_mode_ && patch_mode_ == NO_PATCH) {
+  if (w_.intr && !d.intr && !FLAGS_cosim_resynch & !debug_mode_ && patch_mode_ != IN_PATCH) {
     print_instr_stdout(hart, w);
     error("Hart {}: Whisper took interrupt, DUT did not. wcause:[{}]\n", hart, w_.icause);
     return;
@@ -1230,7 +1232,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
     return;
   }
 
-  if (!d.nmi && w_.nmi && !FLAGS_cosim_resynch && !debug_mode_ && patch_mode_ == NO_PATCH) {
+  if (!d.nmi && w_.nmi && !FLAGS_cosim_resynch && !debug_mode_ && patch_mode_ != IN_PATCH) {
     print_instr_stdout(hart, w);
     error("Hart {}: Whisper took NMI, DUT did not. Cause: {}\n", hart,
       nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
