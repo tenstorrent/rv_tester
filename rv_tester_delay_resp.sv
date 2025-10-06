@@ -125,9 +125,6 @@ module rv_tester_delay_resp #(
         .rd_addr('{r_ram_rd_addr}),
         .rd_data('{r_ram_rd_data})
     );
-
-    // ID tagging for master requests - use index directly as ID
-    assign mst_req_ar_id_o = AxiIdWidth'(push_idx);
     
     // Sequential logic
     always_ff @(posedge clk_i) begin: new_ar_req_logic
@@ -166,7 +163,7 @@ module rv_tester_delay_resp #(
 
             // Increment input beat counter when receiving responses
             if (mst_resp_i.r_valid) begin
-                input_beat_counters[wr_idx] <= beat_count_t'(int'(input_beat_counters[wr_idx]) + 1);
+                input_beat_counters[wr_idx] <= input_beat_counters[wr_idx] + beat_count_t'(1);
             end
         end
     end
@@ -180,7 +177,7 @@ module rv_tester_delay_resp #(
         slv_resp_o.b.id = mst_resp_i.b.id[AxiIdWidth-1:0];
         slv_resp_o.b.resp = mst_resp_i.b.resp;
         slv_resp_o.b.user = mst_resp_i.b.user;
-        
+
         // Default read channel values
         slv_resp_o.r = '0;
         slv_resp_o.r_valid = '0;
@@ -198,33 +195,50 @@ module rv_tester_delay_resp #(
         ar_req_check = slv_req_ar_valid_i && mst_resp_i.ar_ready;
         next_output_beat_idx = output_beat_idx;
 
-        // Calculate RAM addresses using FIFO indices
-        // For reading: use pop_idx from FIFO and current beat index
-        r_ram_rd_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((pop_idx * MaxBeatsPerBurst) + output_beat_idx);
+        // Bypass logic when delay_cycles is 0
+        if (delay_cycles == 0) begin
+            // Direct pass-through for read channel
+            slv_resp_o.r_valid = mst_resp_i.r_valid;
+            slv_resp_o.r.data = mst_resp_i.r.data;
+            slv_resp_o.r.id = mst_resp_i.r.id[AxiIdWidth-1:0];
+            slv_resp_o.r.resp = mst_resp_i.r.resp;
+            slv_resp_o.r.last = mst_resp_i.r.last;
+            slv_resp_o.r.user = mst_resp_i.r.user;
+            // Use original request ID instead of modified ID
+            mst_req_ar_id_o = slv_req_ar_i.id;
+        end else begin
+            // Normal delay logic
+            // Calculate RAM addresses using FIFO indices
+            // For reading: use pop_idx from FIFO and current beat index
+            r_ram_rd_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((pop_idx * index_t'(MaxBeatsPerBurst)) + output_beat_idx);
 
-        // Handle delayed read responses
-        if (!fifo_empty && global_timer >= pop_entry.pop_time && r_ram_rd_data.r_valid && slv_req_r_ready_i) begin
-            slv_resp_o.r_valid = 1'b1;
-            slv_resp_o.r.data = r_ram_rd_data.r.data;
-            slv_resp_o.r.id = pop_entry.orig_req_id;
-            slv_resp_o.r.resp = r_ram_rd_data.r.resp;
-            slv_resp_o.r.last = r_ram_rd_data.r.last;
-            slv_resp_o.r.user = r_ram_rd_data.r.user;
+            // Handle delayed read responses
+            if (!fifo_empty && global_timer >= pop_entry.pop_time && r_ram_rd_data.r_valid && slv_req_r_ready_i) begin
+                slv_resp_o.r_valid = 1'b1;
+                slv_resp_o.r.data = r_ram_rd_data.r.data;
+                slv_resp_o.r.id = pop_entry.orig_req_id;
+                slv_resp_o.r.resp = r_ram_rd_data.r.resp;
+                slv_resp_o.r.last = r_ram_rd_data.r.last;
+                slv_resp_o.r.user = r_ram_rd_data.r.user;
 
-            if (r_ram_rd_data.r.last) begin
-                next_output_beat_idx = '0;
-                pop_en = 1'b1;
-            end else begin
-                next_output_beat_idx = beat_count_t'(int'(output_beat_idx) + 1);
+                if (r_ram_rd_data.r.last) begin
+                    next_output_beat_idx = '0;
+                    pop_en = 1'b1;
+                end else begin
+                    next_output_beat_idx = output_beat_idx + beat_count_t'(1);
+                end
             end
-        end
 
-        // Store incoming read responses
-        // Calculate RAM address for this beat using FIFO index and input beat counter
-        r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * MaxBeatsPerBurst) + input_beat_counters[wr_idx]);
-        r_ram_wr_data.r_valid = mst_resp_i.r_valid;
-        r_ram_wr_data.r = mst_resp_i.r;
-        r_ram_wr_en = mst_resp_i.r_valid;
+            // Store incoming read responses
+            // Calculate RAM address for this beat using FIFO index and input beat counter
+            r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * index_t'(MaxBeatsPerBurst)) + input_beat_counters[wr_idx]);
+            r_ram_wr_data.r_valid = mst_resp_i.r_valid;
+            r_ram_wr_data.r = mst_resp_i.r;
+            r_ram_wr_en = mst_resp_i.r_valid;
+
+            // Use FIFO index as ID for master requests
+            mst_req_ar_id_o = AxiIdWidth'(push_idx);
+        end
     end
 `ifdef ASSERTION_ENABLE
     // Beat counter assertions
