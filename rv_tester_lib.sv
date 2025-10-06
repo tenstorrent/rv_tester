@@ -99,7 +99,6 @@ endmodule
 module rv_tester_fifo #(
     parameter  int unsigned D = 1,
     parameter  type         T = logic,
-    parameter  bit          ENABLE_RANDOM_ACCESS_WRITE = 0,
     localparam type         ptr_t = logic[$clog2(D+1)-1:0],
     localparam type         idx_t = logic[($clog2(D) > 0 ? $clog2(D)-1 : 0):0]
 )(
@@ -107,9 +106,6 @@ module rv_tester_fifo #(
     input  logic                reset_n,
     input  logic                push,
     input  T                    d,
-    input  logic                wr_en,
-    input  idx_t                wr_idx,
-    input  T                    wr_data,
     input  logic                pop,
     output T                    q,
     output ptr_t                size,
@@ -126,12 +122,7 @@ module rv_tester_fifo #(
 
     ptr_t rptr, wptr, rptr_nxt, wptr_nxt;
 
-    localparam int NUM_WR_PORTS = ENABLE_RANDOM_ACCESS_WRITE ? 2 : 1;
-
     // RAM interface signals
-    logic ram_wr_en [NUM_WR_PORTS];
-    idx_t ram_wr_addr [NUM_WR_PORTS];
-    T ram_wr_data [NUM_WR_PORTS];
     idx_t ram_rd_addr;
     T ram_rd_data;
 
@@ -161,37 +152,19 @@ module rv_tester_fifo #(
     rv_tester_ram #(
         .SIZE(D),
         .DATA_TYPE(T),
-        .NUM_WRITE_PORTS(NUM_WR_PORTS),
+        .NUM_WRITE_PORTS(1),
         .NUM_READ_PORTS(1)
     ) ram_inst (
         .clk(clk),
-        .wr_en(ram_wr_en),
-        .wr_addr(ram_wr_addr),
-        .wr_data(ram_wr_data),
+        .wr_en('{push}),
+        .wr_addr('{push_idx}),
+        .wr_data('{d}),
         .rd_addr('{ram_rd_addr}),
         .rd_data('{ram_rd_data})
     );
 
     // RAM control logic
     always_comb begin
-        // Write port 0: FIFO push
-        ram_wr_en[0] = push;
-        ram_wr_addr[0] = push_idx;
-        ram_wr_data[0] = d;
-
-    end
-
-    // Generate block for random access write port
-    if (ENABLE_RANDOM_ACCESS_WRITE) begin : gen_random_access_write
-        always_comb begin
-            ram_wr_en[1] = wr_en;
-            ram_wr_addr[1] = wr_idx;
-            ram_wr_data[1] = wr_data;
-        end
-    end
-
-    always_comb begin
-
         // Read address
         ram_rd_addr = ptr_to_idx(rptr_nxt);
     end
@@ -218,10 +191,6 @@ module rv_tester_fifo #(
                 // Bypass: pushing to empty FIFO
                 bypass_enable <= '1;
                 q_bypass <= d;
-            end else if (ENABLE_RANDOM_ACCESS_WRITE && wr_en && wr_idx == ptr_to_idx(rptr_nxt)) begin
-                // Bypass: random access write to location being read
-                bypass_enable <= '1;
-                q_bypass <= wr_data;
             end
         end
     end

@@ -94,8 +94,7 @@ module rv_tester_delay_resp #(
     // FIFO instantiation
     rv_tester_fifo #(
         .D(MaxInFlight),
-        .T(fifo_entry_t),
-        .ENABLE_RANDOM_ACCESS_WRITE(0)
+        .T(fifo_entry_t)
     ) rv_fifo (
         .clk(clk_i),
         .reset_n(rst_ni),
