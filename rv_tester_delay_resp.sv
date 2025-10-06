@@ -66,10 +66,12 @@ module rv_tester_delay_resp #(
         int unsigned pop_time;
     } fifo_entry_t;
 
+    // R channel data with validity bit
     typedef struct packed {
-        beat_count_t total_beats;
-        beat_count_t resp_beat_counter;
-    } beat_tracker_t;
+        logic r_valid;
+        r_chan_t r;
+    } r_ram_entry_t;
+
     
     index_t push_idx, pop_idx, wr_idx;
     logic push_en, pop_en, wr_en;
@@ -78,9 +80,8 @@ module rv_tester_delay_resp #(
     int unsigned global_timer;
     logic ar_req_check;
 
-    beat_tracker_t beat_tracker[MaxInFlight-1:0];
     beat_count_t output_beat_idx, next_output_beat_idx;
-    logic resp_complete;
+    beat_count_t input_beat_counters[MaxInFlight-1:0]; // Beat counter per FIFO entry for incoming responses
 
     // Internal signals
     fifo_entry_t push_entry, pop_entry;
@@ -88,7 +89,7 @@ module rv_tester_delay_resp #(
     // R channel RAM signals
     logic r_ram_wr_en;
     logic[$clog2(MaxInFlight * MaxBeatsPerBurst)-1:0] r_ram_wr_addr, r_ram_rd_addr;
-    r_chan_t r_ram_wr_data, r_ram_rd_data;
+    r_ram_entry_t r_ram_wr_data, r_ram_rd_data;
 
     // FIFO instantiation
     rv_tester_fifo #(
@@ -114,7 +115,7 @@ module rv_tester_delay_resp #(
     // R channel data RAM instantiation
     rv_tester_ram #(
         .SIZE(MaxInFlight * MaxBeatsPerBurst),
-        .DATA_TYPE(r_chan_t),
+        .DATA_TYPE(r_ram_entry_t),
         .NUM_WRITE_PORTS(1),
         .NUM_READ_PORTS(1)
     ) r_ram (
@@ -151,20 +152,22 @@ module rv_tester_delay_resp #(
         end
     end
 
-    always_ff @(posedge clk_i) begin: beat_tracker_logic
+    always_ff @(posedge clk_i) begin: beat_logic
         if (!rst_ni) begin
-            beat_tracker <= '{default: '0};
             output_beat_idx <= '0;
+            input_beat_counters <= '{default: '0};
         end
         else begin
             output_beat_idx <= next_output_beat_idx;
+
+            // Reset input beat counter when new AR request is processed
             if (ar_req_check && !fifo_full) begin
-                beat_tracker[push_idx].total_beats <= beat_count_t'(int'(slv_req_ar_i.len) + 1);
-                beat_tracker[push_idx].resp_beat_counter <= '0;
+                input_beat_counters[push_idx] <= '0;
             end
-            // Update beat counter when receiving responses
+
+            // Increment input beat counter when receiving responses
             if (mst_resp_i.r_valid) begin
-                beat_tracker[wr_idx].resp_beat_counter <= beat_count_t'(int'(beat_tracker[wr_idx].resp_beat_counter) + 1);
+                input_beat_counters[wr_idx] <= beat_count_t'(int'(input_beat_counters[wr_idx]) + 1);
             end
         end
     end
@@ -200,20 +203,16 @@ module rv_tester_delay_resp #(
         // For reading: use pop_idx from FIFO and current beat index
         r_ram_rd_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((pop_idx * MaxBeatsPerBurst) + output_beat_idx);
 
-        // Check if response is complete for this FIFO entry
-        // Response is complete when we have received all expected beats
-        resp_complete = (beat_tracker[pop_idx].resp_beat_counter == beat_tracker[pop_idx].total_beats);
-
         // Handle delayed read responses
-        if (!fifo_empty && global_timer >= pop_entry.pop_time && resp_complete && slv_req_r_ready_i) begin
+        if (!fifo_empty && global_timer >= pop_entry.pop_time && r_ram_rd_data.r_valid && slv_req_r_ready_i) begin
             slv_resp_o.r_valid = 1'b1;
-            slv_resp_o.r.data = r_ram_rd_data.data;
+            slv_resp_o.r.data = r_ram_rd_data.r.data;
             slv_resp_o.r.id = pop_entry.orig_req_id;
-            slv_resp_o.r.resp = r_ram_rd_data.resp;
-            slv_resp_o.r.last = r_ram_rd_data.last;
-            slv_resp_o.r.user = r_ram_rd_data.user;
+            slv_resp_o.r.resp = r_ram_rd_data.r.resp;
+            slv_resp_o.r.last = r_ram_rd_data.r.last;
+            slv_resp_o.r.user = r_ram_rd_data.r.user;
 
-            if (r_ram_rd_data.last) begin
+            if (r_ram_rd_data.r.last) begin
                 next_output_beat_idx = '0;
                 pop_en = 1'b1;
             end else begin
@@ -222,22 +221,17 @@ module rv_tester_delay_resp #(
         end
 
         // Store incoming read responses
-        // Calculate RAM address for this beat using FIFO index
-        r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * MaxBeatsPerBurst) + beat_tracker[wr_idx].resp_beat_counter);
-        r_ram_wr_data = mst_resp_i.r;
+        // Calculate RAM address for this beat using FIFO index and input beat counter
+        r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * MaxBeatsPerBurst) + input_beat_counters[wr_idx]);
+        r_ram_wr_data.r_valid = mst_resp_i.r_valid;
+        r_ram_wr_data.r = mst_resp_i.r;
         r_ram_wr_en = mst_resp_i.r_valid;
     end
 `ifdef ASSERTION_ENABLE
     // Beat counter assertions
     beat_counter_overflow: assert property (@(posedge clk_i) disable iff (!rst_ni)
-        mst_resp_i.r_valid |-> beat_tracker[wr_idx].resp_beat_counter < beat_count_t'(MaxBeatsPerBurst))
-        else $error("Beat counter overflow for FIFO index %0d: %0d", wr_idx, beat_tracker[wr_idx].resp_beat_counter);
-    
-    last_beat_counter_mismatch: assert property (@(posedge clk_i) disable iff (!rst_ni)
-        mst_resp_i.r_valid && mst_resp_i.r.last |-> 
-        beat_tracker[wr_idx].resp_beat_counter == (beat_tracker[wr_idx].total_beats - 1))
-        else $error("Last beat received but beat counter mismatch. Expected: %0d, Got: %0d", 
-                   beat_tracker[wr_idx].total_beats - 1, beat_tracker[wr_idx].resp_beat_counter);
+        mst_resp_i.r_valid |-> input_beat_counters[wr_idx] < beat_count_t'(MaxBeatsPerBurst))
+        else $error("Beat counter overflow for FIFO index %0d: %0d", wr_idx, input_beat_counters[wr_idx]);
 
     // Assert that MaxInFlight fits within AxiIdWidth
     id_width_check: assert property (@(posedge clk_i) disable iff (!rst_ni)
