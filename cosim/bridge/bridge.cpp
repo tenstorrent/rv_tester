@@ -2147,6 +2147,12 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
         bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[Recent HW update] [dut={:#x}, iss={:#x}, cac={:#x}]\n", cycle, dut_val, iss_val, cac_csr_val);
         return true;
       }
+      if ((csr_addr == VSIP) ||
+          ((d.priv==VS) && (csr_addr == SIP))
+          ) {
+        dut_val_diff <<= 1;
+        iss_val_diff <<= 1;
+      }
       bool match = true;
       match &= is_match(dut_val_diff, whisper_mip_clr_age_, FLAGS_intr_assert_timeout_resynch);
       match &= is_match(iss_val_diff, whisper_mip_age_, FLAGS_intr_assert_timeout_resynch);
