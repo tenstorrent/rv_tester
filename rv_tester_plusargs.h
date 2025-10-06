@@ -27,3 +27,4 @@ DECLARE_uint64(pa_mask);
 // FIXME Temporary solution; need to revisit
 DECLARE_bool(vip);
 DECLARE_bool(vip_axi_dpi);
+DECLARE_bool(warm_reset_directed_en);

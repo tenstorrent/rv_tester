@@ -71,6 +71,7 @@ DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel a
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
 DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
+DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))
@@ -273,7 +274,7 @@ extern "C" {
         //cvm::registry::configure();//pass dm location
     }
 
-    uint8_t rv_tester_shutdown_registry() {
+    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate) {
         auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         if (!check_called) {
             cvm::log(cvm::NONE, "[registry] check...\n");
@@ -282,8 +283,12 @@ extern "C" {
         }
 
         cvm::log(cvm::NONE, "[registry] shutdown...\n");
-        //return cvm::registry::shutdown();
-        return cvm::registry::shutdown_all_except(dm_loc);
+        if (unconditional_terminate) {
+            return cvm::registry::shutdown();
+        }
+        else {
+            return cvm::registry::shutdown_all_except(dm_loc);
+        }
     }
     
     uint8_t rv_tester_dm_shutdown_registry() {
@@ -337,7 +342,7 @@ extern "C" {
             return;
         }
         cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
-        if (!rv_tester_shutdown_registry()) {
+        if (!rv_tester_shutdown_registry(false)) {
             cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
         }
         rv_tester_dm_shutdown_registry();

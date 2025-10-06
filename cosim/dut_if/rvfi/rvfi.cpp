@@ -935,6 +935,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
     return;
 
   mem_t m;
+  bool cacheable = (m_mcmi_read.attr & 0x1000) == 0x1000;
   m.valid  = true;
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
@@ -1010,12 +1011,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           }
           m.data_vec = value;
           m.elem_idx = m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
         }
       }
       else {
         m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
       }
   } else {
       std::bitset<32> mask = m_mcmi_read.mask;
@@ -1065,7 +1066,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                   std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
                   m.data_vec = value;
                   m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
                 }
               } else{
                 m.pa = start_addr;
@@ -1073,7 +1074,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                 std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
                 m.data_vec = value;
                 m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
               }
               start_addr = addresses[i];
               size = 1;
@@ -1102,7 +1103,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           }
           std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
           m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
         }
       } else{
         m.pa = start_addr;
@@ -1110,7 +1111,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
         std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
         m.data_vec = value;
         m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
       }
   }
   if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
@@ -1538,7 +1539,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict\n", m_mcmi_devict.hart);
+    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict for address : {:#x} , cycle : {}\n", m_mcmi_devict.hart,m_mcmi_devict.addr,m_mcmi_devict.cycle);
     return;
   }
 
@@ -1560,7 +1561,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_f
   }
 
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart, m_mcmi_flush.cycle, m_mcmi_flush.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict\n", m_mcmi_flush.hart);
+    cvm::log(cvm::ERROR,"Error: Hart {}: Failed cbo flush mcm devict for address : {:#x} , cycle : {}\n", m_mcmi_flush.hart,m_mcmi_flush.addr,m_mcmi_flush.cycle);
     return;
   }
 }
@@ -1576,7 +1577,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
 
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback\n");
+    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback for address : {:#x} , cycle : {}\n",m_mcmi_writeback.addr,m_mcmi_writeback.cycle);
     return;
   }
 
@@ -1593,7 +1594,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_
 
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_dfetch.cycle, m_mcmi_dfetch.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback\n");
+    cvm::log(cvm::ERROR,"Error: Failed mcm dfetch for address : {:#x} , cycle : {}\n",m_mcmi_dfetch.addr,m_mcmi_dfetch.cycle);
     return;
   }
 

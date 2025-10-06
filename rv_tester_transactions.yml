@@ -244,6 +244,8 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
+            attr:
+                width: 32
             data:
                 width: ${TOP.PLATFORM.XLEN}
             v_ext:
@@ -1913,6 +1915,9 @@ trace:
         fields:
             cycle:
                 width: 32
+    m_detect_core_hang:
+        domain: 2
+        num: 1
 cla:
     num: 1
     m_core_no_fetch:
@@ -1941,25 +1946,25 @@ overlay_driver:
 jtag_driver:
     num: 1
     m_jtag_driver_tick:
-        domain: 1
+        domain: 3
         num: 1
         fields:
             cycle:
                 width: 32
     jtag_tick:
-        domain: 1
+        domain: 3
         num: 1
         fields:
             advance:
                 width: 64
     jtag_pkt_ack:
-        domain: 1
+        domain: 3
         num: 1
         fields:
             complete:
                 width: 1
     jtag_rdata:
-        domain: 1
+        domain: 3
         num: 1
         fields:
             rdata:

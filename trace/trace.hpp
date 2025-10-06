@@ -43,6 +43,8 @@ namespace {
   constexpr uint32_t tr_ram_active_idx         = 0;
   constexpr uint32_t tr_ram_enable_idx         = 1;
   constexpr uint32_t tr_ram_empty_idx          = 3;
+  constexpr uint32_t tr_ram_mem_mode_idx       = 4;
+  constexpr uint32_t tr_ram_wrap_mode_idx      = 8;
   constexpr uint32_t tr_funnel_active_idx      = 0;
   constexpr uint32_t tr_te_control_empty_idx   = 3;
   constexpr uint32_t tr_te_control_insttr_mask = 0xFFFF'FFFB;
@@ -50,6 +52,8 @@ namespace {
   constexpr uint32_t tr_te_control_active_mask = 0xFFFF'FFF8;
   constexpr uint32_t tr_ram_enable_mask        = 0xFFFF'FFFD;
   constexpr uint32_t tr_ram_active_mask        = 0xFFFF'FFFC;
+  constexpr uint32_t tr_ram_mem_mode_mask      = 0xFFFF'FFEF;
+  constexpr uint32_t tr_ram_wrap_mode_mask     = 0xFFFF'FEFF;
   constexpr uint32_t tr_end_indicator_val      = 0xC001'C0DE;
 
 

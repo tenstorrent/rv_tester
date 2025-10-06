@@ -136,6 +136,7 @@ import rv_tester_params::*;
     input longint eot_addr,
     input bit poke_event_in,
     output bit poke_event_out,
+    output int cycles_since_retire,
     output rv_tester_pkg::terminate_t terminate,
     input logic disable_checks,
     output logic boot_done,
@@ -422,7 +423,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [PA_WIDTH-1:0] debug_exit_pc;
     longint unsigned debug_entry_pc_arg;
     longint unsigned debug_exit_pc_arg;
-    int cycles_since_retire;
     int hart_enable_mask;
     int nharts;
     longint unsigned hart;
@@ -1105,6 +1105,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
         assign m_mcmi_reads[n].data.mask = mcmi_read[n].mask;
         assign m_mcmi_reads[n].data.data = mcmi_read[n].data[63:0];
+        assign m_mcmi_reads[n].data.attr = mcmi_read[n].attr;
         assign m_mcmi_reads[n].data.data_vec = mcmi_read[n].data[255:0];
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
