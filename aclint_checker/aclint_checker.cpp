@@ -186,7 +186,6 @@ void aclint_checker::process(const smc_req_pkt & req_pkt) {
     else {
         cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC WRITE REQ: addr {:#x}\n", req_pkt.addr);
         ++mmrReqFlags[mmr_addr].writes;
-        return;
     }
 }
 
@@ -246,7 +245,9 @@ void aclint_checker::process(const smc_read_pkt & r) {
         
     }
     else if (FLAGS_aclint) { 
-        if ((actual & aclint_mmrs[mmr_addr].read_mask) != (expected & sz_mask & aclint_mmrs[mmr_addr].read_mask)) {
+        if (((actual & aclint_mmrs[mmr_addr].read_mask) != (expected & sz_mask & aclint_mmrs[mmr_addr].read_mask)) 
+           && ((actual & aclint_mmrs[mmr_addr].read_mask) != (aclint_mmrs[mmr_addr].read_prev() & sz_mask & aclint_mmrs[mmr_addr].read_mask))) {
+
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].write_mask, expected & sz_mask & aclint_mmrs[mmr_addr].write_mask);
         } else {
             cvm::log(cvm::HIGH, "[ACLINT CHECKER] ACLINT MMR match - Name = {}, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].name, aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].read_mask, expected & sz_mask & aclint_mmrs[mmr_addr].read_mask);

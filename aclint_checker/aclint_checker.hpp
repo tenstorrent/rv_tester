@@ -65,6 +65,7 @@ struct mmr {
     uint64_t write_mask = -1;   // Mask for mmr write checks
     uint64_t read_mask = -1;    // Mask for mmr read checks
     uint64_t lock_bit = 0;
+    uint64_t prev_data = 0;
 
     // Default constructor
     mmr() : name(""), address(0), size(0), reset_value(0), data(0) {}
@@ -87,6 +88,7 @@ struct mmr {
     void write(uint64_t new_data, size_t sz) {
         uint64_t sz_mask = (sz == 3) ? ~uint64_t(0) : ((uint64_t)1 << ((1<<sz)*8)) - 1;
         if ((sz == 2 || sz == 3) && (lock_bit == 0)) { // update modeled data only for 4B and 8B writes
+            prev_data = data;
             data = (data & ~sz_mask) | (new_data & sz_mask);
             cvm::log(cvm::HIGH, "[ACLINT CHECKER] ACLINT MMR write: [{} = {:#x}(size = {})]\n", name, data, sz);
         }
@@ -95,6 +97,11 @@ struct mmr {
     // Read the current value of the mmr
     uint64_t read() const {
         return data;
+    }
+
+    // Read the previous value of the mmr
+    uint64_t read_prev() const {
+        return prev_data;
     }
 };
 
@@ -190,6 +197,7 @@ class aclint_checker {
         std::vector < MmrWr > axi_ac_cr_mmr_v_;
         std::vector < MmrWr > axi_ac_smc_mmr_v_;
         std::vector < MmrWr > smc_ac_mmr_v_;
+        std::unordered_map<aclint_addr, std::unordered_map<uint64_t, uint64_t>> smc_ac_mmr_read_data_;
         const uint64_t cluster_id_end_ = 25;
         const uint64_t cluster_id_start_ = 21;
         const uint64_t mmr_base_start_ = 27;
