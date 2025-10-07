@@ -61,7 +61,7 @@ module rv_tester_ram #(
     parameter type         DATA_TYPE = logic[31:0],      // Data type/width
     parameter int unsigned NUM_WRITE_PORTS = 1,          // Number of write ports
     parameter int unsigned NUM_READ_PORTS = 1,           // Number of read ports
-    localparam type        addr_t = logic[$clog2(SIZE)-1:0]
+    localparam type        addr_t = logic[$clog2(SIZE >= 2 ? SIZE : 2)-1:0]
 )(
     input  logic                clk,
 
