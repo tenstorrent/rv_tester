@@ -464,8 +464,32 @@ cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
   }
   cvm::log(cvm::MEDIUM, "[pwrmgmt] Core frequency is being changed to {} based on clk_profile {}\n", FLAGS_pll_dfs_freq, FLAGS_clk_profile);
   
-  uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
-  co_await write(pll_parameters0, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx), boot_interface);
+  // Calculate PLL parameters using common utility function
+  auto params = pll_utils::calculate_pll_params(FLAGS_pll_dfs_freq);
+  
+#ifdef MOVELLUS_PLL_MODEL
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Using Movellus PLL: fcw_int={}, postdiv={} for {} MHz\n", 
+           params.fcw_int, params.postdiv, FLAGS_pll_dfs_freq);
+  
+  // Configure PLL Parameters1 register (fcw_int)
+  auto rdata1 = co_await read(pll_parameters1, SZ_4B, boot_interface);
+  auto new_params1 = pll_utils::configure_pll_parameters1(static_cast<uint32_t>(rdata1), params);
+  co_await write(pll_parameters1, SZ_4B, new_params1, boot_interface);
+  
+  // Configure PLL Parameters0 register (postdiv)
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B, boot_interface);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0, boot_interface);
+  
+#else
+  // Generic PLL model
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Using Generic PLL: freq_ratio={} for {} MHz\n", 
+           params.freq_ratio, FLAGS_pll_dfs_freq);
+  
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B, boot_interface);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0, boot_interface);
+#endif
   co_await write(pll_control, SZ_4B, (1 << dfs_req_idx), boot_interface);
 
   uint32_t count = 0;
