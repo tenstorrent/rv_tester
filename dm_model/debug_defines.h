@@ -3072,3 +3072,11 @@
 #define DMI_SERRX_DATA_OFFSET               0
 #define DMI_SERRX_DATA_LENGTH               0x20
 #define DMI_SERRX_DATA                      0xffffffffU
+
+/*
+ * Custom DM status is R/O
+ */
+#define C_DMSTATUS                            0x70
+#define C_DMSTATUS_DATA_OFFSET                0
+#define C_DMSTATUS_DATA_LENGTH                0x20
+#define C_DMSTATUS_DATA                       0xffffffffU
