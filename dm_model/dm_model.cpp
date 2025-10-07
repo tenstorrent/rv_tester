@@ -830,6 +830,18 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
         }
       }
       break;
+    case C_DMSTATUS:
+    {
+      // Custom DM status: {30'b0, cmdbusy, sbbusy}
+      // Map cmdbusy to abstractcs.busy; sbbusy not modeled yet.
+      uint32_t cmdbusy = abstractcs.busy;
+      uint32_t sbbusy = 0;
+      uint32_t dynamic = (cmdbusy << 1) | sbbusy;
+      uint32_t mask = (C_DMSTATUS_DATA_LENGTH >= 32) ? 0xffffffffu
+                                                     : ((1 << C_DMSTATUS_DATA_LENGTH) - 1);
+      result = (dynamic & mask) << C_DMSTATUS_DATA_OFFSET;
+    }
+    break;
     case DM_DMCS2:
       dmcs2.hgwrite = 0;
       result = set_field(result, DM_DMCS2_GROUPTYPE, dmcs2.grouptype);
