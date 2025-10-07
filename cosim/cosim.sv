@@ -1412,6 +1412,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[n].data.cycle = clocks;
       assign m_mtimes[n].data.mtime = mtime;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
+      assign m_mtimes[n].data.size = 8;
     end
 
     // mtime packets from mip bits
@@ -1420,6 +1421,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[NRET].data.cycle = clocks;
       assign m_mtimes[NRET].data.mtime = mtime;
       assign m_mtimes[NRET].data.mip = mip_timer;
+      assign m_mtimes[NRET].data.size = 8;
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
