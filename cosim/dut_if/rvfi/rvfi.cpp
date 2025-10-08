@@ -325,11 +325,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
 
   rv_intr_t intr;
   intr.cycle = m_mtime.cycle;
-  intr.mip = std::bitset<64>(m_mtime.mip);
+  intr.mip   = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
+  intr.size  = m_mtime.size;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} (mtime={:#x})\n", intr.cycle, id_, intr.mtime);
+    log(cvm::NONE, "#NA {} {} (mtime={:#x}, size={})\n", intr.cycle, id_, intr.mtime, intr.size);
 
   if (!FLAGS_cosim)
     return;
