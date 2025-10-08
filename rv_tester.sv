@@ -120,7 +120,7 @@ module rv_tester
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
-    import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
+    import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
     import "DPI-C" context function void rv_tester_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
@@ -189,7 +189,6 @@ module rv_tester
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
-    logic jtag_driver_en;
 
 
     logic terminate_1T = '0;
@@ -295,7 +294,7 @@ module rv_tester
     
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_driver_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -603,13 +602,13 @@ module rv_tester
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
                 end else if (quiesce_counter == 0) begin
                     $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-                end else  begin 
+                end else begin
                     $display("\n<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
 
             end
 
-            shutdowned = rv_tester_shutdown_registry() != '0;
+            shutdowned = rv_tester_shutdown_registry(unconditional_terminate) != '0;
             `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
             fml_shutdowned = shutdowned;
             `endif
@@ -1048,7 +1047,6 @@ module rv_tester
     localparam RESET_SOC_CLOCKS = 20;
     assign init_pulse = (clocks < RESET_TB_CLOCKS);
     assign warm_reset_pulse = (soc_clocks > RESET_SOC_CLOCKS) && (soc_clocks < (warm_reset_clocks + RESET_SOC_CLOCKS));
-    assign jtag_driver_en = jtag_en && ~sysmod_terminate.terminate;
     generate
         if (PWRMGMT_EN) begin : pwrmgmt
             pwrmgmt #(
@@ -1117,7 +1115,7 @@ module rv_tester
             .dut_clk(dut_clk[SOC_CLK_IDX]),
             .dut_reset(dut_reset[SOC_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
-            .jtag_driver_en((jtag_driver_en||dmi_driver_dbg_enable)),
+            .jtag_driver_en(jtag_en||dmi_driver_dbg_enable),
             .jtag_quiesced(jtag_quiesced),
             .jtag_req,
             .jtag_tck_trst,

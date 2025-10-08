@@ -274,7 +274,7 @@ extern "C" {
         //cvm::registry::configure();//pass dm location
     }
 
-    uint8_t rv_tester_shutdown_registry() {
+    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate) {
         auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         if (!check_called) {
             cvm::log(cvm::NONE, "[registry] check...\n");
@@ -283,8 +283,12 @@ extern "C" {
         }
 
         cvm::log(cvm::NONE, "[registry] shutdown...\n");
-        //return cvm::registry::shutdown();
-        return cvm::registry::shutdown_all_except(dm_loc);
+        if (unconditional_terminate) {
+            return cvm::registry::shutdown();
+        }
+        else {
+            return cvm::registry::shutdown_all_except(dm_loc);
+        }
     }
     
     uint8_t rv_tester_dm_shutdown_registry() {
@@ -338,7 +342,7 @@ extern "C" {
             return;
         }
         cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
-        if (!rv_tester_shutdown_registry()) {
+        if (!rv_tester_shutdown_registry(false)) {
             cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
         }
         rv_tester_dm_shutdown_registry();

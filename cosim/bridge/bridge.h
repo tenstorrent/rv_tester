@@ -165,9 +165,7 @@ private:
   bool is_chicken_bit_csr(uint64_t addr);
   bool is_mtimecmp_mmr(uint64_t addr);
   bool is_mtime_mmr(uint64_t addr);
-  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
-  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
-  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data, bool cache, bool skipmem);
+  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data, bool cache=false, bool skipmem=false);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -185,6 +183,10 @@ private:
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+
+  void peek_csr(hart_id_t hart, uint64_t csr_addr, uint64_t& csr_val);
+  void peek_csr(hart_id_t hart, uint64_t csr_addr, uint64_t& csr_value, uint64_t& csr_w_mask, uint64_t& csr_w_poke_mask, uint64_t& csr_w_read_mask);
+  void poke_csr(hart_id_t hart, uint64_t cycle, uint64_t csr_addr, uint64_t csr_val);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -230,7 +232,6 @@ private:
   bool unsupported_csr_access(const std::string& instr);
   bool hpm_counter_read(const std::string& instr);
   bool intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& resource, std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& w);
-  void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
