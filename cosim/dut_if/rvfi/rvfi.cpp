@@ -407,7 +407,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_paddr ? vec_cmode_first_tag_ : m_rvfi.order;
+  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_rdata ? vec_cmode_first_tag_ : m_rvfi.order;
   instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
