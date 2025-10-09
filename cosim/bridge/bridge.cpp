@@ -3089,7 +3089,7 @@ bool bridge::is_csr_allowlist(const std::string& csr_name) {
 }
 
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
-  return (addr >= C_FECFG && addr <= C_LSCFG15);
+  return (addr >= C_FECFG && addr <= C_MSPPC);  //TODO: Update this to general logic to check for chicken bit CSRs
 }
 
 bool bridge::is_mtimecmp_mmr(uint64_t addr) {
