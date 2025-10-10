@@ -890,7 +890,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
 
   if (req.size > req.buffer.size()) {
-    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n'; // #FIXME: if it doesn't error, should it be cvm::medium?
+    cvm::log(cvm::ERROR, "Error: whisperMcmWrite: write size {} too large\n", req.size);
     valid = false;
     return true;
   }
