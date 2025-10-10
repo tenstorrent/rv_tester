@@ -628,50 +628,50 @@ axi_sw:
                 widths: [64, 64]
 
 axi_sw_mst:
-    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}]
+    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL}]
 
     b:
-        domain: [2, 3]
+        domain: [2, 3, 2]
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH}]
             resp:
-                widths: [2, 2]
+                widths: [2, 2, 2]
 
     r:
-        domain: [2, 3]
+        domain: [2, 3, 2]
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH}]
             data:
-                widths: [${TOP.PLATFORM.AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH}]
             resp:
-                widths: [2, 2]
+                widths: [2, 2, 2]
             last:
-                widths: [1, 1]
+                widths: [1, 1, 1]
 
     ar_q_ptr:
-        domain: [2, 3]
+        domain: [2, 3, 2]
         num: 1
         fields:
             ar_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}]
+                widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AR_Q_PTR_MAX_LOG2}]
 
     aw_q_ptr:
-        domain: [2, 3]
+        domain: [2, 3, 2]
         num: 1
         fields:
             aw_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}]
+                widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AW_Q_PTR_MAX_LOG2}]
 
     w_q_ptr:
-        domain: [2, 3]
+        domain: [2, 3, 2]
         num: 1
         fields:
             w_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.W_Q_PTR_MAX_LOG2}]
+                widths: [${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.W_Q_PTR_MAX_LOG2}]
 
 logger:
     num: 1

@@ -1546,6 +1546,73 @@ module rv_tester
         );
     end
 
+    // IOMMU DMA Device Translation Request
+    for (genvar p = 0; p < topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL; p++) begin : iommu_axi_tr_req_sw_msts
+        localparam string tag = $sformatf("iommu_tr_req_mst%0d", p);
+        axi_sw_mst #(
+            .ADDR_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH),
+            .STRB_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.USER_WIDTH),
+            .AR_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AR_Q_MAX),
+            .AW_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AW_Q_MAX),
+            .W_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.W_Q_MAX),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID, p)),
+            .tag(tag),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
+        ) iommu_axi_tr_req_sw_mst (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
+            .axi_mst_ar_valid(iommu_axi_tr_req_req_mst[p].ar_valid),
+            .axi_mst_ar_id   (iommu_axi_tr_req_req_mst[p].ar.id),
+            .axi_mst_ar_addr (iommu_axi_tr_req_req_mst[p].ar.addr),
+            .axi_mst_ar_len  (iommu_axi_tr_req_req_mst[p].ar.len),
+            .axi_mst_ar_size (iommu_axi_tr_req_req_mst[p].ar.size),
+            .axi_mst_ar_lock (iommu_axi_tr_req_req_mst[p].ar.lock),
+            .axi_mst_ar_burst(iommu_axi_tr_req_req_mst[p].ar.burst),
+            .axi_mst_ar_cache (iommu_axi_tr_req_req_mst[p].ar.cache),
+            .axi_mst_ar_prot  (iommu_axi_tr_req_req_mst[p].ar.prot),
+            .axi_mst_ar_qos   (iommu_axi_tr_req_req_mst[p].ar.qos),
+            .axi_mst_ar_region(iommu_axi_tr_req_req_mst[p].ar.region),
+            .axi_mst_ar_user  (iommu_axi_tr_req_req_mst[p].ar.user),
+
+            .axi_mst_aw_valid(iommu_axi_tr_req_req_mst[p].aw_valid),
+            .axi_mst_aw_id   (iommu_axi_tr_req_req_mst[p].aw.id),
+            .axi_mst_aw_addr (iommu_axi_tr_req_req_mst[p].aw.addr),
+            .axi_mst_aw_len  (iommu_axi_tr_req_req_mst[p].aw.len),
+            .axi_mst_aw_size (iommu_axi_tr_req_req_mst[p].aw.size),
+            .axi_mst_aw_burst(iommu_axi_tr_req_req_mst[p].aw.burst),
+            .axi_mst_aw_lock (iommu_axi_tr_req_req_mst[p].aw.lock),
+            .axi_mst_aw_atop (iommu_axi_tr_req_req_mst[p].aw.atop),
+            .axi_mst_aw_user (iommu_axi_tr_req_req_mst[p].aw.user),
+
+            .axi_mst_w_valid(iommu_axi_tr_req_req_mst[p].w_valid),
+            .axi_mst_w_data (iommu_axi_tr_req_req_mst[p].w.data),
+            .axi_mst_w_strb (iommu_axi_tr_req_req_mst[p].w.strb),
+            .axi_mst_w_last (iommu_axi_tr_req_req_mst[p].w.last),
+
+            .axi_mst_b_ready(iommu_axi_tr_req_req_mst[p].b_ready),
+            .axi_mst_r_ready(iommu_axi_tr_req_req_mst[p].r_ready),
+
+            .axi_slv_b_valid(iommu_axi_tr_req_rsp_mst[p].b_valid),
+            .axi_slv_b_id   (iommu_axi_tr_req_rsp_mst[p].b.id),
+            .axi_slv_b_resp (iommu_axi_tr_req_rsp_mst[p].b.resp),
+
+            .axi_slv_r_valid(iommu_axi_tr_req_rsp_mst[p].r_valid),
+            .axi_slv_r_id   (iommu_axi_tr_req_rsp_mst[p].r.id),
+            .axi_slv_r_data (iommu_axi_tr_req_rsp_mst[p].r.data),
+            .axi_slv_r_resp (iommu_axi_tr_req_rsp_mst[p].r.resp),
+            .axi_slv_r_last (iommu_axi_tr_req_rsp_mst[p].r.last),
+
+            .axi_slv_aw_ready(iommu_axi_tr_req_rsp_mst[p].aw_ready),
+            .axi_slv_ar_ready(iommu_axi_tr_req_rsp_mst[p].ar_ready),
+            .axi_slv_w_ready (iommu_axi_tr_req_rsp_mst[p].w_ready),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 2)
+        );
+    end
+
     //new memory - LLC
 
     typedef logic [AxiIdWidthMstRv-1:0] id_mst_rv;
