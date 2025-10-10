@@ -2711,7 +2711,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
       uint64_t w_data;
       peek_resource(hart, 'c', time_.address, w_data);
       w_data = (w_data >> (i.size * 8)) << (i.size * 8);
-      i.mtime = w_data | (i.mtime & (1ull << (i.size * 8) - 1));
+      i.mtime = w_data | (i.mtime & ((1ull << (i.size * 8)) - 1));
     }
     poke_resource(hart, i.cycle, 'c', time_.address, i.mtime);
     peek_mip(hart, i.cycle, tmp_mip_latest_);
