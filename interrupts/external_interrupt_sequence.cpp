@@ -50,7 +50,6 @@ external_interrupt_sequence::~external_interrupt_sequence() {
 }
 
 void external_interrupt_sequence::gen_interrupt_timings(){
-  //TODO: uncomment once dists are working fine
   //  std::stringstream ss(FLAGS_trigger_interrupt_ratio);
   //  std::vector<double> weights(FLAGS_trigger_interrupt_count);
   //  cvm::rand::discrete_dist<uint8_t> dist(weights);
