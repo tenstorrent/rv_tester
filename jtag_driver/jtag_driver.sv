@@ -273,7 +273,10 @@ typedef enum logic [1:0] {
   endfunction
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
-  assign jtag_tck_trst.tck = tck_enable ? clk: 1'b0;
+  // TCK assignment - using non-blocking to be consistent with TRST assignments
+  always @(posedge clk) begin
+    jtag_tck_trst.tck <= tck_enable ? clk: 1'b0;
+  end
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 assign jtag_reset_begin = jtag_reset_begin_cpp ^ jtag_reset_begin_sv;
