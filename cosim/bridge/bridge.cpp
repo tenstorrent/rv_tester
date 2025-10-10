@@ -2302,9 +2302,17 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
       if((hypervisor_csr_map_.find(csr.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
         continue;
-      }else if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), false, false, valid)) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to resynch CSRs\n", hart);
-        return;
+      } else {
+        if (csr.csr_addr == MIP) { // MIP needs special handling
+          std::bitset<64> unused_mip;
+          peek_mip(hart, d.cycle, unused_mip);
+          poke_mip(hart, d.cycle, std::bitset<64>(get_csr(hart, src_t::dut, csr.csr_addr)));
+        } else {
+          if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), false, false, valid)) && FLAGS_whisper_client_check) {
+          error("Hart {}: Failed to resynch CSRs\n", hart);
+          return;
+          }
+        }
       }
     }
   }
@@ -2701,7 +2709,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
     peek_mip(hart, i.cycle, tmp_mip_prev_);
     if (i.size < 8) {
       uint64_t w_data;
-      peek_csr(hart, time_.address, w_data);
+      peek_resource(hart, 'c', time_.address, w_data);
       w_data = (w_data >> (i.size * 8)) << (i.size * 8);
       i.mtime = w_data | i.mtime;
     }
@@ -2866,7 +2874,7 @@ void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
 void bridge::poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
   whisper_mip_age_.clear();
   whisper_mip_clr_age_.clear();
-  bridge_log(cvm::MEDIUM, "<{}> Whisper poke: mip={:#x}\n", time, mip.to_ullong());
+  bridge_log(cvm::MEDIUM, "<{}> Whisper poke: mip={:#x} mvip={:#x}\n", time, mip.to_ullong(), mvip_);
 
   bool valid;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', MIP, mip.to_ullong(), false, false, valid)) && FLAGS_whisper_client_check) {
