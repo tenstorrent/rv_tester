@@ -160,13 +160,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
+  pc_error_ = pc_error_ || m_rvfi.pc_error;
+  mem_error_ = mem_error_ || m_rvfi.mem_error;
   if (m_rvfi.trap) {
     trap_insn_ = m_rvfi.insn;
     trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
-    pc_error_ = m_rvfi.pc_error;
-    mem_error_ = m_rvfi.mem_error;
-
-
     return;
   }
 
