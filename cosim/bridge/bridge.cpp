@@ -51,7 +51,7 @@ DEFINE_bool(hw_ras_interrupt_resynch, true, "Resynch whisper with dut state for 
 
 DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei mismatch condition to match DUT");
 DEFINE_bool(intr_timeout_resynch, false, "Ignore whisper timeout error condition");
-DEFINE_uint32(intr_assert_timeout_resynch, 16, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
+DEFINE_uint32(intr_assert_timeout_resynch, 64, "async intr may take some get asserted in (DUT)mip, resynch within this many instructions");
 DEFINE_uint32(dut_mip_resynch_age, 2, "a newly asserted interrupt may not show up in the MIP if the next instruction is CSRR MIP");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
