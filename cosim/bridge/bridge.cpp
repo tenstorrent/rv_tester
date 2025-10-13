@@ -2659,7 +2659,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     }
     if (i.mip_set[ir] && hw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
       hw_intr_set_[ir] = true;
-      poke_local_interrupt(hart, i.cycle, std::bitset<64>(ir));
+      poke_local_interrupt(hart, i.cycle, std::bitset<64>(1 << ir));
     }
   }
 // ================================================================================================================
