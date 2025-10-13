@@ -24,7 +24,6 @@
 #include "transactors/axi_sw/axi.h"
 #include "whisper_client.h"
 #include "io_coh_helper.h"
-#include "snoop_gen/snoop_gen_rpc.h"
 
 class dma : public subdevice
 {
