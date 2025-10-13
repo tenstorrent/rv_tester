@@ -325,11 +325,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
 
   rv_intr_t intr;
   intr.cycle = m_mtime.cycle;
-  intr.mip = std::bitset<64>(m_mtime.mip);
+  intr.mip   = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
+  intr.size  = m_mtime.size;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} (mtime={:#x})\n", intr.cycle, id_, intr.mtime);
+    log(cvm::NONE, "#NA {} {} (mtime={:#x}, size={})\n", intr.cycle, id_, intr.mtime, intr.size);
 
   if (!FLAGS_cosim)
     return;
@@ -406,7 +407,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_paddr ? vec_cmode_first_tag_ : m_rvfi.order;
+  instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_rdata ? vec_cmode_first_tag_ : m_rvfi.order;
   instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);

@@ -689,17 +689,32 @@ module axi_sw_mst #(
 
     always_comb begin
         axi_mst_ar_valid = reset_n ? !ar_queue_empty : '0;
-        axi_mst_ar_id    = ar.id;
-        axi_mst_ar_addr  = ar.addr;
-        axi_mst_ar_len   = ar.len;
-        axi_mst_ar_size  = ar.size;
-        axi_mst_ar_burst = ar.burst;
-        axi_mst_ar_lock  = ar.lock;
-        axi_mst_ar_cache = ar.cache;
-        axi_mst_ar_prot  = ar.prot;
-        axi_mst_ar_qos   = ar.qos;
-        axi_mst_ar_region = ar.region;
-        axi_mst_ar_user  = ar.user;
+
+        axi_mst_ar_id    = 'X;
+        axi_mst_ar_addr  = 'X;
+        axi_mst_ar_len   = 'X;
+        axi_mst_ar_size  = 'X;
+        axi_mst_ar_burst = 'X;
+        axi_mst_ar_lock  = 'X;
+        axi_mst_ar_cache = 'X;
+        axi_mst_ar_prot  = 'X;
+        axi_mst_ar_qos   = 'X;
+        axi_mst_ar_region = 'X;
+        axi_mst_ar_user  = 'X;
+
+        if (axi_mst_ar_valid) begin
+          axi_mst_ar_id    = ar.id;
+          axi_mst_ar_addr  = ar.addr;
+          axi_mst_ar_len   = ar.len;
+          axi_mst_ar_size  = ar.size;
+          axi_mst_ar_burst = ar.burst;
+          axi_mst_ar_lock  = ar.lock;
+          axi_mst_ar_cache = ar.cache;
+          axi_mst_ar_prot  = ar.prot;
+          axi_mst_ar_qos   = ar.qos;
+          axi_mst_ar_region = ar.region;
+          axi_mst_ar_user  = ar.user;
+        end
     end
 
     logic aw_queue_rptr_incremented, aw_queue_empty;
@@ -717,18 +732,34 @@ module axi_sw_mst #(
 
     always_comb begin
         axi_mst_aw_valid = reset_n ? !aw_queue_empty : '0;
-        axi_mst_aw_id    = aw.id;
-        axi_mst_aw_addr  = aw.addr;
-        axi_mst_aw_len   = aw.len;
-        axi_mst_aw_size  = aw.size;
-        axi_mst_aw_burst = aw.burst;
-        axi_mst_aw_lock  = aw.lock;
-        axi_mst_aw_cache = aw.cache;
-        axi_mst_aw_prot  = aw.prot;
-        axi_mst_aw_qos   = aw.qos;
-        axi_mst_aw_region= aw.region;
-        axi_mst_aw_atop  = aw.atop;
-        axi_mst_aw_user  = aw.user;
+
+        axi_mst_aw_id    = 'X;
+        axi_mst_aw_addr  = 'X;
+        axi_mst_aw_len   = 'X;
+        axi_mst_aw_size  = 'X;
+        axi_mst_aw_burst = 'X;
+        axi_mst_aw_lock  = 'X;
+        axi_mst_aw_cache = 'X;
+        axi_mst_aw_prot  = 'X;
+        axi_mst_aw_qos   = 'X;
+        axi_mst_aw_region= 'X;
+        axi_mst_aw_atop  = 'X;
+        axi_mst_aw_user  = 'X;
+
+        if (axi_mst_aw_valid) begin
+          axi_mst_aw_id    = aw.id;
+          axi_mst_aw_addr  = aw.addr;
+          axi_mst_aw_len   = aw.len;
+          axi_mst_aw_size  = aw.size;
+          axi_mst_aw_burst = aw.burst;
+          axi_mst_aw_lock  = aw.lock;
+          axi_mst_aw_cache = aw.cache;
+          axi_mst_aw_prot  = aw.prot;
+          axi_mst_aw_qos   = aw.qos;
+          axi_mst_aw_region= aw.region;
+          axi_mst_aw_atop  = aw.atop;
+          axi_mst_aw_user  = aw.user;
+        end
     end
 
     logic w_queue_rptr_incremented, w_queue_empty;
@@ -765,9 +796,16 @@ module axi_sw_mst #(
 
     always_comb begin
         axi_mst_w_valid = reset_n ? !w_queue_empty : '0;
-        axi_mst_w_data  = w.data;
-        axi_mst_w_strb  = w.strb;
-        axi_mst_w_last  = w.last;
+
+        axi_mst_w_data  = 'X;
+        axi_mst_w_strb  = 'X;
+        axi_mst_w_last  = 'X;
+
+        if (axi_mst_w_valid) begin
+          axi_mst_w_data  = w.data;
+          axi_mst_w_strb  = w.strb;
+          axi_mst_w_last  = w.last;
+        end
     end
 
     //assign axi_mst_b_ready = '1;

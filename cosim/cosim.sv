@@ -1311,7 +1311,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
     assign m_traps[0].data.order = rvfi[0].order;
-    assign m_traps[0].data.pc_addr = rvfi[0].pc_paddr;
+    assign m_traps[0].data.pc_addr = rvfi[0].pc_rdata;
     assign m_traps[0].data.insn = rvfi[0].insn;
     assign m_traps[0].data.virt_mode = virt_mode_d3;
     assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
@@ -1413,6 +1413,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[n].data.cycle = clocks;
       assign m_mtimes[n].data.mtime = mtime;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
+      assign m_mtimes[n].data.size = 8;
     end
 
     // mtime packets from mip bits
@@ -1421,6 +1422,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[NRET].data.cycle = clocks;
       assign m_mtimes[NRET].data.mtime = mtime;
       assign m_mtimes[NRET].data.mip = mip_timer;
+      assign m_mtimes[NRET].data.size = 8;
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
@@ -1469,7 +1471,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       if (reset) begin
         /* verilator lint_off BLKSEQ */
         max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
-        max_cycle <= cvm_plusargs::get_int("max_cycle");
+        max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
         cosim_period <= cvm_plusargs::get_int("cosim_period");
         max_instructions <= cvm_plusargs::get_ulongint("max_instr");
         nharts <= cvm_plusargs::get_int("num_harts");

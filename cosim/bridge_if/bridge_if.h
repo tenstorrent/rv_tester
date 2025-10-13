@@ -306,6 +306,7 @@ typedef struct rv_intr_s {
   bool seip_set;
   bool seip_clr;
   uint64_t mtime;
+  uint32_t size;
   uint8_t buserr_bit;
 } rv_intr_t;
 

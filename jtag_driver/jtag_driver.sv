@@ -190,6 +190,7 @@ typedef enum logic [1:0] {
   
   bit pos_tdo_en;
   bit tck_enable;
+  logic trst_reg;
 
   // Enable TCK only during active JTAG operations, after delay, and reset operations
   assign tck_enable = jtag_driver_en && 
@@ -273,7 +274,9 @@ typedef enum logic [1:0] {
   endfunction
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
-  assign jtag_tck_trst.tck = tck_enable ? clk: 1'b0;
+  // Combinational assignments for JTAG TCK and TRST
+  assign jtag_tck_trst.tck = tck_enable ? clk : 1'b0;
+  assign jtag_tck_trst.trst = trst_reg;
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 assign jtag_reset_begin = jtag_reset_begin_cpp ^ jtag_reset_begin_sv;
@@ -298,7 +301,7 @@ always @(posedge clk) begin
   if (!jtag_driver_en || reset) begin
     jtag_req.tms <= 1'b0;
     jtag_req.tdi <= 1'b0;
-    jtag_tck_trst.trst  <=  1'b1;
+    trst_reg  <=  1'b1;
   end else if (jtag_hard_reset || jtag_soft_reset) begin
     state <= IDLE;
     shiftCount <= 32'b0;
@@ -310,13 +313,13 @@ always @(posedge clk) begin
     if (jtag_hard_reset) begin
       if (reset_counter == 0) begin
         reset_counter <= 3'b101; // Initialize counter for 5 cycles
-        jtag_tck_trst.trst <= 1'b1; // Pull trst pin down
+        trst_reg <= 1'b1; // Pull trst pin down
         jtag_busy <= 1'b1;
         state <= IDLE;
       end else begin
         reset_counter <= reset_counter - 1; // Decrement counter
         if (reset_counter == 1) begin
-          jtag_tck_trst.trst <= 1'b0; // Release trst pin after 5 cycles
+          trst_reg <= 1'b0; // Release trst pin after 5 cycles
           jtag_hard_reset <= 1'b0; // Clear hard reset signal
           jtag_req.tms <= 1'b0;
           jtag_busy <= 1'b0;
@@ -338,7 +341,7 @@ always @(posedge clk) begin
       end
     end 
   end else begin
-    jtag_tck_trst.trst   <= 0 ;
+    trst_reg   <= 0 ;
     reset_counter <= 0 ;
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
