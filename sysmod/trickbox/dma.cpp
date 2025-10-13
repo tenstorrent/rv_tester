@@ -312,7 +312,7 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
 
         cvm::log(cvm::MEDIUM, "[dma] dma_read size : {} \n",dma_txn_map_[dma_map_key_].size);
 
-        cvm::registry::messenger.fork(l, dma_read_addr_, data_vec, dma_txn_map_[dma_map_key_].size, dma_txn_map_[dma_map_key_].in_flight, this);
+        // Use overlay_read function to read the data from the transactor
         
         dma_map_key_ = dma_read_addr_ - (dma_base_addr_ + dma_size_offset_); // using the pass by reference variable to get the correct key
         cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
