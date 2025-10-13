@@ -4,7 +4,6 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
 #include "rv_tester/rv_tester_plusargs.h"
-#include "snoop_gen/snoop_gen_rpc.h"
 
 
 dma::dma(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager &m_, io_coh_helper* io_coh_helper_ptr)

@@ -33,8 +33,6 @@ cosim:
                 width: 64
             mip:
                 width: 64
-            size:
-                width: 32
             mtime:
                 width: ${TOP.PLATFORM.XLEN}
 
@@ -630,7 +628,7 @@ axi_sw:
                 widths: [64, 64]
 
 axi_sw_mst:
-    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL}]
+    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL}]
 
     b:
         domain: [2, 3, 2]
