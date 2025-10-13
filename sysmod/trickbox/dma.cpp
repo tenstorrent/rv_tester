@@ -102,54 +102,6 @@ dma::read_dev(uint64_t addr, size_t length, data_t& data)
   return;
 }
 
-// cvm::messenger::task<void> dma::call_io_coh_helper_read(uint64_t addr, uint64_t size){
-//   // TODO: Implement the io_coh_helper read task
-//   // This should be a co-return and co-await for the transactor operation to finish
-//   // Pass a data structure by reference to receive the read data 
-//   // call io_coh_helper's read task
-//   // io_coh_helper has an overlay_read() function which can be used.
-  
-//   co_return;
-// }
-
-cvm::messenger::task<void> dma::call_io_coh_helper_write(uint64_t addr, std::vector<uint8_t> ext_data_vec, uint64_t size, bool write_in_flight){
-  // TODO: Implement the io_coh_helper write task
-  // This should be a co-return and co-await for the transactor operation to finish
-  // call io_coh_helper's external write function , which will setup a task
-  if (io_coh_helper_ptr_ != nullptr) {
-    cvm::log(cvm::MEDIUM, "[dma] Calling io_coh_helper external_write for addr {:#x} \n", addr);
-    
-    // Direct call to external_write
-    // io_coh_helper_ptr_->external_write(addr, ext_data_vec, size, write_in_flight);
-  } else {
-    cvm::log(cvm::ERROR, "[dma] io_coh_helper_ptr_ is null, cannot call external_write \n");
-  }
-
-  while (write_in_flight !=true){
-    // Wait for the write to complete
-  }
-  dma_txn_map_[dma_map_key_].in_flight = false;
-  dma_txn_map_[dma_map_key_].status = 2; // setting to COMPLETED
-  co_return;
-}
-
-cvm::messenger::task<void> dma::call_snoop_gen_read(uint64_t& addr, std::vector<uint8_t>& ext_read_data_vec, uint8_t size, bool read_in_flight){
-  // TODO: Implement the snoop_gen_sequence read task
-  // This should be a co-return and co-await for the transactor operation to finish
-  // call io_coh_helper's external read function , which will setup a task
-  cvm::log(cvm::MEDIUM, "[dma] Calling snoop_gen_read rpc for addr {:#x} \n", addr);
-  read_in_flight = true;
-  cvm::registry::messenger.call<trickbox_snoop_gen>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), addr, ext_read_data_vec, size, read_in_flight);
-  
-  while (read_in_flight == true){
-    // Wait for the read to complete
-  }
-  dma_txn_map_[dma_map_key_].in_flight = false;
-  dma_txn_map_[dma_map_key_].status = 2; // setting to COMPLETED
-  // Post co_return , fill the data buffers with the read data from the byte vector
-  co_return;
-}
-
 void dma::overlay_write(uint64_t addr, uint8_t map_key) {
 
   cvm::log(cvm::MEDIUM, "[dma] axi write addr= {:#X} for map_key {}   \n",addr,map_key);
@@ -159,9 +111,11 @@ void dma::overlay_write(uint64_t addr, uint8_t map_key) {
     
      co_await dev->blocking_write(waddr);
    };
+
    cvm::registry::messenger.fork(l, waddr, this);
    dma_txn_map_[map_key].in_flight = false;
    dma_txn_map_[map_key].status = 2;
+
    cvm::log(cvm::MEDIUM, "[dma] dma_txn_map_ key after overlay_write: {} \n",map_key);
   
 }
@@ -230,9 +184,7 @@ cvm::messenger::task<void> dma::blocking_write(uint64_t addr) {
 }
 
 
-void
- dma::write(uint64_t addr, size_t , const data_t& data,
- 		 const strb_t&)
+void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
 {
   if (not has_addr(addr)){
     cvm::log(cvm::MEDIUM, "[dma] Discarding write request to dma device since tag {} is not matching for address {:#x} \n",tag(),addr);
@@ -355,11 +307,6 @@ void
         // Signal a transactor read request
         cvm::log(cvm::MEDIUM, "[dma] DMA read request signaled to transactor \n");
         
-        // TODO: Signal a transactor read request that reaches IOMMU - currently using the io_coh_helper's read functionality
-        // TODO: Call io_coh_helper's externa_read function
-        auto* l = +[](uint64_t raddr, std::vector<uint8_t>& rdata, uint8_t rsize, bool& rreq_in_flight, dma* dev) -> cvm::messenger::task<void>{
-          co_await dev->call_snoop_gen_read(raddr, rdata, rsize, rreq_in_flight);
-        };
         dma_txn_map_[dma_map_key_].in_flight = true;
         dma_read_addr_ = dma_txn_map_[dma_map_key_].addr;
 
