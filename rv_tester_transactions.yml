@@ -33,6 +33,8 @@ cosim:
                 width: 64
             mip:
                 width: 64
+            size:
+                width: 32
             mtime:
                 width: ${TOP.PLATFORM.XLEN}
 

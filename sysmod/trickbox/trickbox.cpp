@@ -1,6 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 
 trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
@@ -47,6 +48,8 @@ bool trickbox::init_elf(const std::string& path) {
 
 void trickbox::read(const transactor::read_t& r, data_t& data) {
 
+  if (!FLAGS_rvfi)
+      return;
   auto& addr = r.addr;
   auto& length = r.length;
 
@@ -64,6 +67,8 @@ void trickbox::read(const transactor::read_t& r, data_t& data) {
 void
 trickbox::write(const transactor::write_t& w)
 {
+  if (!FLAGS_rvfi)
+      return;
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;

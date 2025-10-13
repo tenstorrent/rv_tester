@@ -19,6 +19,7 @@ cc_library(
              "//cosim/whisper_if:whisper_if",
              "@rv_tester//sysmod:sysmod_plusargs",
              "@rv_tester//cosim/bridge:bridge_plusargs",
+             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
              "@rv_tester//common:transactor",
              "@rv_tester//:structs",
              "@rv_tester//:plusargs",

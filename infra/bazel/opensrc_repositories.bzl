@@ -51,7 +51,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-register_interface.git",
     )
 
-    opensrc_apb_hash="79101d8e6230979b8223c451ddba446f834dc944"
+    opensrc_apb_hash="211dd56c5f9ef0fc1385146eb5ffcb9b51868180"
     maybe(
         git_repository,
         name = "opensrc-apb",
