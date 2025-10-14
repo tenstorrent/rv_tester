@@ -128,7 +128,7 @@ namespace {
       CSR(VLENB,            0xC22, "vlenb")                                    \
       CSR(MTINST,           0x34A, "mtinst")                                   \
       CSR(MTVAL2,           0x34B, "mtval2")                                   \
-      CSR(MENVCFG,          0x30A, "menvcfg")                                  \
+      CSR(MENVCFG,          0x30A, "menvcfg"      , true)                      \
       CSR(MENVCFGH,         0x31A, "menvcfgh")                                 \
       CSR(MSECCFG,          0x747, "mseccfg")                                  \
       CSR(MSECCFGH,         0x757, "mseccfgh")                                 \
