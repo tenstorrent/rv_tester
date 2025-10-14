@@ -38,7 +38,7 @@ module rv_tester_delay_resp_tb_top #(
         // Test timeout and completion monitoring
         initial begin
             #100000; // 100k time units timeout
-            $display("ERROR: Test timeout!");
+            $display("[%0t] ERROR: Test timeout!", $time);
             $finish;
         end
         
@@ -78,7 +78,6 @@ module rv_tester_delay_resp_tb_top #(
     logic [31:0] received_resp_count;  // Track number of complete responses received
     // DUT interface signals
     logic [31:0] delay_cycles;
-    assign delay_cycles = 32'd20;
     // Slave AR channel
     logic [AxiIdWidth-1:0] slv_req_ar_id;
     logic [AxiAddrWidth-1:0] slv_req_ar_addr;
@@ -138,39 +137,64 @@ module rv_tester_delay_resp_tb_top #(
     logic mst_resp_b_valid;
     logic mst_req_b_ready;
 
+    // Test names array for generic test identification
+    localparam string TEST_NAMES [5] = '{
+        "BASIC DELAY TEST",
+        "DIFFERENT DELAY TEST",
+        "BURST DELAY TEST",
+        "MULTI REQUEST TEST",
+        "BYPASS TEST"
+    };
+
     // Test data arrays (compile-time constants)
-    localparam int unsigned NUM_TESTS = 4;
+    localparam int unsigned NUM_TESTS = 5;
     localparam logic [AxiIdWidth-1:0] TEST_AR_IDS [NUM_TESTS] = '{
         8'h42,  // Test 0: Basic delay test
         8'h55,  // Test 1: Different delay
         8'hAA,  // Test 2: Burst test
-        8'h33   // Test 3: Zero delay test
+        8'h33,  // Test 3: Multi-request test
+        8'h99   // Test 4: Bypass test (delay_cycles = 0)
     };
     
     localparam logic [7:0] TEST_BURST_LENS [NUM_TESTS] = '{
         8'd0,    // Test 0: Single beat
         8'd0,    // Test 1: Single beat
         8'd3,    // Test 2: 4-beat burst (single request, multi-beat)
-        8'd0     // Test 3: Single beat (multi-request, single-beat each)
+        8'd0,    // Test 3: Single beat (multi-request, single-beat each)
+        8'd0     // Test 4: Single beat (bypass test)
     };
 
     localparam logic [7:0] TEST_NUM_AR_REQS [NUM_TESTS] = '{
         8'd1,    // Test 0: 1 request
         8'd1,    // Test 1: 1 request
         8'd1,    // Test 2: 1 request with 4-beat burst
-        8'd4     // Test 3: 4 requests with single beats each
+        8'd4,    // Test 3: 4 requests with single beats each
+        8'd1     // Test 4: 1 request (bypass test)
     };
-    
+
     localparam logic [AxiDataWidth-1:0] TEST_DATA [NUM_TESTS] = '{
         64'hDEADBEEF_CAFEBABE,
         64'h1234567890ABCDEF,
         64'hFEDCBA0987654321,
-        64'h0000FFFF0000FFFF
+        64'h0000FFFF0000FFFF,
+        64'h12345678_ABCDEF00      // Test 4: Bypass test data
+    };
+
+    // Test delay cycles array - dynamic delay configuration per test
+    localparam logic [31:0] TEST_DELAY_CYCLES [NUM_TESTS] = '{
+        32'd20,  // Test 0: Normal delay
+        32'd20,  // Test 1: Normal delay
+        32'd20,  // Test 2: Normal delay
+        32'd20,  // Test 3: Normal delay
+        32'd0    // Test 4: Zero delay (bypass test)
     };
     
     // Array to store master AR IDs for response matching
     logic [AxiIdWidth-1:0] stored_ar_ids [NUM_TESTS];
-    
+
+    // Dynamic delay assignment based on current test
+    assign delay_cycles = (test_count < NUM_TESTS) ? TEST_DELAY_CYCLES[test_count] : 32'd0;
+
     // DUT instantiation
     rv_tester_delay_resp_wrapper #(
         .AxiIdWidth(AxiIdWidth),
@@ -253,24 +277,24 @@ module rv_tester_delay_resp_tb_top #(
                 resp_num <= '0;
                 beat_num <= '0;
                 received_resp_count <= '0;
+                if (test_count < NUM_TESTS) begin
+                    $display("[%0t] Starting Test %0d: %s (delay_cycles = %0d)",
+                        $time, test_count, TEST_NAMES[test_count], delay_cycles);
+                end
             end
 
             if (current_state == TEST_SEND_AR && slv_req_ar_valid && mst_resp_ar_ready) begin
                 // Store the AR ID for the current test
-                `ifdef VCS
-                    $display("[%0t] AR Request Sent - Test: %0d, Req: %0d, ID: 0x%h, Addr: 0x%h, Len: %0d, Size: %0d", 
-                        $time, test_count, req_num, slv_req_ar_id, slv_req_ar_addr, slv_req_ar_len, slv_req_ar_size);
-                `endif
+                $display("[%0t] AR Request Sent - Test: %0d, Req: %0d, ID: 0x%h, Addr: 0x%h, Len: %0d, Size: %0d",
+                    $time, test_count, req_num, slv_req_ar_id, slv_req_ar_addr, slv_req_ar_len, slv_req_ar_size);
                 stored_ar_ids[req_num] <= mst_req_ar_id;
                 req_num <= req_num + 1;
                 beat_num <= '0; // Reset beat counter for new burst
             end
             
             if (current_state == TEST_SEND_R && mst_resp_r_valid) begin
-                `ifdef VCS
-                    $display("[%0t] R Response Sent - Test: %0d, Req: %0d, Data: 0x%h, Last: %0d", 
-                        $time, test_count, resp_num, mst_resp_r_data, mst_resp_r_last);
-                `endif
+                $display("[%0t] R Response Sent - Test: %0d, Req: %0d, Data: 0x%h, Last: %0d",
+                    $time, test_count, resp_num, mst_resp_r_data, mst_resp_r_last);
                 if (TEST_BURST_LENS[test_count] == 0 || beat_num == TEST_BURST_LENS[test_count]) begin
                     // Completed a single beat or finished a burst
                     resp_num <= resp_num + 1;
@@ -280,17 +304,21 @@ module rv_tester_delay_resp_tb_top #(
                     beat_num <= beat_num + 1;
                 end
             end
-            // Test completion
-            `ifdef VCS
-                if (current_state == TEST_CHECK_RESP && slv_resp_r_valid && mst_req_r_ready) begin
-                    $display("[%0t] R Response Received - Test: %0d, Req: %0d, ID: 0x%h, Data: 0x%h, Last: %0d", 
+            // Response monitoring - capture responses in appropriate states
+            // In bypass mode (delay_cycles=0), responses arrive immediately during stimulus generation
+            // In normal mode, responses arrive after the programmed delay during response checking
+            if (slv_resp_r_valid && slv_req_r_ready) begin
+                if (current_state == TEST_CHECK_RESP ||
+                    current_state == TEST_SEND_R ||
+                    current_state == TEST_WAIT_R_RESP) begin
+                    $display("[%0t] R Response Received - Test: %0d, Req: %0d, ID: 0x%h, Data: 0x%h, Last: %0d",
                         $time, test_count, received_resp_count, slv_resp_r_id, slv_resp_r_data, slv_resp_r_last);
+
+                    // Count complete responses (when r_last is received)
+                    if (slv_resp_r_last) begin
+                        received_resp_count <= received_resp_count + 1;
+                    end
                 end
-            `endif
-            
-            // Count complete responses (when r_last is received)
-            if (current_state == TEST_CHECK_RESP && slv_resp_r_valid && slv_req_r_ready && slv_resp_r_last) begin
-                received_resp_count <= received_resp_count + 1;
             end
             
             if (current_state == TEST_CHECK_RESP && next_state != TEST_CHECK_RESP) begin
@@ -336,6 +364,8 @@ module rv_tester_delay_resp_tb_top #(
             end
             TEST_CHECK_RESP: begin
                 // Wait for all expected responses to be received
+                // This works for both bypass and delayed modes since responses
+                // are captured in multiple states above
                 if (received_resp_count >= TEST_NUM_AR_REQS[test_count]) begin
                     next_state = TEST_INIT;
                 end

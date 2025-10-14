@@ -1,5 +1,5 @@
-export SNPSLMD_LICENSE_FILE=${SNPSLMD_LICENSE_FILE:-27020@yyz-license-02:27020@yyz-license-01}
-export LM_LICENSE_FILE=${LM_LICENSE_FILE:-5280@aus-license-1}
+export SNPSLMD_LICENSE_FILE="${SNPSLMD_LICENSE_FILE:-27020@l1t5.csl.cloud.synopsys.com:27020@aus-license-1:27020@o3v0.csl.cloud.synopsys.com:27020@yyz-license-02:27020@yyz-license-01:27020@m8e2.csl.cloud.synopsys.com:27020@g9z2.csl.cloud.synopsys.com}"
+export LM_LICENSE_FILE="${LM_LICENSE_FILE:-5280@aus-license-1:2100@aus-license-1}"
 export VCS_HOME=${VCS_HOME:-/tools_vendor/synopsys/vcs/T-2022.06}
 export VERDI_HOME=${VERDI_HOME:-/tools_vendor/synopsys/verdi/T-2022.06}
 export SPYGLASS_HOME=${SPYGLASS_HOME:-/tools_vendor/synopsys/spyglass/S-2021.09-1/SPYGLASS_HOME}
