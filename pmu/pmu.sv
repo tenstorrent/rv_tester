@@ -128,10 +128,10 @@ import rv_tester_pkg::*;
     endgenerate
     assign tb_cycles       = clocks - tb_cycles_offset; 
 
-    `Z_KEEPER_INIT(clk,3)
-    `Z_KEEPER_DATA(clk,1,pmcounter_vec)
-    `Z_KEEPER_DATA(clk,2,tb_cycles)
-    `Z_KEEPER_DATA(clk,3,cpu_cycles)
+    `RV_TESTER_KEEPER_INIT(clk,3)
+    `RV_TESTER_KEEPER_DATA(clk,1,pmcounter_vec)
+    `RV_TESTER_KEEPER_DATA(clk,2,tb_cycles)
+    `RV_TESTER_KEEPER_DATA(clk,3,cpu_cycles)
 
     always_comb begin
       branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] +
