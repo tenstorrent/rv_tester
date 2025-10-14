@@ -123,8 +123,14 @@ module rv_tester_fifo #(
     ptr_t rptr, wptr, rptr_nxt, wptr_nxt;
 
     // RAM interface signals
-    idx_t ram_rd_addr;
-    T ram_rd_data;
+    idx_t ram_rd_addr [1];
+    T ram_rd_data [1];
+
+    // Array connections for single-port RAM
+    logic wr_en_array [1];
+    idx_t wr_addr_array [1];
+    T wr_data_array [1];
+    idx_t rd_addr_array [1];
 
     // Bypass signals
     T q_bypass;
@@ -156,21 +162,24 @@ module rv_tester_fifo #(
         .NUM_READ_PORTS(1)
     ) ram_inst (
         .clk(clk),
-        .wr_en('{push}),
-        .wr_addr('{push_idx}),
-        .wr_data('{d}),
-        .rd_addr('{ram_rd_addr}),
-        .rd_data('{ram_rd_data})
+        .wr_en(wr_en_array),
+        .wr_addr(wr_addr_array),
+        .wr_data(wr_data_array),
+        .rd_addr(rd_addr_array),
+        .rd_data(ram_rd_data)
     );
 
     // RAM control logic
     always_comb begin
-        // Read address
-        ram_rd_addr = ptr_to_idx(rptr_nxt);
+        // Array assignments
+        wr_en_array[0] = push;
+        wr_addr_array[0] = push_idx;
+        wr_data_array[0] = d;
+        rd_addr_array[0] = ptr_to_idx(rptr_nxt);
     end
 
     // Output mux
-    assign q = bypass_enable ? q_bypass : ram_rd_data;
+    assign q = bypass_enable ? q_bypass : ram_rd_data[0];
 
     always_ff @(posedge clk) begin
 
