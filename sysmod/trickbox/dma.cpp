@@ -372,6 +372,8 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
         }
         dma_txn_map_[dma_map_key_].in_flight = false;
         dma_txn_map_[dma_map_key_].status = 2; // setting to COMPLETED
+
+
       }
 
       // -------------------------------- dma write request handling --------------------------------
