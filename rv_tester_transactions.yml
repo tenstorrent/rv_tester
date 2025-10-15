@@ -1842,6 +1842,18 @@ aclint_checker:
                 width: 64
             hart:
                 width: 32
+    time_mtime_synch_check:
+        domain: 1
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            clock:
+                width: 64
+            hart:
+                width: 32
+            mtime_data:
+                width: 64
+            ctime_data:
+                width: 64
 
 reset_driver:
     num: 1

@@ -11,7 +11,7 @@ import rv_tester_params:: * ;
         input reset,
         input dut_reset,
         input cold_resetn,
-        input warm_reset,
+        input warm_reset_n,
         input terminated,
         input terminate_now,
         input ac_cr_sync AcCrSynci[NHARTS - 1: 0],
@@ -23,6 +23,10 @@ import rv_tester_params:: * ;
         input logic SmcMtipi,
         input logic AcChk_pll_interrupts_in,
         input logic warm_reset_req,
+        input logic [63:0] AcCrCtimeCsr[NHARTS - 1: 0],
+        input logic AcCrDebugMode[NHARTS - 1: 0],
+        input logic AcCrGateClk[NHARTS - 1: 0],
+        input logic pll_shutdown_done,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -39,6 +43,7 @@ import rv_tester_params:: * ;
     int hart_id[8];
     int nharts = 0;
     bit [63:0] clocks;
+    bit time_mtime_sync_enable = 0;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
     import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name, int NHARTS);
@@ -51,6 +56,7 @@ import rv_tester_params:: * ;
             reset_done = 1'b1;
             // Last argument needs to match the size of the hart_id array
             nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", 8);
+            time_mtime_sync_enable = cvm_plusargs::get_bool("time_mtime_sync_enable") != '0;
             /* verilator lint_on BLKSEQ */
         end
         clocks <= clocks + 1;
@@ -84,6 +90,56 @@ import rv_tester_params:: * ;
     assign timesync_checks[n].data.location = location;
     assign timesync_checks[n].data.clock = clocks;
     assign timesync_checks[n].data.hart = n;
+    /* verilator lint_on WIDTH */
+    end
+
+    //ACLINT time and mtime synch checker
+    for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
+    logic violation_time_mtime_synch;
+    logic [2:0] compare_counter;
+    logic [8:0] reset_counter;
+     /* verilator lint_off MULTIDRIVEN */
+    bit clcx_exit_counter_done = 1;
+    /* verilator lint_on MULTIDRIVEN */
+    logic [11:0] clcx_exit_counter = 0;
+    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & (~(|(clcx_exit_counter)))};
+
+    always @(posedge pll_shutdown_done) begin
+        if (clcx_exit_counter_done) clcx_exit_counter_done <= 0;
+    end
+
+    always @(posedge rf_clk) begin
+        if (!clcx_exit_counter_done && ~AcCrGateClk[n]) begin
+            clcx_exit_counter <= clcx_exit_counter + 1;
+            if (clcx_exit_counter >= 1050) clcx_exit_counter_done <= 1;
+        end
+        else clcx_exit_counter <= 0;
+
+        if (!warm_reset_n) begin
+            violation_time_mtime_synch <= 0;
+            compare_counter <= 0;
+        end
+        else begin
+            if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
+            else begin
+                if (((AcMtimei - AcCrCtimeCsr[n]) <= 340) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
+                    violation_time_mtime_synch <= 0;
+                    compare_counter <= 0;
+                end
+                else begin
+                    compare_counter <= compare_counter + 1;
+                    if (compare_counter >= 4) violation_time_mtime_synch <= 1; 
+                end
+            end
+        end
+    end
+    /* verilator lint_off WIDTH */
+    assign time_mtime_synch_checks[n].valid = violation_time_mtime_synch & time_mtime_sync_enable;
+    assign time_mtime_synch_checks[n].data.location = location;
+    assign time_mtime_synch_checks[n].data.clock = clocks;
+    assign time_mtime_synch_checks[n].data.hart = n;
+    assign time_mtime_synch_checks[n].data.mtime_data = AcMtimei;
+    assign time_mtime_synch_checks[n].data.ctime_data = AcCrCtimeCsr[n];
     /* verilator lint_on WIDTH */
     end
 
@@ -164,7 +220,7 @@ import rv_tester_params:: * ;
 
     logic [63:0] AcChkMtime;
     always @(posedge rf_clk) begin
-        if (!warm_reset) AcChkMtime <= 0;
+        if (!warm_reset_n) AcChkMtime <= 0;
         else begin
            if (mtime_wr_valid) AcChkMtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
            else AcChkMtime <= AcChkMtime + 10; 
@@ -241,7 +297,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  warm_reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  warm_reset_n & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
@@ -270,7 +326,7 @@ import rv_tester_params:: * ;
     import "DPI-C" function void check_outstanding_transactions(int unsigned location, longint unsigned clocks);
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
     always @(posedge tb_clk) begin
-        if ($rose(warm_reset_req) || $fell(warm_reset)) clear_core_outstanding_transactions(location);
+        if ($rose(warm_reset_req) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location, clocks);

@@ -36,6 +36,9 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::timesync_check < >> (loc, [this](const auto & v) {
         return this -> process(v);
     });
+    cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::time_mtime_synch_check < >> (loc, [this](const auto & v) {
+        return this -> process(v);
+    });
     cvm::registry::messenger.connect <smc_write_pkt> (smc_monitor_loc, [this](const auto & v) {
         return this -> process(v);
     });
@@ -71,6 +74,11 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::mtip_
 
 void aclint_checker::process(const rv_tester_transactions::aclint_checker::timesync_check < > & timesync_check) {
     cvm::log(cvm::ERROR, "Error: [{}] Expected TIMESYNC, but TIMESYNC[{}] not received\n", timesync_check.clock, timesync_check.hart);
+    return;
+}
+
+void aclint_checker::process(const rv_tester_transactions::aclint_checker::time_mtime_synch_check < > & time_mtime_synch_check) {
+    cvm::log(cvm::ERROR, "Error: [{}] Hart[{}] Time and Mtime out of sync, mtime_data {:#x} ctime_data {:#x} \n", time_mtime_synch_check.clock, time_mtime_synch_check.hart, time_mtime_synch_check.mtime_data, time_mtime_synch_check.ctime_data);
     return;
 }
 
