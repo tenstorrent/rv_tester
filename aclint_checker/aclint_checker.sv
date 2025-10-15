@@ -99,21 +99,18 @@ import rv_tester_params:: * ;
     logic [2:0] compare_counter;
     logic [8:0] reset_counter;
      /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_counter_done = 1;
+    bit clcx_exit_done = 1;
     /* verilator lint_on MULTIDRIVEN */
-    logic [11:0] clcx_exit_counter = 0;
-    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & (~(|(clcx_exit_counter)))};
+    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & clcx_exit_done};
 
     always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_counter_done) clcx_exit_counter_done <= 0;
+        if (clcx_exit_done) clcx_exit_done <= 0;
     end
 
     always @(posedge rf_clk) begin
-        if (!clcx_exit_counter_done && ~AcCrGateClk[n]) begin
-            clcx_exit_counter <= clcx_exit_counter + 1;
-            if (clcx_exit_counter >= 1050) clcx_exit_counter_done <= 1;
+        if (!clcx_exit_done && ~AcCrGateClk[n]) begin
+            if (AcCrSynci[n].valid) clcx_exit_done <= 1;
         end
-        else clcx_exit_counter <= 0;
 
         if (!warm_reset_n) begin
             violation_time_mtime_synch <= 0;
