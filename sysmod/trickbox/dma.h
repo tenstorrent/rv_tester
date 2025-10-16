@@ -43,6 +43,14 @@ public:
       data[i] = x & 0xff;
   }
 
+  using dma_axi_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<2>,
+        rv_tester_transactions::axi_sw_mst::r<2>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<2>
+    >;
+
   // Copy bytes from data iterator into the given integer following
   // lilttle endian convention.
   template <typename INT>
@@ -113,6 +121,7 @@ protected:
 private:
   cvm::topology::loc_t iommu_tr_req_loc_;
   cvm::messenger::pool<axi::b_t>::channel_info wresp_channel;
+  cvm::messenger::pool<axi::r_t>::channel_info rresp_channel;
 
   uint64_t dma_base_addr_ = 0x9090000;
   uint64_t dma_addr_offset_ = 0x0;
@@ -148,6 +157,8 @@ private:
   bool write_in_flight = false; 
   bool read_in_flight = false; 
   bool burst_in_flight = false; 
+
+  axi::r_t resp_;
   
   // Reference to io_coh_helper instance
   io_coh_helper* io_coh_helper_ptr_;

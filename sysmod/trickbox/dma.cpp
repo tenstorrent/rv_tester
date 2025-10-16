@@ -11,6 +11,7 @@ dma::dma(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t l
 {
   iommu_tr_req_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST", 0);
   wresp_channel = cvm::registry::messenger.channel<axi::b_t>(iommu_tr_req_loc_);
+  rresp_channel = cvm::registry::messenger.channel<axi::r_t>(iommu_tr_req_loc_);
   cvm::log(cvm::MEDIUM, "[dma] iommu_tr_req_loc_ : {} \n",iommu_tr_req_loc_);
 }
 
@@ -115,8 +116,6 @@ void dma::overlay_write(uint64_t addr, uint8_t map_key) {
    cvm::registry::messenger.fork(l, waddr, this);
    dma_txn_map_[map_key].in_flight = false;
    dma_txn_map_[map_key].status = 2;
-
-   cvm::log(cvm::MEDIUM, "[dma] dma_txn_map_ key after overlay_write: {} \n",map_key);
   
 }
 
@@ -182,6 +181,66 @@ cvm::messenger::task<void> dma::blocking_write(uint64_t addr) {
    num_writes++;
     co_return;
 }
+
+void dma::overlay_read(uint64_t addr, uint8_t map_key) {
+  cvm::log(cvm::FULL, "[dma] axi read addr= {:#X}   \n",addr);
+  dma_read_addr_ = addr;
+  dma_map_key_ = map_key;
+  dma_read_size_ = dma_txn_map_[map_key].size;
+
+   transactor::read_t r ;
+   r.addr = addr;
+   r.length = 1 << dma_txn_map_[map_key].size;
+   auto* l = +[](transactor::read_t r, dma* dev) -> cvm::messenger::task<void>{
+     co_await dev->blocking_read(r);
+   };
+   cvm::registry::messenger.fork(l, r, this);
+
+   dma_txn_map_[map_key].in_flight = false;
+   dma_txn_map_[map_key].status = 2;
+   
+}
+
+cvm::messenger::task<void> dma::blocking_read(const transactor::read_t& r ) {
+
+  axi::a_no_id_t ar_txn;
+  unsigned id;
+  ar_txn.w     = false;
+  ar_txn.addr  = r.addr;
+  ar_txn.size  = log2(dma_read_size_);
+  ar_txn.len   = 0;
+  ar_txn.burst = axi::burst_t(0);
+  ar_txn.lock  = 0;
+  ar_txn.cache = axi::cache_mem_attr_t(0);
+  ar_txn.prot  = 2;
+  ar_txn.qos   = 0;
+  ar_txn.region= 0;
+  ar_txn.atop  = 0;
+  ar_txn.user  = 0;
+  ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+
+  cvm::log(cvm::HIGH, "[dma] In Blocking read function for addr: {:#x}   \n",dma_read_addr_);
+
+  read_in_flight = true;
+  using dma_axi_mst_t = axi_sw_mst<
+      rv_tester_transactions::axi_sw_mst::b<2>,
+      rv_tester_transactions::axi_sw_mst::r<2>,
+      rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
+      rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
+      rv_tester_transactions::axi_sw_mst::w_q_ptr<2>
+  >;
+  if (!cvm::registry::messenger.call<dma_axi_mst_t::push_ar_no_id_rpc>(iommu_tr_req_loc_, ar_txn, id)) {
+    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
+  }
+
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(rresp_channel, [&id](const auto& r) { return r.id == id; });
+  resp_ = resp; 
+  read_in_flight = false;
+  co_return;
+} 
 
 
 void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
