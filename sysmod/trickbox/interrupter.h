@@ -153,7 +153,7 @@ public:
             data[i] = currentByte;
             if(i < 4) strb[i] = 0x1;
           }
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
         } else {
           // Dual interrupt case
           // First interrupt with VGEIN
@@ -170,7 +170,7 @@ public:
             data[i] = currentByte;
             if(i < 4) strb[i] = 0x1;
           }
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
 
           // Second interrupt with different VS ID
           uint32_t second_vs_id;
@@ -190,7 +190,7 @@ public:
 
           // Drive second interrupt
           addr1 = msi_vs_file_addr + (second_vs_id << 12) + (interrupt_hart << 18);
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
           intr_vs_id_two_++;
         }
       } else {
