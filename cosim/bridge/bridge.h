@@ -310,7 +310,7 @@ private:
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
-
+  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
