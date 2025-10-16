@@ -2138,7 +2138,7 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   };
 
   if (FLAGS_mip_resynch &&
-      (csr_addr == MIP || csr_addr == SIP || csr_addr == HIP || csr_addr == VSIP || csr_addr == HGEIP)) {
+      (interrupt_csrs_to_resynch_.find(csr_addr) != interrupt_csrs_to_resynch_.end())) {
     if (dut != "" && iss != "") {
       uint64_t dut_val = std::stoull(dut, nullptr, 16);
       uint64_t iss_val = std::stoull(iss, nullptr, 16);
@@ -2303,10 +2303,8 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       if((hypervisor_csr_map_.find(csr.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
         continue;
       } else {
-        if (csr.csr_addr == MIP) { // MIP needs special handling
-          std::bitset<64> unused_mip;
-          peek_mip(hart, d.cycle, unused_mip);
-          poke_mip(hart, d.cycle, std::bitset<64>(get_csr(hart, src_t::dut, csr.csr_addr)));
+        if (interrupt_csrs_to_resynch_.find(csr.csr_addr) != interrupt_csrs_to_resynch_.end()) {
+          // only resynch the destination register, do not change the CSRs
         } else {
           if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), false, false, valid)) && FLAGS_whisper_client_check) {
           error("Hart {}: Failed to resynch CSRs\n", hart);
