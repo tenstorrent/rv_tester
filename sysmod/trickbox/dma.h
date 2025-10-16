@@ -108,9 +108,10 @@ protected:
   void dma_write(uint64_t addr, uint64_t data);
   void dma_read(uint64_t addr);
   void overlay_write(uint64_t addr, uint8_t map_key);
-  void overlay_read(uint64_t addr, uint8_t map_key);
+  cvm::messenger::task<axi::r_t> overlay_read(uint64_t addr, uint8_t map_key);
   cvm::messenger::task<void> blocking_read(uint64_t addr);
   cvm::messenger::task<void> blocking_write(uint64_t addr) ;
+  cvm::messenger::task<void> handle_dma_read_request(uint8_t map_key);
 
 private:
   cvm::topology::loc_t iommu_tr_req_loc_;
@@ -144,6 +145,7 @@ private:
   uint8_t dma_write_size_ = 0;
   uint8_t dma_map_key_ = 0;
   uint64_t dma_read_addr_ = 0;
+  uint8_t dma_read_size_ = 0;
   uint64_t num_writes = 0;
 
   uint8_t  axi_id = 0;
