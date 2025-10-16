@@ -440,10 +440,10 @@ void
     cvm::log(cvm::HIGH, "[io_coh_helper] Blocking/Non Blocking type {:#x}  \n",t_data);
     if(t_data == 1){
       cvm::log(cvm::HIGH, "[io_coh_helper]  Set to Non Blocking type  \n");
-      non_blocking_mode = true;
+      blocking_mode = false;
     }else{
-      cvm::log(cvm::HIGH, "[io_coh_helper]  Set to Non Blocking type  \n");
-      non_blocking_mode = false;
+      cvm::log(cvm::HIGH, "[io_coh_helper]  Set to Blocking type  \n");
+      blocking_mode = true;
     }
     
   } 
