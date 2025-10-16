@@ -1389,6 +1389,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
+    assign m_imsic_msis[0].data.user = imsic_msi.user;
 
     // m_mtime
     localparam logic [CSRLEN-1:0] C_TIME       = 'hC01;
