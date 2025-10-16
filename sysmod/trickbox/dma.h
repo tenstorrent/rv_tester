@@ -43,14 +43,6 @@ public:
       data[i] = x & 0xff;
   }
 
-  using dma_axi_mst_t = axi_sw_mst<
-        rv_tester_transactions::axi_sw_mst::b<2>,
-        rv_tester_transactions::axi_sw_mst::r<2>,
-        rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
-        rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
-        rv_tester_transactions::axi_sw_mst::w_q_ptr<2>
-    >;
-
   // Copy bytes from data iterator into the given integer following
   // lilttle endian convention.
   template <typename INT>
@@ -116,6 +108,8 @@ protected:
   void dma_write(uint64_t addr, uint64_t data);
   void dma_read(uint64_t addr);
   void overlay_write(uint64_t addr, uint8_t map_key);
+  void overlay_read(uint64_t addr, uint8_t map_key);
+  cvm::messenger::task<void> blocking_read(uint64_t addr);
   cvm::messenger::task<void> blocking_write(uint64_t addr) ;
 
 private:
@@ -152,7 +146,7 @@ private:
   uint64_t dma_read_addr_ = 0;
   uint64_t num_writes = 0;
 
-  uint8_t  axi_id = 10;
+  uint8_t  axi_id = 0;
 
   bool write_in_flight = false; 
   bool read_in_flight = false; 

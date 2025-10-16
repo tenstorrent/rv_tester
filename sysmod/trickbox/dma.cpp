@@ -188,27 +188,27 @@ void dma::overlay_read(uint64_t addr, uint8_t map_key) {
   dma_map_key_ = map_key;
   dma_read_size_ = dma_txn_map_[map_key].size;
 
-   transactor::read_t r ;
-   r.addr = addr;
-   r.length = 1 << dma_txn_map_[map_key].size;
-   auto* l = +[](transactor::read_t r, dma* dev) -> cvm::messenger::task<void>{
-     co_await dev->blocking_read(r);
+  uint64_t raddr = addr;
+
+   auto* l = +[](uint64_t raddr, dma* dev) -> cvm::messenger::task<void>{
+     co_await dev->blocking_read(raddr);
    };
-   cvm::registry::messenger.fork(l, r, this);
+   cvm::registry::messenger.fork(l, raddr, this);
 
    dma_txn_map_[map_key].in_flight = false;
    dma_txn_map_[map_key].status = 2;
    
 }
 
-cvm::messenger::task<void> dma::blocking_read(const transactor::read_t& r ) {
+cvm::messenger::task<void> dma::blocking_read(uint64_t addr) {
 
-  axi::a_no_id_t ar_txn;
+  axi::a_t ar_txn;
   unsigned id;
   ar_txn.w     = false;
   ar_txn.addr  = r.addr;
   ar_txn.size  = log2(dma_read_size_);
   ar_txn.len   = 0;
+  ar_txn.id    = axi_id++;
   ar_txn.burst = axi::burst_t(0);
   ar_txn.lock  = 0;
   ar_txn.cache = axi::cache_mem_attr_t(0);
@@ -220,21 +220,12 @@ cvm::messenger::task<void> dma::blocking_read(const transactor::read_t& r ) {
   ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[dma] In Blocking read function for addr: {:#x}   \n",dma_read_addr_);
+  
 
+  id = ar_txn.id;
+  cvm::log(cvm::MEDIUM, "[dma] ar_txn id : {:#x} \n",id);
+  cvm::registry::messenger.signal(iommu_tr_req_loc_, ar_txn);
   read_in_flight = true;
-  using dma_axi_mst_t = axi_sw_mst<
-      rv_tester_transactions::axi_sw_mst::b<2>,
-      rv_tester_transactions::axi_sw_mst::r<2>,
-      rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
-      rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
-      rv_tester_transactions::axi_sw_mst::w_q_ptr<2>
-  >;
-  if (!cvm::registry::messenger.call<dma_axi_mst_t::push_ar_no_id_rpc>(iommu_tr_req_loc_, ar_txn, id)) {
-    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
-    if (!axi_idalloc_done) {
-      co_return;
-    }
-  }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(rresp_channel, [&id](const auto& r) { return r.id == id; });
   resp_ = resp; 
@@ -372,9 +363,12 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
         cvm::log(cvm::MEDIUM, "[dma] dma_read size : {} \n",dma_txn_map_[dma_map_key_].size);
 
         // Use overlay_read function to read the data from the transactor
-        
-        dma_map_key_ = dma_read_addr_ - (dma_base_addr_ + dma_size_offset_); // using the pass by reference variable to get the correct key
-        cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+        overlay_read(dma_txn_map_[dma_map_key_].addr, dma_map_key_);
+
+        data_vec = resp_.data;
+        for(int i = 0; i < data_vec.size(); i++){
+          cvm::log(cvm::MEDIUM, "[dma] read data_vec[{}] : {:#x} \n",i,data_vec[i]);
+        }
 
         uint64_t data_value = 0;
 
