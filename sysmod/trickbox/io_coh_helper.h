@@ -129,6 +129,8 @@ private:
   uint64_t num_reads = 0;
   uint64_t tx_data0 = 0;
   uint8_t  axi_id = 12;
+  uint8_t io_coh_user_bits = 0;
+  bool non_blocking_mode = false;
   mem_manager m_;
   bool write_in_flight = false; 
   bool read_in_flight = false; 
