@@ -12,7 +12,7 @@ dma::dma(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t l
   iommu_tr_req_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST", 0);
   wresp_channel = cvm::registry::messenger.channel<axi::b_t>(iommu_tr_req_loc_);
   rresp_channel = cvm::registry::messenger.channel<axi::r_t>(iommu_tr_req_loc_);
-  cvm::log(cvm::MEDIUM, "[dma] iommu_tr_req_loc_ : {} \n",iommu_tr_req_loc_);
+  cvm::log(cvm::HIGH, "[dma] iommu_tr_req_loc_ : {} \n",iommu_tr_req_loc_);
 }
 
 dma::~dma()
@@ -25,10 +25,10 @@ dma::read_dev(uint64_t addr, size_t length, data_t& data)
 {
 
  if (not has_addr(addr)){
-    cvm::log(cvm::MEDIUM, "[dma] Discarding read request at dma device since tag {} is not matching for address {:#x} \n",tag(),addr);
+    cvm::log(cvm::HIGH, "[dma] Discarding read request at dma device since tag {} is not matching for address {:#x} \n",tag(),addr);
    return;
   }
-  cvm::log(cvm::MEDIUM, "[dma] read address: {:#x} \n", addr);
+  cvm::log(cvm::HIGH, "[dma] read address: {:#x} \n", addr);
   if(addr >= (dma_base_addr_ + dma_status_offset_)) {
     dma_map_key_ = (addr - (dma_base_addr_ + dma_status_offset_));
     if((dma_txn_map_.find(dma_map_key_) != dma_txn_map_.end())) {
@@ -51,11 +51,11 @@ dma::read_dev(uint64_t addr, size_t length, data_t& data)
   }
   if((addr >= dma_base_addr_ + dma_data_offset_) && (addr < dma_base_addr_ + dma_size_offset_)){
     dma_map_key_ = (addr - (dma_base_addr_ + dma_data_offset_))/64;
-    cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+    cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
     if((dma_txn_map_.find(dma_map_key_) != dma_txn_map_.end())) {
       uint64_t data_data =  (uint64_t)dma_txn_map_[dma_map_key_].data[0];
       serializeInt(data_data, length, data);
-      cvm::log(cvm::MEDIUM, "[dma] data_data : {:#x} \n",data_data);
+      cvm::log(cvm::HIGH, "[dma] data_data : {:#x} \n",data_data);
     }
     else{
       cvm::log(cvm::ERROR, "[dma] ERROR: Data not found for DMA data buffer read request.  DMA trickbox address {:#x} \n",addr);
@@ -107,7 +107,7 @@ dma::read_dev(uint64_t addr, size_t length, data_t& data)
 
 void dma::overlay_write(uint64_t addr, uint8_t map_key) {
 
-  cvm::log(cvm::MEDIUM, "[dma] axi write addr= {:#X} for map_key {}   \n",addr,map_key);
+  cvm::log(cvm::HIGH, "[dma] axi write addr= {:#X} for map_key {}   \n",addr,map_key);
   uint64_t waddr = addr;
    
    auto* l = +[](uint64_t waddr, dma* dev) -> cvm::messenger::task<void>{
@@ -141,25 +141,25 @@ cvm::messenger::task<void> dma::blocking_write(uint64_t addr) {
   aw_txn.user  =8;
   aw_txn.allow_decerr_resp = (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
 
-  cvm::log(cvm::MEDIUM, "[dma] In Blocking write function for addr: {:#x}   \n",dma_write_addr_);
+  cvm::log(cvm::HIGH, "[dma] In Blocking write function for addr: {:#x}   \n",dma_write_addr_);
 
   cvm::registry::messenger.signal(iommu_tr_req_loc_, aw_txn);
   axi::w_t w_txn;
   std::vector<uint8_t> data_vec = dma_write_data_vec_;
   std::vector<bool> strb_vec = dma_write_strb_vec_;
-  cvm::log(cvm::MEDIUM, "[dma] data_vec size : {} \n",data_vec.size());
-  cvm::log(cvm::MEDIUM, "[dma] strb_vec size : {} \n",strb_vec.size());
+  cvm::log(cvm::HIGH, "[dma] data_vec size : {} \n",data_vec.size());
+  cvm::log(cvm::HIGH, "[dma] strb_vec size : {} \n",strb_vec.size());
   
    for (uint8_t i = 0; i < dma_write_size_; ++i) {
           w_txn.data.push_back(data_vec[i]);
           w_txn.strb.push_back(strb_vec[i]);
     }  
-    cvm::log(cvm::MEDIUM, "[dma] w_txn data size : {} \n",w_txn.data.size());
-    cvm::log(cvm::MEDIUM, "[dma] w_txn strb size : {} \n",w_txn.strb.size());
+    cvm::log(cvm::HIGH, "[dma] w_txn data size : {} \n",w_txn.data.size());
+    cvm::log(cvm::HIGH, "[dma] w_txn strb size : {} \n",w_txn.strb.size());
   
   w_txn.last = 1;
   uint32_t wresp_id = aw_txn.id;
-  cvm::log(cvm::MEDIUM, "[dma] Wresp_id : {:#x}   \n",wresp_id);
+  cvm::log(cvm::HIGH, "[dma] Wresp_id : {:#x}   \n",wresp_id);
   cvm::registry::messenger.signal(iommu_tr_req_loc_, w_txn);
   
     write_in_flight = true;
@@ -173,12 +173,12 @@ cvm::messenger::task<void> dma::blocking_write(uint64_t addr) {
 
   //Poke same data to whisper memory
   for (uint8_t i = 0; i < dma_write_size_; ++i) {
-    cvm::log(cvm::MEDIUM, "[dma] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",(addr + i),data_vec[i]);
+    cvm::log(cvm::HIGH, "[dma] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",(addr + i),data_vec[i]);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       co_return;
     }
-    cvm::log(cvm::MEDIUM, "[dma] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
+    cvm::log(cvm::HIGH, "[dma] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
   }
    num_writes++;
     co_return;
@@ -208,14 +208,14 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
   // Need to pick the bytes of interest from here 
 
   for(unsigned i = 0; i < read_resp.data.size(); i++){
-    cvm::log(cvm::MEDIUM, "[dma] read_resp data [{}] : {:#x} \n",i,read_resp.data[i]);
+    cvm::log(cvm::HIGH, "[dma] read_resp data [{}] : {:#x} \n",i,read_resp.data[i]);
   }
 
 
   uint32_t data_offset = dma_read_addr_ & 0x3f; // lower 6 bits
 
   uint64_t data_value = 0;
-  cvm::log(cvm::MEDIUM, "[dma] read map key: {} \n",map_key);
+  cvm::log(cvm::HIGH, "[dma] read map key: {} \n",map_key);
 
   switch(dma_txn_map_[map_key].size){
     case 1:
@@ -238,7 +238,7 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
       for (int i = 0; i < 8; i++) {
         data_value |= uint64_t(read_resp.data[data_offset + i]) << (i*8);
       }
-      cvm::log(cvm::MEDIUM, "[dma] data_value : {:#x} \n",data_value);
+      cvm::log(cvm::HIGH, "[dma] data_value : {:#x} \n",data_value);
       dma_txn_map_[map_key].data[0] = data_value;
       break;
     case 16:
@@ -300,11 +300,11 @@ cvm::messenger::task<void> dma::blocking_read(uint64_t addr) {
   ar_txn.user  = 0;
   ar_txn.allow_decerr_resp = (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
-  cvm::log(cvm::MEDIUM, "[dma] In Blocking read function for addr: {:#x}   \n",dma_read_addr_);
+  cvm::log(cvm::HIGH, "[dma] In Blocking read function for addr: {:#x}   \n",dma_read_addr_);
   
 
   id = ar_txn.id;
-  cvm::log(cvm::MEDIUM, "[dma] ar_txn id : {:#x} \n",id);
+  cvm::log(cvm::HIGH, "[dma] ar_txn id : {:#x} \n",id);
   cvm::registry::messenger.signal(iommu_tr_req_loc_, ar_txn);
   read_in_flight = true;
 
@@ -322,13 +322,13 @@ cvm::messenger::task<void> dma::blocking_read(uint64_t addr) {
 void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
 {
   if (not has_addr(addr)){
-    cvm::log(cvm::MEDIUM, "[dma] Discarding write request to dma device since tag {} is not matching for address {:#x} \n",tag(),addr);
+    cvm::log(cvm::HIGH, "[dma] Discarding write request to dma device since tag {} is not matching for address {:#x} \n",tag(),addr);
     return;
   }
-  cvm::log(cvm::MEDIUM, "[dma] write addr {:#x}  \n",addr);
+  cvm::log(cvm::HIGH, "[dma] write addr {:#x}  \n",addr);
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
-  cvm::log(cvm::MEDIUM, "[dma] write data {:#x} \n",t_data);
+  cvm::log(cvm::HIGH, "[dma] write data {:#x} \n",t_data);
 
   // DMA Address Buffer Handling
   if ((addr >= dma_base_addr_ + dma_addr_offset_) && (addr < dma_base_addr_ + dma_data_offset_)) {
@@ -340,8 +340,8 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
     if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
     dma_txn_map_[dma_map_key_].addr = t_data;
     // Configured Address
-    cvm::log(cvm::MEDIUM, "[dma] address {:#x} written to DMA trickbox address buffer : {} \n",t_data,dma_map_key_);
-    cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+    cvm::log(cvm::HIGH, "[dma] address {:#x} written to DMA trickbox address buffer : {} \n",t_data,dma_map_key_);
+    cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
     }
     else{
       cvm::log(cvm::ERROR, "[dma] ERROR: Address being changed for a DMA transaction that's already in flight.  DMA trickbox address {:#x} \n",addr);
@@ -358,8 +358,8 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
     if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
       uint8_t byte_index = (addr - (dma_base_addr_ + dma_data_offset_))/8;
       dma_txn_map_[dma_map_key_].data[byte_index] = t_data;
-      cvm::log(cvm::MEDIUM, "[dma] write data {:#x} to DMA trickbox data buffer : {} \n",t_data,dma_map_key_);
-      cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] write data {:#x} to DMA trickbox data buffer : {} \n",t_data,dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
     }
     else{
       cvm::log(cvm::ERROR, "[dma] ERROR: Data is being changed for a DMA data buffer whose txn is already in flight.  DMA trickbox address {:#x} \n",addr);
@@ -371,8 +371,8 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
     dma_map_key_ = (addr - (dma_base_addr_ + dma_size_offset_));
     if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
       dma_txn_map_[dma_map_key_].size = t_data;
-      cvm::log(cvm::MEDIUM, "[dma] size {:#x} written to DMA trickbox size buffer : {} \n",t_data,dma_map_key_);
-      cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] size {:#x} written to DMA trickbox size buffer : {} \n",t_data,dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
     }
     else{
       cvm::log(cvm::ERROR, "[dma] ERROR: Size is being changed for a DMA size buffer whose txn is already in flight.  DMA trickbox address {:#x} \n",addr);
@@ -383,7 +383,7 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
   else if(addr >= (dma_base_addr_ + dma_cmd_offset_) && (addr < (dma_base_addr_ + dma_virt_offset_))) {
     dma_map_key_ = (addr - (dma_base_addr_ + dma_cmd_offset_));
     if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
-      cvm::log(cvm::MEDIUM, "[dma] command {:#x} written to DMA trickbox command buffer : {} \n",t_data,dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] command {:#x} written to DMA trickbox command buffer : {} \n",t_data,dma_map_key_);
       if(t_data == 1){
         dma_txn_map_[dma_map_key_].cmd = 1;
       }
@@ -404,8 +404,8 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
     dma_map_key_ = (addr - (dma_base_addr_ + dma_virt_offset_));
     if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
       dma_txn_map_[dma_map_key_].virt = (t_data == 1);
-      cvm::log(cvm::MEDIUM, "[dma] virt bit {:#x} written to DMA trickbox virt buffer : {} \n",t_data,dma_map_key_);
-      cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] virt bit {:#x} written to DMA trickbox virt buffer : {} \n",t_data,dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
     }
     else{
       cvm::log(cvm::ERROR, "[dma] ERROR: Virt bit is being changed for a DMA virt buffer whose txn is already in flight.  DMA trickbox address {:#x} \n",addr);
@@ -416,14 +416,14 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
   else if (addr >=(dma_base_addr_ + dma_status_offset_)) {
     if((addr - (dma_base_addr_ + dma_status_offset_)) > 64){
       cvm::log(cvm::ERROR, "[dma] ERROR: Address {:#x} for writing into DMA status buffers is out of bounds\n",addr);
-      cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} \n",dma_map_key_);
+      cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} \n",dma_map_key_);
       return;
     }
     else{
       dma_map_key_ = (addr - (dma_base_addr_ + dma_status_offset_));
       if((dma_txn_map_.find(dma_map_key_) == dma_txn_map_.end()) || (dma_txn_map_[dma_map_key_].in_flight == false)) {
         dma_txn_map_[dma_map_key_].status = t_data;
-        cvm::log(cvm::MEDIUM, "[dma] status {:#x} written to DMA trickbox status buffer : {} \n",t_data,dma_map_key_);
+        cvm::log(cvm::HIGH, "[dma] status {:#x} written to DMA trickbox status buffer : {} \n",t_data,dma_map_key_);
       }
       else{
         cvm::log(cvm::ERROR, "[dma] ERROR: Status is being changed for a DMA status buffer whose txn is already in flight.  DMA trickbox address {:#x} \n",addr);
@@ -433,19 +433,19 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
     // -------------------------------- dma read request handling --------------------------------
 
     if(dma_txn_map_[dma_map_key_].status == 1){
-      cvm::log(cvm::MEDIUM, "[dma] DMA status is set to 1, DMA request will take flight \n");
+      cvm::log(cvm::HIGH, "[dma] DMA status is set to 1, DMA request will take flight \n");
       dma_txn_map_[dma_map_key_].in_flight = true;
       std::vector<uint8_t> data_vec;
       data_vec = {}; // need to initialise the vector
 
       if(dma_txn_map_[dma_map_key_].cmd == 1){
         // Signal a transactor read request
-        cvm::log(cvm::MEDIUM, "[dma] DMA read request signaled to transactor \n");
+        cvm::log(cvm::HIGH, "[dma] DMA read request signaled to transactor \n");
         
         dma_txn_map_[dma_map_key_].in_flight = true;
         dma_read_addr_ = dma_txn_map_[dma_map_key_].addr;
 
-        cvm::log(cvm::MEDIUM, "[dma] dma_read size : {} \n",dma_txn_map_[dma_map_key_].size);
+        cvm::log(cvm::HIGH, "[dma] dma_read size : {} \n",dma_txn_map_[dma_map_key_].size);
 
         // Use overlay_read function to read the data from the transactor
         // overlay_read(dma_txn_map_[dma_map_key_].addr, dma_map_key_);
@@ -467,12 +467,12 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
 
       else if(dma_txn_map_[dma_map_key_].cmd == 2){
         // Signal a transactor write request
-        cvm::log(cvm::MEDIUM, "[dma] DMA write request signaled to transactor \n");
+        cvm::log(cvm::HIGH, "[dma] DMA write request signaled to transactor \n");
         // TODO: Call io_coh_helper's blocking_write task
         uint64_t data_value; // Declare data_value before switch statement
         dma_write_data_vec_.clear();
         dma_write_strb_vec_.clear();
-        cvm::log(cvm::MEDIUM, "[dma] dma_map_key_ : {} , DMA Size : {} \n",dma_map_key_,dma_txn_map_[dma_map_key_].size);
+        cvm::log(cvm::HIGH, "[dma] dma_map_key_ : {} , DMA Size : {} \n",dma_map_key_,dma_txn_map_[dma_map_key_].size);
         switch(dma_txn_map_[dma_map_key_].size){
           case 1:
             dma_write_data_vec_.push_back(static_cast<uint8_t>(dma_txn_map_[dma_map_key_].data[0]));
@@ -499,7 +499,7 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
 
           case 8:
             data_value = dma_txn_map_[dma_map_key_].data[0];
-            cvm::log(cvm::MEDIUM, "[dma] data_value : {} \n",data_value);
+            cvm::log(cvm::HIGH, "[dma] data_value : {} \n",data_value);
             for (int i = 0; i < 8; i++) {
               dma_write_data_vec_.push_back(static_cast<uint8_t>(data_value & 0xFF));
               dma_write_strb_vec_.push_back(true);
@@ -551,7 +551,7 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
         dma_txn_map_[dma_map_key_].in_flight = true;
         dma_write_addr_ = dma_txn_map_[dma_map_key_].addr;
         dma_write_size_ = dma_txn_map_[dma_map_key_].size;
-        cvm::log(cvm::MEDIUM, "[dma] dma_write_addr_ : {}, dma_write_size_ : {} \n",dma_write_addr_,dma_write_size_);
+        cvm::log(cvm::HIGH, "[dma] dma_write_addr_ : {}, dma_write_size_ : {} \n",dma_write_addr_,dma_write_size_);
         overlay_write(dma_txn_map_[dma_map_key_].addr, dma_map_key_);
       }
     }
