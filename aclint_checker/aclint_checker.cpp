@@ -389,6 +389,10 @@ extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc, uint64_
     cvm::registry::messenger.signal<uint64_t>(loc, clocks);
 }
 
+extern "C" void time_mtime_eot_error() {
+    cvm::log(cvm::ERROR, "[ACLINT CHECKER] Error: No mtime broadcast after CLCX exit\n");
+}
+
 extern "C" void clear_core_outstanding_transactions(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<clear_outstanding_txn>(loc, {uint64_t(1)});
 }

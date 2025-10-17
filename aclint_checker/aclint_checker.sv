@@ -93,19 +93,21 @@ import rv_tester_params:: * ;
     /* verilator lint_on WIDTH */
     end
 
+     /* verilator lint_off MULTIDRIVEN */
+    bit clcx_exit_done = 1;
+    /* verilator lint_on MULTIDRIVEN */
+
+    always @(posedge pll_shutdown_done) begin
+        if (clcx_exit_done) clcx_exit_done <= 0;
+    end
+
     //ACLINT time and mtime synch checker
     for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
     logic violation_time_mtime_synch;
     logic [2:0] compare_counter;
     logic [8:0] reset_counter;
-     /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done = 1;
-    /* verilator lint_on MULTIDRIVEN */
+    
     always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & clcx_exit_done};
-
-    always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done) clcx_exit_done <= 0;
-    end
 
     always @(posedge rf_clk) begin
         if (!clcx_exit_done && ~AcCrGateClk[n]) begin
@@ -224,6 +226,14 @@ import rv_tester_params:: * ;
         end
     end
 
+    bit AcCrGateClkAny;
+    always_comb begin
+        AcCrGateClkAny = 1'b0;
+        for (int i = 0; i < NHARTS; i++) begin
+            AcCrGateClkAny |= AcCrGateClk[i];
+        end
+    end
+
     logic AcCrSynci_valid_any;
     always_comb begin
         AcCrSynci_valid_any = 1'b0;
@@ -322,11 +332,15 @@ import rv_tester_params:: * ;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location, longint unsigned clocks);
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
+    import "DPI-C" function int time_mtime_eot_error();
     always @(posedge tb_clk) begin
         if ($rose(warm_reset_req) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
-        else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location, clocks);
+        else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
+            check_outstanding_transactions(location, clocks);
+            if (~clcx_exit_done && ~AcCrGateClkAny) time_mtime_eot_error();
+        end
     end
 
   function automatic logic [3:0] get_hart_ret(int n);
