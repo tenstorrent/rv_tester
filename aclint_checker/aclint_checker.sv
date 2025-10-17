@@ -125,7 +125,7 @@ import rv_tester_params:: * ;
                 end
                 else begin
                     compare_counter <= compare_counter + 1;
-                    if (compare_counter >= 8) violation_time_mtime_synch <= 1; 
+                    if (compare_counter >= 7) violation_time_mtime_synch <= 1; 
                 end
             end
         end
