@@ -853,7 +853,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
         skip_update_insn = true;
       }
     }
-    if (d.ecause == 39 && d.uop == 0x13) { // RVDE-27405 disable insn_check for whole register loads and stores during VL=0
+    if (d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) { // RVDE-27405 disable insn_check for whole register loads and stores during VL=0
       skip_update_insn = true;
     }
     if (!skip_update_insn) {
