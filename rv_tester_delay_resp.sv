@@ -63,55 +63,68 @@ module rv_tester_delay_resp #(
 
     typedef struct packed {
         logic [AxiIdWidth-1:0] orig_req_id;
-        r_chan_t [MaxBeatsPerBurst-1:0] r;
         int unsigned pop_time;
-        logic r_valid;
     } fifo_entry_t;
 
+    // R channel data with validity bit
     typedef struct packed {
-        beat_count_t total_beats;
-        beat_count_t resp_beat_counter;
-    } beat_tracker_t;
+        logic r_valid;
+        r_chan_t r;
+    } r_ram_entry_t;
+
     
-    index_t push_idx, wr_idx;
+    index_t push_idx, pop_idx, wr_idx;
     logic push_en, pop_en, wr_en;
     logic fifo_full, fifo_empty;
     logic[$clog2(MaxInFlight+1)-1:0] write_ptr, read_ptr;
     int unsigned global_timer;
     logic ar_req_check;
 
-    beat_tracker_t beat_tracker[MaxInFlight-1:0];
     beat_count_t output_beat_idx, next_output_beat_idx;
+    beat_count_t input_beat_counters[MaxInFlight-1:0]; // Beat counter per FIFO entry for incoming responses
 
     // Internal signals
     fifo_entry_t push_entry, pop_entry;
-    fifo_entry_t resp_data_mask, resp_data;
+
+    // R channel RAM signals
+    logic r_ram_wr_en;
+    logic[$clog2(MaxInFlight * MaxBeatsPerBurst)-1:0] r_ram_wr_addr, r_ram_rd_addr;
+    r_ram_entry_t r_ram_wr_data, r_ram_rd_data;
 
     // FIFO instantiation
     rv_tester_fifo #(
         .D(MaxInFlight),
-        .T(fifo_entry_t),
-        .ENABLE_RANDOM_ACCESS_WRITE(1)
+        .T(fifo_entry_t)
     ) rv_fifo (
         .clk(clk_i),
         .reset_n(rst_ni),
         .push(push_en),
         .d(push_entry),
-        .wr_en(wr_en),
-        .wr_idx(wr_idx),
-        .wr_data(resp_data),
-        .wr_mask(resp_data_mask),
         .pop(pop_en),
         .q(pop_entry),
         .size(),
         .full(fifo_full),
         .empty(fifo_empty),
         .push_ptr(write_ptr),
-        .pop_ptr(read_ptr)
+        .pop_ptr(read_ptr),
+        .push_idx(push_idx),
+        .pop_idx(pop_idx)
     );
 
-    // ID tagging for master requests - use index directly as ID
-    assign mst_req_ar_id_o = AxiIdWidth'(push_idx);
+    // R channel data RAM instantiation
+    rv_tester_ram #(
+        .SIZE(MaxInFlight * MaxBeatsPerBurst),
+        .DATA_TYPE(r_ram_entry_t),
+        .NUM_WRITE_PORTS(1),
+        .NUM_READ_PORTS(1)
+    ) r_ram (
+        .clk(clk_i),
+        .wr_en('{r_ram_wr_en}),
+        .wr_addr('{r_ram_wr_addr}),
+        .wr_data('{r_ram_wr_data}),
+        .rd_addr('{r_ram_rd_addr}),
+        .rd_data('{r_ram_rd_data})
+    );
     
     // Sequential logic
     always_ff @(posedge clk_i) begin: new_ar_req_logic
@@ -127,9 +140,7 @@ module rv_tester_delay_resp #(
             if (ar_req_check && !fifo_full) begin
                 push_entry <= '{
                     orig_req_id: slv_req_ar_i.id,
-                    r: '{default: '0},
                     pop_time: global_timer + delay_cycles,
-                    r_valid: 1'b0,
                     default: '0
                 };
                 push_en <= 1'b1;
@@ -137,20 +148,22 @@ module rv_tester_delay_resp #(
         end
     end
 
-    always_ff @(posedge clk_i) begin: beat_tracker_logic
+    always_ff @(posedge clk_i) begin: beat_logic
         if (!rst_ni) begin
-            beat_tracker <= '{default: '0};
             output_beat_idx <= '0;
+            input_beat_counters <= '{default: '0};
         end
         else begin
             output_beat_idx <= next_output_beat_idx;
+
+            // Reset input beat counter when new AR request is processed
             if (ar_req_check && !fifo_full) begin
-                beat_tracker[push_idx].total_beats <= beat_count_t'(int'(slv_req_ar_i.len) + 1);
-                beat_tracker[push_idx].resp_beat_counter <= '0;
+                input_beat_counters[push_idx] <= '0;
             end
-            // Update beat counter when receiving responses
+
+            // Increment input beat counter when receiving responses
             if (mst_resp_i.r_valid) begin
-                beat_tracker[wr_idx].resp_beat_counter <= beat_count_t'(int'(beat_tracker[wr_idx].resp_beat_counter) + 1);
+                input_beat_counters[wr_idx] <= input_beat_counters[wr_idx] + beat_count_t'(1);
             end
         end
     end
@@ -164,78 +177,74 @@ module rv_tester_delay_resp #(
         slv_resp_o.b.id = mst_resp_i.b.id[AxiIdWidth-1:0];
         slv_resp_o.b.resp = mst_resp_i.b.resp;
         slv_resp_o.b.user = mst_resp_i.b.user;
-        
+
         // Default read channel values
         slv_resp_o.r = '0;
         slv_resp_o.r_valid = '0;
 
         // Internal signal defaults
         pop_en = '0;
-        wr_en = '0;
-        resp_data = '{default: '0};
-        resp_data_mask = '{default: '0};
+        r_ram_wr_en = '0;
+        r_ram_wr_addr = '0;
+        r_ram_wr_data = '0;
+        r_ram_rd_addr = '0;
 
         // Signal assignments
-        push_idx = write_ptr[$clog2(MaxInFlight)-1:0];
         // Extract FIFO index from response ID
         wr_idx = index_t'(mst_resp_i.r.id[FIFO_IDX_WIDTH-1:0]);  // Modulo operation
         ar_req_check = slv_req_ar_valid_i && mst_resp_i.ar_ready;
         next_output_beat_idx = output_beat_idx;
 
-        // Handle delayed read responses
-        if (!fifo_empty && global_timer >= pop_entry.pop_time && pop_entry.r_valid && slv_req_r_ready_i) begin
-            slv_resp_o.r_valid = 1'b1;
-            slv_resp_o.r.data = pop_entry.r[output_beat_idx].data;
-            slv_resp_o.r.id = pop_entry.orig_req_id;
-            slv_resp_o.r.resp = pop_entry.r[output_beat_idx].resp;
-            slv_resp_o.r.last = pop_entry.r[output_beat_idx].last;
-            slv_resp_o.r.user = pop_entry.r[output_beat_idx].user;
-            
-            if (pop_entry.r[output_beat_idx].last) begin
-                next_output_beat_idx = '0;
-                pop_en = 1'b1;
-            end else begin
-                next_output_beat_idx = beat_count_t'(int'(output_beat_idx) + 1);
-            end
-        end
+        // Bypass logic when delay_cycles is 0
+        if (delay_cycles == 0) begin
+            // Direct pass-through for read channel
+            slv_resp_o.r_valid = mst_resp_i.r_valid;
+            slv_resp_o.r.data = mst_resp_i.r.data;
+            slv_resp_o.r.id = mst_resp_i.r.id[AxiIdWidth-1:0];
+            slv_resp_o.r.resp = mst_resp_i.r.resp;
+            slv_resp_o.r.last = mst_resp_i.r.last;
+            slv_resp_o.r.user = mst_resp_i.r.user;
+            // Use original request ID instead of modified ID
+            mst_req_ar_id_o = slv_req_ar_i.id;
+        end else begin
+            // Normal delay logic
+            // Calculate RAM addresses using FIFO indices
+            // For reading: use pop_idx from FIFO and current beat index
+            r_ram_rd_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((pop_idx * index_t'(MaxBeatsPerBurst)) + output_beat_idx);
 
-        // Store incoming read responses
-        if (mst_resp_i.r_valid) begin
-            resp_data = '{
-                orig_req_id: '0,
-                r: '{default: '0},
-                pop_time: '0,
-                r_valid: '1,
-                default: '0
-            };
-            // Set the specific array element after struct creation
-            resp_data.r[beat_tracker[wr_idx].resp_beat_counter] = mst_resp_i.r;
-            
-            // Build mask to only update the specific r array element and r_valid
-            resp_data_mask = '{
-                orig_req_id: '0,
-                r: '{default: '0},
-                pop_time: '0,
-                r_valid: '1,
-                default: '0
-            };
-            // Enable mask for the specific array element being updated
-            resp_data_mask.r[beat_tracker[wr_idx].resp_beat_counter] = '1;
-            
-            wr_en = 1'b1;
+            // Handle delayed read responses
+            if (!fifo_empty && global_timer >= pop_entry.pop_time && r_ram_rd_data.r_valid && slv_req_r_ready_i) begin
+                slv_resp_o.r_valid = 1'b1;
+                slv_resp_o.r.data = r_ram_rd_data.r.data;
+                slv_resp_o.r.id = pop_entry.orig_req_id;
+                slv_resp_o.r.resp = r_ram_rd_data.r.resp;
+                slv_resp_o.r.last = r_ram_rd_data.r.last;
+                slv_resp_o.r.user = r_ram_rd_data.r.user;
+
+                if (r_ram_rd_data.r.last) begin
+                    next_output_beat_idx = '0;
+                    pop_en = 1'b1;
+                end else begin
+                    next_output_beat_idx = output_beat_idx + beat_count_t'(1);
+                end
+            end
+
+            // Store incoming read responses
+            // Calculate RAM address for this beat using FIFO index and input beat counter
+            r_ram_wr_addr = ($clog2(MaxInFlight * MaxBeatsPerBurst))'((wr_idx * index_t'(MaxBeatsPerBurst)) + input_beat_counters[wr_idx]);
+            r_ram_wr_data.r_valid = mst_resp_i.r_valid;
+            r_ram_wr_data.r = mst_resp_i.r;
+            r_ram_wr_en = mst_resp_i.r_valid;
+
+            // Use FIFO index as ID for master requests
+            mst_req_ar_id_o = AxiIdWidth'(push_idx);
         end
     end
 `ifdef ASSERTION_ENABLE
     // Beat counter assertions
     beat_counter_overflow: assert property (@(posedge clk_i) disable iff (!rst_ni)
-        mst_resp_i.r_valid |-> beat_tracker[wr_idx].resp_beat_counter < beat_count_t'(MaxBeatsPerBurst))
-        else $error("Beat counter overflow for FIFO index %0d: %0d", wr_idx, beat_tracker[wr_idx].resp_beat_counter);
-    
-    last_beat_counter_mismatch: assert property (@(posedge clk_i) disable iff (!rst_ni)
-        mst_resp_i.r_valid && mst_resp_i.r.last |-> 
-        beat_tracker[wr_idx].resp_beat_counter == (beat_tracker[wr_idx].total_beats - 1))
-        else $error("Last beat received but beat counter mismatch. Expected: %0d, Got: %0d", 
-                   beat_tracker[wr_idx].total_beats - 1, beat_tracker[wr_idx].resp_beat_counter);
+        mst_resp_i.r_valid |-> input_beat_counters[wr_idx] < beat_count_t'(MaxBeatsPerBurst))
+        else $error("Beat counter overflow for FIFO index %0d: %0d", wr_idx, input_beat_counters[wr_idx]);
 
     // Assert that MaxInFlight fits within AxiIdWidth
     id_width_check: assert property (@(posedge clk_i) disable iff (!rst_ni)

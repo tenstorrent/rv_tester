@@ -121,8 +121,7 @@ bool axi::check_error(addr_t addr, size_t& count) {
     size_t decerr_count_val = decerr_count.has_value() ? decerr_count.value().get() : 0;
 
     // Set count based on priority: slverr first, then decerr, else 0
-    count = (has_slverr && slverr_count_nonzero) ? slverr_count_val :
-            (has_decerr && decerr_count_nonzero) ? decerr_count_val : 0;
+    count = (slverr_count_nonzero) ? slverr_count_val : (decerr_count_nonzero) ? decerr_count_val : 0;
 
     cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}, slverr_count={}, decerr_count={}, returned_count={}\n",
              addr, has_slverr, has_decerr, slverr_count_val, decerr_count_val, count);

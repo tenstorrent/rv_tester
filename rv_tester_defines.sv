@@ -436,6 +436,7 @@ package rv_tester_params;
         logic [63:0]                cycle;
         logic [63:0]                addr ;
         logic [31:0]                data ;
+        logic  [7:0]                user ;
     } msi_t;
 
     // --------------------------------------
