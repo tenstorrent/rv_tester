@@ -332,7 +332,7 @@ import rv_tester_params:: * ;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location, longint unsigned clocks);
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
-    import "DPI-C" function int time_mtime_eot_error();
+    import "DPI-C" function void time_mtime_eot_error();
     always @(posedge tb_clk) begin
         if ($rose(warm_reset_req) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
