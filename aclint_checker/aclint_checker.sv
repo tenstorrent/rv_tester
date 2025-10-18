@@ -339,7 +339,7 @@ import rv_tester_params:: * ;
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
             check_outstanding_transactions(location, clocks);
-            if (~clcx_exit_done && ~AcCrGateClkAny) time_mtime_eot_error();
+            if (~clcx_exit_done && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
         end
     end
 
