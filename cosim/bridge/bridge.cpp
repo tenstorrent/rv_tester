@@ -1032,6 +1032,8 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   for (auto& [key, value] : dut_mip_clr_age_)
     value++;
 
+  latest_imsic_.second++; // age increase
+
   bool w_intr, w_virt_mode;
   uint64_t w_cause;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
@@ -2735,6 +2737,9 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   bridge_log(cvm::MEDIUM, "<{}> IMSIC write: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
 
+  // Store latest IMSIC operation details
+  latest_imsic_ = std::make_pair(m.pa, 0);
+
   // Poke imsic write into whisper memory
   bool seip_prev;
   peek_seip(hart, m.cycle, seip_prev);
@@ -3428,6 +3433,8 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_dut_val\": \"{}\"}}\n", id_, mismatch_dut_);
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_iss_val\": \"{}\"}}\n", id_, mismatch_iss_);
   }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_pa\": \"0x{:x}\"}}\n", id_, latest_imsic_.first);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_age\": \"{}\"}}\n",    id_, latest_imsic_.first == 0? 0 : latest_imsic_.second);
 
   // DUT csr values
   for (auto& csr_ : csrs) {

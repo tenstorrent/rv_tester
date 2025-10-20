@@ -447,6 +447,7 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+  std::pair<uint64_t /*pa*/, uint64_t/*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
 };
