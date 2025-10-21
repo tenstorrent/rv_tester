@@ -220,17 +220,29 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
   switch(dma_txn_map_[map_key].size){
     case 1:
       dma_txn_map_[map_key].data[0] = uint64_t(read_resp.data[data_offset]);
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + map_key*8),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        co_return;
+      }
       break;
     case 2:
       for (int i = 0; i < 2; i++) {
         data_value |= uint64_t(read_resp.data[data_offset + i]) << (i*8);
       }
       dma_txn_map_[map_key].data[0] = data_value;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + map_key*8),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        co_return;
+      }
       break;
     case 4:
       for (int i = 0; i < 4; i++) {
         data_value |= uint64_t(read_resp.data[data_offset + i]) << (i*8);
         
+      }
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + map_key*8),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        co_return;
       }
       dma_txn_map_[map_key].data[0] = data_value;
       break;
@@ -240,6 +252,10 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
       }
       cvm::log(cvm::HIGH, "[dma] data_value : {:#x} \n",data_value);
       dma_txn_map_[map_key].data[0] = data_value;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + map_key*8),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        co_return;
+      }
       break;
     case 16:
       for(int buffer_id = 1; buffer_id >= 0; buffer_id--){
@@ -249,6 +265,10 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
           // extract the data from the data_vec in little endian order
         }
         dma_txn_map_[map_key].data[buffer_id] = data_value;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + (map_key*8) + (buffer_id*8)),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+          co_return;
+        }
       }
       break;
     case 32:
@@ -259,6 +279,10 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
           // extract the data from the data_vec in little endian order
         }
         dma_txn_map_[map_key].data[buffer_id] = data_value;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + (map_key*8) + (buffer_id*8)),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+          co_return;
+        }
       }
       break;
     case 64:
@@ -269,6 +293,10 @@ cvm::messenger::task<void> dma::handle_dma_read_request(uint8_t map_key) {
           // extract the data from the data_vec in little endian order
         }
         dma_txn_map_[map_key].data[buffer_id] = data_value;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm',(dma_base_addr_ + dma_addr_offset_ + (map_key*8) + (buffer_id*8)),8, data_value, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+          co_return;
+        }
       }
       break;
     default:
