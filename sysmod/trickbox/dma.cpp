@@ -357,6 +357,11 @@ void dma::write(uint64_t addr, size_t , const data_t& data, const strb_t&)
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
   cvm::log(cvm::HIGH, "[dma] write data {:#x} \n",t_data);
+  // Poke the data into whisper memory
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr,8, t_data, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    return;
+  }
 
   // DMA Address Buffer Handling
   if ((addr >= dma_base_addr_ + dma_addr_offset_) && (addr < dma_base_addr_ + dma_data_offset_)) {
