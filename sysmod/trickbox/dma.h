@@ -153,6 +153,7 @@ private:
   bool write_in_flight = false; 
   bool read_in_flight = false; 
   bool burst_in_flight = false; 
+  bool poke_valid_ = false;
 
   axi::r_t resp_;
   
