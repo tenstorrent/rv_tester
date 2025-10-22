@@ -152,6 +152,11 @@ static std::string process_preload_file(int num_ways, int num_sets, int num_bloc
 
 extern "C" {
 
+    void dpi_keeper_send_data(svBit data) {
+        cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n",data);
+        return;
+    }
+
     int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
         //cvm::log(cvm::NONE, "rv_tester_perf_calc(init={} terminate={}  clocks={})\n", init,terminate,clocks);
         static std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;
