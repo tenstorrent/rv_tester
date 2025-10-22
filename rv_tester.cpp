@@ -152,7 +152,7 @@ static std::string process_preload_file(int num_ways, int num_sets, int num_bloc
 
 extern "C" {
 
-    void dpi_keeper_send_data(svBit data) {
+    void dpi_rv_tester_keeper_send_data(svBit data) {
         cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n",data);
         return;
     }
