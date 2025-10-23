@@ -102,9 +102,9 @@ import rv_tester_params::*;
       /* verilator lint_on BLKSEQ */
   endfunction
 
-  function void warm_reset_release_corehang_func(bit warm_reset_req);
+  function void warm_reset_release_corehang_func(bit warm_rst_request);
       /* verilator lint_off BLKSEQ */
-      warm_reset_release_hang = warm_reset_req;
+      warm_reset_release_hang = warm_rst_request;
       /* verilator lint_on BLKSEQ */
   endfunction
 
