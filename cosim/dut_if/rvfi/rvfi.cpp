@@ -261,9 +261,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
-      vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
-      vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
-      vec_cmode_pc_addr_ = m_trap.pc_addr;
+      if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
+        vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
+        vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
+        vec_cmode_pc_addr_ = m_trap.pc_addr;
+      }
       // RVDE-24355: Store memory error for conservative mode vector instruction
       if (mem_error_) {
         vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
