@@ -64,7 +64,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff) && (AcReqPktRfClki.user == 3);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data[7:0] == 8'hff) && (AcReqPktRfClki.user == 3);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
@@ -84,7 +84,7 @@ import rv_tester_params:: * ;
             count <= count + 1;
         end
     end
-    assign violation_forcesync =  (count >  'd4) && enable_checks;
+    assign violation_forcesync =  (count >  'd10) && enable_checks;
     /* verilator lint_off WIDTH */
     assign timesync_checks[n].valid = violation_forcesync;
     assign timesync_checks[n].data.location = location;
@@ -221,7 +221,9 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         if (!warm_reset_n) AcChkMtime <= 0;
         else begin
-           if (mtime_wr_valid) AcChkMtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
+           if (mtime_wr_valid) AcChkMtime <= (AcReqPktRfClki.mask == 'h0f) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} :
+                                             (AcReqPktRfClki.mask == 'hf0) ? {AcReqPktRfClki.data[63:32], AcChkMtime[31:0]} :
+                                                                              AcReqPktRfClki.data;
            else AcChkMtime <= AcChkMtime + 10; 
         end
     end
@@ -243,21 +245,25 @@ import rv_tester_params:: * ;
     end
 
     logic [63:0] AcChkCtime;
-    logic AcCrSynci_valid_any_prev;
-    
-    // Capture previous value for rising edge detection
+    logic timesync_d;
     always @(posedge rf_clk) begin
-        if (dut_reset) AcCrSynci_valid_any_prev <= 1'b0;
-        else AcCrSynci_valid_any_prev <= AcCrSynci_valid_any;
+        if(dut_reset || AcCrSynci[0].valid) begin
+            timesync_d <= 0;
+        end else if (forcesynccame) begin
+            timesync_d <= 1;
+        end
     end
     
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
         // If the mtime is written, update the ctime
-        else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
-        // If the core syncs (rising edge detection), update the ctime
-        else if (AcCrSynci_valid_any && !AcCrSynci_valid_any_prev) AcChkCtime <= AcCrSynci[0].data;
+        else if (mtime_wr_valid) 
+            AcChkCtime <= (AcReqPktRfClki.mask == 'hf)  ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} :
+                          (AcReqPktRfClki.mask == 'hf0) ? {AcReqPktRfClki.data[63:32], AcChkCtime[31:0]} :
+                                                          AcReqPktRfClki.data;
+        // If sync observed, capture Aclint Checker Mtime to Ctime
+        else if (timesync_d && AcCrSynci[0].valid) AcChkCtime <= AcCrSynci[0].data;
         else AcChkCtime <= AcChkCtime;
         /* verilator lint_on BLKSEQ */
     end
