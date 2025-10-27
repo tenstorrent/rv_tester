@@ -1057,7 +1057,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       peek_mip(hart, w.time, w_mip);
       if (w_mip[w_cause]) {
        bridge_log(cvm::MEDIUM, "<{}> Interrupt cause:[{}] not deferred earlier, deferring (possibly mret)\n", w.time, w_cause);
-       defer_interrupt(hart, w.time, (w_defer_mip | (uint64_t)1 << w_cause));
+       check_and_defer_interrupt(hart, w.time, w_mip);
       }
     }
     // Check that interrupt age is not beyond threshold
