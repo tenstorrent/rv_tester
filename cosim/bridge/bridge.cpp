@@ -1080,7 +1080,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       peek_mip(hart, w.time, w_mip);
       if (w_mip[w_cause]) {
        bridge_log(cvm::MEDIUM, "<{}> Interrupt cause:[{}] not deferred earlier, deferring (possibly mret)\n", w.time, w_cause);
-       defer_interrupt(hart, w.time, (w_defer_mip | (uint64_t)1 << w_cause));
+       check_and_defer_interrupt(hart, w.time, w_mip);
       }
     }
     // Check that interrupt age is not beyond threshold
@@ -1672,24 +1672,39 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             if (!misa_h_) {
               // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
               for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                mask = 0xffffffffffffffffULL;
-                update_csr(hart, src_t::iss, addr, value, mask, false, false);
                 bool valid = false;
                 uint64_t peek_value = 0;
                 uint64_t poke_value = 0;
-                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
-                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                  return;
-                }
-                valid = false;
-                poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
-                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
-                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                  return;
-                }
-                if (addr == medeleg.address) {
-                  mask = 0xF00400;
-                  update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                if (addr == MIP || addr == MVIP) {
+                  if (addr == MVIP) continue;
+                  uint64_t mvip_value = get_csr(id_, src_t::dut, MVIP);
+                  mask = 0xffffffffffffffffULL;
+                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                  update_csr(hart, src_t::iss, MVIP, mvip_value, mask, false, false);
+                  std::bitset<64> mip;
+                  peek_mip(hart, d.cycle, mip);
+                  auto old_mvip = mvip_;
+                  poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                  mvip_ = (mvip_ & ~hypervisor_mask_map_[MVIP]) | (mvip_ & hypervisor_mask_map_[MVIP]);
+                  poke_mip(hart, d.cycle, mip | std::bitset<64>(poke_value));
+                  bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip.to_ullong(), mip.to_ullong()|poke_value, old_mvip, mvip_);
+
+                } else {
+                  mask = 0xffffffffffffffffULL;
+                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                    return;
+                  }
+                  poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
+                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                    return;
+                  }
+                  if (addr == medeleg.address) {
+                    mask = 0xF00400;
+                    update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                  }
                 }
               }
             }
@@ -3246,9 +3261,11 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
   // Special handling for mip
-  if (addr == MIP) {
+  if ((addr == MIP || addr == MVIP) && (src == src_t::iss)) {
     std::bitset<64> mip;
     peek_mip(hart, uint64_t(0), mip);
+    if (addr == MVIP)
+      return mvip_;
     return mip.to_ullong();
   }
 

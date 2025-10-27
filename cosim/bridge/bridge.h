@@ -248,6 +248,7 @@ private:
     {0x302, "medeleg"},
     {0x303, "mideleg"},
     {0x344, "mip"},
+    {0x309, "mvip"},
     {0x304, "mie"},
     {0x244, "sip"},
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
