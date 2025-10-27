@@ -853,11 +853,32 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
         skip_update_insn = true;
       }
     }
-    if (d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) { // RVDE-27405 disable insn_check for whole register loads and stores during VL=0
+    // RVDE-27405 disable insn_check for:
+    // 1: custom vlzero excp 39 occurance - RTL issues a NOP
+    // 2: whole register loads and stores during VL=0 for immediate next vlzero exception instruction, RTL again send a NOP
+    bool vec_reg_whole_reg = false;
+    vec_reg_whole_reg = ((d.opcode & 0x1f00000) == 0x8) && ((d.opcode & 0xc000000) == 0) && (((d.opcode & 0x3f) == 0x7) || ((d.opcode & 0x3f) == 0x27));
+    if (custom_vlzero_excp_ && is_vector(d.disasm) && !vec_reg_whole_reg) { // check vec reg which is not whole reg
       skip_update_insn = true;
+    } else {
+      skip_update_insn = false;
+    }
+    custom_vlzero_excp_ = false;
+    if (d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) { 
+      skip_update_insn = true;
+      custom_vlzero_excp_ = true;
     }
     if (!skip_update_insn) {
       update_insn(hart, src_t::dut, opcode);
+      // Check for vector non-whole length ld/st instruction when VL=0 entered excp 39
+      if (!custom_vlzero_excp_ && !vec_reg_whole_reg && is_vector(d.disasm)) {
+        bool valid = false;
+        uint64_t data, mask, poke_mask, read_mask;
+        uint64_t vl = 0;
+        if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VL, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check)
+          vl = data & mask;
+        if (vl == 0) print(cvm::MEDIUM, "Warning: DUT didn't enter excp 39 when VL=0 for vector non-whole length ld/st instruction\n"); // Temporarily set to warning until RVDE-27405 is fixed
+      }
     }
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
