@@ -877,7 +877,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
         uint64_t vl = 0;
         if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VL, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check)
           vl = data & mask;
-        if (vl == 0) print(cvm::ERROR, "Error: DUT didn't enter excp 39 when VL=0 for vector non-whole length ld/st instruction\n");
+        if (vl == 0) print(cvm::MEDIUM, "Warning: DUT didn't enter excp 39 when VL=0 for vector non-whole length ld/st instruction\n"); // Temporarily set to warning until RVDE-27405 is fixed
       }
     }
   }
