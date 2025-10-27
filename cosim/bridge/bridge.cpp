@@ -989,6 +989,8 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH ) {
     for (auto& [key, value] : nmis_) {
+      if (!(get_csr(hart, src_t::dut, MNSTATUS) & 8ULL))
+        continue;
       bridge_log(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
       value++;
       if ((value > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
