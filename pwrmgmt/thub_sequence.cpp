@@ -20,12 +20,14 @@ extern "C" {
   }
 }
 
+
 thub_sequence::thub_sequence
   (cvm::topology::loc_t loc, unsigned) : 
   scope_(nullptr) , loc_(loc)  {
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  channel = cvm::registry::messenger.channel<axi::r_t>(smc_axi_loc_);
   
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
@@ -279,10 +281,28 @@ cvm::messenger::task<void> thub_sequence::tick() {
 
 cvm::messenger::task<uint64_t> thub_sequence::read(uint64_t addr, size_t sz) {
   assert(sz <= 8);
+  axi::a_no_id_t ar_txn;
+  unsigned id;
+  ar_txn.w    = false;
+  ar_txn.addr = addr;
+  ar_txn.len  = 0;
+  ar_txn.size = 3;
+  ar_txn.burst = axi::burst_t(0);
+  ar_txn.lock  =0;
+  ar_txn.cache  =axi::cache_mem_attr_t(0);
+  ar_txn.prot  =2;
+  ar_txn.qos  =0;
+  ar_txn.region  =0;
+  ar_txn.atop  =0;
+  ar_txn.user  =3;
+  ar_txn.seqid  =THUB_SEQ_ID;
   cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::read_request_t{addr, sz});
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(smc_axi_loc_);
+  if (!cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(smc_axi_loc_, ar_txn , id)) {
+    cvm::log(cvm::ERROR, "[thub] read req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return 0;
+  }
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel, [&id](const auto& r) { return r.id == id; });
   auto data = convert_to_dword_array(resp.data);
   // FIXME - check why this alignment is needed
   uint64_t dword = (addr % 8) ? (data[0] >> 32) : data[0];
