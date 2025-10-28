@@ -1065,7 +1065,8 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  if (!d.intr && w_intr && !debug_mode_ && patch_mode_ != IN_PATCH) {
+  if (!d.intr && w_intr) {
+    if (debug_mode_ || patch_mode_ == IN_PATCH) return;
     intr_age_[w_cause]++;
     bridge_log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
