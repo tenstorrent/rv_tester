@@ -325,7 +325,6 @@ cvm::messenger::task<uint64_t> dst_trace_seq::read(uint64_t addr, size_t sz, blo
   ar_txn.w    = false;
   ar_txn.addr = addr;
   ar_txn.size = log2(sz);
-  ar_txn.prot = AXI_PROT_NON_SECURE;
   
   unsigned id;
   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
@@ -379,7 +378,6 @@ cvm::messenger::task<void> dst_trace_seq::write(uint64_t addr, size_t sz, uint64
   aw_txn.w    = true;
   aw_txn.addr = aligned_addr;
   aw_txn.size = log2(64);
-  aw_txn.prot = AXI_PROT_NON_SECURE;
   
   unsigned id;
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
