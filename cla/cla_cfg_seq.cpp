@@ -272,12 +272,18 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla_rand_nmi_trig_en() {
 
 cvm::messenger::task<void> cla_cfg_seq::clear_pend_nmi_on_terminate() {
   cvm::log(cvm::NONE, "[cla] Terminate condition detected \n");
-  for(uint32_t i=0; i< 8 ; i++){
-    if((mask & (1 << i))){
-      cvm::log(cvm::NONE, "[cla] Clearing Any pending NMI for Core {} \n",i);
+  for(uint32_t i=0; i< FLAGS_num_harts ; i++){
+    if(i == (FLAGS_num_harts-1)){
+      cvm::log(cvm::NONE, "[cla] Clearing Any pending NMI for Core with blocking writes{} \n",i);
       core_offset = 0x10000 * i;
       co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (0x1B00 | 0x40));
       co_await write((cdbg_cla_dbg_eap_sts + core_offset), SZ_8B, 0xFFFF'FFFF'0000'0000);
+    }
+    else {
+      cvm::log(cvm::NONE, "[cla] Clearing Any pending NMI for Core with posted writes {} \n",i);
+      core_offset = 0x10000 * i;
+      co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (0x1B00 | 0x40), NO_BLOCK);
+      co_await write((cdbg_cla_dbg_eap_sts + core_offset), SZ_8B, 0xFFFF'FFFF'0000'0000, NO_BLOCK);
     }
   }
   co_return;
