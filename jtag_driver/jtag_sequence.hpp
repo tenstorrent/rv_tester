@@ -54,6 +54,7 @@ DECLARE_int32(jtag_max_snippets);
 DECLARE_bool(reverse_jtag_rdata);
 DECLARE_bool(continue_on_jtag_err);
 DECLARE_bool(en_jtag_driver_logs);
+DECLARE_string(axi_resp_hang_addr);
 
 #define cond_log(level, fmt, ...)         \
 if (FLAGS_en_jtag_driver_logs) {        \
@@ -294,6 +295,11 @@ class jtag_sequence {
     cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
     cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
     trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
+    if (FLAGS_axi_resp_hang_addr!="") {
+      std::ofstream fbypass_axi_hang("bypass_axi_hang.txt");
+      fbypass_axi_hang << "JTAG Quit Occurred";
+      fbypass_axi_hang.close();
+    }
   }
 
   void genNextJtagEvents() {

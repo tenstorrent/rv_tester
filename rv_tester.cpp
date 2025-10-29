@@ -41,6 +41,7 @@ DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep
 DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
 DEFINE_int32(disable_dmi_responce_ready, 0, "Disable DMI responce ready for no. of DMI commands");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
+DEFINE_bool(time_mtime_sync_enable, true, "Enable time and mtime sync check");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 5000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");

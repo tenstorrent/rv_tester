@@ -932,12 +932,30 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
-    cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
     patch_cfg[core_preg0_mmr+(i*8)] = ((uint64_t)patches[patchTag].patchMask<<32 | patches[patchTag].patchInstruction); 
     std::vector<uint32_t> ucode_body = patches[patchTag].ucodes;
     co_await batch_write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
+    
+    //Randomize vector conservativse mode (bit 9) only for vector instructions (opcode 0x57)
+    if ((patches[patchTag].patchInstruction & 0x7F) == 0x57 || patchTag.find("VECTOR") == 0) { // Check if opcode is vector (0x57) or patch name starts with "VECTOR"
+      if (rand() % 2) {
+        pcontrol_data = pcontrol_data | ((uint64_t)0x200 << i*16); // Set bit 9 (vector conservative mode)
+        patches[patchTag].enableMask = (1 << 9);
+        cvm::log(cvm::MEDIUM, "[pwrmgmt] Patch {}: Vector instruction detected, vector conservative mode enabled. Ignore other privilege modes\n", patchTag);
+      } else {
+        cvm::log(cvm::MEDIUM, "[pwrmgmt] Patch {}: Vector instruction detected, vector conservative mode disabled\n", patchTag);
+      }
+    } else {
+      // Create random 7-bit mask for bits 8:1
+      //uint64_t random_7bit_mask = (rand() % 128) << 1;  // 7 random bits (0-127) shifted to positions 8:1
+      //patches[patchTag].enableMask = patches[patchTag].enableMask & ~random_7bit_mask;
+      //cvm::log(cvm::MEDIUM, "[pwrmgmt] Patch {}: Non-vector instruction (opcode 0x{:x}), vector conservative mode not applicable. Random mask: 0x{:x}\n", patchTag, patches[patchTag].patchInstruction, random_7bit_mask);
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] Patch {}: Non-vector instruction (opcode 0x{:x}), vector conservative mode not applicable.\n", patchTag, patches[patchTag].patchInstruction);
+    }
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
+    
     if (i == 3) break;
   }
   if (FLAGS_patch_ram_check) {

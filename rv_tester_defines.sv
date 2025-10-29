@@ -1046,6 +1046,9 @@ package rv_tester_params;
     input  rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
     output rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
     output rv_tester_params::ac_cr_sync AcCrSynci  [rv_tester_params::NHARTS-1:0], \
+    output logic [63:0] AcCrCtimeCsr  [rv_tester_params::NHARTS-1:0],              \
+    output logic AcCrDebugMode[rv_tester_params::NHARTS-1:0],                      \
+    output logic AcCrGateClk[rv_tester_params::NHARTS-1:0],                        \
     output rv_tester_params::cr_ac_axi_pkt AcReqPkti,                              \
     output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki,                         \
     output logic [63:0] AcMtimei,                                                  \
@@ -1153,6 +1156,9 @@ package rv_tester_params;
     rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
     rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
     rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0];                          \
+    logic [63:0] AcCrCtimeCsr  [rv_tester_params::NHARTS-1:0];                                      \
+    logic AcCrDebugMode[rv_tester_params::NHARTS-1:0];                                              \
+    logic AcCrGateClk[rv_tester_params::NHARTS-1:0];                                                \
     rv_tester_params::cr_ac_axi_pkt AcReqPkti;                                                      \
     rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki;                                                 \
     logic [63:0] AcMtimei;                                                                          \

@@ -123,7 +123,7 @@ private:
       void error(Args&&... args) {
           std::string prefix = "Error: ";
           if (patch_mode_) { prefix += "PATCH ";}
-          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          std::string out ="\n" + prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
   bool flags_bridge_log_;
@@ -248,6 +248,7 @@ private:
     {0x302, "medeleg"},
     {0x303, "mideleg"},
     {0x344, "mip"},
+    {0x309, "mvip"},
     {0x304, "mie"},
     {0x244, "sip"},
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
@@ -447,6 +448,9 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+  std::pair<uint64_t /*pa*/, uint64_t/*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
+  bool custom_vlzero_excp_ = false;
+
 };

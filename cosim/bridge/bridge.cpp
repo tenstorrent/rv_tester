@@ -78,7 +78,7 @@ DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_nmi_age, 128, "Number of instructions allowed to retire before a pending nmi should be taken");
 DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
-DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
+DEFINE_uint32(max_pend_intr_age, 192, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
@@ -853,8 +853,32 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
         skip_update_insn = true;
       }
     }
+    // RVDE-27405 disable insn_check for:
+    // 1: custom vlzero excp 39 occurance - RTL issues a NOP
+    // 2: whole register loads and stores during VL=0 for immediate next vlzero exception instruction, RTL again send a NOP
+    bool vec_reg_whole_reg = false;
+    vec_reg_whole_reg = ((d.opcode & 0x1f00000) == 0x8) && ((d.opcode & 0xc000000) == 0) && (((d.opcode & 0x3f) == 0x7) || ((d.opcode & 0x3f) == 0x27));
+    if (custom_vlzero_excp_ && is_vector(d.disasm) && !vec_reg_whole_reg) { // check vec reg which is not whole reg
+      skip_update_insn = true;
+    } else {
+      skip_update_insn = false;
+    }
+    custom_vlzero_excp_ = false;
+    if (d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) { 
+      skip_update_insn = true;
+      custom_vlzero_excp_ = true;
+    }
     if (!skip_update_insn) {
       update_insn(hart, src_t::dut, opcode);
+      // Check for vector non-whole length ld/st instruction when VL=0 entered excp 39
+      if (!custom_vlzero_excp_ && !vec_reg_whole_reg && is_vector(d.disasm)) {
+        bool valid = false;
+        uint64_t data, mask, poke_mask, read_mask;
+        uint64_t vl = 0;
+        if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VL, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check)
+          vl = data & mask;
+        if (vl == 0) print(cvm::MEDIUM, "Warning: DUT didn't enter excp 39 when VL=0 for vector non-whole length ld/st instruction\n"); // Temporarily set to warning until RVDE-27405 is fixed
+      }
     }
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
@@ -986,6 +1010,8 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH ) {
     for (auto& [key, value] : nmis_) {
+      if (!(get_csr(hart, src_t::dut, MNSTATUS) & 8ULL))
+        continue;
       bridge_log(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
       value++;
       if ((value > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
@@ -1029,6 +1055,8 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   for (auto& [key, value] : dut_mip_clr_age_)
     value++;
 
+  latest_imsic_.second++; // age increase
+
   bool w_intr, w_virt_mode;
   uint64_t w_cause;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
@@ -1037,7 +1065,8 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  if (!d.intr && w_intr && !debug_mode_ && patch_mode_ != IN_PATCH) {
+  if (!d.intr && w_intr) {
+    if (debug_mode_ || patch_mode_ == IN_PATCH) return;
     intr_age_[w_cause]++;
     bridge_log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
@@ -1052,7 +1081,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       peek_mip(hart, w.time, w_mip);
       if (w_mip[w_cause]) {
        bridge_log(cvm::MEDIUM, "<{}> Interrupt cause:[{}] not deferred earlier, deferring (possibly mret)\n", w.time, w_cause);
-       defer_interrupt(hart, w.time, (w_defer_mip | (uint64_t)1 << w_cause));
+       check_and_defer_interrupt(hart, w.time, w_mip);
       }
     }
     // Check that interrupt age is not beyond threshold
@@ -1644,24 +1673,39 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             if (!misa_h_) {
               // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
               for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                mask = 0xffffffffffffffffULL;
-                update_csr(hart, src_t::iss, addr, value, mask, false, false);
                 bool valid = false;
                 uint64_t peek_value = 0;
                 uint64_t poke_value = 0;
-                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
-                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                  return;
-                }
-                valid = false;
-                poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
-                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
-                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                  return;
-                }
-                if (addr == medeleg.address) {
-                  mask = 0xF00400;
-                  update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                if (addr == MIP || addr == MVIP) {
+                  if (addr == MVIP) continue;
+                  uint64_t mvip_value = get_csr(id_, src_t::dut, MVIP);
+                  mask = 0xffffffffffffffffULL;
+                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                  update_csr(hart, src_t::iss, MVIP, mvip_value, mask, false, false);
+                  std::bitset<64> mip;
+                  peek_mip(hart, d.cycle, mip);
+                  auto old_mvip = mvip_;
+                  poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                  mvip_ = (mvip_ & ~hypervisor_mask_map_[MVIP]) | (mvip_ & hypervisor_mask_map_[MVIP]);
+                  poke_mip(hart, d.cycle, mip | std::bitset<64>(poke_value));
+                  bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip.to_ullong(), mip.to_ullong()|poke_value, old_mvip, mvip_);
+
+                } else {
+                  mask = 0xffffffffffffffffULL;
+                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                    return;
+                  }
+                  poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
+                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                    return;
+                  }
+                  if (addr == medeleg.address) {
+                    mask = 0xF00400;
+                    update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                  }
                 }
               }
             }
@@ -2216,7 +2260,6 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
       (instr.find("vstimecmp") != std::string::npos) ||
-      (instr.find("instret") != std::string::npos) ||
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
     return true;
@@ -2732,6 +2775,9 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   bridge_log(cvm::MEDIUM, "<{}> IMSIC write: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
 
+  // Store latest IMSIC operation details
+  latest_imsic_ = std::make_pair(m.pa, 0);
+
   // Poke imsic write into whisper memory
   bool seip_prev;
   peek_seip(hart, m.cycle, seip_prev);
@@ -3215,9 +3261,11 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
   // Special handling for mip
-  if (addr == MIP) {
+  if ((addr == MIP || addr == MVIP) && (src == src_t::iss)) {
     std::bitset<64> mip;
     peek_mip(hart, uint64_t(0), mip);
+    if (addr == MVIP)
+      return mvip_;
     return mip.to_ullong();
   }
 
@@ -3425,6 +3473,8 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_dut_val\": \"{}\"}}\n", id_, mismatch_dut_);
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_iss_val\": \"{}\"}}\n", id_, mismatch_iss_);
   }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_pa\": \"0x{:x}\"}}\n", id_, latest_imsic_.first);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_age\": \"{}\"}}\n",    id_, latest_imsic_.first == 0? 0 : latest_imsic_.second);
 
   // DUT csr values
   for (auto& csr_ : csrs) {
