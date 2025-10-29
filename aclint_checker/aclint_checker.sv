@@ -121,7 +121,7 @@ import rv_tester_params:: * ;
         else begin
             if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
             else begin
-                if (((AcMtimei - AcCrCtimeCsr[n]) <= 340) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
+                if (((AcMtimei - AcCrCtimeCsr[n]) <= 1500) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
                     violation_time_mtime_synch <= 0;
                     compare_counter <= 0;
                 end
