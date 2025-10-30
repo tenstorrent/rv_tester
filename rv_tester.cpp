@@ -267,21 +267,13 @@ extern "C" {
         cvm::registry::configure();
     }
    
-    void rv_tester_no_dm_build_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+    void rv_tester_domain0_build_registry() {
         check_called = false;
-        cvm::registry::build_all_except(dm_loc);
+        cvm::registry::build_domain(0);
         cvm::registry::configure();
     } 
-    void rv_tester_dm_build_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
-        cvm::log(cvm::NONE, "[registry] build dm components ...\n");
-        cvm::registry::build(dm_loc);//pass dm location
-        //cvm::registry::configure();//pass dm location
-    }
 
-    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate) {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate)  {
         if (!check_called) {
             cvm::log(cvm::NONE, "[registry] check...\n");
             cvm::registry::check();
@@ -293,17 +285,13 @@ extern "C" {
             return cvm::registry::shutdown();
         }
         else {
-            return cvm::registry::shutdown_all_except(dm_loc);
+            return cvm::registry::shutdown_domain(0);
         }
     }
     
-    uint8_t rv_tester_dm_shutdown_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
-        cvm::log(cvm::NONE, "[registry] dm shutdown check...\n");
- 
-
-        cvm::log(cvm::NONE, "[registry] dm shutdown...\n");
-        return cvm::registry::shutdown(dm_loc);//dm location
+    uint8_t rv_tester_domain1_shutdown_registry() {
+        cvm::log(cvm::NONE, "[registry] domain:1 shutdown...\n");
+        return cvm::registry::shutdown_domain(1);
     }
 
     uint8_t rv_tester_flush_callbacks() {
@@ -351,7 +339,7 @@ extern "C" {
         if (!rv_tester_shutdown_registry(false)) {
             cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
         }
-        rv_tester_dm_shutdown_registry();
+        rv_tester_domain1_shutdown_registry();
     }
 }
 
