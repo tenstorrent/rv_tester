@@ -2796,9 +2796,8 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   // Record possible new update in mip_
   mip_ |= e_mip_;
 
-  if (e_mip_ != prev_e_mip_) {
-    check_and_defer_interrupt(hart, m.cycle, e_mip_);
-  }
+  if ((seip_prev != w_seip) || (tmp_mip_prev_.to_ullong() != w_mip.to_ullong()))
+    check_and_defer_interrupt(hart, m.cycle, mip_);
 }
 void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev, bool seip_new, bool consider_seip) {
   auto bits_set = mip_new.to_ullong() & ~(mip_prev.to_ullong());
