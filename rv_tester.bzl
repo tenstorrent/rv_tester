@@ -190,6 +190,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             "@rv_tester//:rv_tester_mem.sv",
             "@rv_tester//:rv_tester_lib.sv",
             "@rv_tester//:rv_tester_delay_resp.sv",
+            "@rv_tester//:rv_tester_keeper.sv",
         ],
         deps = [
             "@cvm//:logger_sv",

@@ -1170,4 +1170,18 @@ package rv_tester_params;
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
+
+`define RV_TESTER_KEEPER_INIT(clk,num) \
+   bit [num-1:0] rv_tester_keeper_data_vec;\
+   bit           rv_tester_keeper_load, rv_tester_keeper_send, rv_tester_keeper_data;\
+   assign rv_tester_keeper_data = | rv_tester_keeper_data_vec;\
+   dpi_rv_tester_keeper_ctrl i_dpi_rv_tester_keeper_ctrl(clk , rv_tester_keeper_load, rv_tester_keeper_data);
+
+`define RV_TESTER_KEEPER_DATA(clk,num,data) \
+   bit [$bits(data)-1:0] data``_rv_tester_keeper_reg;\
+   always @(posedge clk) data``_rv_tester_keeper_reg <= (rv_tester_keeper_load==1'b1) ? data : {1'b0,data``_rv_tester_keeper_reg[$bits(data)-1:1]};\
+   assign rv_tester_keeper_data_vec[num-1] = data``_rv_tester_keeper_reg[0];
+
+
+
 endpackage

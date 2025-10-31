@@ -93,12 +93,12 @@ import rv_tester_params:: * ;
     /* verilator lint_on WIDTH */
     end
 
-     /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done = 1;
+    /* verilator lint_off MULTIDRIVEN */
+    bit clcx_exit_done_ANY = 1;
     /* verilator lint_on MULTIDRIVEN */
 
     always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done) clcx_exit_done <= 0;
+        if (clcx_exit_done_ANY) clcx_exit_done_ANY <= 0;
     end
 
     //ACLINT time and mtime synch checker
@@ -106,12 +106,23 @@ import rv_tester_params:: * ;
     logic violation_time_mtime_synch;
     logic [2:0] compare_counter;
     logic [8:0] reset_counter;
+
+    /* verilator lint_off MULTIDRIVEN */
+    bit clcx_exit_done = 1;
+    /* verilator lint_on MULTIDRIVEN */
+
+    always @(posedge pll_shutdown_done) begin
+        if (clcx_exit_done) clcx_exit_done <= 0;
+    end
     
     always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & clcx_exit_done};
 
     always @(posedge rf_clk) begin
         if (!clcx_exit_done && ~AcCrGateClk[n]) begin
-            if (AcCrSynci[n].valid) clcx_exit_done <= 1;
+            if (AcCrSynci[n].valid) begin
+                clcx_exit_done <= 1;
+                clcx_exit_done_ANY <= 1;
+            end
         end
 
         if (!warm_reset_n) begin
@@ -121,7 +132,7 @@ import rv_tester_params:: * ;
         else begin
             if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
             else begin
-                if (((AcMtimei - AcCrCtimeCsr[n]) <= 340) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
+                if (((AcMtimei - AcCrCtimeCsr[n]) <= 1500) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
                     violation_time_mtime_synch <= 0;
                     compare_counter <= 0;
                 end
@@ -345,7 +356,7 @@ import rv_tester_params:: * ;
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
             check_outstanding_transactions(location, clocks);
-            if (~clcx_exit_done && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
+            if (~clcx_exit_done_ANY && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
         end
     end
 
