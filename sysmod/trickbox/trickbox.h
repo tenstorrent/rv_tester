@@ -20,6 +20,7 @@
 #include "uc_helper.h"
 #include "io_coh_helper.h"
 #include "ras_helper.h"
+#include "dma.h"
 #include <mem_manager.h>
 
 // Define a core local  (trickbox) at the given address

@@ -26,6 +26,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new ras_helper("ras_helper", addr + 0x89800, 1, loc, m_);
   subdevices_.emplace_back(sub);
+  sub = new dma("dma", addr + 0x90000, 1, loc, m_);
+  subdevices_.emplace_back(sub);
 }
 
 

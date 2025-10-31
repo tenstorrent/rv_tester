@@ -44,6 +44,7 @@ cc_library(
       "uc_helper.cpp",
       "io_coh_helper.cpp",
       "ras_helper.cpp",
+      "dma.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -56,6 +57,7 @@ cc_library(
       "uc_helper.h",
       "io_coh_helper.h",
       "ras_helper.h",
+      "dma.h",
       "trickbox.h"
     ],
     deps = [
