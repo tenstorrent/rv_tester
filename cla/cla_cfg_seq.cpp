@@ -28,7 +28,9 @@ cla_cfg_seq::cla_cfg_seq
 
   // Topology
   axi_mst_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
+  smc_loc_     = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  channel      = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
+  smc_b_channel_ = cvm::registry::messenger.channel<axi::b_t>(smc_loc_);
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
@@ -66,6 +68,12 @@ void cla_cfg_seq::cla_custom_action_thread()
 cvm::messenger::task<void> cla_cfg_seq::tick()
 {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::cla::m_tick<>>(loc_);
+  co_return;
+}
+
+cvm::messenger::task<void> cla_cfg_seq::smc_tick()
+{
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::cla_smc::m_smc_tick<>>(loc_);
   co_return;
 }
 
@@ -199,7 +207,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   cvm::rand::uniform_dist<uint32_t> wait_on_rnd(1000, 1200);
   cvm::rand::uniform_dist<uint32_t> wait_off_rnd(300, 400);
   cvm::rand::uniform_dist<uint32_t> event_rnd(200, 280);
-  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts-1);
+  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts);
   uint32_t wait_on_count,wait_off_count,event_count;
   uint32_t wdata;
 
@@ -207,22 +215,15 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   wait_off_count = wait_off_rnd();  // Off Delay 300-400 CLK cycle
   event_count = event_rnd();        // Event on Delay 200-270 CLK cycle
   eap_ctrl = (54 << 7);
-  active_core = (FLAGS_num_harts == 1) ? 0 : rand_harts();
-  reenable_rand_trig = 0;
+  active_core = rand_harts();
   core_offset = (0x10000 * active_core);
 
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
 
-  if(reenable_rand_trig) {
-    if(nmi_event){
-      co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x10009);// ALWAYS ON, NMI
-    }
-    else {
-      co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x1081D);// ALWAYS ON, TRIGGER-0,1
-    }
-    co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x60));
-  }
-  else {
+  co_await smc_tick();
+  co_await smc_cla_write(cpl_cla_counter0, 0xABCD0000, BLOCK);
+
+  if(active_core != FLAGS_num_harts) {
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x40));
     wdata = 0; wdata = (wait_on_count << 16);
     co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, wdata); // CNT0 - On count
@@ -242,6 +243,22 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
     co_await write((cdbg_node1_eap0_cfg + core_offset), SZ_8B, 0x131A56); // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
     co_await write((cdbg_node2_eap0_cfg + core_offset), SZ_8B, 0x161900); // TRAGET MATCH-2. CLRCNT2, DEST-0
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x60));
+  }
+  else {    // CPL-CLA Configuration
+    co_await write(cpl_cla_ctrl_status, SZ_8B, (eap_ctrl | 0x40));
+    wdata = 0; wdata = (wait_on_count << 16);
+    co_await write(cpl_cla_counter0, SZ_8B, wdata); // CNT0 - On count
+    wdata = 0; wdata = (event_count << 16);
+    co_await write(cpl_cla_counter1, SZ_8B, wdata); // CNT1 - event count
+    wdata = 0; wdata = (wait_off_count << 16);
+    co_await write(cpl_cla_counter2, SZ_8B, wdata); // CNT2 - Off count
+
+    co_await write(cpl_node0_eap1_cfg, SZ_8B, 0x10040);   // ALWAYS ON, AUTOINCR0
+    co_await write(cpl_node0_eap0_cfg, SZ_8B, 0x101645);  // TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
+    co_await write(cpl_node1_eap1_cfg, SZ_8B, 0x1081D);   // ALWAYS ON, TRIGGER-0,1
+    co_await write(cpl_node1_eap0_cfg, SZ_8B, 0x131A56);  // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
+    co_await write(cpl_node2_eap0_cfg, SZ_8B, 0x161900);  // TRAGET MATCH-2. CLRCNT2, DEST-0
+    co_await write(cpl_cla_ctrl_status, SZ_8B, (eap_ctrl | 0x60));
   }
   co_return;
 }
@@ -264,7 +281,6 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla_rand_nmi_trig_en() {
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Disable ..... \n");
   core_offset = (0x10000 * active_core);
   co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
-  reenable_rand_trig = 1;
   nmi_event = !nmi_event;
   trig_total_cnt = trig_total_cnt - 1;
   co_return;
@@ -308,6 +324,41 @@ cvm::messenger::task<uint64_t> cla_cfg_seq::read(uint64_t addr, size_t sz, block
   cvm::log(cvm::MEDIUM, "[cla] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, rdata);
 
   co_return rdata;
+}
+
+cvm::messenger::task<void> cla_cfg_seq::smc_cla_write(uint64_t addr, uint64_t data, block_t block /* = BLOCK */) {
+
+  axi::a_no_id_t aw_txn;
+  uint64_t aligned_addr = addr & ~0x7ull;
+  auto byte_array = convert_to_smc_byte_array(data);
+  std::vector<bool> strb(8, true);
+  for(int i=0; i<8; ++i)
+    strb[i] = 1;
+
+  unsigned id;
+  aw_txn.w      =  true;  // Write transaction
+  aw_txn.addr   = aligned_addr;
+  aw_txn.size   = 3;
+  aw_txn.user   = 3;
+  aw_txn.exp_err_rsp   = 0;
+  aw_txn.seqid  = CLA_SEQ_ID;
+  
+  cvm::log(cvm::MEDIUM, "[cla] SMC CLA Access Write - addr={:#x} data={:#x} \n", aw_txn.addr, data);
+
+  if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(smc_loc_, aw_txn, id)) {
+    auto axi_idalloc_done = co_await check_smc_axi_bresp_timeout(id, aw_txn.addr);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
+  }
+  cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(smc_loc_, axi::w_t{byte_array, strb, 1});
+
+  if(block == BLOCK) {
+    auto resp = co_await cvm::registry::messenger.wait<axi::b_t>(smc_b_channel_, [&id](const auto& b) { return b.id == id; });
+    cvm::log(cvm::MEDIUM, "[cla] SMC CLA Access Write resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, aw_txn.addr, aw_txn.size, data);
+  }
+  co_return;
+ 
 }
 
 cvm::messenger::task<void> cla_cfg_seq::write(uint64_t addr, size_t sz, uint64_t data, block_t block /* = BLOCK */) {
@@ -537,6 +588,16 @@ uint64_t cla_cfg_seq::convert_to_dword_array(const std::vector<uint8_t>& byte_ar
   return result;
 }
 
+uint64_t cla_cfg_seq::convert_to_smc_dword_array(const std::vector<uint8_t>& byte_array) {
+
+  uint64_t result=0;
+  for (int i = 0; i < 8; ++i) {
+     result = result | static_cast<uint64_t>(byte_array[i]) << (i*8);
+  }
+
+  return result;
+}
+
 std::vector<uint8_t> cla_cfg_seq::convert_to_byte_array(uint64_t data, uint8_t shift) {
   
   std::vector<uint8_t> byte_vector(64, 0); // Initialize a 64-byte vector with zeros
@@ -544,6 +605,16 @@ std::vector<uint8_t> cla_cfg_seq::convert_to_byte_array(uint64_t data, uint8_t s
       if (shift + i < 64) {
           byte_vector[shift + i] = static_cast<uint8_t>((data >> (i * 8)) & 0xFF);
       }
+  }
+
+  return byte_vector;
+}
+
+std::vector<uint8_t> cla_cfg_seq::convert_to_smc_byte_array(uint64_t data) {
+  
+  std::vector<uint8_t> byte_vector(8, 0); // Initialize a 64-byte vector with zeros
+  for (int i = 0; i < 8; ++i) {
+    byte_vector[i] = static_cast<uint8_t>((data >> (i * 8)) & 0xFF);
   }
 
   return byte_vector;
@@ -599,4 +670,39 @@ cvm::messenger::task<bool> cla_cfg_seq::check_axi_rresp_timeout(axi::a_no_id_t a
   }
 
   co_return true;
+}
+
+cvm::messenger::task<bool> cla_cfg_seq::check_smc_axi_bresp_timeout(unsigned& id, uint64_t addr) {
+
+  uint32_t smc_axi_bresp_cycle_cnt = 0;
+  axi::a_no_id_t aw_txn;
+  aw_txn.w      =  true;  // Write transaction
+  aw_txn.addr   = addr;
+  aw_txn.len    = 0;
+  aw_txn.size   = 3;
+  aw_txn.burst  = axi::burst_t(0);
+  aw_txn.lock   = 0;
+  aw_txn.cache  = axi::cache_mem_attr_t(0);
+  aw_txn.prot   = 2;
+  aw_txn.qos    = 0;
+  aw_txn.region = 0;
+  aw_txn.atop   = 0;
+  aw_txn.user   = 3;
+  aw_txn.seqid  = CLA_SEQ_ID;
+  while (true) {
+    co_await smc_tick();
+    
+    if (smc_axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[cla] Error: No free id's remaining for smc axi master\n");
+      co_return false;
+    }
+    smc_axi_bresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(smc_loc_, aw_txn, id)) {
+      co_return true;
+    }
+
+  }
+  co_return true;
+
 }

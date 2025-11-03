@@ -30,11 +30,19 @@ class cla_cfg_seq {
         rv_tester_transactions::axi_sw_mst::w_q_ptr<>
     >;
 
+    using smc_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<1>,
+        rv_tester_transactions::axi_sw_mst::r<1>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<1>
+    >;
+
     void set_scope(svScope s) { scope_ = s; }
 
   private:
 
-    bool nmi_event, reenable_nmi=0, reenable_rand_trig=0, end_cla_cfg_seq=0;
+    bool nmi_event, reenable_nmi=0, end_cla_cfg_seq=0;
     uint32_t core_offset;
     uint32_t eap_ctrl, active_core, mask, cntr_data, cnt_loop_max;
     uint32_t nmi_total_cnt, trig_total_cnt, custom_action_cnt;
@@ -42,6 +50,7 @@ class cla_cfg_seq {
     void cla_custom_action_thread();
 
     cvm::messenger::task<void> tick();
+    cvm::messenger::task<void> smc_tick();
     cvm::messenger::task<void> core_no_fetch();
 
     cvm::messenger::task<void> cla_main();
@@ -61,22 +70,27 @@ class cla_cfg_seq {
     
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, block_t block = BLOCK);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, block_t block = BLOCK);
+    cvm::messenger::task<void> smc_cla_write(uint64_t addr, uint64_t data, block_t block = BLOCK);
     cvm::messenger::task<void> csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
     cvm::messenger::task<void> axi_write_mmr_granular(uint64_t addr);
     cvm::messenger::task<void> axi_write_mmr_data_granular(uint64_t addr, uint64_t data);
     cvm::messenger::task<uint64_t> axi_read_mmr_granular(const transactor::read_t& r );
     cvm::messenger::pool<axi::r_t>::channel_info channel;
+    cvm::messenger::pool<axi::b_t>::channel_info smc_b_channel_;
     void terminate_test(uint8_t terminate_test);
 
 
     uint64_t convert_to_dword_array(const std::vector<uint8_t>& byte_array, uint8_t shift, size_t sz);
     std::vector<uint8_t> convert_to_byte_array(uint64_t data, uint8_t shift);
+    uint64_t convert_to_smc_dword_array(const std::vector<uint8_t>& byte_array);
+    std::vector<uint8_t> convert_to_smc_byte_array(uint64_t data);
 
     cvm::messenger::task<bool> check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id);
     cvm::messenger::task<bool> check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id);
+    cvm::messenger::task<bool> check_smc_axi_bresp_timeout(unsigned& id, uint64_t addr);
 
   private:
 
-    cvm::topology::loc_t loc_, axi_mst_loc_;
+    cvm::topology::loc_t loc_, axi_mst_loc_, smc_loc_;
     svScope scope_;
 };

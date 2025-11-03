@@ -3,17 +3,20 @@ import rv_tester_params::*;
 #(
   parameter int NUM = -1,
   `TOPOLOGY,
-  `RV_TESTER_TRANSACTIONS_CLA_OUTPUT_PARAMS
+  `RV_TESTER_TRANSACTIONS_CLA_OUTPUT_PARAMS,
+  `RV_TESTER_TRANSACTIONS_CLA_SMC_OUTPUT_PARAMS
 )
 (
   input logic tb_clk,
   input logic tb_reset,
   input logic clk,
   input logic reset,
+  input logic sc_clk,
   input logic [NHARTS-1:0] core_no_fetch,
   input logic terminate_from_rv_tester,
   output logic terminate_cla_seq,
-  `RV_TESTER_TRANSACTIONS_CLA_OUTPUT_PORTS
+  `RV_TESTER_TRANSACTIONS_CLA_OUTPUT_PORTS,
+  `RV_TESTER_TRANSACTIONS_CLA_SMC_OUTPUT_PORTS
 );
 
   import "DPI-C" context function void cla_set_scope(int unsigned location);
@@ -50,6 +53,9 @@ import rv_tester_params::*;
     terminate_from_rv_tester_d1 <= terminate_from_rv_tester;
   end
 
+  int unsigned sc_clocks = 0;
+  always @(posedge sc_clk) sc_clocks <= sc_clocks + 1;
+  
   logic [NHARTS-1:0] core_no_fetch_d1;
   int unsigned dut_clocks = 0;
   always @(posedge clk) begin
@@ -66,6 +72,11 @@ import rv_tester_params::*;
   assign m_ticks[0].valid = cla_cfg_en & ~|core_no_fetch & (location != cvm_topology::nil);
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tb_clocks;
+
+  // m_smc_tick
+  assign m_smc_ticks[0].valid = cla_cfg_en & ~|core_no_fetch & (location != cvm_topology::nil);
+  assign m_smc_ticks[0].data.location = location;
+  assign m_smc_ticks[0].data.cycle = sc_clocks;
 
   // -------------------------
   // C++->SV Callbacks

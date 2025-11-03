@@ -1172,16 +1172,19 @@ module rv_tester
     cla #(
        .NUM(0),
        `TOPOLOGY_CFG,
-       `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PARAMS(0)
+       `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PARAMS(0),
+       `RV_TESTER_TRANSACTIONS_CLA_SMC_SOURCE_PARAMS(0)
     ) cla (
         .tb_clk(clk[TB_CLK_IDX]),
         .tb_reset(sys_reset[TB_CLK_IDX]),
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(dut_reset[AXI_CLK_IDX]),
+        .sc_clk(dut_clk[SOC_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
         .terminate_from_rv_tester(terminate),
         .terminate_cla_seq(terminate_cla_seq),
-        `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PORTS(2,0,0)
+        `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PORTS(2,0,0),
+        `RV_TESTER_TRANSACTIONS_CLA_SMC_SOURCE_PORTS(3,0,0)
     );
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
