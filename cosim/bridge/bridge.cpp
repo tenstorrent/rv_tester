@@ -854,7 +854,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       }
     }
     // RVDE-27405 disable insn_check for:
-    // 1: custom vlzero excp 39 occurance - RTL issues a NOP
+    // 1: custom vlzero excp 39 occurence - RTL issues a NOP
     // 2: whole register loads and stores during VL=0 for immediate next vlzero exception instruction, RTL again send a NOP
     bool vec_reg_whole_reg = false;
     vec_reg_whole_reg = ((d.opcode & 0x1f00000) == 0x8) && ((d.opcode & 0xc000000) == 0) && (((d.opcode & 0x3f) == 0x7) || ((d.opcode & 0x3f) == 0x27));
@@ -864,7 +864,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       skip_update_insn = false;
     }
     custom_vlzero_excp_ = false;
-    if (d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) { 
+    if (d.excp && d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) {
       skip_update_insn = true;
       custom_vlzero_excp_ = true;
     }
