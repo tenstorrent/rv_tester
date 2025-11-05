@@ -84,7 +84,7 @@ import rv_tester_params:: * ;
             count <= count + 1;
         end
     end
-    assign violation_forcesync =  (count >  'd10) && enable_checks;
+    assign violation_forcesync =  (count > 'd15) && enable_checks;
     /* verilator lint_off WIDTH */
     assign timesync_checks[n].valid = violation_forcesync;
     assign timesync_checks[n].data.location = location;
