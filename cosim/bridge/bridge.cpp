@@ -2736,7 +2736,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     bridge_log(cvm::MEDIUM, "<{}> Local interrupt set: mip={} buserr_bit={}\n", i.cycle, to_string(i), buserr_bit);
 
     std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI | i.mip_set[buserr_bit] << buserr_bit | i.mip_set[C_HWAI] << C_HWAI |
-      static_cast<uint64_t>(i.mip_set[LO_PRI_RASI]) << LO_PRI_RASI | static_cast<uint64_t>(i.mip_set[HI_PRI_RASI]) << HI_PRI_RASI;
+      static_cast<uint64_t>(i.mip_set[LO_PRI_RASI]) << LO_PRI_RASI | static_cast<uint64_t>(i.mip_set[HI_PRI_RASI]) << HI_PRI_RASI | static_cast<uint64_t>(i.mip_set[C_ENTROPY]) << C_ENTROPY;
     poke_local_interrupt(hart, i.cycle, l_mip);
   }
  }
