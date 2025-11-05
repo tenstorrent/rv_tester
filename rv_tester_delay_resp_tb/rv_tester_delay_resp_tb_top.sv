@@ -1,3 +1,33 @@
+// timer initial_timer (
+//         .clk_i(clk),
+//         .rst_ni(rst_ni),
+//         .limit_i(TEST_INITAL_DELAY[test_count]),
+
+//         .enable_i(current_state == TEST_SEND_R && !initial_delay_done[test_count]),
+//         .done_o(init_delay_timer_done)
+// ); 
+
+
+module timer (
+    input logic clk_i, 
+    input logic rst_ni, 
+    input int unsigned limit_i,
+
+    input logic enable_i,
+    output logic done_o
+); 
+    logic [31:0] counter;
+
+    always_ff @(posedge clk_i) begin: timer_logic
+        if (!rst_ni)
+            counter <= '0;
+        else 
+            counter <= done_o ? '0 : enable_i ? counter + 1 : counter;
+    end
+
+    assign done_o = (enable_i == 0 && limit_i == 0) || ((counter + 1) == limit_i); 
+endmodule 
+
 // Enhanced synthesizable testbench for rv_tester_delay_resp_wrapper module
 module rv_tester_delay_resp_tb_top #(
     parameter int unsigned AxiIdWidth = 8,
@@ -45,9 +75,9 @@ module rv_tester_delay_resp_tb_top #(
         always @(posedge clk) begin
             if (test_done) begin
                 if (test_passed) begin
-                    $display("SUCCESS: All tests passed!");
+                    $display("SUCCESS: All tests passed! %d/%d", test_count, NUM_TESTS);
                 end else begin
-                    $display("FAILURE: Some tests failed!");
+                    $display("FAILURE: Some tests failed! %d/%d", test_count, NUM_TESTS);
                 end
                 #100; // Wait a bit before finishing
                 $finish;
@@ -137,23 +167,31 @@ module rv_tester_delay_resp_tb_top #(
     logic mst_resp_b_valid;
     logic mst_req_b_ready;
 
+    // interal signals 
+    logic init_delay_timer_done; 
+    logic beat_delay_timer_done; 
+    logic beat_delay_timer_ff, beat_delay_timer_hold; 
+
+    // Test data arrays (compile-time constants)
+    localparam int unsigned NUM_TESTS = 6;
+
     // Test names array for generic test identification
-    localparam string TEST_NAMES [5] = '{
+    localparam string TEST_NAMES [NUM_TESTS] = '{
         "BASIC DELAY TEST",
         "DIFFERENT DELAY TEST",
         "BURST DELAY TEST",
         "MULTI REQUEST TEST",
-        "BYPASS TEST"
+        "BYPASS TEST", 
+        "INIT DELAY AND BEAT DELAY TEST"
     };
 
-    // Test data arrays (compile-time constants)
-    localparam int unsigned NUM_TESTS = 5;
     localparam logic [AxiIdWidth-1:0] TEST_AR_IDS [NUM_TESTS] = '{
         8'h42,  // Test 0: Basic delay test
         8'h55,  // Test 1: Different delay
         8'hAA,  // Test 2: Burst test
         8'h33,  // Test 3: Multi-request test
-        8'h99   // Test 4: Bypass test (delay_cycles = 0)
+        8'h99,   // Test 4: Bypass test (delay_cycles = 0)
+        8'hCC   // Test 5: Init delay and beat delay test
     };
     
     localparam logic [7:0] TEST_BURST_LENS [NUM_TESTS] = '{
@@ -161,7 +199,8 @@ module rv_tester_delay_resp_tb_top #(
         8'd0,    // Test 1: Single beat
         8'd3,    // Test 2: 4-beat burst (single request, multi-beat)
         8'd0,    // Test 3: Single beat (multi-request, single-beat each)
-        8'd0     // Test 4: Single beat (bypass test)
+        8'd0,    // Test 4: Single beat (bypass test)
+        8'd3     // Test 5: Init delay and beat delay test
     };
 
     localparam logic [7:0] TEST_NUM_AR_REQS [NUM_TESTS] = '{
@@ -169,7 +208,8 @@ module rv_tester_delay_resp_tb_top #(
         8'd1,    // Test 1: 1 request
         8'd1,    // Test 2: 1 request with 4-beat burst
         8'd4,    // Test 3: 4 requests with single beats each
-        8'd1     // Test 4: 1 request (bypass test)
+        8'd1,    // Test 4: 1 request (bypass test)
+        8'd4     // Test 5: Init delay and beat delay test
     };
 
     localparam logic [AxiDataWidth-1:0] TEST_DATA [NUM_TESTS] = '{
@@ -177,7 +217,8 @@ module rv_tester_delay_resp_tb_top #(
         64'h1234567890ABCDEF,
         64'hFEDCBA0987654321,
         64'h0000FFFF0000FFFF,
-        64'h12345678_ABCDEF00      // Test 4: Bypass test data
+        64'h12345678_ABCDEF00,
+        64'hAAAAAAAA_BBBBBBBB
     };
 
     // Test delay cycles array - dynamic delay configuration per test
@@ -186,14 +227,74 @@ module rv_tester_delay_resp_tb_top #(
         32'd20,  // Test 1: Normal delay
         32'd20,  // Test 2: Normal delay
         32'd20,  // Test 3: Normal delay
-        32'd0    // Test 4: Zero delay (bypass test)
+        32'd0,  // Test 4: Zero delay (bypass test)
+        32'd10   // Test 5: Init delay and beat delay test
     };
+    
+    localparam logic [31:0] TEST_INITAL_DELAY [NUM_TESTS] = '{
+        32'd0,  // Test 0
+        32'd0,  // Test 1
+        32'd0,  // Test 2
+        32'd0,  // Test 3
+        32'd0,  // Test 4
+        32'd22   // Test 5: Init delay and beat delay test
+    }; 
+
+    localparam logic [31:0] TEST_BEAT_DELAY [NUM_TESTS] = '{
+        32'd0,  // Test 0
+        32'd0,  // Test 1
+        32'd0,  // Test 2
+        32'd0,  // Test 3
+        32'd0,  // Test 4
+        32'd5  // Test 5: Init delay and beat delay test
+    }; 
+
+    logic [NUM_TESTS-1:0] initial_delay_done; // Flag to keep track of if the inital delay has been done; 
     
     // Array to store master AR IDs for response matching
     logic [AxiIdWidth-1:0] stored_ar_ids [NUM_TESTS];
 
     // Dynamic delay assignment based on current test
     assign delay_cycles = (test_count < NUM_TESTS) ? TEST_DELAY_CYCLES[test_count] : 32'd0;
+
+    // Initial timer instance 
+
+    timer initial_timer (
+        .clk_i(clk),
+        .rst_ni(rst_ni),
+        .limit_i(TEST_INITAL_DELAY[test_count]),
+
+        .enable_i(current_state == TEST_SEND_R && !initial_delay_done[test_count]),
+        .done_o(init_delay_timer_done)
+    ); 
+
+    timer beat_timer (
+        .clk_i(clk),
+        .rst_ni(rst_ni),
+        .limit_i(TEST_BEAT_DELAY[test_count]),
+
+        .enable_i(current_state == TEST_SEND_R && beat_num != 0),
+        .done_o(beat_delay_timer_done)
+    ); 
+
+    always_ff @(posedge clk) begin  : initial_delay_logic
+        if (!rst_ni)
+            initial_delay_done <= '0;
+        else if (beat_num == TEST_BURST_LENS[test_count] && TEST_NUM_AR_REQS[test_count] > 0 && initial_delay_done[test_count])
+            initial_delay_done[test_count] <= '0;
+        else if(!initial_delay_done[test_count]) // Once set, don't reset the flag 
+            initial_delay_done[test_count] <= init_delay_timer_done; 
+    end
+
+    // Hold the beat_timer done signals till TEST_SEND_R 
+    always_ff @(posedge clk) begin  : beat_delay_logic
+        if (!rst_ni)
+            beat_delay_timer_ff <= '0;
+        else
+            beat_delay_timer_ff <= beat_delay_timer_done ? '1 : current_state == TEST_SEND_R ? '0 : beat_delay_timer_ff; 
+    end
+
+    assign beat_delay_timer_hold = beat_delay_timer_ff || (current_state == TEST_SEND_R && beat_delay_timer_done); 
 
     // DUT instantiation
     rv_tester_delay_resp_wrapper #(
@@ -423,9 +524,16 @@ module rv_tester_delay_resp_tb_top #(
             
             // R response generation
             if (current_state == TEST_SEND_R) begin
-                mst_resp_r_valid = 1'b1;
-                mst_resp_r_id = stored_ar_ids[resp_num];
+                mst_resp_r_valid = beat_num == 0 ? initial_delay_done[test_count] :  beat_delay_timer_hold; 
+
+                if(!initial_delay_done[test_count] && !mst_resp_r_valid) 
+                    $display("[%0t] Waiting for initial delay to complete, test_count = %0d", $time, test_count);
                 
+                if(initial_delay_done[test_count] && !mst_resp_r_valid) 
+                    $display("[%0t] Waiting for beat delay [beat_num = %0d] to complete, test_count = %0d", $time, beat_num, test_count);
+
+                mst_resp_r_id = stored_ar_ids[resp_num];
+
                 // Generate data based on test type
                 if (TEST_NUM_AR_REQS[test_count] > 1) begin
                     // Multi-request test: different data per request
@@ -454,4 +562,13 @@ module rv_tester_delay_resp_tb_top #(
     assign test_done = (current_state == TEST_DONE);
     assign test_passed = (test_count == NUM_TESTS);  // Simplified without pass_count
 
+    // Add some asserstions 
+    `ifdef VCS
+        // if the intial delays is not done, mst_resp_r_valid should not be high c
+        INTI_DELAY_ASSERT: assert property (@(posedge clk) disable iff (!rst_ni) !initial_delay_done[test_count] && TEST_INITAL_DELAY[test_count] > 0 && beat_num != TEST_BURST_LENS[test_count] |-> !mst_resp_r_valid);
+        // if intial delay is done, and there is more than one beat in the burst, then if mst_resp_r_valid should be low when beat_delay_timer_hold is low 
+        BEAT_DELAY_ASSERT: assert property (@(posedge clk) disable iff (!rst_ni) initial_delay_done[test_count] && (TEST_BURST_LENS[test_count] > 0) && (beat_num != 0) && !beat_delay_timer_hold |-> !mst_resp_r_valid);
+    `endif
+
 endmodule 
+

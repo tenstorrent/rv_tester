@@ -131,7 +131,7 @@ module rv_tester
     localparam int unsigned MaxInFlightReadReq = topology.TOP.PLATFORM.MAX_IN_FLIGHT_READ_REQ;
     localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
-    localparam bit RespDelayModule = 0;
+    localparam bit RespDelayModule = 1;
 
     logic flush_complete;
 
