@@ -93,13 +93,12 @@ import rv_tester_params:: * ;
     /* verilator lint_on WIDTH */
     end
 
-    /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done_ANY = 1;
-    /* verilator lint_on MULTIDRIVEN */
-
+    bit pll_shutdown_detected = 0;
     always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done_ANY) clcx_exit_done_ANY <= 0;
+        pll_shutdown_detected <= ~pll_shutdown_detected;
     end
+
+    bit broadcast_detected_ANY = 0;
 
     //ACLINT time and mtime synch checker
     for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
@@ -107,21 +106,15 @@ import rv_tester_params:: * ;
     logic [2:0] compare_counter;
     logic [8:0] reset_counter;
 
-    /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done = 1;
-    /* verilator lint_on MULTIDRIVEN */
-
-    always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done) clcx_exit_done <= 0;
-    end
+    bit broadcast_detected = 0;
     
-    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & clcx_exit_done};
+    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & (pll_shutdown_detected == broadcast_detected)};
 
     always @(posedge rf_clk) begin
-        if (!clcx_exit_done && ~AcCrGateClk[n]) begin
+
+        if (pll_shutdown_detected != broadcast_detected) begin
             if (AcCrSynci[n].valid) begin
-                clcx_exit_done <= 1;
-                clcx_exit_done_ANY <= 1;
+                broadcast_detected <= ~broadcast_detected;
             end
         end
 
@@ -255,6 +248,10 @@ import rv_tester_params:: * ;
         end
     end
 
+    always @(posedge AcCrSynci_valid_any) begin
+        if (pll_shutdown_detected != broadcast_detected_ANY) broadcast_detected_ANY <= ~broadcast_detected_ANY;
+    end
+
     logic [63:0] AcChkCtime;
     logic timesync_d;
     always @(posedge rf_clk) begin
@@ -356,7 +353,7 @@ import rv_tester_params:: * ;
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
             check_outstanding_transactions(location, clocks);
-            if (~clcx_exit_done_ANY && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
+            if ((pll_shutdown_detected != broadcast_detected_ANY) && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
         end
     end
 
