@@ -14,6 +14,7 @@ import rv_tester_params::*;
   input logic sc_clk,
   input logic [NHARTS-1:0] core_no_fetch,
   input logic terminate_from_rv_tester,
+  input logic [1:0] cpl_xtriggers,
   output logic terminate_cla_seq,
   `RV_TESTER_TRANSACTIONS_CLA_OUTPUT_PORTS,
   `RV_TESTER_TRANSACTIONS_CLA_SMC_OUTPUT_PORTS
@@ -22,16 +23,19 @@ import rv_tester_params::*;
   import "DPI-C" context function void cla_set_scope(int unsigned location);
   import "DPI-C" function bit cla_cfg_seq_en_func();
   import "DPI-C" function void cla_send_elf_terminate();
+  import "DPI-C" function void send_cpl_xtrigger_ack();
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.CLA.ID, NUM);
   bit cla_cfg_en = 0;
   logic terminate_from_rv_tester_d1;
+  logic xtrigger_send;
 
   always @(posedge tb_clk) begin
     if (tb_reset) begin
       /* verilator lint_off BLKSEQ */
       cla_cfg_en = cla_cfg_seq_en_func();
       terminate_cla_seq = '0;
+      xtrigger_send = 0;
       /* verilator lint_on BLKSEQ */
       if (location != cvm_topology::nil) begin
         cla_set_scope(location);
@@ -55,6 +59,19 @@ import rv_tester_params::*;
 
   int unsigned sc_clocks = 0;
   always @(posedge sc_clk) sc_clocks <= sc_clocks + 1;
+  
+  always @(posedge sc_clk) begin
+    /* verilator lint_off WIDTHEXPAND */
+    /* verilator lint_off WIDTHTRUNC */
+    /* verilator lint_off BLKSEQ */
+    if(cpl_xtriggers & !xtrigger_send) begin 
+      send_cpl_xtrigger_ack();
+      xtrigger_send = 1;
+    end
+    /* verilator lint_on BLKSEQ */
+    /* verilator lint_on WIDTHEXPAND */
+    /* verilator lint_on WIDTHTRUNC */
+  end
   
   logic [NHARTS-1:0] core_no_fetch_d1;
   int unsigned dut_clocks = 0;

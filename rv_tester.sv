@@ -1181,6 +1181,7 @@ module rv_tester
         .reset(dut_reset[AXI_CLK_IDX]),
         .sc_clk(dut_clk[SOC_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
+        .cpl_xtriggers(cpl_xtriggers),
         .terminate_from_rv_tester(terminate),
         .terminate_cla_seq(terminate_cla_seq),
         `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PORTS(2,0,0),

@@ -27,6 +27,7 @@ namespace {
   constexpr uint32_t cdbg_cla_counter2         = 0x4200'2110;
   constexpr uint32_t cdbg_cla_counter3         = 0x4200'2118;
 
+  constexpr uint32_t smc_cpu_debug_ctrl       = 0x211'0208;
   constexpr uint32_t cpl_cla_offset           = 0x216'0000;
   constexpr uint32_t cpl_cla_counter0         = cpl_cla_offset + 0x3100;
   constexpr uint32_t cpl_cla_counter1         = cpl_cla_offset + 0x3108;

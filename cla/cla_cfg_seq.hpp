@@ -46,6 +46,7 @@ class cla_cfg_seq {
     uint32_t core_offset;
     uint32_t eap_ctrl, active_core, mask, cntr_data, cnt_loop_max;
     uint32_t nmi_total_cnt, trig_total_cnt, custom_action_cnt;
+    bool expect_cpl_xtrigger=0;
     void cla_main_thread();
     void cla_custom_action_thread();
 
@@ -70,7 +71,7 @@ class cla_cfg_seq {
     
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, block_t block = BLOCK);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, block_t block = BLOCK);
-    cvm::messenger::task<void> smc_cla_write(uint64_t addr, uint64_t data, block_t block = BLOCK);
+    cvm::messenger::task<void> smc_axi_write(uint64_t addr, uint64_t data, block_t block = BLOCK);
     cvm::messenger::task<void> csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
     cvm::messenger::task<void> axi_write_mmr_granular(uint64_t addr);
     cvm::messenger::task<void> axi_write_mmr_data_granular(uint64_t addr, uint64_t data);

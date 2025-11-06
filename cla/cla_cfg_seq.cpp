@@ -10,6 +10,7 @@ DEFINE_bool(cla_rand_nmi_trig_en, false, "Enable CLA NMI/XTrigger events");
 DEFINE_bool(cla_custom_action_en, false, "CLA custom actions enable");
 
 bool elf_completed;
+bool cpl_xtrigger_ack=0;
 
 extern "C" {
   void terminate_cla_cfg_seq_func(uint8_t val);
@@ -18,6 +19,9 @@ extern "C" {
   }
   void cla_send_elf_terminate() {
     elf_completed = 1;
+  }
+  void send_cpl_xtrigger_ack() {
+    cpl_xtrigger_ack = 1;
   }
 }
 
@@ -45,6 +49,9 @@ cla_cfg_seq::cla_cfg_seq
 }
 
 cla_cfg_seq::~cla_cfg_seq() {
+  if(expect_cpl_xtrigger && !cpl_xtrigger_ack && FLAGS_cla_rand_nmi_trig_en) {
+    cvm::log(cvm::ERROR, "[cla] Error: Expected CPL-XTrigger but not received....\n");
+  }
 }
 
 void cla_cfg_seq::cla_main_thread()
@@ -100,6 +107,8 @@ cvm::messenger::task<void> cla_cfg_seq::cla_main() {
 
   cvm::log(cvm::NONE, "[cla] Starting CLA CFG sequence nmi_cnt {} trig_cnt {} \n",nmi_total_cnt, trig_total_cnt);
 
+  co_await smc_tick();
+  co_await smc_axi_write(smc_cpu_debug_ctrl, 0x3F83); // bit[22:7] Xtrig/ClkHalt enable, bit [1:0] Chiplet Enable, enable CPL-CLA
   while (true) {
 
     co_await configure_cla();
@@ -207,7 +216,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   cvm::rand::uniform_dist<uint32_t> wait_on_rnd(1000, 1200);
   cvm::rand::uniform_dist<uint32_t> wait_off_rnd(300, 400);
   cvm::rand::uniform_dist<uint32_t> event_rnd(200, 280);
-  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts);
+  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts-1); // RVDE-27599, enable it once Issue resolved
   uint32_t wait_on_count,wait_off_count,event_count;
   uint32_t wdata;
 
@@ -215,13 +224,11 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   wait_off_count = wait_off_rnd();  // Off Delay 300-400 CLK cycle
   event_count = event_rnd();        // Event on Delay 200-270 CLK cycle
   eap_ctrl = (54 << 7);
-  active_core = rand_harts();
+  // active_core = rand_harts(); RVDE-27599, enable it once Issue resolved
+  active_core = (FLAGS_num_harts == 1) ? 0 : rand_harts();
   core_offset = (0x10000 * active_core);
 
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
-
-  co_await smc_tick();
-  co_await smc_cla_write(cpl_cla_counter0, 0xABCD0000, BLOCK);
 
   if(active_core != FLAGS_num_harts) {
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x40));
@@ -245,20 +252,21 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x60));
   }
   else {    // CPL-CLA Configuration
-    co_await write(cpl_cla_ctrl_status, SZ_8B, (eap_ctrl | 0x40));
+    expect_cpl_xtrigger = 1;
+    co_await smc_axi_write(cpl_cla_ctrl_status, (eap_ctrl | 0x40));
     wdata = 0; wdata = (wait_on_count << 16);
-    co_await write(cpl_cla_counter0, SZ_8B, wdata); // CNT0 - On count
+    co_await smc_axi_write(cpl_cla_counter0, wdata); // CNT0 - On count
     wdata = 0; wdata = (event_count << 16);
-    co_await write(cpl_cla_counter1, SZ_8B, wdata); // CNT1 - event count
+    co_await smc_axi_write(cpl_cla_counter1, wdata); // CNT1 - event count
     wdata = 0; wdata = (wait_off_count << 16);
-    co_await write(cpl_cla_counter2, SZ_8B, wdata); // CNT2 - Off count
+    co_await smc_axi_write(cpl_cla_counter2, wdata); // CNT2 - Off count
 
-    co_await write(cpl_node0_eap1_cfg, SZ_8B, 0x10040);   // ALWAYS ON, AUTOINCR0
-    co_await write(cpl_node0_eap0_cfg, SZ_8B, 0x101645);  // TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
-    co_await write(cpl_node1_eap1_cfg, SZ_8B, 0x1081D);   // ALWAYS ON, TRIGGER-0,1
-    co_await write(cpl_node1_eap0_cfg, SZ_8B, 0x131A56);  // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
-    co_await write(cpl_node2_eap0_cfg, SZ_8B, 0x161900);  // TRAGET MATCH-2. CLRCNT2, DEST-0
-    co_await write(cpl_cla_ctrl_status, SZ_8B, (eap_ctrl | 0x60));
+    co_await smc_axi_write(cpl_node0_eap1_cfg, 0x10040);   // ALWAYS ON, AUTOINCR0
+    co_await smc_axi_write(cpl_node0_eap0_cfg, 0x101645);  // TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
+    co_await smc_axi_write(cpl_node1_eap1_cfg, 0x1081D);   // ALWAYS ON, TRIGGER-0,1
+    co_await smc_axi_write(cpl_node1_eap0_cfg, 0x131A56);  // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
+    co_await smc_axi_write(cpl_node2_eap0_cfg, 0x161900);  // TRAGET MATCH-2. CLRCNT2, DEST-0
+    co_await smc_axi_write(cpl_cla_ctrl_status, (eap_ctrl | 0x60));
   }
   co_return;
 }
@@ -280,7 +288,12 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla_nmi() {
 cvm::messenger::task<void> cla_cfg_seq::disable_cla_rand_nmi_trig_en() {
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Disable ..... \n");
   core_offset = (0x10000 * active_core);
-  co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
+  if(active_core != FLAGS_num_harts) {  // For non-CPL-CLA active core
+    co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
+  }
+  else {  // For CPL-CLA active core
+    co_await smc_axi_write(cpl_cla_ctrl_status, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
+  }
   nmi_event = !nmi_event;
   trig_total_cnt = trig_total_cnt - 1;
   co_return;
@@ -326,7 +339,7 @@ cvm::messenger::task<uint64_t> cla_cfg_seq::read(uint64_t addr, size_t sz, block
   co_return rdata;
 }
 
-cvm::messenger::task<void> cla_cfg_seq::smc_cla_write(uint64_t addr, uint64_t data, block_t block /* = BLOCK */) {
+cvm::messenger::task<void> cla_cfg_seq::smc_axi_write(uint64_t addr, uint64_t data, block_t block /* = BLOCK */) {
 
   axi::a_no_id_t aw_txn;
   uint64_t aligned_addr = addr & ~0x7ull;
