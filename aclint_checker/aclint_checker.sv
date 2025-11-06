@@ -62,6 +62,15 @@ import rv_tester_params:: * ;
         clocks <= clocks + 1;
     end
 
+    logic sim_shutdown_done;
+    always @(posedge tb_clk) begin
+        if (reset) begin
+            sim_shutdown_done <= 0;
+        end else if (terminate_now && !terminated) begin
+            sim_shutdown_done <= 1;
+        end
+    end
+
     //ACLINT force SYNC message checker
     logic forcesynccame;
     assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data[7:0] == 8'hff) && (AcReqPktRfClki.user == 3);
@@ -86,7 +95,7 @@ import rv_tester_params:: * ;
     end
     assign violation_forcesync =  (count > 'd15) && enable_checks;
     /* verilator lint_off WIDTH */
-    assign timesync_checks[n].valid = violation_forcesync;
+    assign timesync_checks[n].valid = violation_forcesync & (sim_shutdown_done == 1'b0);
     assign timesync_checks[n].data.location = location;
     assign timesync_checks[n].data.clock = clocks;
     assign timesync_checks[n].data.hart = n;
@@ -137,7 +146,7 @@ import rv_tester_params:: * ;
         end
     end
     /* verilator lint_off WIDTH */
-    assign time_mtime_synch_checks[n].valid = violation_time_mtime_synch & time_mtime_sync_enable;
+    assign time_mtime_synch_checks[n].valid = violation_time_mtime_synch & time_mtime_sync_enable & (sim_shutdown_done == 1'b0);
     assign time_mtime_synch_checks[n].data.location = location;
     assign time_mtime_synch_checks[n].data.clock = clocks;
     assign time_mtime_synch_checks[n].data.hart = n;
@@ -253,14 +262,6 @@ import rv_tester_params:: * ;
     end
 
     logic [63:0] AcChkCtime;
-    logic timesync_d;
-    always @(posedge rf_clk) begin
-        if(dut_reset || AcCrSynci[0].valid) begin
-            timesync_d <= 0;
-        end else if (forcesynccame) begin
-            timesync_d <= 1;
-        end
-    end
     
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
@@ -271,7 +272,7 @@ import rv_tester_params:: * ;
                           (AcReqPktRfClki.mask == 'hf0) ? {AcReqPktRfClki.data[63:32], AcChkCtime[31:0]} :
                                                           AcReqPktRfClki.data;
         // If sync observed, capture Aclint Checker Mtime to Ctime
-        else if (timesync_d && AcCrSynci[0].valid) AcChkCtime <= AcCrSynci[0].data;
+        else if (AcCrSynci[0].valid) AcChkCtime <= AcCrSynci[0].data;
         else AcChkCtime <= AcChkCtime;
         /* verilator lint_on BLKSEQ */
     end
@@ -297,7 +298,7 @@ import rv_tester_params:: * ;
             end
             // always_comb assert(~(cycles_in_fail_mtishouldbeOFF[asserti] > 5)) else $error("[%0d] Error: Did not expect MTIP, but MTIP %d generated", clocks, asserti);
             // always_comb assert(~(cycles_in_fail_mtishouldbeON[asserti] > 5)) else $error("[%0d] Error: Expected MTIP, but MTIP %d not generated", clocks, asserti);
-            assign mtip_checks[asserti].valid         = ((cycles_in_fail_mtishouldbeOFF[asserti] > 5) || (cycles_in_fail_mtishouldbeON[asserti] > 5)); 
+            assign mtip_checks[asserti].valid         = ((cycles_in_fail_mtishouldbeOFF[asserti] > 5) || (cycles_in_fail_mtishouldbeON[asserti] > 5)) & (sim_shutdown_done == 1'b0); 
             assign mtip_checks[asserti].data.location = location;
             assign mtip_checks[asserti].data.check_1  = (cycles_in_fail_mtishouldbeOFF[asserti] > 5);
             assign mtip_checks[asserti].data.check_2  = (cycles_in_fail_mtishouldbeON[asserti] > 5);
