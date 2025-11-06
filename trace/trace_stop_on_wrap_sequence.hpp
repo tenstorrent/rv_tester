@@ -7,6 +7,7 @@
 #include "rv_tester_transactions.hpp"
 #include "trace.hpp"
 #include "transactor.h"
+#include "axi_sw_mst.h"
 #include "svdpi.h"
 
 class trace_stop_on_wrap_sequence {
@@ -15,6 +16,14 @@ class trace_stop_on_wrap_sequence {
 
     trace_stop_on_wrap_sequence(cvm::topology::loc_t loc, unsigned id);
     ~trace_stop_on_wrap_sequence();
+
+    using overlay_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<>,
+        rv_tester_transactions::axi_sw_mst::r<>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<>
+    >;
 
     void set_scope(svScope s) { scope_ = s; }
 
@@ -63,4 +72,8 @@ class trace_stop_on_wrap_sequence {
 
     cvm::topology::loc_t loc_, axi_mst_loc_;
     svScope scope_;
+    
+    // Dedicated response channels to avoid consuming other sequences' responses
+    cvm::messenger::pool<axi::r_t>::channel_info r_channel_;
+    cvm::messenger::pool<axi::b_t>::channel_info b_channel_;
 };

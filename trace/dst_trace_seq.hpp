@@ -75,4 +75,7 @@ class dst_trace_seq {
 
     cvm::topology::loc_t loc_, axi_mst_loc_;
     svScope scope_;
+    
+    // Dedicated write response channel to avoid consuming other sequences' responses
+    cvm::messenger::pool<axi::b_t>::channel_info b_channel_;
 };

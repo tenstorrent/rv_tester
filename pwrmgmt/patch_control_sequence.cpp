@@ -12,10 +12,16 @@ DEFINE_string(pcontrol_width, "1:1", "soc cycle width of smc axi sequences in th
 
 patch_control_sequence::patch_control_sequence
   (cvm::topology::loc_t loc, unsigned) : 
-  loc_(loc), pcontrol_read_count_(0), pcontrol_write_count_(0) {
+  loc_(loc), 
+  pcontrol_read_count_(0), 
+  pcontrol_write_count_(0) {
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  
+  // Channels - create dedicated channels for read/write responses to avoid cross-consumption
+  r_channel_ = cvm::registry::messenger.channel<axi::r_t>(smc_axi_loc_);
+  b_channel_ = cvm::registry::messenger.channel<axi::b_t>(smc_axi_loc_);
   
   uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   FLAGS_pcontrol_width = fmt::format("{}:{}",num_harts, num_harts);
@@ -69,14 +75,30 @@ cvm::messenger::task<void> patch_control_sequence::tick() {
 
 cvm::messenger::task<uint64_t> patch_control_sequence::read(uint64_t addr, size_t sz, block_t block /* = BLOCK */) {
   assert(sz <= 8);
-  cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::read_request_t{addr, sz});
+  
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::r_t>(r_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t ar_txn;
+  ar_txn.w    = false;
+  ar_txn.addr = addr;
+  ar_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(smc_axi_loc_, ar_txn, id)) {
+    cvm::log(cvm::ERROR, "[smc] read req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return 0;
+  }
+  
   pcontrol_read_count_++;
+  cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
 
   if (!block)
     co_return 0;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(smc_axi_loc_);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel_, [&id](const auto& r) { return r.id == id; });
   auto data = convert_to_dword_array(resp.data);
   // FIXME - check why this alignment is needed
   uint64_t dword = (addr % 8) ? (data[0] >> 32) : data[0];
@@ -96,14 +118,33 @@ cvm::messenger::task<void> patch_control_sequence::write(uint64_t addr, size_t s
   std::vector<bool> strb(8, false);
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
-  cvm::log(cvm::MEDIUM, "[smc] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
+  
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::b_t>(b_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.addr = addr;
+  aw_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(smc_axi_loc_, aw_txn, id)) {
+    cvm::log(cvm::ERROR, "[smc] write req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return;
+  }
+  
+  // Send write data
+  cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(smc_axi_loc_, axi::w_t{byte_array, strb, 1});
+  
   pcontrol_write_count_++;
+  cvm::log(cvm::MEDIUM, "[smc] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
 
   if (!block)
     co_return;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::b_t>(b_channel_, [&id](const auto& b) { return b.id == id; });
   cvm::log(cvm::MEDIUM, "[smc] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
   co_return;
 }
