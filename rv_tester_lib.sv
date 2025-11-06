@@ -61,6 +61,7 @@ module rv_tester_ram #(
     parameter type         DATA_TYPE = logic[31:0],      // Data type/width
     parameter int unsigned NUM_WRITE_PORTS = 1,          // Number of write ports
     parameter int unsigned NUM_READ_PORTS = 1,           // Number of read ports
+    parameter bit          WRITE_ALL = '0,               // NUM_WRITE_PORTS == SIZE optimization
     localparam type        addr_t = logic[$clog2(SIZE >= 2 ? SIZE : 2)-1:0]
 )(
     input  logic                clk,
@@ -78,11 +79,23 @@ module rv_tester_ram #(
     // Internal RAM storage
     DATA_TYPE ram[SIZE];
 
+    if (WRITE_ALL && NUM_WRITE_PORTS != SIZE) $error("%0m: When WRITE_ALL NUM_WRITE_PORTS (%0d) must equal SIZE (%0d)", NUM_WRITE_PORTS, SIZE);
+
     // Write logic
-    always_ff @(posedge clk) begin
-        for (int j = 0; j < NUM_WRITE_PORTS; j++) begin
-            if (wr_en[j]) begin
-                ram[wr_addr[j]] <= wr_data[j];
+    if (!WRITE_ALL) begin
+        for (genvar j = 0; j < NUM_WRITE_PORTS; j++) begin
+            always_ff @(posedge clk) begin
+                if (wr_en[j]) begin
+                    ram[wr_addr[j]] <= wr_data[j];
+                end
+            end
+        end
+    end else begin
+        always_ff @(posedge clk) begin
+            for (int j = 0; j < NUM_WRITE_PORTS; j++) begin
+                if (wr_en[j]) begin
+                    ram[j] <= wr_data[j];
+                end
             end
         end
     end
@@ -114,7 +127,8 @@ module rv_tester_fifo #(
     output ptr_t                push_ptr,
     output ptr_t                pop_ptr,
     output idx_t                push_idx,
-    output idx_t                pop_idx
+    output idx_t                pop_idx, 
+    output idx_t                next_pop_idx
 );
 
     if ((D & (D-1)) != 0)
@@ -143,6 +157,7 @@ module rv_tester_fifo #(
     assign pop_ptr  = rptr;
     assign push_idx = ptr_to_idx(wptr);
     assign pop_idx  = ptr_to_idx(rptr);
+    assign next_pop_idx = ptr_to_idx(rptr + ptr_t'(1));
     localparam int M = D > 1 ? $clog2(D) : 1;
 
     always_comb begin

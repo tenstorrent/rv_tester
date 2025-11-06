@@ -62,6 +62,15 @@ import rv_tester_params:: * ;
         clocks <= clocks + 1;
     end
 
+    logic sim_shutdown_done;
+    always @(posedge tb_clk) begin
+        if (reset) begin
+            sim_shutdown_done <= 0;
+        end else if (terminate_now && !terminated) begin
+            sim_shutdown_done <= 1;
+        end
+    end
+
     //ACLINT force SYNC message checker
     logic forcesynccame;
     assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data[7:0] == 8'hff) && (AcReqPktRfClki.user == 3);
@@ -84,22 +93,21 @@ import rv_tester_params:: * ;
             count <= count + 1;
         end
     end
-    assign violation_forcesync =  (count >  'd10) && enable_checks;
+    assign violation_forcesync =  (count > 'd15) && enable_checks;
     /* verilator lint_off WIDTH */
-    assign timesync_checks[n].valid = violation_forcesync;
+    assign timesync_checks[n].valid = violation_forcesync & (sim_shutdown_done == 1'b0);
     assign timesync_checks[n].data.location = location;
     assign timesync_checks[n].data.clock = clocks;
     assign timesync_checks[n].data.hart = n;
     /* verilator lint_on WIDTH */
     end
 
-    /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done_ANY = 1;
-    /* verilator lint_on MULTIDRIVEN */
-
+    bit pll_shutdown_detected = 0;
     always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done_ANY) clcx_exit_done_ANY <= 0;
+        pll_shutdown_detected <= ~pll_shutdown_detected;
     end
+
+    bit broadcast_detected_ANY = 0;
 
     //ACLINT time and mtime synch checker
     for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
@@ -107,21 +115,15 @@ import rv_tester_params:: * ;
     logic [2:0] compare_counter;
     logic [8:0] reset_counter;
 
-    /* verilator lint_off MULTIDRIVEN */
-    bit clcx_exit_done = 1;
-    /* verilator lint_on MULTIDRIVEN */
-
-    always @(posedge pll_shutdown_done) begin
-        if (clcx_exit_done) clcx_exit_done <= 0;
-    end
+    bit broadcast_detected = 0;
     
-    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & clcx_exit_done};
+    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & (pll_shutdown_detected == broadcast_detected)};
 
     always @(posedge rf_clk) begin
-        if (!clcx_exit_done && ~AcCrGateClk[n]) begin
+
+        if (pll_shutdown_detected != broadcast_detected) begin
             if (AcCrSynci[n].valid) begin
-                clcx_exit_done <= 1;
-                clcx_exit_done_ANY <= 1;
+                broadcast_detected <= ~broadcast_detected;
             end
         end
 
@@ -144,7 +146,7 @@ import rv_tester_params:: * ;
         end
     end
     /* verilator lint_off WIDTH */
-    assign time_mtime_synch_checks[n].valid = violation_time_mtime_synch & time_mtime_sync_enable;
+    assign time_mtime_synch_checks[n].valid = violation_time_mtime_synch & time_mtime_sync_enable & (sim_shutdown_done == 1'b0);
     assign time_mtime_synch_checks[n].data.location = location;
     assign time_mtime_synch_checks[n].data.clock = clocks;
     assign time_mtime_synch_checks[n].data.hart = n;
@@ -255,15 +257,11 @@ import rv_tester_params:: * ;
         end
     end
 
-    logic [63:0] AcChkCtime;
-    logic timesync_d;
-    always @(posedge rf_clk) begin
-        if(dut_reset || AcCrSynci[0].valid) begin
-            timesync_d <= 0;
-        end else if (forcesynccame) begin
-            timesync_d <= 1;
-        end
+    always @(posedge AcCrSynci_valid_any) begin
+        if (pll_shutdown_detected != broadcast_detected_ANY) broadcast_detected_ANY <= ~broadcast_detected_ANY;
     end
+
+    logic [63:0] AcChkCtime;
     
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
@@ -274,7 +272,7 @@ import rv_tester_params:: * ;
                           (AcReqPktRfClki.mask == 'hf0) ? {AcReqPktRfClki.data[63:32], AcChkCtime[31:0]} :
                                                           AcReqPktRfClki.data;
         // If sync observed, capture Aclint Checker Mtime to Ctime
-        else if (timesync_d && AcCrSynci[0].valid) AcChkCtime <= AcCrSynci[0].data;
+        else if (AcCrSynci[0].valid) AcChkCtime <= AcCrSynci[0].data;
         else AcChkCtime <= AcChkCtime;
         /* verilator lint_on BLKSEQ */
     end
@@ -300,7 +298,7 @@ import rv_tester_params:: * ;
             end
             // always_comb assert(~(cycles_in_fail_mtishouldbeOFF[asserti] > 5)) else $error("[%0d] Error: Did not expect MTIP, but MTIP %d generated", clocks, asserti);
             // always_comb assert(~(cycles_in_fail_mtishouldbeON[asserti] > 5)) else $error("[%0d] Error: Expected MTIP, but MTIP %d not generated", clocks, asserti);
-            assign mtip_checks[asserti].valid         = ((cycles_in_fail_mtishouldbeOFF[asserti] > 5) || (cycles_in_fail_mtishouldbeON[asserti] > 5)); 
+            assign mtip_checks[asserti].valid         = ((cycles_in_fail_mtishouldbeOFF[asserti] > 5) || (cycles_in_fail_mtishouldbeON[asserti] > 5)) & (sim_shutdown_done == 1'b0); 
             assign mtip_checks[asserti].data.location = location;
             assign mtip_checks[asserti].data.check_1  = (cycles_in_fail_mtishouldbeOFF[asserti] > 5);
             assign mtip_checks[asserti].data.check_2  = (cycles_in_fail_mtishouldbeON[asserti] > 5);
@@ -356,7 +354,7 @@ import rv_tester_params:: * ;
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
             check_outstanding_transactions(location, clocks);
-            if (~clcx_exit_done_ANY && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
+            if ((pll_shutdown_detected != broadcast_detected_ANY) && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
         end
     end
 

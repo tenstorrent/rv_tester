@@ -7,6 +7,7 @@
 #include "rv_tester_transactions.hpp"
 #include "pwrmgmt.hpp"
 #include "transactor.h"
+#include "axi_sw_mst.h"
 #include "svdpi.h"
 
 class patch_control_sequence {
@@ -15,6 +16,14 @@ class patch_control_sequence {
 
     patch_control_sequence(cvm::topology::loc_t loc, unsigned id);
     ~patch_control_sequence();
+
+    using smc_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<1>,
+        rv_tester_transactions::axi_sw_mst::r<1>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<1>
+    >;
 
   private:
 
@@ -38,4 +47,8 @@ class patch_control_sequence {
 
     int pcontrol_read_count_;
     int pcontrol_write_count_;
+    
+    // Dedicated response channels to avoid consuming other sequences' responses
+    cvm::messenger::pool<axi::r_t>::channel_info r_channel_;
+    cvm::messenger::pool<axi::b_t>::channel_info b_channel_;
 };
