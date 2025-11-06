@@ -985,6 +985,7 @@ package rv_tester_params;
     output                                   tj_max,                                                \
     output                                   pll_dfs_done,                                          \
     output                                   pll_shutdown_done,                                     \
+    output logic [1:0]                       cpl_xtriggers,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
@@ -1091,6 +1092,7 @@ package rv_tester_params;
     logic                                    tj_max;                                                \
     logic                                    pll_dfs_done;                                          \
     logic                                    pll_shutdown_done;                                     \
+    logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \

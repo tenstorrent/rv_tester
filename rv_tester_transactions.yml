@@ -1949,6 +1949,15 @@ cla:
             cycle:
                 width: 32
 
+cla_smc:
+    num: 1
+    m_smc_tick:
+        domain: 3
+        num: 1
+        fields:
+            cycle:
+                width: 32
+
 overlay_driver:
     num: 1
     m_overlay_driver_tick:

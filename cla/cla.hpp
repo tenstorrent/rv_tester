@@ -27,6 +27,23 @@ namespace {
   constexpr uint32_t cdbg_cla_counter2         = 0x4200'2110;
   constexpr uint32_t cdbg_cla_counter3         = 0x4200'2118;
 
+  constexpr uint32_t smc_cpu_debug_ctrl       = 0x211'0208;
+  constexpr uint32_t cpl_cla_offset           = 0x216'0000;
+  constexpr uint32_t cpl_cla_counter0         = cpl_cla_offset + 0x3100;
+  constexpr uint32_t cpl_cla_counter1         = cpl_cla_offset + 0x3108;
+  constexpr uint32_t cpl_cla_counter2         = cpl_cla_offset + 0x3110;
+  constexpr uint32_t cpl_cla_counter3         = cpl_cla_offset + 0x3118;
+  constexpr uint32_t cpl_node0_eap0_cfg       = cpl_cla_offset + 0x3120;
+  constexpr uint32_t cpl_node0_eap1_cfg       = cpl_cla_offset + 0x3128;
+  constexpr uint32_t cpl_node1_eap0_cfg       = cpl_cla_offset + 0x3130;
+  constexpr uint32_t cpl_node1_eap1_cfg       = cpl_cla_offset + 0x3138;
+  constexpr uint32_t cpl_node2_eap0_cfg       = cpl_cla_offset + 0x3140;
+  constexpr uint32_t cpl_node2_eap1_cfg       = cpl_cla_offset + 0x3148;
+  constexpr uint32_t cpl_node3_eap0_cfg       = cpl_cla_offset + 0x3150;
+  constexpr uint32_t cpl_node3_eap1_cfg       = cpl_cla_offset + 0x3158;
+  constexpr uint32_t cpl_cla_dbg_eap_sts      = cpl_cla_offset + 0x3188;
+  constexpr uint32_t cpl_cla_ctrl_status      = cpl_cla_offset + 0x3190;
+
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
   typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
 
