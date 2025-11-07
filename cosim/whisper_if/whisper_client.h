@@ -120,6 +120,7 @@ class whisperClient {
     bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid);
     bool whisperPokeMemBatch(int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid);
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);
+    bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, uint64_t& reply_addr, bool& valid);
     bool whisperPeekPc(int hart, uint64_t& value);
     bool whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid);
     bool whisperReset(int hart, uint64_t addr, bool& valid);
@@ -134,7 +135,7 @@ class whisperClient {
     bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
-    bool whisperGetLastLdStAddress(int hart, uint64_t& value);
+    bool whisperGetLastLdStAddress(int hart, uint64_t& value, unsigned& size);
     bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
 
     // Deliver a non-maskable interrupt to whisper.
@@ -186,6 +187,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperPokeMemRPC, bool (int, uint64_t, char, uint64_t, unsigned, uint64_t, bool, bool, bool&));
     CVM_MESSENGER_procedure_call(whisperPokeMemBatchRPC, bool(int, uint64_t, char, uint64_t, const std::vector<uint8_t> &, bool &));
     CVM_MESSENGER_procedure_call(whisperPeekRPC, bool (int, char, uint64_t, uint64_t&, bool&));
+    CVM_MESSENGER_procedure_call(whisperPeekExtendedRPC, bool (int, char, uint64_t, uint64_t&, uint64_t&, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekPcRPC, bool (int, uint64_t& value));
     CVM_MESSENGER_procedure_call(whisperPeekCsrRPC, bool (int, uint64_t, uint64_t&, uint64_t&, uint64_t&, uint64_t&, bool&));
     CVM_MESSENGER_procedure_call(whisperResetRPC, bool (int, uint64_t, bool&));
@@ -199,8 +201,8 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperCancelLrRPC, bool (int, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekGprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekFprRPC, bool (int, uint64_t, uint64_t&));
-    CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&)); 
-    CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&));
+    CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&, unsigned&));
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiCauseRPC, bool (int, uint64_t, uint64_t));

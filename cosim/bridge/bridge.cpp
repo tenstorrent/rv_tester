@@ -700,7 +700,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 void bridge::resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string&, const whisper_state_t& w){
   if (w.is_load) {
     uint64_t pa = 0;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pa))
+    unsigned unused_size = 0;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pa, unused_size))
       error("Hart {}: Failed to get last Load Store Address\n", hart);
     if (resynch_on_pa(pa, d.cycle)) {
       bool valid;
@@ -888,10 +889,22 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
     update_regs(hart, d);
   }
   if (FLAGS_memattr_check && d.mem_read.valid &&  (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
-      update_mem_attr(hart, src_t::dut, d.mem_read.attr);
+      if (d.mem_read.page4kX) {
+          // 4KB page crossing: store both attributes with different offsets
+          update_mem_attr(hart, src_t::dut, d.mem_read.attr, 0);        // First page
+          update_mem_attr(hart, src_t::dut, d.mem_read.page4kX_attr, 1);  // Second page
+      } else {
+          update_mem_attr(hart, src_t::dut, d.mem_read.attr, 0);
+      }
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
-      update_mem_attr(hart, src_t::dut, d.mem_write.attr);
+      if (d.mem_write.page4kX) {
+          // 4KB page crossing: store both attributes with different offsets
+          update_mem_attr(hart, src_t::dut, d.mem_write.attr, 0);        // First page
+          update_mem_attr(hart, src_t::dut, d.mem_write.page4kX_attr, 1);  // Second page
+      } else {
+          update_mem_attr(hart, src_t::dut, d.mem_write.attr, 0);
+      }
   }
 }
 
@@ -1507,12 +1520,41 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
   if (FLAGS_memattr_check && !(w_.trap || w.is_cancelled) && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_) && patch_mode_ == NO_PATCH) {
     bool valid;
     uint64_t eff_mem_attr;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)|| !valid) && FLAGS_whisper_client_check) {
+    uint64_t second_pma;
+    // Use extended whisperPeek to get both value (first PMA) and address (second PMA if misaligned)
+    auto client = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekExtendedRPC>(client, hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, second_pma, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed whisper API call - whisperEffMemAttr\n", hart);
       return;
     }
 
-    update_mem_attr(hart, src_t::iss, eff_mem_attr);
+    // First PMA is always in value field
+    update_mem_attr(hart, src_t::iss, eff_mem_attr, 0);
+
+    // Second PMA is in address field, valid only if access is misaligned (non-zero indicates misaligned)
+    // However, we only store it if the access is actually 4KB page-crossing (to match DUT behavior)
+    // Check if access is 4KB page-crossing by getting the address and size from Whisper
+    uint64_t mem_addr = 0;
+    unsigned access_size = 0;
+    bool is_page4kX = false;
+
+    // Get the memory access address and size from Whisper (similar to how Whisper detects misalignment)
+    if (w_.mem_write.valid | w_.mem_read.valid) {
+      mem_addr = w_.mem_write.va;
+      // For stores, we need to get the size from Whisper's lastLdStAddress
+      if (cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(client, hart, mem_addr, access_size)) {
+        // Check if access crosses 4KB page boundary using actual access size
+        uint64_t page_offset = mem_addr & 0xFFF;
+        is_page4kX = (page_offset + access_size) > 0x1000;
+      }
+    }
+
+    // Only store second PMA if access is actually 4KB page-crossing (to match DUT behavior)
+    // Note: Whisper returns second PMA for all misaligned accesses, but DUT only sets
+    // page4kX_mem_attr for 4KB page-crossing accesses, so we need to filter here
+    if (is_page4kX) {
+      update_mem_attr(hart, src_t::iss, second_pma, 1);
+    }
   }
 
   // Interrupts/Exceptions
@@ -1736,10 +1778,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
 // Push DUT mem attr to cac
 // Currently disabling mem_attr checks for vectors
-void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
+// offset: 0 for first page attribute, 1 for second page attribute (4KB page crossing)
+void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data, uint32_t offset) {
   resource_id_t mem_attr = resource_id_t{
     .resource = resource_t::mem_attr,
-    .offset = 0
+    .offset = offset
   };
   // Supported sttributes - [type:11, cacheability:12]
   uint32_t masked_data = data & 0x1800;
@@ -2329,8 +2372,31 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   if (d.mem_write.valid) {
     uint64_t pa = translate(hart, d.mem_write.va, w_.priv, memclass_t::write);
-    bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, pa, d.mem_write.data);
-    poke_mem(hart, d.cycle, pa, d.mem_write.size, d.mem_write.data, false, false);
+    if (FLAGS_memattr_check && d.mem_write.page4kX && (!is_vector(d.disasm)) && patch_mode_ == NO_PATCH) {
+      // Split 4KB page-crossing write: send first page with first attr, then second page with second attr
+      uint64_t page_size = 0x1000; // 4KB page
+      uint64_t page_offset = pa & (page_size - 1);
+      unsigned total_size = d.mem_write.size; // size is already in bytes
+      unsigned first_page_bytes = page_size - page_offset;
+      if (first_page_bytes > total_size) first_page_bytes = total_size;
+      unsigned second_page_bytes = total_size - first_page_bytes;
+
+      // First page part - lower bytes (attr already set with offset 0 in post_step_dut)
+      uint64_t first_data = d.mem_write.data & ((1ULL << (first_page_bytes * 8)) - 1);
+      bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x} (page1, size={})\n", d.cycle, step_, pa, first_data, first_page_bytes);
+      poke_mem(hart, d.cycle, pa, first_page_bytes, first_data, false, false);
+
+      // Second page part - upper bytes (if any, attr already set with offset 1 in post_step_dut)
+      if (second_page_bytes > 0) {
+        uint64_t second_pa = (pa & ~(page_size - 1)) + page_size; // Next page boundary
+        uint64_t second_data = (d.mem_write.data >> (first_page_bytes * 8)) & ((1ULL << (second_page_bytes * 8)) - 1);
+        bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x} (page2, size={})\n", d.cycle, step_, second_pa, second_data, second_page_bytes);
+        poke_mem(hart, d.cycle, second_pa, second_page_bytes, second_data, false, false);
+      }
+    } else {
+      bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, pa, d.mem_write.data);
+      poke_mem(hart, d.cycle, pa, d.mem_write.size, d.mem_write.data, false, false);
+    }
   }
 
   for (auto& csr : d.csr) {
