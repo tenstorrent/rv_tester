@@ -625,7 +625,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Update cac with whisper state
   if (!psc_stepping_) {
     if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
-      update_whisper_state(hart, w, d.comp);
+      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX);
     }
 
     // Update cac with dut state
@@ -700,8 +700,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 void bridge::resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string&, const whisper_state_t& w){
   if (w.is_load) {
     uint64_t pa = 0;
-    unsigned unused_size = 0;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pa, unused_size))
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pa))
       error("Hart {}: Failed to get last Load Store Address\n", hart);
     if (resynch_on_pa(pa, d.cycle)) {
       bool valid;
@@ -1373,7 +1372,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   step(hart, w);
   bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart,w, d.comp);
+  update_whisper_state(hart,w, d.comp, d.mem_read.page4kX);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1436,7 +1435,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   }
 }
 
-void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed) {
+void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX) {
 
   w_.valid = true;
   w_.cycle = w.time;
@@ -1519,40 +1518,19 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
   // Disabling mem_attr checks for vectors currently
   if (FLAGS_memattr_check && !(w_.trap || w.is_cancelled) && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_) && patch_mode_ == NO_PATCH) {
     bool valid;
-    uint64_t eff_mem_attr;
+    uint64_t first_pma;
     uint64_t second_pma;
     // Use extended whisperPeek to get both value (first PMA) and address (second PMA if misaligned)
     auto client = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekExtendedRPC>(client, hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, second_pma, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekExtendedRPC>(client, hart, 's', WhisperSpecialResource::EffMemAttr, first_pma, second_pma, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed whisper API call - whisperEffMemAttr\n", hart);
       return;
     }
 
     // First PMA is always in value field
-    update_mem_attr(hart, src_t::iss, eff_mem_attr, 0);
-
-    // Second PMA is in address field, valid only if access is misaligned (non-zero indicates misaligned)
-    // However, we only store it if the access is actually 4KB page-crossing (to match DUT behavior)
-    // Check if access is 4KB page-crossing by getting the address and size from Whisper
-    uint64_t mem_addr = 0;
-    unsigned access_size = 0;
-    bool is_page4kX = false;
-
-    // Get the memory access address and size from Whisper (similar to how Whisper detects misalignment)
-    if (w_.mem_write.valid | w_.mem_read.valid) {
-      mem_addr = w_.mem_write.va;
-      // For stores, we need to get the size from Whisper's lastLdStAddress
-      if (cvm::registry::messenger.call<whisperClient<uint64_t>::whisperGetLastLdStAddressRPC>(client, hart, mem_addr, access_size)) {
-        // Check if access crosses 4KB page boundary using actual access size
-        uint64_t page_offset = mem_addr & 0xFFF;
-        is_page4kX = (page_offset + access_size) > 0x1000;
-      }
-    }
-
-    // Only store second PMA if access is actually 4KB page-crossing (to match DUT behavior)
-    // Note: Whisper returns second PMA for all misaligned accesses, but DUT only sets
-    // page4kX_mem_attr for 4KB page-crossing accesses, so we need to filter here
-    if (is_page4kX) {
+    update_mem_attr(hart, src_t::iss, first_pma, 0);
+    
+    if (page4kX) {
       update_mem_attr(hart, src_t::iss, second_pma, 1);
     }
   }

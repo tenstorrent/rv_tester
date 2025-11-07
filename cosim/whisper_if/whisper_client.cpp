@@ -144,7 +144,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
-  cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa, unsigned& size) {return this->whisperGetLastLdStAddress(hart, pa, size);});
+  cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
@@ -654,7 +654,7 @@ whisperClient<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, 
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperGetLastLdStAddress(int hart, uint64_t& value, unsigned& size)
+whisperClient<URV>::whisperGetLastLdStAddress(int hart, uint64_t& value)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
@@ -666,7 +666,6 @@ whisperClient<URV>::whisperGetLastLdStAddress(int hart, uint64_t& value, unsigne
   if (not whisperCommand(req, reply))
     return false;
   value = reply.value;
-  size = reply.size;
   return true;
 }
 

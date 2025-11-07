@@ -135,7 +135,7 @@ class whisperClient {
     bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
-    bool whisperGetLastLdStAddress(int hart, uint64_t& value, unsigned& size);
+    bool whisperGetLastLdStAddress(int hart, uint64_t& value);
     bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
 
     // Deliver a non-maskable interrupt to whisper.
