@@ -1364,16 +1364,21 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_interrupt_pend
     logic [63:0] mip_d1, mip_timer, mip_timer_d1;
+    logic [63:0] core_clocks;
     logic seip_d1;
     assign mip_timer = interrupt_pend.mip & 'he0;
     always @(posedge clk) begin
       mip_timer_d1 <= mip_timer;
       mip_d1 <= interrupt_pend.mip;
       seip_d1 <= interrupt_pend.seip;
+      core_clocks <= core_clocks + 1;
+      if (dut_core_reset) begin
+        core_clocks <= '0;
+      end
     end
     assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
-    assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.cycle = core_clocks;
     assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
     assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
     assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
