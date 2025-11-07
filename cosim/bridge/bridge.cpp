@@ -1381,6 +1381,16 @@ void bridge::post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisp
         poke_mip(hart, d.cycle, mip | std::bitset<64>(hw_mip));
     }
   }
+  if (!FLAGS_poke_mip_timer && cosim_util::is_csr_opcode(w.opcode, csr_addr) && (csr_addr == STIMECMP || csr_addr == VSTIMECMP)) {
+    peek_mip(hart, d.cycle, tmp_mip_latest_);
+    uint64_t timer_bits = 1<<STI | 1<<VSTI;
+    if (tmp_mip_latest_.to_ullong() & timer_bits) {
+      auto tmp_mip_prev = std::bitset<64>(tmp_mip_latest_.to_ullong() & ~timer_bits);
+      bridge_log(cvm::MEDIUM, "<{}> Hart:{} Reevaluating MIP bits due to CSR read/write to CSR:{:#x}\n", d.cycle, hart, csr_addr);
+      check_mip_change(tmp_mip_prev, tmp_mip_latest_); // it has a side effect of increasing age by 1 for timer bits but thats ok
+      check_and_defer_interrupt(hart, d.cycle, tmp_mip_latest_);
+    }
+  }
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
@@ -1794,25 +1804,21 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       break;
     case 'c':
       if (FLAGS_csr_rd_check){
-        if (!is_indirect_reg(w.disasm) || nmi_.valid){
           // Check if PMP entry is locked
-          if (w.address >= PMPADDR0 && w.address < PMPADDR16) {
-            bool valid = false;
-            uint64_t pmpcfg, mask, reset, read_mask;
-            uint64_t i, pmp_cfg_reg, pmp_cfg_index;
-            // For PMP addresses, which bits of the pmpcfgs to look for
-            i = w.address - PMPADDR0;
-            pmp_cfg_reg = ((i*8) / 64) * 2;
-            pmp_cfg_index = (i*8) % 64;
-            if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, PMACFG0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
+        if (w.address >= PMPADDR0 && w.address < PMPADDR16) {
+          bool valid = false;
+          uint64_t pmpcfg, mask, reset, read_mask;
+          uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+          // For PMP addresses, which bits of the pmpcfgs to look for
+          i = w.address - PMPADDR0;
+          pmp_cfg_reg = ((i*8) / 64) * 2;
+          pmp_cfg_index = (i*8) % 64;
+          if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, PMACFG0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
             error("Hart {}: Failed to peek CSR : PMACFG0\n", hart);
-            }
-            if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
-              break;
-            }
           }
-          update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
+          if ((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) break;
         }
+        update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
       }
       break;
     default:
