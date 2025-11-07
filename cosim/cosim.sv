@@ -866,8 +866,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
-        assign m_rvfis[n].data.page4kX  = rvfi[n].page4kX;
-        assign m_rvfis[n].data.page4kX_mem_attr    = rvfi[n].page4kX_mem_attr;
+        assign m_rvfis[n].data.mem_page4kX  = rvfi[n].mem_page4kX;
+        assign m_rvfis[n].data.mem_page4kX_attr    = mem_rvfi[n].mem_page4kX_attr;
 
         /* verilator lint_off WIDTHTRUNC */
         assign valid_icnt[n]   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,n+1);    // count of valid-unique rvfi orders from 0 to N+1

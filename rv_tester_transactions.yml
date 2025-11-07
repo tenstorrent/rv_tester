@@ -186,10 +186,10 @@ cosim:
             mem_attr:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 32
-            page4kX:
+            mem_page4kX:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 1
-            page4kX_mem_attr:
+            mem_page4kX_attr:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 32
             mem_error:
