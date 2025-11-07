@@ -202,7 +202,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperPeekGprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekFprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&));
-    CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&, unsigned&));
+    CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiCauseRPC, bool (int, uint64_t, uint64_t));
