@@ -22,7 +22,7 @@ import rv_tester_params:: * ;
         input logic[8: 0] AcMtipi,
         input logic SmcMtipi,
         input logic AcChk_pll_interrupts_in,
-        input logic warm_reset_req,
+        input logic warm_reset_now,
         input logic [63:0] AcCrCtimeCsr[NHARTS - 1: 0],
         input logic AcCrDebugMode[NHARTS - 1: 0],
         input logic AcCrGateClk[NHARTS - 1: 0],
@@ -349,7 +349,7 @@ import rv_tester_params:: * ;
     import "DPI-C" function void clear_core_outstanding_transactions(int unsigned location);
     import "DPI-C" function void time_mtime_eot_error();
     always @(posedge tb_clk) begin
-        if ($rose(warm_reset_req) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
+        if ($rose(warm_reset_now) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
         else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
