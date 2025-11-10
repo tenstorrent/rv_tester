@@ -219,7 +219,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   cvm::rand::uniform_dist<uint32_t> wait_on_rnd(1000, 1200);
   cvm::rand::uniform_dist<uint32_t> wait_off_rnd(300, 400);
   cvm::rand::uniform_dist<uint32_t> event_rnd(200, 280);
-  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts-1); // RVDE-27599, enable it once Issue resolved
+  cvm::rand::uniform_dist<uint32_t> rand_harts(0, FLAGS_num_harts);
   uint32_t wait_on_count,wait_off_count,event_count;
   uint32_t wdata;
 
@@ -227,8 +227,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   wait_off_count = wait_off_rnd();  // Off Delay 300-400 CLK cycle
   event_count = event_rnd();        // Event on Delay 200-270 CLK cycle
   eap_ctrl = (54 << 7);
-  // active_core = rand_harts(); RVDE-27599, enable it once Issue resolved
-  active_core = (FLAGS_num_harts == 1) ? 0 : rand_harts();
+  active_core = rand_harts();
   core_offset = (0x10000 * active_core);
 
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
