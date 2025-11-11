@@ -175,20 +175,7 @@ namespace {
 
   std::map<uint32_t, uint64_t> patch_ram;
   uint64_t pcontrol_enable_mask;
-  uint64_t pcontrol_data;
-
-
-  // Structure to represent a patch entry
-  struct PatchEntry {
-      std::string patchTag;
-      std::vector<uint32_t> ucodes;
-      uint32_t patchInstruction;
-      uint32_t patchMask;
-      uint32_t enableMask;
-  };
-
-  //Map to hold the patch_routines, patch_mask, patch_opcode, enable_mask
-  std::map<std::string, PatchEntry> patches; 
+  uint64_t pcontrol_data; 
 
   std::vector<uint32_t> patch_trig_0 = {
     0x4214cfb7,        	//lui	t6,0x4214c
