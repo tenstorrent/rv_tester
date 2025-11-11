@@ -1695,7 +1695,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                   std::bitset<64> mip;
                   peek_mip(hart, d.cycle, mip);
                   auto old_mvip = mvip_;
-                  poke_value = (peek_value & ~hypervisor_mask_map_[c.csr_addr]) | (value & hypervisor_mask_map_[c.csr_addr]);
+                  poke_value = (peek_value & ~hypervisor_mask_map_[MIP]) | (value & hypervisor_mask_map_[MIP]);
                   mvip_ = (mvip_ & ~hypervisor_mask_map_[MVIP]) | (mvip_ & hypervisor_mask_map_[MVIP]);
                   poke_mip(hart, d.cycle, mip | std::bitset<64>(poke_value));
                   bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip.to_ullong(), mip.to_ullong()|poke_value, old_mvip, mvip_);
@@ -1726,7 +1726,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
               for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+                if (addr == MIP) hypervisor_masked_csrs_[addr] = mip_.to_ullong();
+                else hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
               }
             }
             misa_h_ = 0;
