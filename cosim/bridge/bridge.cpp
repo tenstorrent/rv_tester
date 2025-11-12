@@ -536,10 +536,11 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   psc_stepping_ = false;
 }
 
-void bridge::process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order) {
+void bridge::process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, uint64_t vec_cmode_first_tag) {
     print(cvm::HIGH, "hart={}: excp_valid=1, excp_cause={:#x}, excp_order={:#x}\n", hart, cause, order);
     prev_dut_trap_cause_ = cause;
     prev_dut_trap_order_ = order;
+    prev_vec_cmode_first_tag_ = vec_cmode_first_tag;
 }
 
 // DUT interface callback: Instruction Retire
@@ -3415,7 +3416,7 @@ void bridge::report_metrics() {
   const auto& instr = prev_whisp_state.disasm;
   const auto& mode = prev_whisp_state.priv_mode;
   const auto& trap = prev_whisp_state.trap;
-  const auto& cmode = (prev_dut_trap_cause_ == 55) && (prev_dut_trap_order_ == prev_whisp_state.tag + 1); // FIXME: cmode state should be handled in riscv_cluster
+  const auto& cmode = (prev_dut_trap_cause_ == 55) && (prev_vec_cmode_first_tag_ == prev_whisp_state.tag + 1); // FIXME: cmode state should be handled in riscv_cluster
   const auto& num_dest = prev_whisp_state.change_count;
   bool rfcm = (prev_whisp_state.resource == 'r' || prev_whisp_state.resource == 'f' || prev_whisp_state.resource == 'c' || prev_whisp_state.resource == 'm');
   const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
