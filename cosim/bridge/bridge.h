@@ -136,7 +136,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -150,7 +150,7 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
-  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
+  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data, uint32_t offset = 0);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
   uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);

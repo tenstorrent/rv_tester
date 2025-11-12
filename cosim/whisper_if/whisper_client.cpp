@@ -129,6 +129,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
   cvm::registry::messenger.procedure<whisperPokeMemBatchRPC>(loc, [this](int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid) { return this->whisperPokeMemBatch(hart, time, resource, addr, data, valid); });
   cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperPeekExtendedRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, uint64_t& reply_addr, bool& valid) {return this->whisperPeek(hart, resource, addr, value, reply_addr, valid);});
   cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
   cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
   cvm::registry::messenger.procedure<whisperResetRPC>(loc, [this] (int hart, uint64_t addr, bool& valid) {return this->whisperReset(hart, addr, valid);});
@@ -338,6 +339,15 @@ bool
 whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
 	    bool& valid)
 {
+  uint64_t unused_addr;
+  return whisperPeek(hart, resource, addr, value, unused_addr, valid);
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
+	    uint64_t& reply_addr, bool& valid)
+{
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
@@ -349,6 +359,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
+  reply_addr = reply.address;
   return true;
 }
 
