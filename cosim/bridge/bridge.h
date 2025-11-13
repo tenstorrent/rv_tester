@@ -49,7 +49,7 @@ public:
   //   - AMO
   //   - Table Walks
   //   - Exceptions/interrupt
-  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order);
+  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, uint64_t vec_cmode_first_tag);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
@@ -326,6 +326,7 @@ private:
   uint64_t order_ = 0;
   uint64_t prev_dut_trap_cause_ = 0;
   uint64_t prev_dut_trap_order_ = 0;
+  uint64_t prev_vec_cmode_first_tag_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};

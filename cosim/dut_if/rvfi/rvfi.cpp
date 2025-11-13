@@ -273,7 +273,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
       vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
-    if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order);
+    if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order, vec_cmode_first_tag_);
   }
 }
 
