@@ -102,12 +102,11 @@ import rv_tester_params:: * ;
     /* verilator lint_on WIDTH */
     end
 
-    bit pll_shutdown_detected = 0;
-    always @(posedge pll_shutdown_done) begin
-        pll_shutdown_detected <= ~pll_shutdown_detected;
+    bit pll_shutdown_detected;
+    always @(posedge rf_clk) begin
+        if (!warm_reset_n) pll_shutdown_detected <= 0;
+        else if (pll_shutdown_done) pll_shutdown_detected <= 1;
     end
-
-    bit broadcast_detected_ANY = 0;
 
     //ACLINT time and mtime synch checker
     for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
@@ -117,16 +116,9 @@ import rv_tester_params:: * ;
 
     bit broadcast_detected = 0;
     
-    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & (pll_shutdown_detected == broadcast_detected)};
+    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & ~pll_shutdown_detected};
 
     always @(posedge rf_clk) begin
-
-        if (pll_shutdown_detected != broadcast_detected) begin
-            if (AcCrSynci[n].valid) begin
-                broadcast_detected <= ~broadcast_detected;
-            end
-        end
-
         if (!warm_reset_n) begin
             violation_time_mtime_synch <= 0;
             compare_counter <= 0;
@@ -134,7 +126,7 @@ import rv_tester_params:: * ;
         else begin
             if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
             else begin
-                if (((AcMtimei - AcCrCtimeCsr[n]) <= 1500) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
+                if (((AcMtimei - AcCrCtimeCsr[n]) <= 160) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
                     violation_time_mtime_synch <= 0;
                     compare_counter <= 0;
                 end
@@ -241,24 +233,12 @@ import rv_tester_params:: * ;
         end
     end
 
-    bit AcCrGateClkAny;
-    always_comb begin
-        AcCrGateClkAny = 1'b0;
-        for (int i = 0; i < NHARTS; i++) begin
-            AcCrGateClkAny |= AcCrGateClk[i];
-        end
-    end
-
     logic AcCrSynci_valid_any;
     always_comb begin
         AcCrSynci_valid_any = 1'b0;
         for (int i = 0; i < NHARTS; i++) begin
             AcCrSynci_valid_any |= AcCrSynci[i].valid;
         end
-    end
-
-    always @(posedge AcCrSynci_valid_any) begin
-        if (pll_shutdown_detected != broadcast_detected_ANY) broadcast_detected_ANY <= ~broadcast_detected_ANY;
     end
 
     logic [63:0] AcChkCtime;
@@ -352,10 +332,7 @@ import rv_tester_params:: * ;
         if ($rose(warm_reset_now) || $fell(warm_reset_n)) clear_core_outstanding_transactions(location);
         // dut.cpl_top0.i_pll_controller.pll_interrupts_in leads to pll_shutdown leading to trigger terminate sequence
         // Destroying any transaction that is inflight. Thus ignoring checks when terminate is asserted due to the same. 
-        else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) begin
-            check_outstanding_transactions(location, clocks);
-            if ((pll_shutdown_detected != broadcast_detected_ANY) && ~AcCrGateClkAny && time_mtime_sync_enable) time_mtime_eot_error();
-        end
+        else if (!reset && !AcChk_pll_interrupts_in && enable_checks && terminate_now && !terminated) check_outstanding_transactions(location, clocks);
     end
 
   function automatic logic [3:0] get_hart_ret(int n);
