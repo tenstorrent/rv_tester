@@ -93,7 +93,15 @@ import rv_tester_params:: * ;
             count <= count + 1;
         end
     end
-    assign violation_forcesync =  (count > 'd15) && enable_checks;
+
+    logic disable_forcesync_checks;
+    always @(posedge rf_clk) begin
+        if (reset) disable_forcesync_checks <= 1'b0;
+        else if (pll_shutdown_done) disable_forcesync_checks <= 1'b1;
+        else if (AcCrSynci[n].valid) disable_forcesync_checks <= 1'b0;
+    end
+
+    assign violation_forcesync =  (count > 'd15) && enable_checks && !disable_forcesync_checks;
     /* verilator lint_off WIDTH */
     assign timesync_checks[n].valid = violation_forcesync & (sim_shutdown_done == 1'b0);
     assign timesync_checks[n].data.location = location;
