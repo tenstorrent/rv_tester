@@ -1213,7 +1213,7 @@ module rv_tester
         .reset(sys_reset[TB_CLK_IDX]),
         .cold_resetn(~cold_reset),
         .warm_reset_n(AcWarmReset),
-        .warm_reset_req(warm_reset_req),
+        .warm_reset_now(warm_reset_now),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminated(terminated),
         .terminate_now(terminate_now),
