@@ -10,12 +10,26 @@ def overlay_driver_gen(name, packet, topology, harness, visibility = None, cc_at
         srcs = [
             "@rv_tester//overlay_driver:overlay_driver.cpp",
             "@rv_tester//overlay_driver:scratchpad_random_sequence.cpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_sequence.cpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_global.cpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ce.cpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ee.cpp",
+
         ],
         hdrs = [
             "@rv_tester//transactors/axi_sw:safe_queue.h",
             "@rv_tester//transactors/axi_sw:axi.h",
             "@rv_tester//overlay_driver:overlay_driver.hpp",
             "@rv_tester//overlay_driver:scratchpad_random_sequence.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_sequence.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_defs.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_global.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ce.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ce_regs.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ee.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ee_regs.hpp",
+            "@rv_tester//overlay_driver:post_si_pcietc_ee_instr.hpp",
+
         ],
         deps = [
             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
