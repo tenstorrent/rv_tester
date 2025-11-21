@@ -44,6 +44,7 @@ import rv_tester_params:: * ;
     int nharts = 0;
     bit [63:0] clocks;
     bit time_mtime_sync_enable = 0;
+    bit dfs_enabled = 0;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
     import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name, int NHARTS);
@@ -57,10 +58,14 @@ import rv_tester_params:: * ;
             // Last argument needs to match the size of the hart_id array
             nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", 8);
             time_mtime_sync_enable = cvm_plusargs::get_bool("time_mtime_sync_enable") != '0;
+            dfs_enabled = cvm_plusargs::get_bool("pll_dfs") != '0 || cvm_plusargs::get_bool("dfs_rand_en") != '0;
             /* verilator lint_on BLKSEQ */
         end
         clocks <= clocks + 1;
     end
+
+    bit [63:0] time_mtime_sync_threshold;
+    assign time_mtime_sync_threshold = dfs_enabled ? 160 : 20;
 
     logic sim_shutdown_done;
     always @(posedge tb_clk) begin
@@ -126,7 +131,7 @@ import rv_tester_params:: * ;
         else begin
             if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
             else begin
-                if (((AcMtimei - AcCrCtimeCsr[n]) <= 160) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
+                if (((AcMtimei - AcCrCtimeCsr[n]) <= time_mtime_sync_threshold) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
                     violation_time_mtime_synch <= 0;
                     compare_counter <= 0;
                 end
