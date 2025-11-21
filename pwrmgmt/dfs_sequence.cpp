@@ -55,7 +55,6 @@ void dfs_sequence::main_thread() {
 
 cvm::messenger::task<void> dfs_sequence::main() {
   co_await tick();
-  FLAGS_pll_dfs_timeout = 5;
   while (true) {
     co_await dfs_write();
     co_await tick();
