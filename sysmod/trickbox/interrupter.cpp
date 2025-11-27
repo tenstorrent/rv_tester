@@ -118,7 +118,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   // ---- Interrupt Enable Flag ----
   else if (addr == (interrupter_base + 0x4040)) {
     intr_enable_flag_ = (t_data != 0);
-    cvm::log(cvm::HIGH, "[Trickbox] Interrupt enable flag set to {} at addr {:#x}\n", intr_enable_flag_, addr);
+    cvm::log(cvm::MEDIUM, "[Trickbox] Interrupt enable flag set to {} at addr {:#x}\n", intr_enable_flag_, addr);
   }
   // ---- NMI deassert ----
   else if ((addr >= nmi_deassert_base) && (addr <= nmi_deassert_base +(hart_count_*nmi_stride))) {
