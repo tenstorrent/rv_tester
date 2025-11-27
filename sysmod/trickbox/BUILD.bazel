@@ -85,5 +85,5 @@ cc_library(
 )
 
  
-exports_files(["ras_helper.h"])
+exports_files(["ras_helper.h", "interrupter.h"])
 

@@ -9,7 +9,7 @@
  DEFINE_bool(dbg_rnmi_priv_dp_trigger, false, "To generate trigger for RNMI when privmode is DP");
  DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
- DEFINE_bool(require_tbox_write_to_enable_intr, false, "Require software write to trickbox address 0x9006000 before random interrupts start (for random stimulus)");
+ DEFINE_bool(trickbox_write_enables_intr, false, "Require software write to trickbox address 0x9004040 before random interrupts start (for random stimulus)");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
  DEFINE_bool(disable_s_imsic_intr, false, "Drive random imsic  interrups to S file");
  DEFINE_bool(disable_vs_imsic_intr, true, "Drive random imsic  interrups to VS file");
@@ -116,7 +116,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
   }
   // ---- Interrupt Enable Flag ----
-  else if (addr == (interrupter_base + 0x6000)) {
+  else if (addr == (interrupter_base + 0x4040)) {
     intr_enable_flag_ = (t_data != 0);
     cvm::log(cvm::HIGH, "[Trickbox] Interrupt enable flag set to {} at addr {:#x}\n", intr_enable_flag_, addr);
   }

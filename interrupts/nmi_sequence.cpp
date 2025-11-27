@@ -72,7 +72,7 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
     co_await assert_tick();
 
     // Check if trickbox enable write is required (for random stimulus)
-    if (FLAGS_require_tbox_write_to_enable_intr) {
+    if (FLAGS_trickbox_write_enables_intr) {
       bool intr_enabled = false;
       auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       if (!cvm::registry::messenger.call<interrupter::intr_enable_read_RPC>(sysmod_loc, intr_enabled)) {

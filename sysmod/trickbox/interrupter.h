@@ -227,7 +227,6 @@ public:
   }
 
   void reset() override {
-    intr_enable_flag_ = false;  // Reset enable flag on reset
     if(FLAGS_random_imsic_intr){
       cvm::log(cvm::MEDIUM, "[Trickbox] Enable random IMSIC MSIs {:#x}\n", FLAGS_random_imsic_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
@@ -257,9 +256,9 @@ protected:
   {
 
     //RANDOM imsic_intr
-    // If require_tbox_write_to_enable_intr is true, check intr_enable_flag_ (for random stimulus)
+    // If trickbox_write_enables_intr is true, check intr_enable_flag_ (for random stimulus)
     // Otherwise, allow random interrupts without the write (for directed tests - backward compatible)
-    bool intr_enable_check = FLAGS_require_tbox_write_to_enable_intr ? intr_enable_flag_ : true;
+    bool intr_enable_check = FLAGS_trickbox_write_enables_intr ? intr_enable_flag_ : true;
     if(FLAGS_random_imsic_intr && intr_enable_check && (intr_count <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
         uint64_t intr_num = 1;

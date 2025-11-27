@@ -28,7 +28,7 @@ DECLARE_int32(num_sp_ways);
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
-DECLARE_bool(require_tbox_write_to_enable_intr);//, false, "Require software write to 0x9006000 before random interrupts start");
+DECLARE_bool(trickbox_write_enables_intr);//, false, "Require software write to 0x9004040 before random interrupts start");
 DECLARE_bool(disable_m_imsic_intr);
 DECLARE_bool(disable_s_imsic_intr);
 DECLARE_bool(disable_vs_imsic_intr);
