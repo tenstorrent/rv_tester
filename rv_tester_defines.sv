@@ -1059,6 +1059,7 @@ package rv_tester_params;
     output logic [8:0]  AcMtipi,                                                   \
     output logic SmcMtipi,                                                         \
     output logic AcChk_pll_interrupts_in,                                          \
+    output logic AcChk_force_ss_to_ref_clock_n,                                    \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
@@ -1170,6 +1171,7 @@ package rv_tester_params;
     logic [8:0]  AcMtipi;                                                                           \
     logic SmcMtipi;                                                                                 \
     logic AcChk_pll_interrupts_in;                                                                  \
+    logic AcChk_force_ss_to_ref_clock_n;                                                            \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

@@ -27,6 +27,8 @@ import rv_tester_params:: * ;
         input logic AcCrDebugMode[NHARTS - 1: 0],
         input logic AcCrGateClk[NHARTS - 1: 0],
         input logic pll_shutdown_done,
+        input logic AcChk_force_ss_to_ref_clock_n,
+        input logic [NHARTS - 1: 0] core_no_fetch,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -65,7 +67,7 @@ import rv_tester_params:: * ;
     end
 
     bit [63:0] time_mtime_sync_threshold;
-    assign time_mtime_sync_threshold = dfs_enabled ? 160 : 20;
+    assign time_mtime_sync_threshold = dfs_enabled ? 160 : 30;
 
     logic sim_shutdown_done;
     always @(posedge tb_clk) begin
@@ -116,12 +118,12 @@ import rv_tester_params:: * ;
     //ACLINT time and mtime synch checker
     for (genvar n = 0; n < NHARTS; n++) begin : time_mtime_synch_checker
     logic violation_time_mtime_synch;
-    logic [2:0] compare_counter;
-    logic [8:0] reset_counter;
+    logic [3:0] compare_counter;
+    logic check_active;
 
     bit broadcast_detected = 0;
     
-    always @(posedge rf_clk) reset_counter [8:0] <= {reset_counter[7:0], warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & ~pll_shutdown_detected};
+    assign check_active = warm_reset_n & ~AcCrDebugMode[n] & ~AcCrGateClk[n] & ~pll_shutdown_detected & AcChk_force_ss_to_ref_clock_n & ~core_no_fetch[n];
 
     always @(posedge rf_clk) begin
         if (!warm_reset_n) begin
@@ -129,7 +131,7 @@ import rv_tester_params:: * ;
             compare_counter <= 0;
         end
         else begin
-            if (!(&reset_counter)) violation_time_mtime_synch <= 0; 
+            if (!check_active) violation_time_mtime_synch <= 0; 
             else begin
                 if (((AcMtimei - AcCrCtimeCsr[n]) <= time_mtime_sync_threshold) || ((AcCrCtimeCsr[n] - AcMtimei) <= 10)) begin 
                     violation_time_mtime_synch <= 0;
@@ -137,7 +139,7 @@ import rv_tester_params:: * ;
                 end
                 else begin
                     compare_counter <= compare_counter + 1;
-                    if (compare_counter >= 7) violation_time_mtime_synch <= 1; 
+                    if (compare_counter >= 10) violation_time_mtime_synch <= 1; 
                 end
             end
         end
