@@ -1225,6 +1225,8 @@ module rv_tester
         .AcCrGateClk(AcCrGateClk),
         .AcCrDebugMode(AcCrDebugMode),
         .pll_shutdown_done(pll_shutdown_done),
+        .AcChk_force_ss_to_ref_clock_n(AcChk_force_ss_to_ref_clock_n),
+        .core_no_fetch(core_no_fetch),
         .rvfi(rvfi),
         .AcMtimei(AcMtimei),
         .AcMtipi(AcMtipi),
