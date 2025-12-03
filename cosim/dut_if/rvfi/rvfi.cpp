@@ -54,6 +54,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtip<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
@@ -278,6 +279,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.seip_set = m_interrupt_pend.seip_set;
   intr.seip_clr = m_interrupt_pend.seip_clr;
   intr.buserr_bit = m_interrupt_pend.buserr_bit;
+  intr.trap_intr = m_interrupt_pend.trap_intr;
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
@@ -311,15 +313,29 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   intr.cycle = m_mtime.cycle;
   intr.mip   = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
+  intr.timeCsr = m_mtime.timeCsr;
+  intr.trap_intr = m_mtime.trap_intr;
   intr.size  = m_mtime.size;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} (mtime={:#x}, size={})\n", intr.cycle, id_, intr.mtime, intr.size);
+    log(cvm::NONE, "#NA {} {} (time={:#x}, mtime={:#x}, size={}, cause={:#x})\n", intr.cycle, id_, intr.timeCsr, intr.mtime, intr.size, m_mtime.cause);
 
   if (!FLAGS_cosim)
     return;
 
   bridge_->process_dut_timer(id_, intr);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mtip<>& m_mtip) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} MTIP[{}] = {}\n", m_mtip.cycle, id_, m_mtip.mtip);
+  
+  if (!FLAGS_cosim)
+    return;
+  bridge_->process_dut_mtip(id_, m_mtip.cycle, m_mtip.mtip, m_mtip.trap_intr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi) {
@@ -355,6 +371,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data;
+  mem.trap_intr = m_imsic_msi.trap_intr;
   mem.size = 4;
 
   if (FLAGS_rvfi_log && (mem.data != 0))

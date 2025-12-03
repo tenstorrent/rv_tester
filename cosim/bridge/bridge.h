@@ -74,6 +74,7 @@ public:
   virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_timer(hart_id_t hart, rv_intr_t& i) override;
+  virtual void process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool trap_intr) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
@@ -179,7 +180,7 @@ private:
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
   void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
@@ -188,10 +189,11 @@ private:
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
-  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
+  void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip, bool trap_intr);
+  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void peek_deferred_interrupts(hart_id_t hart, uint64_t& DeferredInterrupts);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause);
   void clear_nmi(hart_id_t hart, uint64_t time);
@@ -311,7 +313,7 @@ private:
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
-  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP};
+  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -371,7 +373,6 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
-  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
@@ -391,6 +392,7 @@ private:
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
+  std::unordered_map<uint32_t, uint32_t> deferred_intr_age_;
 
   std::unordered_map<uint32_t, uint32_t> whisper_mip_age_, whisper_mip_clr_age_, dut_mip_age_, dut_mip_clr_age_;
   std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
@@ -454,4 +456,14 @@ private:
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
 
+  uint64_t pre_step_iss_intr_dut_not_taken_ = 0;
+  uint64_t pre_step_virt_mode_mismatch_ = 0;
+  uint64_t pre_step_resynch_dut_intr_iss_not_taken_ = 0;
+  uint64_t pre_step_cause_mismatch_ = 0;
+  uint64_t post_step_both_not_taken_cause_mismatch_ = 0;
+  uint64_t resynch_intr_csr_mismatch_ = 0;
+
+  std::bitset<64> intr_during_trap_ = 0;
+  std::bitset<64> intr_cleared_during_trap_ = 0;
+  bool intr_partially_deferred_ = false;
 };

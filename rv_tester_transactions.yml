@@ -37,6 +37,23 @@ cosim:
                 width: 32
             mtime:
                 width: ${TOP.PLATFORM.XLEN}
+            timeCsr:
+                width: ${TOP.PLATFORM.XLEN}
+            trap_intr:
+                width: 1
+            cause:
+                width: 8
+    
+    m_mtip:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + 1}
+        fields:
+            cycle:
+                width: 64
+            mtip:
+                width: 1
+            trap_intr:
+                width: 1
 
     m_csri:
         domain: 1
@@ -485,6 +502,8 @@ cosim:
                 width: 1
             buserr_bit:
                 width: 6
+            trap_intr:
+                width: 1
 
     m_core_nmi:
         domain: 1
@@ -509,6 +528,8 @@ cosim:
                 width: 32
             user:
                 width: 8
+            trap_intr:
+                width: 1
 
     m_debug:
         domain: 1
