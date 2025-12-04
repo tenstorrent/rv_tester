@@ -16,12 +16,21 @@ load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
-def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibility = None, cc_attrs = {}, **kwargs):
-    """Generate rv_tester build targets with CSR collateral available to all modules.
+def rv_tester_gen(
+    name, 
+    topology, 
+    csr_spec = "@rv_tester//csr:csr_spec",
+    pmu_spec = "@rv_tester//pmu:pmu_spec",
+    visibility = None, 
+    cc_attrs = {}, 
+    **kwargs
+):
+    """Generate rv_tester build targets with CSR and PMU collateral available to all modules.
     
-    This function generates CSR collateral files and makes them available as dependencies:
+    This function generates CSR and PMU collateral files and makes them available as dependencies:
     - csr_param_hpp: C++ header file for CSR definitions ({name}_csr_param.hpp)
     - {name}_csr_param_sv: SystemVerilog file for CSR definitions ({name}_csr_param.sv)
+    - PMU parameter files: Generated from pmu_spec
     
     The CSR collateral is automatically included in:
     - SystemVerilog modules: {name}_csr_param_sv is added to verilog_library deps
@@ -32,6 +41,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         name: Base name for generated targets
         topology: Topology target 
         csr_spec: CSR specification file
+        pmu_spec: PMU specification filegroup containing core and SC CSV files
         visibility: Target visibility
         cc_attrs: C++ compilation attributes
         **kwargs: Additional arguments
@@ -93,6 +103,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         packet = name  + "_transactions",
         topology = topology,
         harness = name + "_harness",
+        pmu_spec = pmu_spec,
         cc_attrs = cc_attrs,
     )
 
