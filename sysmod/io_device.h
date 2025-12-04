@@ -42,7 +42,7 @@ public:
     size_t size = w.length;
     uint32_t value;
     deserializeInt(w.data, value);
-    value &= (1 << (size * 8)) - 1;
+    value &= (uint64_t(1) << (size * 8)) - 1;
     this->whisper_device_.write(addr, value);
   }
 

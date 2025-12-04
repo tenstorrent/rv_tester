@@ -119,10 +119,9 @@ module rv_tester
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
-    import "DPI-C" context function void rv_tester_no_dm_build_registry();
+    import "DPI-C" context function void rv_tester_domain0_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
-    import "DPI-C" context function void rv_tester_dm_build_registry();
-    import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
+    import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_pwrmgmt_en_from_plusargs(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
@@ -131,7 +130,7 @@ module rv_tester
     localparam int unsigned MaxInFlightReadReq = topology.TOP.PLATFORM.MAX_IN_FLIGHT_READ_REQ;
     localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
-    localparam bit RespDelayModule = 0;
+    localparam bit RespDelayModule = 1;
 
     logic flush_complete;
 
@@ -477,8 +476,8 @@ module rv_tester
                num_builds <= 0;
             end
             else begin
-               $display("[RVTESTER]: constructing registry without DM Model");
-               rv_tester_no_dm_build_registry();
+               $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
+               rv_tester_domain0_build_registry();
             end
             rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, AxiLLC_NumLines, AxiLLC_NumBlocks, topology.TOP.PLATFORM.AXI.ADDR_WIDTH + 1 /* cache has one more bit */, topology.TOP.PLATFORM.AXI.DATA_WIDTH);
 
@@ -581,7 +580,7 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         automatic logic shutdowned = '0;
-        automatic logic dm_shutdowned = '0;
+        automatic logic domain1_shutdowned = '0;
         `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
         fml_shutdowned = 1'b0;
         `endif
@@ -613,7 +612,7 @@ module rv_tester
             fml_shutdowned = shutdowned;
             `endif
             if(num_resets > target_num_resets)begin
-            dm_shutdowned = rv_tester_dm_shutdown_registry() != '0;
+            domain1_shutdowned = rv_tester_domain1_shutdown_registry() != '0;
             end
             if (!shutdowned) begin
                 if (print_terminate_message) begin
@@ -1173,16 +1172,20 @@ module rv_tester
     cla #(
        .NUM(0),
        `TOPOLOGY_CFG,
-       `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PARAMS(0)
+       `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PARAMS(0),
+       `RV_TESTER_TRANSACTIONS_CLA_SMC_SOURCE_PARAMS(0)
     ) cla (
         .tb_clk(clk[TB_CLK_IDX]),
         .tb_reset(sys_reset[TB_CLK_IDX]),
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(dut_reset[AXI_CLK_IDX]),
+        .sc_clk(dut_clk[SOC_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
+        .cpl_xtriggers(cpl_xtriggers),
         .terminate_from_rv_tester(terminate),
         .terminate_cla_seq(terminate_cla_seq),
-        `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PORTS(2,0,0)
+        `RV_TESTER_TRANSACTIONS_CLA_SOURCE_PORTS(2,0,0),
+        `RV_TESTER_TRANSACTIONS_CLA_SMC_SOURCE_PORTS(3,0,0)
     );
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
@@ -1210,7 +1213,7 @@ module rv_tester
         .reset(sys_reset[TB_CLK_IDX]),
         .cold_resetn(~cold_reset),
         .warm_reset_n(AcWarmReset),
-        .warm_reset_req(warm_reset_req),
+        .warm_reset_now(warm_reset_now),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminated(terminated),
         .terminate_now(terminate_now),
@@ -1222,6 +1225,8 @@ module rv_tester
         .AcCrGateClk(AcCrGateClk),
         .AcCrDebugMode(AcCrDebugMode),
         .pll_shutdown_done(pll_shutdown_done),
+        .AcChk_force_ss_to_ref_clock_n(AcChk_force_ss_to_ref_clock_n),
+        .core_no_fetch(core_no_fetch),
         .rvfi(rvfi),
         .AcMtimei(AcMtimei),
         .AcMtipi(AcMtipi),
@@ -1547,6 +1552,73 @@ module rv_tester
             .axi_slv_ar_ready(smc_axi_rsp_mst[p].ar_ready),
             .axi_slv_w_ready (smc_axi_rsp_mst[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(3, p, 1)
+        );
+    end
+
+    // IOMMU DMA Device Translation Request
+    for (genvar p = 0; p < topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL; p++) begin : iommu_axi_tr_req_sw_msts
+        localparam string tag = $sformatf("iommu_tr_req_mst%0d", p);
+        axi_sw_mst #(
+            .ADDR_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH),
+            .STRB_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.USER_WIDTH),
+            .AR_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AR_Q_MAX),
+            .AW_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AW_Q_MAX),
+            .W_Q_MAX(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.W_Q_MAX),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID, p)),
+            .tag(tag),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
+        ) iommu_axi_tr_req_sw_mst (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
+            .axi_mst_ar_valid(iommu_axi_tr_req_req_mst[p].ar_valid),
+            .axi_mst_ar_id   (iommu_axi_tr_req_req_mst[p].ar.id),
+            .axi_mst_ar_addr (iommu_axi_tr_req_req_mst[p].ar.addr),
+            .axi_mst_ar_len  (iommu_axi_tr_req_req_mst[p].ar.len),
+            .axi_mst_ar_size (iommu_axi_tr_req_req_mst[p].ar.size),
+            .axi_mst_ar_lock (iommu_axi_tr_req_req_mst[p].ar.lock),
+            .axi_mst_ar_burst(iommu_axi_tr_req_req_mst[p].ar.burst),
+            .axi_mst_ar_cache (iommu_axi_tr_req_req_mst[p].ar.cache),
+            .axi_mst_ar_prot  (iommu_axi_tr_req_req_mst[p].ar.prot),
+            .axi_mst_ar_qos   (iommu_axi_tr_req_req_mst[p].ar.qos),
+            .axi_mst_ar_region(iommu_axi_tr_req_req_mst[p].ar.region),
+            .axi_mst_ar_user  (iommu_axi_tr_req_req_mst[p].ar.user),
+
+            .axi_mst_aw_valid(iommu_axi_tr_req_req_mst[p].aw_valid),
+            .axi_mst_aw_id   (iommu_axi_tr_req_req_mst[p].aw.id),
+            .axi_mst_aw_addr (iommu_axi_tr_req_req_mst[p].aw.addr),
+            .axi_mst_aw_len  (iommu_axi_tr_req_req_mst[p].aw.len),
+            .axi_mst_aw_size (iommu_axi_tr_req_req_mst[p].aw.size),
+            .axi_mst_aw_burst(iommu_axi_tr_req_req_mst[p].aw.burst),
+            .axi_mst_aw_lock (iommu_axi_tr_req_req_mst[p].aw.lock),
+            .axi_mst_aw_atop (iommu_axi_tr_req_req_mst[p].aw.atop),
+            .axi_mst_aw_user (iommu_axi_tr_req_req_mst[p].aw.user),
+
+            .axi_mst_w_valid(iommu_axi_tr_req_req_mst[p].w_valid),
+            .axi_mst_w_data (iommu_axi_tr_req_req_mst[p].w.data),
+            .axi_mst_w_strb (iommu_axi_tr_req_req_mst[p].w.strb),
+            .axi_mst_w_last (iommu_axi_tr_req_req_mst[p].w.last),
+
+            .axi_mst_b_ready(iommu_axi_tr_req_req_mst[p].b_ready),
+            .axi_mst_r_ready(iommu_axi_tr_req_req_mst[p].r_ready),
+
+            .axi_slv_b_valid(iommu_axi_tr_req_rsp_mst[p].b_valid),
+            .axi_slv_b_id   (iommu_axi_tr_req_rsp_mst[p].b.id),
+            .axi_slv_b_resp (iommu_axi_tr_req_rsp_mst[p].b.resp),
+
+            .axi_slv_r_valid(iommu_axi_tr_req_rsp_mst[p].r_valid),
+            .axi_slv_r_id   (iommu_axi_tr_req_rsp_mst[p].r.id),
+            .axi_slv_r_data (iommu_axi_tr_req_rsp_mst[p].r.data),
+            .axi_slv_r_resp (iommu_axi_tr_req_rsp_mst[p].r.resp),
+            .axi_slv_r_last (iommu_axi_tr_req_rsp_mst[p].r.last),
+
+            .axi_slv_aw_ready(iommu_axi_tr_req_rsp_mst[p].aw_ready),
+            .axi_slv_ar_ready(iommu_axi_tr_req_rsp_mst[p].ar_ready),
+            .axi_slv_w_ready (iommu_axi_tr_req_rsp_mst[p].w_ready),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 2)
         );
     end
 

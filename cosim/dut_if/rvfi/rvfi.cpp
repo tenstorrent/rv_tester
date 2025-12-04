@@ -273,7 +273,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
       vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
-    if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order);
+    if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order, vec_cmode_first_tag_);
   }
 }
 
@@ -636,6 +636,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
   instr.mem_read.error = m_rvfi.mem_error || mem_error_ || vec_cmode_mem_error;
   instr.mem_read.attr = m_rvfi.mem_attr;
+  instr.mem_read.page4kX = m_rvfi.mem_page4kX;
+  instr.mem_read.page4kX_attr = m_rvfi.mem_page4kX_attr;
 
   // RVDE-24355: Track memory errors during conservative mode (for any UOP, not just vector-looking ones)
   if ((m_rvfi.mem_error || mem_error_) && vec_cmode_) {
@@ -650,6 +652,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
+  instr.mem_write.page4kX = m_rvfi.mem_page4kX;
+  instr.mem_write.page4kX_attr = m_rvfi.mem_page4kX_attr;
   instr.mem_write.error = m_rvfi.mem_error || mem_error_ || vec_cmode_mem_error;
 }
 

@@ -29,7 +29,7 @@ static unsigned field_width(unsigned n)
 bool ndm_reset_assert, hartsel_stable;
 uint32_t hart_haltreq_hg, hart_abscmd, hartsel;
 
-REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
+REGISTRY_register_with_reset(debug_module_t, TOP.PLATFORM.DM_MODEL, 0, 1);
 DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
 
 debug_module_t::debug_module_t(cvm::topology::loc_t dm_loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 + 4 : 0) + (4 * config.progbufsize)),

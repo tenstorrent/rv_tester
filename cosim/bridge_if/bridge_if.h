@@ -151,6 +151,8 @@ typedef struct mem_s {
   uint8_t amo_op;
   bool v_ext;
   uint32_t attr;
+  bool page4kX;
+  uint32_t page4kX_attr;
   bool error;
   uint8_t field;
   uint8_t elem_idx;

@@ -26,6 +26,10 @@ trace_stop_on_wrap_sequence::trace_stop_on_wrap_sequence
 
   // Topology
   axi_mst_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  
+  // Channels - create dedicated channels for read/write responses to avoid cross-consumption
+  r_channel_ = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
+  b_channel_ = cvm::registry::messenger.channel<axi::b_t>(axi_mst_loc_);
 
   // Scope
   cvm::registry::messenger.connect<svScope>(
@@ -491,14 +495,29 @@ cvm::messenger::task<uint64_t> trace_stop_on_wrap_sequence::read(uint64_t addr, 
   uint64_t rdata = 0;
   uint8_t offset = static_cast<uint8_t>(addr & 0x3f);
   
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::r_t>(r_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t ar_txn;
+  ar_txn.w    = false;
+  ar_txn.addr = addr;
+  ar_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
+    cvm::log(cvm::ERROR, "[trace] read req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return 0;
+  }
+  
   cvm::log(cvm::MEDIUM, "[trace] read req - addr={:#x}, sz={}\n", addr, sz);
-  cvm::registry::messenger.signal(axi_mst_loc_, transactor::read_request_t{addr, sz});
 
   if (!block)
     co_return rdata;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(axi_mst_loc_);
-  rdata = convert_to_dword_array(resp.data,offset,sz);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel_, [&id](const auto& r) { return r.id == id; });
+  rdata = convert_to_dword_array(resp.data, offset, sz);
   
   cvm::log(cvm::MEDIUM, "[trace] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, rdata);
 
@@ -522,14 +541,32 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::write(uint64_t addr, siz
           strb[offset + i] = 1;
       }
   }
+  
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::b_t>(b_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.addr = aligned_addr;
+  aw_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
+    cvm::log(cvm::ERROR, "[trace] write req - addr={:#x}, sz={} failed to allocate axi ID\n", aligned_addr, sz);
+    co_return;
+  }
+  
+  // Send write data
+  cvm::registry::messenger.call<overlay_mst_t::push_w_rpc>(axi_mst_loc_, axi::w_t{byte_array, strb, 1});
 
   cvm::log(cvm::MEDIUM, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
-  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, sz, byte_array, strb});
 
   if (!block)
     co_return;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::b_t>(b_channel_, [&id](const auto& b) { return b.id == id; });
   cvm::log(cvm::MEDIUM, "[trace] write resp - id={}, addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", resp.id, aligned_addr, sz, data, mask);
 
   co_return;
