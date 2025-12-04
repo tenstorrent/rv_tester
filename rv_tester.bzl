@@ -12,7 +12,6 @@ load("@rv_tester//snoop_gen:snoop_gen.bzl", "snoop_gen_gen")
 load("@rv_tester//trace:trace.bzl", "trace_gen")
 load("@rv_tester//cla:cla.bzl", "cla_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
-load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
@@ -168,14 +167,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         cc_attrs = cc_attrs,
     )
 
-    aclint_checker_gen(
-        name = name + "_aclint_checker",
-        packet = name  + "_transactions",
-        topology = topology,
-        harness = name + "_harness",
-        cc_attrs = cc_attrs,
-    )
-
     axi_sw_gen(
         name = name + "_axi_sw",
         packet = name + "_transactions",
@@ -199,7 +190,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             name + "_sysmod_sv",
             name + "_pmu_sv",
             name + "_dm_model_sv",
-            name + "_aclint_checker_sv",
             name + "_interrupts_sv",
             name + "_jtag_driver_sv",
             name + "_overlay_driver_sv",
@@ -236,7 +226,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
-            name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
             name + "_jtag_driver_dpi",
             name + "_overlay_driver_dpi",
