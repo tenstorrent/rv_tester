@@ -6,9 +6,17 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
+static bool validate_interrupt_trigger_rand_delay_min(const char* flagname, const int value) {
+  if (value <= 0) {
+      cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
+      return false;
+  }
+  return true;
+}
 DEFINE_bool(interrupt_trigger_enable, false, "Enable event based external_interrupt_sequence in the sim");
 DEFINE_int32(interrupt_trigger_count, 1, "Number of MSI in the sim if random mode enabled");
-DEFINE_int32(interrupt_trigger_rand_delay_min, 0, "min TB cycle interval between MSI random mode enabled");
+DEFINE_int32(interrupt_trigger_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
+DEFINE_validator(interrupt_trigger_rand_delay_min, &validate_interrupt_trigger_rand_delay_min);
 DEFINE_int32(interrupt_trigger_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
 DEFINE_int32(interrupt_trigger_initial_delay, 0, "Initial delay after which interrupt trigger starts");
 DEFINE_int32(interrupt_trigger_uarch_event_mask, 0, "Bitmask to enable specific uarch event triggers");

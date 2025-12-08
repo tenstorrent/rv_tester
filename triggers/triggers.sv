@@ -19,6 +19,7 @@ import rv_tester_params::*;
 
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
   logic [NHARTS-1:0] event_trigger_vlds;
+  logic [NHARTS-1:0] event_trigger_vlds_latched;
   
   genvar i;
   generate
@@ -63,38 +64,41 @@ import rv_tester_params::*;
   bit trigger_interrupt = 0;
   bit trigger_interrupt_delayed = 0;
   int unsigned clocks = 0;
-  int unsigned interrupt_count = 0;
+  int unsigned cur_interrupt_count = 0;
   int unsigned next_interrupt_clock = 0;
-
-  always @(posedge hart_specific_event_trigger[INTERRUPT]) begin
-      /* verilator lint_off BLKSEQ */
-    if (reset) begin
-      interrupt_count = 0;
-    end
-    else begin 
-      interrupt_count = interrupt_trigger_count;
-      next_interrupt_clock = clocks + interrupt_trigger_initial_delay;
-    end
-      /* verilator lint_on BLKSEQ */
-  end
+  bit interrupt_sequence_active = 0;
 
   always @(posedge clk) begin
     clocks <= clocks + 1;
     trigger_interrupt_delayed <= trigger_interrupt;
-    
+    if (hart_specific_event_trigger[INTERRUPT]) begin
+      /* verilator lint_off BLKSEQ */
+      cur_interrupt_count = interrupt_trigger_count;
+      next_interrupt_clock = clocks + interrupt_trigger_initial_delay;
+      // Latch event_trigger_vlds when initial trigger occurs
+      event_trigger_vlds_latched <= event_trigger_vlds;
+      interrupt_sequence_active = (cur_interrupt_count > 0);
+      /* verilator lint_on BLKSEQ */
+    end
     if (reset) begin
       /* verilator lint_off BLKSEQ */
-      trigger_interrupt = 1'b0;
-      interrupt_count = 0;
+      trigger_interrupt <= 1'b0;
+      event_trigger_vlds_latched <= '0;
+      interrupt_sequence_active <= 1'b0;
       /* verilator lint_on BLKSEQ */
     end
     else begin
       /* verilator lint_off BLKSEQ */
       trigger_interrupt = 1'b0;
-      if ((interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
+      if ((cur_interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
         trigger_interrupt = 1'b1;
-        interrupt_count = interrupt_count - 1;
-        next_interrupt_clock = clocks + get_random_in_range(interrupt_trigger_rand_delay_min, interrupt_trigger_rand_delay_max);
+        cur_interrupt_count <= cur_interrupt_count - 1;
+        next_interrupt_clock <= clocks + get_random_in_range(interrupt_trigger_rand_delay_min, interrupt_trigger_rand_delay_max);
+      end
+      // Clear latched value and flag when all interrupts are sent
+      if (cur_interrupt_count == 0) begin
+        event_trigger_vlds_latched <= '0;
+        interrupt_sequence_active <= 1'b0;
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -103,7 +107,9 @@ import rv_tester_params::*;
   // m_event_trigger_ticks
   assign m_event_trigger_ticks[0].valid = trigger_interrupt & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
-  assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, event_trigger_vlds};
+  // Use latched value when interrupt sequence is active, otherwise use current value
+  assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, 
+                                                                interrupt_sequence_active ? event_trigger_vlds_latched : event_trigger_vlds};
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = hart_specific_event_trigger;
   /* verilator lint_on WIDTHEXPAND */
