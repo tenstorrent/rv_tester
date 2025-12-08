@@ -136,9 +136,6 @@ module rv_tester
 
     xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;
     bit perf = 0;
-    /* verilator lint_off MULTIDRIVEN */
-    logic sys_reset [NCLKS-1:0];
-    /* verilator lint_on MULTIDRIVEN */
     logic sys_reset_any;
     logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
     logic dut_reset_req_d1;
@@ -171,7 +168,6 @@ module rv_tester
 
     logic warm_reset_en = 0;
     logic warm_reset_req_d1;
-    logic warm_reset_now = 0;
     logic dmi_warm_reset;
 
     int num_resets = -1;
@@ -1201,36 +1197,6 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
         );
     end
-
-    aclint_checker #(
-        .NUM(0),
-        `TOPOLOGY_CFG,
-        `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PARAMS(0)
-    ) i_aclint_checker(
-        .tb_clk(dut_clk[TB_CLK_IDX]),
-        .cl_clk(dut_clk[CORE_CLK_IDX]),
-        .rf_clk(dut_clk[REF_CLK_IDX]),
-        .reset(sys_reset[TB_CLK_IDX]),
-        .cold_resetn(~cold_reset),
-        .warm_reset_n(AcWarmReset),
-        .warm_reset_now(warm_reset_now),
-        .dut_reset(dut_reset[REF_CLK_IDX]),
-        .terminated(terminated),
-        .terminate_now(terminate_now),
-        .AcChk_pll_interrupts_in(AcChk_pll_interrupts_in),
-        .AcCrSynci(AcCrSynci),
-        .AcReqPkti(AcReqPkti),
-        .AcReqPktRfClki(AcReqPktRfClki),
-        .AcCrCtimeCsr(AcCrCtimeCsr),
-        .AcCrGateClk(AcCrGateClk),
-        .AcCrDebugMode(AcCrDebugMode),
-        .pll_shutdown_done(pll_shutdown_done),
-        .rvfi(rvfi),
-        .AcMtimei(AcMtimei),
-        .AcMtipi(AcMtipi),
-        .SmcMtipi(SmcMtipi),
-        `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PORTS(1,0,0)
-    );
 
     always_comb begin
         cosim_terminate_any = '0;

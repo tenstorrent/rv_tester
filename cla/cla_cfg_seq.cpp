@@ -254,9 +254,8 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x60));
   }
   else {    // CPL-CLA Configuration
-    expect_cpl_xtrigger = 1;
     co_await smc_axi_write(cpl_cla_ctrl_status, (eap_ctrl | 0x40));
-    wdata = 0; wdata = (wait_on_count << 16);
+    wdata = 0; wdata = (10 << 16);                  // Reducing on count to 10 as it runs on SC_CLK
     co_await smc_axi_write(cpl_cla_counter0, wdata); // CNT0 - On count
     wdata = 0; wdata = (event_count << 16);
     co_await smc_axi_write(cpl_cla_counter1, wdata); // CNT1 - event count
@@ -269,6 +268,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
     co_await smc_axi_write(cpl_node1_eap0_cfg, 0x131A56);  // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
     co_await smc_axi_write(cpl_node2_eap0_cfg, 0x161900);  // TRAGET MATCH-2. CLRCNT2, DEST-0
     co_await smc_axi_write(cpl_cla_ctrl_status, (eap_ctrl | 0x60));
+    expect_cpl_xtrigger = 1;
   }
   co_return;
 }

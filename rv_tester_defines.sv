@@ -1048,17 +1048,9 @@ package rv_tester_params;
     output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
     input  rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
     output rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
-    output rv_tester_params::ac_cr_sync AcCrSynci  [rv_tester_params::NHARTS-1:0], \
-    output logic [63:0] AcCrCtimeCsr  [rv_tester_params::NHARTS-1:0],              \
-    output logic AcCrDebugMode[rv_tester_params::NHARTS-1:0],                      \
-    output logic AcCrGateClk[rv_tester_params::NHARTS-1:0],                        \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPkti,                              \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki,                         \
-    output logic [63:0] AcMtimei,                                                  \
-    output logic AcWarmReset,                                                      \
-    output logic [8:0]  AcMtipi,                                                   \
-    output logic SmcMtipi,                                                         \
-    output logic AcChk_pll_interrupts_in,                                          \
+    input  logic warm_reset_now,                                                   \
+    input  logic sys_reset [rv_tester_params::NCLKS-1:0],                          \
+    output logic AcChk_force_ss_to_ref_clock_n,                                    \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
@@ -1159,17 +1151,9 @@ package rv_tester_params;
     rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
     rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
-    rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0];                          \
-    logic [63:0] AcCrCtimeCsr  [rv_tester_params::NHARTS-1:0];                                      \
-    logic AcCrDebugMode[rv_tester_params::NHARTS-1:0];                                              \
-    logic AcCrGateClk[rv_tester_params::NHARTS-1:0];                                                \
-    rv_tester_params::cr_ac_axi_pkt AcReqPkti;                                                      \
-    rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki;                                                 \
-    logic [63:0] AcMtimei;                                                                          \
-    logic AcWarmReset;                                                                              \
-    logic [8:0]  AcMtipi;                                                                           \
-    logic SmcMtipi;                                                                                 \
-    logic AcChk_pll_interrupts_in;                                                                  \
+    logic warm_reset_now; /* FIXME manees: remove during pwrmgmt refactor (usage:aclint_checker)*/  \
+    logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
+    logic AcChk_force_ss_to_ref_clock_n;                                                            \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
