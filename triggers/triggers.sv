@@ -68,27 +68,24 @@ import rv_tester_params::*;
   int unsigned next_interrupt_clock = 0;
   bit interrupt_sequence_active = 0;
 
+  /* verilator lint_off BLKANDNBLK */
+  /* verilator lint_off BLKSEQ */
   always @(posedge clk) begin
     clocks <= clocks + 1;
     trigger_interrupt_delayed <= trigger_interrupt;
     if (hart_specific_event_trigger[INTERRUPT]) begin
-      /* verilator lint_off BLKSEQ */
       cur_interrupt_count = interrupt_trigger_count;
       next_interrupt_clock = clocks + interrupt_trigger_initial_delay;
       // Latch event_trigger_vlds when initial trigger occurs
       event_trigger_vlds_latched <= event_trigger_vlds;
       interrupt_sequence_active = (cur_interrupt_count > 0);
-      /* verilator lint_on BLKSEQ */
     end
     if (reset) begin
-      /* verilator lint_off BLKSEQ */
       trigger_interrupt <= 1'b0;
       event_trigger_vlds_latched <= '0;
       interrupt_sequence_active <= 1'b0;
-      /* verilator lint_on BLKSEQ */
     end
     else begin
-      /* verilator lint_off BLKSEQ */
       trigger_interrupt = 1'b0;
       if ((cur_interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
         trigger_interrupt = 1'b1;
@@ -100,9 +97,10 @@ import rv_tester_params::*;
         event_trigger_vlds_latched <= '0;
         interrupt_sequence_active <= 1'b0;
       end
-      /* verilator lint_on BLKSEQ */
     end
   end
+  /* verilator lint_on BLKSEQ */
+  /* verilator lint_on BLKANDNBLK */
 
   // m_event_trigger_ticks
   assign m_event_trigger_ticks[0].valid = trigger_interrupt & (location != cvm_topology::nil);

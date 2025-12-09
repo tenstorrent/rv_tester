@@ -70,7 +70,6 @@ void external_interrupt_sequence::interrupt_trigger_thread() {
 
 cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
   while(1){
-    // TODO/FIXME use normal trigger instead of delayed trigger
     co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
     cvm::log(cvm::LOW,"[ExtInterruptSeq] drive_msi_in_curr_hart = {}\n", drive_msi_in_curr_hart);
     if(drive_msi_in_curr_hart){
@@ -95,7 +94,7 @@ void external_interrupt_sequence::drive_interrupt(){
   bool is_vgein_intr = false;
 	unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
   if(disable_flags == 0x7)
-	  cvm::log(cvm::ERROR, "Error: [ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled \n");
+	  cvm::log(cvm::`, "Error: [ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled \n");
 
 	do{
     intr_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
