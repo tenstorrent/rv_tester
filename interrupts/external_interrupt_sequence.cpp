@@ -20,6 +20,7 @@ DEFINE_validator(interrupt_trigger_rand_delay_min, &validate_interrupt_trigger_r
 DEFINE_int32(interrupt_trigger_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
 DEFINE_int32(interrupt_trigger_initial_delay, 0, "Initial delay after which interrupt trigger starts");
 DEFINE_int32(interrupt_trigger_uarch_event_mask, 0, "Bitmask to enable specific uarch event triggers");
+DEFINE_string(interrupt_trigger_uarch_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
 DEFINE_string(interrupt_trigger_label, "", "Label to trigger interrupt");
 DEFINE_string(interrupt_trigger_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
 
