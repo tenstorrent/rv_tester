@@ -43,18 +43,18 @@ import rv_tester_params::*;
   // -------------------------
   logic reset_d1;
   int unsigned tb_clocks = 0;
-  int unsigned interrupt_trigger_count;
-  int unsigned interrupt_trigger_initial_delay;
-  int unsigned interrupt_trigger_rand_delay_min;
-  int unsigned interrupt_trigger_rand_delay_max;
+  int unsigned interrupt_injection_count;
+  int unsigned interrupt_injection_initial_delay;
+  int unsigned interrupt_injection_rand_delay_min;
+  int unsigned interrupt_injection_rand_delay_max;
   always @(posedge tb_clk) begin
     tb_clocks <= tb_clocks + 1;
     reset_d1 <= reset;
     if (~reset & reset_d1) begin
-      interrupt_trigger_count <= cvm_plusargs::get_int("interrupt_trigger_count");
-      interrupt_trigger_initial_delay <= cvm_plusargs::get_int("interrupt_trigger_initial_delay");
-      interrupt_trigger_rand_delay_min <= cvm_plusargs::get_int("interrupt_trigger_rand_delay_min");
-      interrupt_trigger_rand_delay_max <= cvm_plusargs::get_int("interrupt_trigger_rand_delay_max");
+      interrupt_injection_count <= cvm_plusargs::get_int("interrupt_injection_count");
+      interrupt_injection_initial_delay <= cvm_plusargs::get_int("interrupt_injection_initial_delay");
+      interrupt_injection_rand_delay_min <= cvm_plusargs::get_int("interrupt_injection_rand_delay_min");
+      interrupt_injection_rand_delay_max <= cvm_plusargs::get_int("interrupt_injection_rand_delay_max");
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);
       end
@@ -74,8 +74,8 @@ import rv_tester_params::*;
     clocks <= clocks + 1;
     trigger_interrupt_delayed <= trigger_interrupt;
     if (hart_specific_event_trigger[INTERRUPT]) begin
-      cur_interrupt_count = interrupt_trigger_count;
-      next_interrupt_clock = clocks + interrupt_trigger_initial_delay;
+      cur_interrupt_count = interrupt_injection_count;
+      next_interrupt_clock = clocks + interrupt_injection_initial_delay;
       // Latch event_trigger_vlds when initial trigger occurs
       event_trigger_vlds_latched <= event_trigger_vlds;
       interrupt_sequence_active = (cur_interrupt_count > 0);
@@ -90,7 +90,7 @@ import rv_tester_params::*;
       if ((cur_interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
         trigger_interrupt = 1'b1;
         cur_interrupt_count <= cur_interrupt_count - 1;
-        next_interrupt_clock <= clocks + get_random_in_range(interrupt_trigger_rand_delay_min, interrupt_trigger_rand_delay_max);
+        next_interrupt_clock <= clocks + get_random_in_range(interrupt_injection_rand_delay_min, interrupt_injection_rand_delay_max);
       end
       // Clear latched value and flag when all interrupts are sent
       if (cur_interrupt_count == 0) begin

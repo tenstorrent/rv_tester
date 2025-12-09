@@ -22,7 +22,7 @@ class external_interrupt_sequence {
 
   private:
 
-    void interrupt_trigger_thread();
+    void interrupt_injection_thread();
 
     cvm::messenger::task<void> interrupt_trigger();
 
