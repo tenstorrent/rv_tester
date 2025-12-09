@@ -9,6 +9,7 @@ DEFINE_bool(nmi_rand_en, false, "Enable nmi_sequence tick");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset and first nmi sequence in the sim if random mode enabled");
 DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
+DEFINE_string(nmi_width, "1:1", "TB cycle width of nmi pulses in the sim if random mode enabled");
 
 extern "C" {
   void drive_nmi(uint8_t val);
