@@ -6,23 +6,23 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-static bool validate_interrupt_trigger_rand_delay_min(const char* flagname, const int value) {
+static bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
   if (value <= 0) {
       cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
       return false;
   }
   return true;
 }
-DEFINE_bool(interrupt_trigger_enable, false, "Enable event based external_interrupt_sequence in the sim");
-DEFINE_int32(interrupt_trigger_count, 1, "Number of MSI in the sim if random mode enabled");
-DEFINE_int32(interrupt_trigger_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
-DEFINE_validator(interrupt_trigger_rand_delay_min, &validate_interrupt_trigger_rand_delay_min);
-DEFINE_int32(interrupt_trigger_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
-DEFINE_int32(interrupt_trigger_initial_delay, 0, "Initial delay after which interrupt trigger starts");
-DEFINE_int32(interrupt_trigger_uarch_event_mask, 0, "Bitmask to enable specific uarch event triggers");
-DEFINE_string(interrupt_trigger_uarch_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
-DEFINE_string(interrupt_trigger_label, "", "Label to trigger interrupt");
-DEFINE_string(interrupt_trigger_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
+DEFINE_bool(interrupt_injection_enable, false, "Enable event based external_interrupt_sequence in the sim");
+DEFINE_int32(interrupt_injection_count, 1, "Number of MSI in the sim if random mode enabled");
+DEFINE_int32(interrupt_injection_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
+DEFINE_validator(interrupt_injection_rand_delay_min, &validate_interrupt_injection_rand_delay_min);
+DEFINE_int32(interrupt_injection_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
+DEFINE_int32(interrupt_injection_initial_delay, 0, "Initial delay after which interrupt trigger starts");
+DEFINE_int32(interrupt_injection_event_mask, 0, "Bitmask to enable specific uarch event triggers");
+DEFINE_string(interrupt_injection_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
+DEFINE_string(interrupt_injection_label, "", "Label to trigger interrupt");
+DEFINE_string(interrupt_injection_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
 
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
@@ -38,8 +38,8 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
 
   cvm::log(cvm::MEDIUM, "external_interrupt_sequence constructor\n");
   // trigger sequence threads`
-  if (FLAGS_interrupt_trigger_enable) {
-    interrupt_trigger_thread();
+  if (FLAGS_interrupt_injection_enable) {
+    interrupt_injection_thread();
   }
 }
 
@@ -60,7 +60,7 @@ void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int
            id_, per_core_trigger_vlds, (1 << id_), drive_msi_in_curr_hart);
 }
 
-void external_interrupt_sequence::interrupt_trigger_thread() {
+void external_interrupt_sequence::interrupt_injection_thread() {
   auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
     co_await m->interrupt_trigger();
     co_return;
