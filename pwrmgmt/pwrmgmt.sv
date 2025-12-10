@@ -23,16 +23,19 @@ import rv_tester_params::*;
   output logic [NHOLDS-1:0] reset_hold,
   output logic force_ref_clk,
   input logic core_no_fetch,
+  input logic warm_reset_release_hang,
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PORTS
 );
 
   import "DPI-C" context function void pwrmgmt_set_scope(int unsigned location);
   import "DPI-C" function void pwrmgmt_set_reset_count(int unsigned location, int count);
+  import "DPI-C" function void thub_send_elf_terminate();
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
   bit tj_max_shutdown_seq_en;
   int unsigned warm_reset_interval = 0;
   int unsigned warm_reset_clocks = 0;
+  logic terminate_d1;
 
   always @(posedge clk[TB_CLK_IDX]) begin
     if (sys_reset[TB_CLK_IDX]) begin
@@ -67,6 +70,12 @@ import rv_tester_params::*;
   logic pll_shutdown_done_d1;
   bit tj_seq_ack;
 
+  logic warm_reset_release_hang_d1, warm_reset_release_hang_pulse;
+  assign warm_reset_release_hang_pulse = warm_reset_release_hang & ~warm_reset_release_hang_d1;
+  always @(posedge clk[SOC_CLK_IDX]) begin
+    warm_reset_release_hang_d1 <= warm_reset_release_hang;
+  end
+
   always @(posedge clk[TB_CLK_IDX]) begin
     if (warm_reset_tick) begin
       warm_reset_clocks <= 0;
@@ -82,10 +91,14 @@ import rv_tester_params::*;
     warm_reset_tick <= 0;
     pll_dfs_done_d1 <= pll_dfs_done;
     pll_shutdown_done_d1 <= pll_shutdown_done;
-    if (!terminate & warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
+    if (!terminate & ((warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval)) || (warm_reset_release_hang_pulse & ~warm_reset)) & ~core_no_fetch) begin
       $display("[%0d] [pwrmgmt] Warm reset now", warm_reset_clocks);
       warm_reset_tick <= 1;
     end
+    if(terminate && ~terminate_d1) begin
+      thub_send_elf_terminate();
+    end
+    terminate_d1 <= terminate;
   end
 
   assign warm_reset_req = warm_reset_tick;

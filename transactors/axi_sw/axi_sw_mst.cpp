@@ -20,6 +20,12 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
+REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<2>,
+                              rv_tester_transactions::axi_sw_mst::r<2>,
+                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
+                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
+                              rv_tester_transactions::axi_sw_mst::w_q_ptr<2>>), IOMMU_AXI_TR_REQ_MST, cvm::registry::all);
+
 DEFINE_bool(axi_allow_slverr_resp, false, "Allow Slave error responses on axi_mst transactions");
 DEFINE_bool(axi_allow_decerr_resp, false, "Allow Decode error responses on axi_mst transactions");
 DEFINE_bool(axi_rand_id_alloc, true, "Allow random ID allocation for axi_mst transactions");

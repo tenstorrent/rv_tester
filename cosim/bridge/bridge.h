@@ -49,7 +49,7 @@ public:
   //   - AMO
   //   - Table Walks
   //   - Exceptions/interrupt
-  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order);
+  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, uint64_t vec_cmode_first_tag);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
@@ -63,7 +63,7 @@ public:
   //   - Read (Ld completion)
   //   - Insert (St merge buffer insertion)
   //   - Write (St cache write)
-  virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
@@ -123,7 +123,7 @@ private:
       void error(Args&&... args) {
           std::string prefix = "Error: ";
           if (patch_mode_) { prefix += "PATCH ";}
-          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          std::string out ="\n" + prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
   bool flags_bridge_log_;
@@ -136,7 +136,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -150,7 +150,7 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
-  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
+  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data, uint32_t offset = 0);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
   uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
@@ -248,6 +248,7 @@ private:
     {0x302, "medeleg"},
     {0x303, "mideleg"},
     {0x344, "mip"},
+    {0x309, "mvip"},
     {0x304, "mie"},
     {0x244, "sip"},
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
@@ -257,6 +258,18 @@ private:
     {0x10C, "sstateen0"}
   };
 
+    // Bit masks for fields that are masked by misa.H in each CSR
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
+    {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
+    {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
+    {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
+    {0x244, 0x0000000000001444}, // sip: same as mip (alias)
+    {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
+    {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
+  };
+  
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
@@ -298,7 +311,7 @@ private:
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
-
+  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -313,6 +326,7 @@ private:
   uint64_t order_ = 0;
   uint64_t prev_dut_trap_cause_ = 0;
   uint64_t prev_dut_trap_order_ = 0;
+  uint64_t prev_vec_cmode_first_tag_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
@@ -367,6 +381,7 @@ private:
   std::unordered_map<uint64_t, uint64_t> nmis_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
+  uint64_t mvip_;
   std::bitset<64> mip_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
@@ -434,6 +449,9 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+  std::pair<uint64_t /*pa*/, uint64_t/*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
+  bool custom_vlzero_excp_ = false;
+
 };

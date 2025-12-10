@@ -11,6 +11,7 @@ cc_library(
       "uc_helper.h",
       "io_coh_helper.h",
       "ras_helper.h",
+      "post_si_pcietc_helper.h",
       "trickbox.h",
     ],
     deps = [
@@ -19,6 +20,7 @@ cc_library(
              "//cosim/whisper_if:whisper_if",
              "@rv_tester//sysmod:sysmod_plusargs",
              "@rv_tester//cosim/bridge:bridge_plusargs",
+             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
              "@rv_tester//common:transactor",
              "@rv_tester//:structs",
              "@rv_tester//:plusargs",
@@ -43,6 +45,8 @@ cc_library(
       "uc_helper.cpp",
       "io_coh_helper.cpp",
       "ras_helper.cpp",
+      "dma.cpp",
+      "post_si_pcietc_helper.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -55,6 +59,8 @@ cc_library(
       "uc_helper.h",
       "io_coh_helper.h",
       "ras_helper.h",
+      "dma.h",
+      "post_si_pcietc_helper.h",
       "trickbox.h"
     ],
     deps = [

@@ -29,7 +29,7 @@ static unsigned field_width(unsigned n)
 bool ndm_reset_assert, hartsel_stable;
 uint32_t hart_haltreq_hg, hart_abscmd, hartsel;
 
-REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
+REGISTRY_register_with_reset(debug_module_t, TOP.PLATFORM.DM_MODEL, 0, 1);
 DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
 
 debug_module_t::debug_module_t(cvm::topology::loc_t dm_loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 + 4 : 0) + (4 * config.progbufsize)),
@@ -379,6 +379,7 @@ void debug_module_t::reset(bool core_reset, bool dm_reset)
       hart->halt_request = hart->HR_NONE;
       hart_state[hart_id].resumeack = false;
     }
+    memset(&dmdata, 0, sizeof(dmdata));
     memset(&dmstatus, 0, sizeof(dmstatus));
     memset(&dmcontrol, 0, sizeof(dmcontrol));
     dmstatus.impebreak = config.support_impebreak;
@@ -829,6 +830,18 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
         }
       }
       break;
+    case C_DMSTATUS:
+    {
+      // Custom DM status: {30'b0, cmdbusy, sbbusy}
+      // Map cmdbusy to abstractcs.busy; sbbusy not modeled yet.
+      uint32_t cmdbusy = abstractcs.busy;
+      uint32_t sbbusy = 0;
+      uint32_t dynamic = (cmdbusy << 1) | sbbusy;
+      uint32_t mask = (C_DMSTATUS_DATA_LENGTH >= 32) ? 0xffffffffu
+                                                     : ((1 << C_DMSTATUS_DATA_LENGTH) - 1);
+      result = (dynamic & mask) << C_DMSTATUS_DATA_OFFSET;
+    }
+    break;
     case DM_DMCS2:
       dmcs2.hgwrite = 0;
       result = set_field(result, DM_DMCS2_GROUPTYPE, dmcs2.grouptype);

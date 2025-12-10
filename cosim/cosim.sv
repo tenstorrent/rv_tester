@@ -136,6 +136,7 @@ import rv_tester_params::*;
     input longint eot_addr,
     input bit poke_event_in,
     output bit poke_event_out,
+    output int cycles_since_retire,
     output rv_tester_pkg::terminate_t terminate,
     input logic disable_checks,
     output logic boot_done,
@@ -422,7 +423,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [PA_WIDTH-1:0] debug_exit_pc;
     longint unsigned debug_entry_pc_arg;
     longint unsigned debug_exit_pc_arg;
-    int cycles_since_retire;
     int hart_enable_mask;
     int nharts;
     longint unsigned hart;
@@ -866,6 +866,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
+        assign m_rvfis[n].data.mem_page4kX  = rvfi[n].mem_page4kX;
+        assign m_rvfis[n].data.mem_page4kX_attr    = rvfi[n].mem_page4kX_attr;
 
         /* verilator lint_off WIDTHTRUNC */
         assign valid_icnt[n]   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,n+1);    // count of valid-unique rvfi orders from 0 to N+1
@@ -1105,6 +1107,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
         assign m_mcmi_reads[n].data.mask = mcmi_read[n].mask;
         assign m_mcmi_reads[n].data.data = mcmi_read[n].data[63:0];
+        assign m_mcmi_reads[n].data.attr = mcmi_read[n].attr;
         assign m_mcmi_reads[n].data.data_vec = mcmi_read[n].data[255:0];
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
@@ -1310,7 +1313,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
     assign m_traps[0].data.order = rvfi[0].order;
-    assign m_traps[0].data.pc_addr = rvfi[0].pc_paddr;
+    assign m_traps[0].data.pc_addr = rvfi[0].pc_rdata;
     assign m_traps[0].data.insn = rvfi[0].insn;
     assign m_traps[0].data.virt_mode = virt_mode_d3;
     assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
@@ -1363,16 +1366,21 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_interrupt_pend
     logic [63:0] mip_d1, mip_timer, mip_timer_d1;
+    logic [63:0] core_clocks;
     logic seip_d1;
     assign mip_timer = interrupt_pend.mip & 'he0;
     always @(posedge clk) begin
       mip_timer_d1 <= mip_timer;
       mip_d1 <= interrupt_pend.mip;
       seip_d1 <= interrupt_pend.seip;
+      core_clocks <= core_clocks + 1;
+      if (dut_core_reset) begin
+        core_clocks <= '0;
+      end
     end
     assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
-    assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.cycle = core_clocks;
     assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
     assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
     assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
@@ -1388,6 +1396,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
+    assign m_imsic_msis[0].data.user = imsic_msi.user;
 
     // m_mtime
     localparam logic [CSRLEN-1:0] C_TIME       = 'hC01;
@@ -1412,6 +1421,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[n].data.cycle = clocks;
       assign m_mtimes[n].data.mtime = mtime;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
+      assign m_mtimes[n].data.size = 8;
     end
 
     // mtime packets from mip bits
@@ -1420,6 +1430,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[NRET].data.cycle = clocks;
       assign m_mtimes[NRET].data.mtime = mtime;
       assign m_mtimes[NRET].data.mip = mip_timer;
+      assign m_mtimes[NRET].data.size = 8;
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
@@ -1468,7 +1479,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       if (reset) begin
         /* verilator lint_off BLKSEQ */
         max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
-        max_cycle <= cvm_plusargs::get_int("max_cycle");
+        max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
         cosim_period <= cvm_plusargs::get_int("cosim_period");
         max_instructions <= cvm_plusargs::get_ulongint("max_instr");
         nharts <= cvm_plusargs::get_int("num_harts");

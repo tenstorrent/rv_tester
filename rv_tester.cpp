@@ -39,7 +39,9 @@ DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
 DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
 DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
+DEFINE_int32(disable_dmi_responce_ready, 0, "Disable DMI responce ready for no. of DMI commands");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
+DEFINE_bool(time_mtime_sync_enable, true, "Enable time and mtime sync check");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 5000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
@@ -70,6 +72,11 @@ DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel a
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
 DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
+DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
+DEFINE_bool(cla_rand_nmi_trig_en, false, "Enable CLA NMI/XTrigger events"); // FIXME: remove once CLA is moved to RISCV_CLUSTER
+DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
+DEFINE_bool(ntrace_stop_on_wrap_seq_en, false, "Enable ntrace_stop_on_wrap_seq_en_sequence in the sim");
+
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))
@@ -150,6 +157,11 @@ static std::string process_preload_file(int num_ways, int num_sets, int num_bloc
 }
 
 extern "C" {
+
+    void dpi_rv_tester_keeper_send_data(svBit data) {
+        cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n",data);
+        return;
+    }
 
     int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
         //cvm::log(cvm::NONE, "rv_tester_perf_calc(init={} terminate={}  clocks={})\n", init,terminate,clocks);
@@ -259,21 +271,13 @@ extern "C" {
         cvm::registry::configure();
     }
    
-    void rv_tester_no_dm_build_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+    void rv_tester_domain0_build_registry() {
         check_called = false;
-        cvm::registry::build_all_except(dm_loc);
+        cvm::registry::build_domain(0);
         cvm::registry::configure();
     } 
-    void rv_tester_dm_build_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
-        cvm::log(cvm::NONE, "[registry] build dm components ...\n");
-        cvm::registry::build(dm_loc);//pass dm location
-        //cvm::registry::configure();//pass dm location
-    }
 
-    uint8_t rv_tester_shutdown_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate)  {
         if (!check_called) {
             cvm::log(cvm::NONE, "[registry] check...\n");
             cvm::registry::check();
@@ -281,17 +285,17 @@ extern "C" {
         }
 
         cvm::log(cvm::NONE, "[registry] shutdown...\n");
-        //return cvm::registry::shutdown();
-        return cvm::registry::shutdown_all_except(dm_loc);
+        if (unconditional_terminate) {
+            return cvm::registry::shutdown();
+        }
+        else {
+            return cvm::registry::shutdown_domain(0);
+        }
     }
     
-    uint8_t rv_tester_dm_shutdown_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
-        cvm::log(cvm::NONE, "[registry] dm shutdown check...\n");
- 
-
-        cvm::log(cvm::NONE, "[registry] dm shutdown...\n");
-        return cvm::registry::shutdown(dm_loc);//dm location
+    uint8_t rv_tester_domain1_shutdown_registry() {
+        cvm::log(cvm::NONE, "[registry] domain:1 shutdown...\n");
+        return cvm::registry::shutdown_domain(1);
     }
 
     uint8_t rv_tester_flush_callbacks() {
@@ -336,10 +340,10 @@ extern "C" {
             return;
         }
         cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
-        if (!rv_tester_shutdown_registry()) {
+        if (!rv_tester_shutdown_registry(false)) {
             cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
         }
-        rv_tester_dm_shutdown_registry();
+        rv_tester_domain1_shutdown_registry();
     }
 }
 

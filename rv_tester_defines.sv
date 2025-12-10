@@ -86,6 +86,13 @@ package rv_tester_params;
     parameter SMC_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH;
     parameter SMC_AXI_MST_USER_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH;
 
+    parameter IOMMU_AXI_TR_REQ_MST_TOTAL = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL;
+    parameter IOMMU_AXI_TR_REQ_MST_ADDR_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ADDR_WIDTH;
+    parameter IOMMU_AXI_TR_REQ_MST_DATA_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH;
+    parameter IOMMU_AXI_TR_REQ_MST_STRB_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.STRB_WIDTH;
+    parameter IOMMU_AXI_TR_REQ_MST_ID_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH;
+    parameter IOMMU_AXI_TR_REQ_MST_USER_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.USER_WIDTH;
+
     parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
     parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
     parameter DM_AXI_DATA_WIDTH = mods.TOP.PLATFORM.DM_AXI.DATA_WIDTH;
@@ -113,6 +120,12 @@ package rv_tester_params;
     typedef logic [SMC_AXI_MST_STRB_WIDTH-1:0] smc_strb_t;
     typedef logic [SMC_AXI_MST_ID_WIDTH  -1:0] smc_id_t;
     typedef logic [SMC_AXI_MST_USER_WIDTH-1:0] smc_user_t;
+
+    typedef logic [IOMMU_AXI_TR_REQ_MST_ADDR_WIDTH-1:0] iommu_axi_tr_req_addr_t;
+    typedef logic [IOMMU_AXI_TR_REQ_MST_DATA_WIDTH-1:0] iommu_axi_tr_req_data_t;
+    typedef logic [IOMMU_AXI_TR_REQ_MST_STRB_WIDTH-1:0] iommu_axi_tr_req_strb_t;
+    typedef logic [IOMMU_AXI_TR_REQ_MST_ID_WIDTH  -1:0] iommu_axi_tr_req_id_t;
+    typedef logic [IOMMU_AXI_TR_REQ_MST_USER_WIDTH-1:0] iommu_axi_tr_req_user_t;
 
     typedef logic [5:0] axi_atop_t;
     typedef logic [1:0] axi_burst_t;
@@ -249,6 +262,48 @@ package rv_tester_params;
         logic                       w_ready  ;
     } smc_axi_rsp_t;
 
+    typedef struct packed {
+        logic                       ar_valid ;
+        iommu_axi_tr_req_id_t       ar_id    ;
+        iommu_axi_tr_req_addr_t     ar_addr  ;
+        axi_len_t                   ar_len   ;
+        axi_size_t                  ar_size  ;
+        axi_burst_t                 ar_burst ;
+        logic                       ar_lock  ;
+        
+        logic                       aw_valid ;
+        iommu_axi_tr_req_id_t       aw_id    ;
+        iommu_axi_tr_req_addr_t     aw_addr  ;
+        axi_len_t                   aw_len   ;
+        axi_size_t                  aw_size  ;
+        axi_burst_t                 aw_burst ;
+        logic                       aw_lock  ;
+
+        logic                       w_valid  ;
+        iommu_axi_tr_req_data_t     w_data   ;
+        iommu_axi_tr_req_strb_t     w_strb   ;
+        logic                       w_last   ;
+
+        logic                       b_ready  ;
+        logic                       r_ready  ;
+    } iommu_axi_tr_req_req_t;
+
+    typedef struct packed {
+        logic                       b_valid  ;
+        iommu_axi_tr_req_id_t       b_id     ;
+        axi_resp_t                  b_resp   ;
+
+        logic                       r_valid  ;
+        iommu_axi_tr_req_id_t       r_id     ;
+        iommu_axi_tr_req_data_t     r_data   ;
+        axi_resp_t                  r_resp   ;
+        logic                       r_last   ;
+
+        logic                       aw_ready ;
+        logic                       ar_ready ;
+        logic                       w_ready  ;
+    } iommu_axi_tr_req_rsp_t;
+
 
     // --------------------------------------
     // Bootstrap
@@ -321,6 +376,8 @@ package rv_tester_params;
         logic [RDLEN-1:0]           mem_rdata;
         logic [RDLEN-1:0]           mem_wdata;
         logic [32-1:0]              mem_attr ;
+        logic                       mem_page4kX;
+        logic [32-1:0]              mem_page4kX_attr ;
         logic                       mem_error;
         logic                       comp     ;
         logic [64-1:0]              uop      ;
@@ -381,6 +438,7 @@ package rv_tester_params;
         logic [63:0]                cycle;
         logic [63:0]                addr ;
         logic [31:0]                data ;
+        logic  [7:0]                user ;
     } msi_t;
 
     // --------------------------------------
@@ -891,6 +949,13 @@ package rv_tester_params;
     `AXI_TYPEDEF_REQ_T(smc_req_top, smc_aw_chan_top, smc_w_chan_top, smc_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(smc_resp_top, smc_b_chan_top, smc_r_chan_top)
 
+    `AXI_TYPEDEF_AW_CHAN_T(iommu_axi_tr_req_aw_chan_top, iommu_axi_tr_req_addr_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
+    `AXI_TYPEDEF_W_CHAN_T(iommu_axi_tr_req_w_chan_top, iommu_axi_tr_req_data_t, iommu_axi_tr_req_strb_t, iommu_axi_tr_req_user_t)
+    `AXI_TYPEDEF_B_CHAN_T(iommu_axi_tr_req_b_chan_top, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(iommu_axi_tr_req_ar_chan_top, iommu_axi_tr_req_addr_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
+    `AXI_TYPEDEF_R_CHAN_T(iommu_axi_tr_req_r_chan_top, iommu_axi_tr_req_data_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
+    `AXI_TYPEDEF_REQ_T(iommu_axi_tr_req_req_top, iommu_axi_tr_req_aw_chan_top, iommu_axi_tr_req_w_chan_top, iommu_axi_tr_req_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(iommu_axi_tr_req_rsp_top, iommu_axi_tr_req_b_chan_top, iommu_axi_tr_req_r_chan_top)
 
     // --------------------------------------
     // rv_tester ports
@@ -903,7 +968,8 @@ package rv_tester_params;
     output                                   dut_reset_req,                                         \
     input   logic                            ndmreset_ack,                                          \
     input                                    dut_reset_req_active,                                  \
-    input                                    warm_reset_req,                                        \
+    input   logic                            warm_reset_req,                                        \
+    output                                   warm_reset_release_hang,                               \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
@@ -922,16 +988,19 @@ package rv_tester_params;
     output                                   tj_max,                                                \
     output                                   pll_dfs_done,                                          \
     output                                   pll_shutdown_done,                                     \
+    output logic [1:0]                       cpl_xtriggers,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
-    input  logic                             terminate_now,                                            \
+    input  logic                             terminate_now,                                         \
+    output logic                             terminate_cla_seq,                                     \
+    output logic                             terminate_ntrace_test,                                 \
+    output logic                             terminate_dst_trace_seq,                               \
+    output logic                             jtag_quiesced,                                         \
     output                                   quiesced,                                              \
+    output                                   unconditional_terminate,                               \
     input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
-    input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
-    input  rv_tester_pkg::jtag_if_tck        jtag_tck_trst,                                         \
-    output  rv_tester_pkg::jtag_if_out       jtag_resp,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
     output rv_tester_pkg::dmi_resp_t         dmi_resp,                                              \
@@ -970,7 +1039,7 @@ package rv_tester_params;
     output logic                                            dmi_tx_resp_vld,                        \
     output rv_tester_pkg::dmi_req_t                         dmi_tx_req,                             \
     output rv_tester_pkg::dmi_resp_t                        dmi_tx_resp,                            \
-                                                                                                    \
+    input  logic                                            rv_tester_reset,                        \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
@@ -979,15 +1048,13 @@ package rv_tester_params;
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::smc_req_top    smc_axi_req_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
-    output rv_tester_params::ac_cr_sync AcCrSynci  [rv_tester_params::NHARTS-1:0], \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPkti,                              \
-    output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki,                         \
-    output logic [63:0] AcMtimei,                                                  \
-    output logic AcWarmReset,                                                      \
-    output logic [8:0]  AcMtipi,                                                   \
-    output logic SmcMtipi,                                                         \
-    output logic AcChk_pll_interrupts_in,                                          \
-    output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
+    input  rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
+    output rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
+    input  logic warm_reset_now,                                                   \
+    input  logic sys_reset [rv_tester_params::NCLKS-1:0],                          \
+    output logic AcChk_force_ss_to_ref_clock_n,                                    \
+    output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0], \
+    input logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
     input clk,                                                                                      \
@@ -1004,6 +1071,7 @@ package rv_tester_params;
     logic                                    ndmreset_ack;                                          \
     logic                                    dut_reset_req_active;                                  \
     logic                                    warm_reset_req;                                        \
+    logic                                    warm_reset_release_hang;                               \
     logic                                    force_ref_clk;                                         \
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
@@ -1022,23 +1090,26 @@ package rv_tester_params;
     logic                                    tj_max;                                                \
     logic                                    pll_dfs_done;                                          \
     logic                                    pll_shutdown_done;                                     \
+    logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
-    logic                                    terminate_now;                                            \
+    logic                                    terminate_now;                                         \
+    logic                                    terminate_cla_seq;                                     \
+    logic                                    terminate_ntrace_test;                                 \
+    logic                                    terminate_dst_trace_seq;                               \
+    logic                                    jtag_quiesced;                                         \
     logic                                    quiesced;                                              \
+    logic                                    unconditional_terminate;                               \
     logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
-    rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
-    rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \
-    rv_tester_pkg::jtag_if_out               jtag_resp;                                             \
     logic                                    dmi_req_ready;                                         \
     logic                                    dmi_resp_valid;                                        \
     rv_tester_pkg::dmi_resp_t                dmi_resp;                                              \
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
-    logic [7:0]     DM_DebugReq_Valids;                                  \
+    logic [7:0]     DM_DebugReq_Valids;                                                             \
                                                                                                     \
     logic                                            dm_mem_tx_vld;                                 \
     logic                                            dm_mem_tx_we;                                  \
@@ -1051,10 +1122,10 @@ package rv_tester_params;
     logic                                            dmi_tx_resp_vld;                               \
     rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
     rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
-                                                                                                    \
-    logic [51:0]                             dfetch_cl_addr[1:0];                                        \
+    logic                                    rv_tester_reset;                                       \
+    logic [51:0]                             dfetch_cl_addr[1:0];                                   \
     logic [1:0]                              dfetch_cl_valid;                                       \
-    logic [51:0]                             writeback_cl_addr[1:0];                                     \
+    logic [51:0]                             writeback_cl_addr[1:0];                                \
     logic [1:0]                              writeback_cl_valid;                                    \
     logic [51:0]                             devict_cl_addr [rv_tester_params::NHARTS-1:0];         \
     logic                                    devict_cl_valid [rv_tester_params::NHARTS-1:0];        \
@@ -1083,16 +1154,29 @@ package rv_tester_params;
     rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;      \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0];                          \
-    rv_tester_params::cr_ac_axi_pkt AcReqPkti;                                                      \
-    rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki;                                                 \
-    logic [63:0] AcMtimei;                                                                          \
-    logic AcWarmReset;                                                                              \
-    logic [8:0]  AcMtipi;                                                                           \
-    logic SmcMtipi;                                                                                 \
-    logic AcChk_pll_interrupts_in;                                                                  \
-    rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
+    rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
+    rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
+    logic warm_reset_now; /* FIXME manees: remove during pwrmgmt refactor (usage:aclint_checker)*/  \
+    logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
+    logic AcChk_force_ss_to_ref_clock_n;                                                            \
+    rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];           \
+    logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire;
+    
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
+
+
+`define RV_TESTER_KEEPER_INIT(clk,num) \
+   bit [num-1:0] rv_tester_keeper_data_vec;\
+   bit           rv_tester_keeper_load, rv_tester_keeper_send, rv_tester_keeper_data;\
+   assign rv_tester_keeper_data = | rv_tester_keeper_data_vec;\
+   dpi_rv_tester_keeper_ctrl i_dpi_rv_tester_keeper_ctrl(clk , rv_tester_keeper_load, rv_tester_keeper_data);
+
+`define RV_TESTER_KEEPER_DATA(clk,num,data) \
+   bit [$bits(data)-1:0] data``_rv_tester_keeper_reg;\
+   always @(posedge clk) data``_rv_tester_keeper_reg <= (rv_tester_keeper_load==1'b1) ? data : {1'b0,data``_rv_tester_keeper_reg[$bits(data)-1:1]};\
+   assign rv_tester_keeper_data_vec[num-1] = data``_rv_tester_keeper_reg[0];
+
+
 
 endpackage

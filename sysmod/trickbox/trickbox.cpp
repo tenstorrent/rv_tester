@@ -1,10 +1,11 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 
 trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
-  : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
+  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
 {
 
   if (FLAGS_load != "") {
@@ -24,6 +25,10 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   sub = new io_coh_helper("io_coh_helper", addr + 0x89000, 1, loc, m_);
   subdevices_.emplace_back(sub);
   sub = new ras_helper("ras_helper", addr + 0x89800, 1, loc, m_);
+  subdevices_.emplace_back(sub);
+  sub = new dma("dma", addr + 0x90000, 1, loc, m_);
+  subdevices_.emplace_back(sub);
+  sub = new post_si_pcietc_helper("post_si_pcietc_helper", addr + 0x1000000, 1, loc);
   subdevices_.emplace_back(sub);
 }
 
@@ -45,16 +50,18 @@ bool trickbox::init_elf(const std::string& path) {
 
 void trickbox::read(const transactor::read_t& r, data_t& data) {
 
+  if (!FLAGS_rvfi)
+      return;
   auto& addr = r.addr;
   auto& length = r.length;
 
   for (auto& d : subdevices_) {
     d->read_dev(addr,length,data);
-    cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
-    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
-    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
-    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
   }
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
 
   return;
 }
@@ -62,6 +69,8 @@ void trickbox::read(const transactor::read_t& r, data_t& data) {
 void
 trickbox::write(const transactor::write_t& w)
 {
+  if (!FLAGS_rvfi)
+      return;
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;

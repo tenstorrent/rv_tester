@@ -94,6 +94,9 @@ void debugger::get_all_csv_templates()
               if (FLAGS_enable_cross && (filename.size() > 14) && filename.substr(filename.size() - 14) == "scratchpad.csv") {
                 cvm::log(cvm::NONE, "[Debugger]:Skipping Scratchpad file in cross:{}\n", filename); 
               }
+              else if (FLAGS_time_mtime_sync_enable && filename.size() > 13 && filename.substr(filename.size() - 13) == "stopcount.csv") {
+                cvm::log(cvm::NONE, "[Debugger]:Skipping Stopcount file in time_mtime_sync:{}\n", filename); 
+              }
               else {
                 csvFilePaths.push_back(entry.path().string());
                 cvm::log(cvm::MEDIUM, "[Debugger]:Pushing file:{}\n", filename);

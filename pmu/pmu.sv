@@ -34,6 +34,8 @@ import rv_tester_pkg::*;
     bit perf_end = '0;
     logic terminate_1T;
 
+
+
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
@@ -49,7 +51,10 @@ import rv_tester_pkg::*;
     longint unsigned cycle_period_counter = 0;
     longint unsigned instruction_period_counter = 0;
     longint unsigned nret = {32'h0, NRET};
-    longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
+    longint unsigned pmcounter [EVENT_COUNT]  = '{default:0};
+    bit [EVENT_COUNT-1:0][63:0] pmcounter_vec;
+    bit [63:0] pmcounter_instr;
+    bit [63:0] tb_cycles      ; 
     longint unsigned branch_instructions;
 
     // Create shared sync condition signals
@@ -108,6 +113,7 @@ import rv_tester_pkg::*;
       terminate_1T <= terminate;
     end
 
+    assign pmcounter_vec[0] = pmcounter[0];
     generate
       for (genvar i=1; i < EVENT_COUNT; i++) begin : pmci_regs
         always @(posedge clk) begin
@@ -117,8 +123,15 @@ import rv_tester_pkg::*;
                 pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]};
             end
         end
+        assign pmcounter_vec[i] = pmcounter[i];
       end
     endgenerate
+    assign tb_cycles       = clocks - tb_cycles_offset; 
+
+    `RV_TESTER_KEEPER_INIT(clk,3)
+    `RV_TESTER_KEEPER_DATA(clk,1,pmcounter_vec)
+    `RV_TESTER_KEEPER_DATA(clk,2,tb_cycles)
+    `RV_TESTER_KEEPER_DATA(clk,3,cpu_cycles)
 
     always_comb begin
       branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] +
@@ -186,7 +199,7 @@ import rv_tester_pkg::*;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
     assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
-    assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
+    assign pmcounters_cores[0].data.tb_cycles = 24'(tb_cycles);
     assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
     assign pmcounters_cores[0].data.instructions = 24'(pmcounter[INSTRUCTIONS]);
     assign pmcounters_cores[0].data.branch_instructions = 24'(branch_instructions);

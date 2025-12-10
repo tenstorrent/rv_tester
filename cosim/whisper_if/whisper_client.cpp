@@ -34,8 +34,9 @@ DEFINE_string(isa, "", "Override isa spec");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
-DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
-DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
+DEFINE_string(whisper_stdin,  "", "Redirect whisper stdin");
+DEFINE_string(whisper_stdout, "", "Redirect whisper stdout");
+DEFINE_string(whisper_stderr, "", "Redirect whisper stderr");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint32(whisper_deterministic, 100, "Equivalent to Whisper's deterministic");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
@@ -109,8 +110,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid);});
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
   cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
-  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});  
+  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});    
   cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
@@ -128,6 +129,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
   cvm::registry::messenger.procedure<whisperPokeMemBatchRPC>(loc, [this](int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid) { return this->whisperPokeMemBatch(hart, time, resource, addr, data, valid); });
   cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperPeekExtendedRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, uint64_t& reply_addr, bool& valid) {return this->whisperPeek(hart, resource, addr, value, reply_addr, valid);});
   cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
   cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
   cvm::registry::messenger.procedure<whisperResetRPC>(loc, [this] (int hart, uint64_t addr, bool& valid) {return this->whisperReset(hart, addr, valid);});
@@ -185,9 +187,17 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       args_str.insert(args_str.end(), {"--binary", bin});
   }
   if (FLAGS_isa      != "")            args_str.insert(args_str.end(), {"--isa", FLAGS_isa});
-  if (FLAGS_whisper_stdout_null)       args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
-  if (FLAGS_whisper_stdin_null)        args_str.insert(args_str.end(), {"--stdin",  "/dev/null"});
-  if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr",     FLAGS_stee_secure_region});
+
+  if (FLAGS_whisper_stderr != "")      args_str.insert(args_str.end(), {"--stderr", FLAGS_whisper_stderr});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stderr", "/dev/null"});
+
+  if (FLAGS_whisper_stdout != "")      args_str.insert(args_str.end(), {"--stdout", FLAGS_whisper_stdout});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
+
+  if (FLAGS_whisper_stdin  != "")      args_str.insert(args_str.end(), {"--stdin",  FLAGS_whisper_stdin});
+  else if (!standalone)                args_str.insert(args_str.end(), {"--stdin", "/dev/null"});
+
+  if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr", FLAGS_stee_secure_region});
 
   if (!standalone && FLAGS_eot_mem_check && FLAGS_whisper_data_lines == "")
     FLAGS_whisper_data_lines = "whisper_data_lines.log";
@@ -329,6 +339,15 @@ bool
 whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
 	    bool& valid)
 {
+  uint64_t unused_addr;
+  return whisperPeek(hart, resource, addr, value, unused_addr, valid);
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
+	    uint64_t& reply_addr, bool& valid)
+{
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
@@ -340,6 +359,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
+  reply_addr = reply.address;
   return true;
 }
 
@@ -661,8 +681,11 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 				   unsigned size, uint64_t value, unsigned elemIx,
-				   unsigned field, bool& valid)
+				   unsigned field, bool cache, bool& valid)
 {
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
   req.type = WhisperMessageType::McmRead;
   req.hart = hart;
   req.time = time;
@@ -683,7 +706,7 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 				      unsigned size, std::vector<uint64_t> value,
-				      unsigned elemIx, unsigned field, bool& valid)
+				      unsigned elemIx, unsigned field, bool cache, bool& valid)
 {
   std::vector<uint8_t> byte_value = convert_to_byte_array(value);
 
@@ -693,9 +716,12 @@ whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmRead(hart, time, instrTag, addr, size, value[0], elemIx, field, valid);
+    return whisperMcmRead(hart, time, instrTag, addr, size, value[0], elemIx, field, cache, valid);
   }
 
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
   req.hart = hart;
   req.type = WhisperMessageType::McmRead;
   req.time = time;
@@ -875,7 +901,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
 
   if (req.size > req.buffer.size()) {
-    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n'; // #FIXME: if it doesn't error, should it be cvm::medium?
+    cvm::log(cvm::ERROR, "Error: whisperMcmWrite: write size {} too large\n", req.size);
     valid = false;
     return true;
   }

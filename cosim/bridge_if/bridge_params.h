@@ -128,7 +128,7 @@ namespace {
       CSR(VLENB,            0xC22, "vlenb")                                    \
       CSR(MTINST,           0x34A, "mtinst")                                   \
       CSR(MTVAL2,           0x34B, "mtval2")                                   \
-      CSR(MENVCFG,          0x30A, "menvcfg")                                  \
+      CSR(MENVCFG,          0x30A, "menvcfg"      , true)                      \
       CSR(MENVCFGH,         0x31A, "menvcfgh")                                 \
       CSR(MSECCFG,          0x747, "mseccfg")                                  \
       CSR(MSECCFGH,         0x757, "mseccfgh")                                 \
@@ -380,7 +380,7 @@ namespace {
       CSR(TDATA3,           0x7A3, "tdata3")                                   \
       CSR(MCONTEXT,         0x7A8, "mcontext")                                 \
       CSR(TINFO,            0x7A4, "tinfo")                                    \
-      CSR(DCSR,             0x7B0, "dcsr")                                     \
+      CSR(DCSR,             0x7B0, "dcsr"          ,false, true)               \
       CSR(DPC,              0x7B1, "dpc")                                      \
       CSR(DSCRATCH0,        0x7B2, "dscratch0")                                \
       CSR(DSCRATCH1,        0x7B3, "dscratch1")                                \
@@ -451,8 +451,8 @@ namespace {
       CSR(HSTATEEN1H,       0x61D, "hstateen1h")                               \
       CSR(HSTATEEN2H,       0x61E, "hstateen2h")                               \
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
-      CSR(STIMECMP,         0x14D, "stimecmp")                                 \
-      CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
+      CSR(STIMECMP,         0x14D, "stimecmp", false, true)                    \
+      CSR(VSTIMECMP,        0x24D, "vstimecmp", false, true)                   \
       CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)              \
       CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, true)              \
       CSR(C_MISA_RVA23U64_O,           0xBCB, "c_misa_rva23u64_O", true, true, 0, true)              \
@@ -948,6 +948,7 @@ namespace {
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
         CUSTOM_SINGLE_STEP      = 31,
+        CUSTOM_VLZERO_EXCP      = 39,
         CUSTOM_VEC_CMODE        = 55
     } excp;
 

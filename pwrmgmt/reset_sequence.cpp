@@ -26,7 +26,7 @@ DEFINE_bool(tj_shutdown, false, "Enable CPL SRAM TjShutdown programming...");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
-DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
+DEFINE_uint32(pll_dfs_timeout, 100, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
@@ -57,6 +57,7 @@ DEFINE_string(rmw_csr_resetseq, "", "+rmw_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1
 DEFINE_string(rmw_mmr_resetseq, "", "+rmw_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>:<mask>,... ");
 DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
 DEFINE_bool(fuse_based_clock_gating, true, "Enable clock gating based on fuse programming");
+DEFINE_uint32(jtag_drain_cycles, 100, "Number of cycles to drain pending jtag transaction");
 
 extern "C" {
   void pwrmgmt_init();
@@ -202,9 +203,7 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Assert force_ref_clk
   force_ref_clk(1);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
-    co_await tick();
+  co_await tick();
 
   // Assert holds
   reset_hold(
@@ -220,8 +219,12 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Assert warm reset
   warm_reset(1);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  int32_t warm_reset_cycles = 16;
+  if (FLAGS_jtag_en) {
+    warm_reset_cycles += FLAGS_jtag_drain_cycles; // cycles to drain pending jtag transaction
+  }
+  // Wait for warm_reset_cycles clock ticks
+  for (int i=0; i<warm_reset_cycles; ++i)
     co_await tick();
 
   // Deassert warm reset
@@ -295,6 +298,9 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await rmw_mmr();
   co_await program_fe_resetvector();
   co_await program_mtime(rst_type);
+  if (FLAGS_enable_ntrace_in_boot) {
+    co_await enable_ntrace();
+  }
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
@@ -462,8 +468,32 @@ cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
   }
   cvm::log(cvm::MEDIUM, "[pwrmgmt] Core frequency is being changed to {} based on clk_profile {}\n", FLAGS_pll_dfs_freq, FLAGS_clk_profile);
   
-  uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
-  co_await write(pll_parameters0, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx), boot_interface);
+  // Calculate PLL parameters using common utility function
+  auto params = pll_utils::calculate_pll_params(FLAGS_pll_dfs_freq);
+  
+#ifdef MOVELLUS_PLL_MODEL
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Using Movellus PLL: fcw_int={}, postdiv={} for {} MHz\n", 
+           params.fcw_int, params.postdiv, FLAGS_pll_dfs_freq);
+  
+  // Configure PLL Parameters1 register (fcw_int)
+  auto rdata1 = co_await read(pll_parameters1, SZ_4B, boot_interface);
+  auto new_params1 = pll_utils::configure_pll_parameters1(static_cast<uint32_t>(rdata1), params);
+  co_await write(pll_parameters1, SZ_4B, new_params1, boot_interface);
+  
+  // Configure PLL Parameters0 register (postdiv)
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B, boot_interface);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0, boot_interface);
+  
+#else
+  // Generic PLL model
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Using Generic PLL: freq_ratio={} for {} MHz\n", 
+           params.freq_ratio, FLAGS_pll_dfs_freq);
+  
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B, boot_interface);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0, boot_interface);
+#endif
   co_await write(pll_control, SZ_4B, (1 << dfs_req_idx), boot_interface);
 
   uint32_t count = 0;
@@ -1495,6 +1525,38 @@ cvm::messenger::task<void> reset_sequence::rmw_csr()
     cvm::log(cvm::ERROR, "Error: unable to parse +rmw_csr_resetseq={}\n", FLAGS_rmw_csr_resetseq);
     co_return;
   }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::enable_ntrace() {
+  // NTrace UseCase Scenario: Added support for NTrace Enable in boot [Stop-on-wrap only]
+  uint64_t tr_ram_start_addr      = 0x0;
+  uint64_t tr_ram_end_addr        = 0x1000;
+  uint32_t tr_ram_mem_mode        = 0x1;    // SMEM
+  uint32_t tr_ram_wrap_mode       = 0x1;    // Stop-on-wrap
+  uint32_t tr_ram_mem_mode_idx    = 4;
+  uint32_t tr_ram_wrap_mode_idx   = 8;
+  uint32_t tr_ram_on              = 0x3;
+  uint32_t tr_funnel_disinput_val = 0x0;
+  uint32_t tr_funnel_on           = 0x3;
+  uint32_t tr_te_on               = 0x7;
+  uint32_t tr_te_frame_cfg        = 0x102FF0;
+
+  // Configure NTrace RAM
+  co_await write(tr_ram_start_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_rp_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_wp_low, SZ_8B, tr_ram_start_addr);
+  co_await write(tr_ram_limit_low, SZ_8B, tr_ram_end_addr);
+  co_await write(tr_ram_control, SZ_4B, (tr_ram_wrap_mode << tr_ram_wrap_mode_idx) | (tr_ram_mem_mode << tr_ram_mem_mode_idx) | tr_ram_on);
+
+  // Configure Trace Funnel
+  co_await write(tr_funnel_disinput, SZ_4B, tr_funnel_disinput_val);
+  co_await write(tr_funnel_control, SZ_4B, tr_funnel_on);
+
+  // Configure NTrace Encoder
+  co_await write(cdbg_tr_frame_cfg, SZ_4B, tr_te_frame_cfg);
+  co_await write(tr_te_control, SZ_4B, tr_te_on);
 
   co_return;
 }

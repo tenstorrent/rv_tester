@@ -50,7 +50,6 @@ external_interrupt_sequence::~external_interrupt_sequence() {
 }
 
 void external_interrupt_sequence::gen_interrupt_timings(){
-  //TODO: uncomment once dists are working fine
   //  std::stringstream ss(FLAGS_trigger_interrupt_ratio);
   //  std::vector<double> weights(FLAGS_trigger_interrupt_count);
   //  cvm::rand::discrete_dist<uint8_t> dist(weights);
@@ -163,12 +162,12 @@ void external_interrupt_sequence::drive_interrupt(){
     intr_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
+  intr_num =  (rng1() & (FLAGS_imsic_intr_mask ));
   cvm::log(cvm::MEDIUM,"[ExtInterruptSeq] Driving interrupt for Physical hart: {}, intr_num: {}\n", id_, intr_num);
 
 	if(!FLAGS_disable_vs_imsic_intr)
-    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
-  if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;
+    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) + 1; //gen iter between 1 to GEILEN
+  if(intr_file == 0x02) intr_num &= FLAGS_imsic_vs_intr_mask;
   cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt logical hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
 
    uint32_t addr;
@@ -216,7 +215,7 @@ void external_interrupt_sequence::drive_interrupt(){
           } else {
             // 30% chance to use random VS ID != VGEIN
             do {
-              intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while (intr_vs_id == vgein);
             intr_vs_id_random_++;
           }
@@ -259,13 +258,13 @@ void external_interrupt_sequence::drive_interrupt(){
           if ((rng1() % 100) < 70) {
             // 70% chance to pick VS ID with HGEIE set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
@@ -277,7 +276,7 @@ void external_interrupt_sequence::drive_interrupt(){
         }
       } else {
         is_vgein_intr = false;
-        intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+        intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
         addr = msi_vs_file_addr+ (intr_vs_id << 12) + (intr_hart << 18);
       }
    }else{

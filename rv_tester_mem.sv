@@ -467,7 +467,7 @@ module rv_tester_mem #(
         axi_resp_to_rdly = '0;
         axi_req_from_rdly = '0;
         axi_req_xbar = '0;
-        axi_resp_rdly = '0;
+        //axi_resp_rdly = '0;
 	end else begin
 
         if (RespDelayModule) begin: resp_delay_connections
@@ -490,7 +490,7 @@ module rv_tester_mem #(
             axi_req_rdly = '0;
             axi_resp_to_rdly = '0;
             axi_req_from_rdly = '0;
-            axi_resp_rdly = '0;
+            // axi_resp_rdly = '0;
             temp_7 = '0;
         end
         
