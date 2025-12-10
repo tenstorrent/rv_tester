@@ -31,7 +31,7 @@ void PatchUtils::read_hex_and_assembly(const std::string& hex_file_path) {
     size_t ext_pos = filename.find_last_of('.');
     if (ext_pos != std::string::npos) {
         std::string basename = filename.substr(0, ext_pos);
-        std::string assembly_file = directory + "/" + basename + ".s";
+        std::string assembly_file = directory + "/" + basename + "_copy.s";
         
         cvm::log(cvm::HIGH, "[pwrmgmt] Looking for corresponding assembly file: {}\n", assembly_file);
         
