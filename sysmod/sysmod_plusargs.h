@@ -58,6 +58,5 @@ DECLARE_bool(dbg_rnmi_priv_dp_trigger);
 DECLARE_string(stee_secure_region); 
 DECLARE_bool(overlay_mmr_check);
 DECLARE_bool(jtag_en);
-DECLARE_bool(cluster_axi_sp_perf);
 DECLARE_bool(enable_ntrace_in_boot);
 DECLARE_bool(time_mtime_sync_enable);

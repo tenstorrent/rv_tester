@@ -1,3 +1,0 @@
-exports_files(["snoop_gen.sv", "snoop_gen.cpp", "snoop_gen.hpp", "snoop_gen_sequence.hpp", "snoop_gen_sequence.cpp"])
-
-

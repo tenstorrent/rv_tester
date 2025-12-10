@@ -1847,95 +1847,11 @@ pwrmgmt:
         domain: 3
         num: 1
 
-snoop_gen:
-    num: 1
-    m_tick:
-        domain: 2
-        num: 1
-
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_assert_tick:
         domain: 2
         num: 1
-
-trace:
-    num: 1
-    m_core_no_fetch:
-        domain: 2
-        num: 1
-        fields:
-            val:
-                width: ${TOP.PLATFORM.NHARTS}
-    m_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-    m_detect_core_hang:
-        domain: 2
-        num: 1
-cla:
-    num: 1
-    m_core_no_fetch:
-        domain: 2
-        num: 1
-        fields:
-            val:
-                width: ${TOP.PLATFORM.NHARTS}
-    m_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-cla_smc:
-    num: 1
-    m_smc_tick:
-        domain: 3
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-overlay_driver:
-    num: 1
-    m_overlay_driver_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-    
-jtag_driver:
-    num: 1
-    m_jtag_driver_tick:
-        domain: 3
-        num: 1
-        fields:
-            cycle:
-                width: 32
-    jtag_tick:
-        domain: 3
-        num: 1
-        fields:
-            advance:
-                width: 64
-    jtag_pkt_ack:
-        domain: 3
-        num: 1
-        fields:
-            complete:
-                width: 1
-    jtag_rdata:
-        domain: 3
-        num: 1
-        fields:
-            rdata:
-                width: 1344
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}

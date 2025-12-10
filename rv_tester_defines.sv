@@ -968,7 +968,8 @@ package rv_tester_params;
     output                                   dut_reset_req,                                         \
     input   logic                            ndmreset_ack,                                          \
     input                                    dut_reset_req_active,                                  \
-    input                                    warm_reset_req,                                        \
+    input   logic                            warm_reset_req,                                        \
+    output                                   warm_reset_release_hang,                               \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
@@ -990,15 +991,16 @@ package rv_tester_params;
     output logic [1:0]                       cpl_xtriggers,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
-    input  logic                             terminate_now,                                            \
+    input  logic                             terminate_now,                                         \
+    output logic                             terminate_cla_seq,                                     \
+    output logic                             terminate_ntrace_test,                                 \
+    output logic                             terminate_dst_trace_seq,                               \
+    output logic                             jtag_quiesced,                                         \
     output                                   quiesced,                                              \
     output                                   unconditional_terminate,                               \
     input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
-    input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
-    input  rv_tester_pkg::jtag_if_tck        jtag_tck_trst,                                         \
-    output  rv_tester_pkg::jtag_if_out       jtag_resp,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
     output rv_tester_pkg::dmi_resp_t         dmi_resp,                                              \
@@ -1037,7 +1039,7 @@ package rv_tester_params;
     output logic                                            dmi_tx_resp_vld,                        \
     output rv_tester_pkg::dmi_req_t                         dmi_tx_req,                             \
     output rv_tester_pkg::dmi_resp_t                        dmi_tx_resp,                            \
-                                                                                                    \
+    input  logic                                            rv_tester_reset,                        \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
@@ -1051,7 +1053,8 @@ package rv_tester_params;
     input  logic warm_reset_now,                                                   \
     input  logic sys_reset [rv_tester_params::NCLKS-1:0],                          \
     output logic AcChk_force_ss_to_ref_clock_n,                                    \
-    output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
+    output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0], \
+    input logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
     input clk,                                                                                      \
@@ -1068,6 +1071,7 @@ package rv_tester_params;
     logic                                    ndmreset_ack;                                          \
     logic                                    dut_reset_req_active;                                  \
     logic                                    warm_reset_req;                                        \
+    logic                                    warm_reset_release_hang;                               \
     logic                                    force_ref_clk;                                         \
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
@@ -1089,22 +1093,23 @@ package rv_tester_params;
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
-    logic                                    terminate_now;                                            \
+    logic                                    terminate_now;                                         \
+    logic                                    terminate_cla_seq;                                     \
+    logic                                    terminate_ntrace_test;                                 \
+    logic                                    terminate_dst_trace_seq;                               \
+    logic                                    jtag_quiesced;                                         \
     logic                                    quiesced;                                              \
     logic                                    unconditional_terminate;                               \
     logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
-    rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
-    rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \
-    rv_tester_pkg::jtag_if_out               jtag_resp;                                             \
     logic                                    dmi_req_ready;                                         \
     logic                                    dmi_resp_valid;                                        \
     rv_tester_pkg::dmi_resp_t                dmi_resp;                                              \
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
-    logic [7:0]     DM_DebugReq_Valids;                                  \
+    logic [7:0]     DM_DebugReq_Valids;                                                             \
                                                                                                     \
     logic                                            dm_mem_tx_vld;                                 \
     logic                                            dm_mem_tx_we;                                  \
@@ -1117,10 +1122,10 @@ package rv_tester_params;
     logic                                            dmi_tx_resp_vld;                               \
     rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
     rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
-                                                                                                    \
-    logic [51:0]                             dfetch_cl_addr[1:0];                                        \
+    logic                                    rv_tester_reset;                                       \
+    logic [51:0]                             dfetch_cl_addr[1:0];                                   \
     logic [1:0]                              dfetch_cl_valid;                                       \
-    logic [51:0]                             writeback_cl_addr[1:0];                                     \
+    logic [51:0]                             writeback_cl_addr[1:0];                                \
     logic [1:0]                              writeback_cl_valid;                                    \
     logic [51:0]                             devict_cl_addr [rv_tester_params::NHARTS-1:0];         \
     logic                                    devict_cl_valid [rv_tester_params::NHARTS-1:0];        \
@@ -1154,7 +1159,9 @@ package rv_tester_params;
     logic warm_reset_now; /* FIXME manees: remove during pwrmgmt refactor (usage:aclint_checker)*/  \
     logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
     logic AcChk_force_ss_to_ref_clock_n;                                                            \
-    rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
+    rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];           \
+    logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire;
+    
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
