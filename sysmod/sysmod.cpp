@@ -30,6 +30,7 @@
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/whisper_if/whisper_client_plusargs.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "cosim/dut_if/mcmi/mcmi_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "sysmod_params.hpp"

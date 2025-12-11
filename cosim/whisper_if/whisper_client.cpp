@@ -15,6 +15,7 @@
 
 #include "whisper_client.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "cosim/dut_if/mcmi/mcmi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
 #include "cosim/utils/eot/eot_plusargs.h"

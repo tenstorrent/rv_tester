@@ -25,9 +25,11 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
             "@rv_tester//cosim/utils/eot:eot_plusargs",
             "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
+            "@rv_tester//cosim/dut_if/mcmi:mcmi_plusargs",
             "@rv_tester//cosim/utils/general:util",
             packet + "_cc",
             name + "_bridge",
+            name + "_mcmi",
             "@rv_tester//sysmod/htif:htif",
             "@rv_tester//cosim/whisper_if:whisper_decoder",
             "@rv_tester//transactors/axi_sw:axi",
@@ -37,6 +39,27 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
             "@cvm//:bitmanip",
             "@cvm//:registry",
          ],
+        alwayslink = True,
+        visibility = visibility,
+    )
+
+    native.cc_library(
+        name = name + "_mcmi",
+        srcs = [
+            "@rv_tester//cosim/dut_if/mcmi:mcmi.cpp",
+        ],
+        hdrs = [
+            "@rv_tester//cosim/dut_if/mcmi:mcmi.h",
+        ],
+        deps = [
+            "@rv_tester//:structs",
+            "@rv_tester//:plusargs",
+            name + "_bridge",
+            "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
+            "@rv_tester//cosim/dut_if/mcmi:mcmi_plusargs",
+            "@rv_tester//cosim/utils/general:util",
+            packet + "_cc",
+        ],
         alwayslink = True,
         visibility = visibility,
     )
@@ -69,6 +92,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
                 "@rv_tester//sysmod/htif:htif",
                 "@rv_tester//:plusargs",
                 "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
+                "@rv_tester//cosim/dut_if/mcmi:mcmi_plusargs",
                 "@rv_tester//cosim/utils/eot:eot_plusargs",
                 "@rv_tester//sysmod:sysmod_plusargs",
                 "@rv_tester//sysmod:sysmod_params",

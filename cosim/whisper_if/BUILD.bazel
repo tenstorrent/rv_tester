@@ -12,6 +12,7 @@ cc_library(
         "@whisper//:rvcore",
         "//sysmod:sysmod_plusargs",
         "//cosim/dut_if/rvfi:rvfi_plusargs",
+        "//cosim/dut_if/mcmi:mcmi_plusargs",
         "//cosim/bridge:bridge_plusargs",
         "//cosim/utils/eot:eot_plusargs",
         "//cosim/utils/general:util",

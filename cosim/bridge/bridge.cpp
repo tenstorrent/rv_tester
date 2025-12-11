@@ -13,6 +13,7 @@
 #include "rv_tester/rv_tester_plusargs.h"
 #include "sysmod/trickbox/interrupter.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "cosim/dut_if/mcmi/mcmi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include "sysmod/sysmod_params.hpp"
 #include "cosim/utils/eot/eot_plusargs.h"
