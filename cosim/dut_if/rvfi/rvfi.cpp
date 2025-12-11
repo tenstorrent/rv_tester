@@ -245,7 +245,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
         vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
         vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
         vec_cmode_pc_addr_ = m_trap.pc_addr;
-      }      
+      }
       // RVDE-24355: Store memory error for conservative mode vector instruction
       if (mem_error_) {
         vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
@@ -940,7 +940,10 @@ void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
     std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
       bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
       if (evict) {
-        mcmi_->process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+        // Send m_mcmi_ievict message to mcmi via registry messenger
+        // mcmi is registered at the same location and handles m_mcmi_ievict
+        cvm::registry::messenger.signal<rv_tester_transactions::cosim::m_mcmi_ievict<>>(
+          loc_, rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
       }
       return evict;
     }),
