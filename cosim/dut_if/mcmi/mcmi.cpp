@@ -42,13 +42,6 @@ mcmi::mcmi(cvm::topology::loc_t loc, unsigned id, std::shared_ptr<bridge> bridge
 
   cvm::log(cvm::MEDIUM, "[MCMI loc {} id{}] Constructing mcm...\n", loc_, id_);
 
-  // Flags configuration
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (ncores > 1) {
-    FLAGS_mcm = true;
-    cvm::log(cvm::NONE, "[plusargs] +mcm\n");
-  }
-
   // Reset/init configuration
   init();
 }
@@ -66,9 +59,6 @@ void mcmi::check() {
 
 void mcmi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
-  if (terminated_)
-    return;
-
   if (loc_ != m_reset.location)
     return;
 
@@ -79,7 +69,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
 void mcmi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
   if (loc_ != m_trap.location)
@@ -110,7 +100,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
 void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
   if (loc_ != m_rvfi.location)
@@ -142,10 +132,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
 
@@ -199,139 +186,18 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
     return;
   }
 
-  uint64_t mask = m_mcmi_read.mask;
-  uint64_t numones = std::popcount(mask);
   std::bitset<256> data_vec = m.data_vec;
 
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-  if (numones == consecutiveOnes) {
-      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements;
-        if (numones / elemsize) {
-          total_elements = numones / elemsize;
-          m.size = elemsize;
-        } else {
-          total_elements = 1;
-          m.size = numones;
-        }
-        for (int i=0; i<total_elements; i++){
-          uint64_t value = 0;
-          // Extract the bits for the current element
-          for (size_t j = 0; j < elemsize*8; ++j) {
-              size_t bit_index = i * elemsize*8 + j;
-              if (bit_index >= data_vec.size()) break; // Avoid overflow
-              if (data_vec[bit_index]) {
-                  value |= (1ULL << j);
-              }
-          }
-          m.data_vec = value;
-          m.elem_idx = m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-        }
-      }
-      else {
-        m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-      }
-  } else {
-      std::bitset<32> mask = m_mcmi_read.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_read.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_read.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
-          }
-      }
-
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-                uint16_t total_elements;
-                if (size / elemsize) {
-                  total_elements = size / elemsize;
-                  m.size = elemsize;
-                } else {
-                  total_elements = 1;
-                  m.size = size;
-                }
-                m.pa = m_mcmi_read.addr;
-                for (int i=0; i<total_elements; i++){
-                  size_t start, end;
-                  if (size / elemsize) {
-                    start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-                    end = dataAccumulated.size() - i * 2 * elemsize;
-                  } else {
-                    start = 0;
-                    end = dataAccumulated.size();
-                  }
-                  std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
-                  m.data_vec = value;
-                  m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-                }
-              } else{
-                m.pa = start_addr;
-                m.size = size;
-                std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-                m.data_vec = value;
-                m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-              }
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
-          }
-      }
-      m.size   = std::popcount(m_mcmi_read.mask);
-      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements;
-        if (size / elemsize) {
-          total_elements = size / elemsize;
-          m.size = elemsize;
-        } else {
-          total_elements = 1;
-          m.size = size;
-        }
-        m.pa = m_mcmi_read.addr;
-        for (int i=0; i<total_elements; i++){
-          size_t start, end;
-          if (size / elemsize) {
-            start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-            end = dataAccumulated.size() - i * 2 * elemsize;
-          } else {
-            start = 0;
-            end = dataAccumulated.size();
-          }
-          std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
-          m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-        }
-      } else{
-        m.pa = start_addr;
-        m.size = size;
-        std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-        m.data_vec = value;
-        m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-      }
-  }
+  process_memory_access(
+      m_mcmi_read.addr,
+      m_mcmi_read.mask,
+      m_mcmi_read.data_vec,
+      [&]() {
+          process_read_single_consecutive(m, m_mcmi_read, data_vec, elemsize, cacheable);
+      },
+      [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string& hex_string) {
+          process_read_split_range(m, m_mcmi_read, start_addr, size, data_vec, hex_string, elemsize, cacheable);
+      });
   if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
     process_amo(m);
   }
@@ -352,24 +218,82 @@ std::bitset<256> mcmi::stringToBitset(const std::string& hexString) {
   return bits;
 }
 
-void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
+void mcmi::process_read_single_consecutive(mem_t& m, const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read,
+                                             const std::bitset<256>& data_vec, uint8_t elemsize, bool cacheable) {
+  if (m_mcmi_read.v_ext & m_mcmi_read.splat){
+    uint16_t total_elements;
+    uint64_t numones = std::popcount(m_mcmi_read.mask);
+    if (numones / elemsize) {
+      total_elements = numones / elemsize;
+      m.size = elemsize;
+    } else {
+      total_elements = 1;
+      m.size = numones;
+    }
+    for (int i=0; i<total_elements; i++){
+      uint64_t value = 0;
+      // Extract the bits for the current element
+      for (size_t j = 0; j < elemsize*8; ++j) {
+          size_t bit_index = i * elemsize*8 + j;
+          if (bit_index >= data_vec.size()) break; // Avoid overflow
+          if (data_vec[bit_index]) {
+              value |= (1ULL << j);
+          }
+      }
+      m.data_vec = value;
+      m.elem_idx = m_mcmi_read.elem_idx + i;
+      bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+    }
+  }
+  else {
+    m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
+    bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+  }
+}
 
-  if (terminated_ || in_reset_)
+void mcmi::process_read_split_range(mem_t& m, const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read,
+                                     uint64_t start_addr, size_t size, const std::bitset<256>& data_vec,
+                                     const std::string& hex_string, uint8_t elemsize, bool cacheable) {
+  if (m_mcmi_read.v_ext & m_mcmi_read.splat){
+    uint16_t total_elements;
+    if (size / elemsize) {
+      total_elements = size / elemsize;
+      m.size = elemsize;
+    } else {
+      total_elements = 1;
+      m.size = size;
+    }
+    m.pa = m_mcmi_read.addr;
+    for (int i=0; i<total_elements; i++){
+      size_t start, end;
+      if (size / elemsize) {
+        start = hex_string.size() - (i + 1) * 2 * elemsize;
+        end = hex_string.size() - i * 2 * elemsize;
+      } else {
+        start = 0;
+        end = hex_string.size();
+      }
+      std::bitset<256> value = stringToBitset(hex_string.substr(start, end - start));
+      m.data_vec = value;
+      m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
+      bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+    }
+  } else{
+    m.pa = start_addr;
+    m.size = size;
+    m.data_vec = data_vec;
+    m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
+    bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
+  }
+}
+
+void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
+  if (in_reset_)
     return;
 
 
   if (patch_access(m_mcmi_insert.addr))
     return;
-
-  uint64_t mask = m_mcmi_insert.mask;
-  uint64_t numones = std::popcount(mask);
-
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
   mem_t m;
   m.valid = true;
@@ -391,74 +315,34 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   m.v_ext = m_mcmi_insert.v_ext;
   m.elem_idx = m_mcmi_insert.elem_idx;
 
-  if (numones == consecutiveOnes) {
-      m.pa = m_mcmi_insert.addr;
-      m.size = numones;
-      m.data = m_mcmi_insert.data;
-      m.data_vec = m_mcmi_insert.data_vec;
-      bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-  } else {
-      std::bitset<32> mask = m_mcmi_insert.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_insert.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_insert.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
-          }
-      }
-
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              m.pa = start_addr;
-              m.size = size;
-              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-              m.data_vec = value;
-              bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
-          }
-      }
-      m.pa = start_addr;
-      m.size = size;
-      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-  }
+  process_memory_access(
+      m_mcmi_insert.addr,
+      m_mcmi_insert.mask,
+      m_mcmi_insert.data_vec,
+      [&]() {
+          // Single consecutive access
+          m.pa = m_mcmi_insert.addr;
+          m.size = std::popcount(m_mcmi_insert.mask);
+          m.data = m_mcmi_insert.data;
+          m.data_vec = m_mcmi_insert.data_vec;
+          bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
+      },
+      [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string&) {
+          // Split access
+          m.pa = start_addr;
+          m.size = size;
+          m.data_vec = data_vec;
+          bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
+      });
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 
 
   if (patch_access(m_mcmi_bypass.addr))
     return;
-
-  uint64_t mask = m_mcmi_bypass.mask;
-  uint64_t numones = std::popcount(mask);
-
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
   mem_t m;
   m.valid = true;
@@ -488,80 +372,46 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
-  if (numones == consecutiveOnes) {
-      m.pa     = m_mcmi_bypass.addr;
-      m.size   = std::popcount(m_mcmi_bypass.mask);
-      m.data   = m_mcmi_bypass.data;
-      m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size*8, 0);
+  process_memory_access(
+      m_mcmi_bypass.addr,
+      m_mcmi_bypass.mask,
+      m_mcmi_bypass.data_vec,
+      [&]() {
+          // Single consecutive access
+          m.pa     = m_mcmi_bypass.addr;
+          m.size   = std::popcount(m_mcmi_bypass.mask);
+          m.data   = m_mcmi_bypass.data;
+          m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size*8, 0);
 
-      if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
-        amo_writes_.emplace(m.tag, m);
-        return;
-      }
-
-      if (m.amo && m.amo_op == SC && sc_failed(m)) {
-        sc_bypass_.emplace(m.tag, m);
-        return;
-      }
-      if((m_mcmi_bypass.attr == 0x1000) && (!m.v_ext)) {
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
-        // Setting the Cache flag to true for CBO
-      }
-      else {
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-      }
-  } else {
-      std::bitset<32> mask = m_mcmi_bypass.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_bypass.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_bypass.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
+          if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
+            amo_writes_.emplace(m.tag, m);
+            return;
           }
-      }
 
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              m.pa = start_addr;
-              m.size = size;
-              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-              m.data_vec = value;
-              m.v_ext = m_mcmi_bypass.v_ext;
-              m.elem_idx = m_mcmi_bypass.elem_idx;
-              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
+          if (m.amo && m.amo_op == SC && sc_failed(m)) {
+            sc_bypass_.emplace(m.tag, m);
+            return;
           }
-      }
-      m.pa = start_addr;
-      m.size = size;
-      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      m.v_ext = m_mcmi_bypass.v_ext;
-      m.elem_idx = m_mcmi_bypass.elem_idx;
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-  }
+          if((m_mcmi_bypass.attr == 0x1000) && (!m.v_ext)) {
+            bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
+            // Setting the Cache flag to true for CBO
+          }
+          else {
+            bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+          }
+      },
+      [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string&) {
+          // Split access
+          m.pa = start_addr;
+          m.size = size;
+          m.data_vec = data_vec;
+          m.v_ext = m_mcmi_bypass.v_ext;
+          m.elem_idx = m_mcmi_bypass.elem_idx;
+          bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+      });
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 
@@ -585,9 +435,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 
@@ -602,9 +449,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 
@@ -637,9 +481,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 
@@ -656,12 +497,8 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
-
 
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
   bool valid = false;
@@ -673,10 +510,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
   cvm::log(cvm::FULL, "Remote Procedural Calls to Whisper for mcm flush (combination of writeback + evict) to addr : {:#x}\n",m_mcmi_flush.addr);
@@ -694,10 +528,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_f
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm writeback [sv implementation] to addr : {:#x}\n",m_mcmi_writeback.addr);
@@ -711,10 +542,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
+  if (in_reset_)
     return;
 
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm dfetch [sv implementation] to addr : {:#x}\n",m_mcmi_dfetch.addr);
@@ -727,9 +555,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_
 }
 
 void mcmi::process_ncio_fetches(const rv_instr_t& instr) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
   if (terminated_ || in_reset_)
     return;
 

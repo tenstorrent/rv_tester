@@ -4,6 +4,9 @@
 #include <fmt/format.h>
 #include <unordered_map>
 #include <memory>
+#include <bitset>
+#include <vector>
+#include <string>
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
@@ -18,7 +21,7 @@ class mcmi {
     cvm::registry::messenger.connect<T>(
       loc,
       [this] (const T& v) {
-        return this->process(v);
+        if (!terminated_) return this->process(v);
       }
     );
     if constexpr (sizeof...(Args)) {
@@ -64,6 +67,31 @@ class mcmi {
     void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
     void process_ncio_fetches(const rv_instr_t& instr);
 
+    // Helper functions for m_mcmi_read processing
+    void process_read_single_consecutive(mem_t& m, const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read,
+                                         const std::bitset<256>& data_vec, uint8_t elemsize, bool cacheable);
+    void process_read_split_range(mem_t& m, const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read,
+                                  uint64_t start_addr, size_t size, const std::bitset<256>& data_vec,
+                                  const std::string& hex_string, uint8_t elemsize, bool cacheable);
+
+    // Utility function to process non-consecutive memory accesses
+    // Calls the callback for each consecutive address range
+    // Callback signature: void(uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string& hex_string)
+    template<typename Callback>
+    void process_split_memory_accesses(uint64_t base_addr, uint64_t mask,
+                                       const std::bitset<256>& data_vec,
+                                       Callback&& callback);
+
+    // High-level utility function that handles both consecutive and non-consecutive memory accesses
+    // If consecutive, calls single_callback once. Otherwise, calls split_callback for each range.
+    // single_callback signature: void()
+    // split_callback signature: void(uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string& hex_string)
+    template<typename SingleCallback, typename SplitCallback>
+    void process_memory_access(uint64_t base_addr, uint64_t mask,
+                               const std::bitset<256>& data_vec,
+                               SingleCallback&& single_callback,
+                               SplitCallback&& split_callback);
+
     template <typename T>
     void amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
 
@@ -101,3 +129,78 @@ class mcmi {
     std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
 
 };
+
+// Template implementation for process_split_memory_accesses
+template<typename Callback>
+void mcmi::process_split_memory_accesses(uint64_t base_addr, uint64_t mask,
+                                         const std::bitset<256>& data_vec,
+                                         Callback&& callback) {
+  std::bitset<32> mask_bitset = mask;
+  std::vector<uint64_t> addresses;
+  std::vector<uint8_t> datas;
+
+  // Extract addresses and data bytes from mask
+  for (int i = 0; i < 32; i++) {
+      if (mask_bitset[i]) {
+          addresses.push_back(base_addr + i);
+          uint8_t byte = 0;
+          for (int bit = i*8; bit < 8*(i+1); ++bit) {
+              if (data_vec[bit]) {
+                  byte |= (1 << (bit - (i*8)));
+              }
+          }
+          datas.push_back(byte);
+      }
+  }
+
+  if (addresses.empty()) {
+      return;
+  }
+
+  // Group consecutive addresses and call callback for each range
+  uint64_t start_addr = addresses[0];
+  size_t size = 1;
+  std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
+
+  for (size_t i = 1; i < addresses.size(); ++i) {
+      if (addresses[i] == addresses[i - 1] + 1) {
+          ++size;
+          dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
+      } else {
+  // Process the current range
+          std::bitset<256> value = stringToBitset(dataAccumulated);
+          callback(start_addr, size, value, dataAccumulated);
+
+          // Start new range
+          start_addr = addresses[i];
+          size = 1;
+          dataAccumulated = fmt::format("{:02x}", datas[i]);
+      }
+  }
+
+  // Process the final range
+  std::bitset<256> value = stringToBitset(dataAccumulated);
+  callback(start_addr, size, value, dataAccumulated);
+}
+
+// High-level utility function that handles both consecutive and non-consecutive memory accesses
+template<typename SingleCallback, typename SplitCallback>
+void mcmi::process_memory_access(uint64_t base_addr, uint64_t mask,
+                                 const std::bitset<256>& data_vec,
+                                 SingleCallback&& single_callback,
+                                 SplitCallback&& split_callback) {
+  uint64_t numones = std::popcount(mask);
+
+  // Find the number of consecutive ones starting from the first set bit
+  uint64_t leadingZeros = std::countr_zero(mask);
+  uint64_t mask_shifted = mask >> leadingZeros;
+  uint64_t consecutiveOnes = std::countr_zero(~mask_shifted);
+
+  if (numones == consecutiveOnes) {
+    // Single consecutive access
+    single_callback();
+  } else {
+    // Non-consecutive, split into ranges
+    process_split_memory_accesses(base_addr, mask, data_vec, std::forward<SplitCallback>(split_callback));
+  }
+}

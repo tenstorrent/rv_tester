@@ -6,7 +6,6 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/whisper_if/whisper_client_plusargs.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
-#include "cosim/dut_if/mcmi/mcmi_plusargs.h"
 #include "rv_tester_plusargs.h"
 #include "sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"

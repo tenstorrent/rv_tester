@@ -8,7 +8,6 @@
 #include "cvm/registry.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
-#include "cosim/dut_if/mcmi/mcmi_plusargs.h"
 #include "rv_tester_plusargs.h"
 #include "transactors/axi_sw/axi.h"
 
@@ -92,8 +91,15 @@ void rvfi::init() {
     bridge_ = std::make_shared<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
     count_ = 1;
 
+    // Flags configuration
+    uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+    if (ncores > 1) {
+      FLAGS_mcm = true;
+      cvm::log(cvm::NONE, "[plusargs] +mcm\n");
+    }
+
     // Share bridge with mcmi
-    mcmi_ = std::make_unique<mcmi>(loc_, id_, bridge_);
+    if (FLAGS_mcm) mcmi_ = std::make_unique<mcmi>(loc_, id_, bridge_);
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }

@@ -13,6 +13,7 @@
 #include "cosim/bridge/bridge.h"
 #include "cosim/utils/eot/eot.h"
 #include "cosim/dut_if/mcmi/mcmi.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 #include "rv_tester/rv_tester_structs.h"
 #include "cosim/utils/eot/eot_plusargs.h"

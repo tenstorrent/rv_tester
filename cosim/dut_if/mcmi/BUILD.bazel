@@ -1,11 +1,1 @@
 exports_files(["mcmi.cpp", "mcmi.h"])
-
-cc_library(
-    name = "mcmi_plusargs",
-    hdrs = ["mcmi_plusargs.h"],
-    deps = ["@cvm//:plusargs",
-            "@rv_tester//cosim/bridge:bridge_plusargs",
-            ],
-
-    visibility = ["//visibility:public"],
-)
