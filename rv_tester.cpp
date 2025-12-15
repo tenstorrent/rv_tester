@@ -73,6 +73,10 @@ DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
 DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
 DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
+DEFINE_bool(cla_rand_nmi_trig_en, false, "Enable CLA NMI/XTrigger events"); // FIXME: remove once CLA is moved to RISCV_CLUSTER
+DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
+DEFINE_bool(ntrace_stop_on_wrap_seq_en, false, "Enable ntrace_stop_on_wrap_seq_en_sequence in the sim");
+
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))

@@ -21,7 +21,7 @@ DEFINE_bool(tj_shutdown, false, "Enable CPL SRAM TjShutdown programming...");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
-DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
+DEFINE_uint32(pll_dfs_timeout, 100, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
@@ -197,13 +197,8 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Assert force_ref_clk
   force_ref_clk(1);
-  int32_t warm_reset_cycles = 16;
-  if (FLAGS_jtag_en) {
-    warm_reset_cycles += FLAGS_jtag_drain_cycles; // cycles to drain pending jtag transaction
-  }
-  // Wait for warm_reset_cycles clock ticks
-  for (int i=0; i<warm_reset_cycles; ++i)
-    co_await tick();
+
+  co_await tick();
 
   // Assert holds
   reset_hold(
@@ -219,8 +214,12 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Assert warm reset
   warm_reset(1);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  int32_t warm_reset_cycles = 16;
+  if (FLAGS_jtag_en) {
+    warm_reset_cycles += FLAGS_jtag_drain_cycles; // cycles to drain pending jtag transaction
+  }
+  // Wait for warm_reset_cycles clock ticks
+  for (int i=0; i<warm_reset_cycles; ++i)
     co_await tick();
 
   // Deassert warm reset
@@ -393,7 +392,7 @@ cvm::messenger::task<void> reset_sequence::check_system_config_done() {
       break;
 
     count++;
-    if (count > 2000)
+    if (count > (2000 * FLAGS_num_harts))
       cvm::log(cvm::ERROR, "Error: System check config not done... \n");
   }
   co_return;
