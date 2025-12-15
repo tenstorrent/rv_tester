@@ -115,18 +115,18 @@ class mcmi {
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
+    uint8_t priv_ = 3;
 
     bool mem_error_ = false;
     uint64_t ecause_ = 0;
     std::unordered_map<uint64_t, bool> vec_cmode_mem_errors_;
     bool patch_mode_ = false;
+    uint64_t patch_mode_first_tag_ = 0;
+    std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
     bool vec_cmode_ = false;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
     uint64_t vec_cmode_first_tag_ = 0;
     uint64_t vec_cmode_pc_addr_ = 0;
-
-    uint64_t patch_mode_first_tag_ = 0;
-    std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
 
 };
 
