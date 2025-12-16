@@ -115,7 +115,6 @@ class mcmi {
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
-    uint8_t priv_ = 3;
 
     bool mem_error_ = false;
     uint64_t ecause_ = 0;
