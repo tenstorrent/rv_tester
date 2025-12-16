@@ -58,8 +58,6 @@ cvm_toolchains1()
 load("@cvm//deps:toolchains2.bzl", "cvm_toolchains2")
 cvm_toolchains2()
 
-load("@corearchcoverage//infra/bazel:repositories.bzl","corearchcoverage_dependencies")
-corearchcoverage_dependencies()
 
 load(
     "@rules_vcs//vcs:repositories.bzl",
