@@ -106,13 +106,20 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (loc_ != m_rvfi.location)
     return;
 
+  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
+    patch_mode_ = true;
+    patch_mode_first_tag_ = m_rvfi.order;
+  }
+  if (m_rvfi.clr_pmode) {
+    patch_mode_ = false;
+    patch_mode_first_tag_ = 0;
+  }
   if (patch_mode_) {
     if (!patch_mode_first_tag_) {
       patch_mode_first_tag_ = m_rvfi.order;
     }
     if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
       patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
-    cvm::log(cvm::HIGH, "Patch mode tag={} first_tag={}\n", m_rvfi.order, patch_mode_first_tag_);
   }
 
   if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
