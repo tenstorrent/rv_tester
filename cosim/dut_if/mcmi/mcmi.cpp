@@ -114,24 +114,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     patch_mode_ = false;
     patch_mode_first_tag_ = 0;
   }
-  if (!((m_rvfi.priv & 0x7) == 0x3)) {
-    // Priv mode
-    if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-      patch_mode_ = true;
-    }
-    if (m_rvfi.ucode && (m_rvfi.mode != priv_)) {
-      if (m_rvfi.first_uop) {
-        priv_ = m_rvfi.mode;
-      }
-    }
-    if (m_rvfi.last_uop) {
-      if (m_rvfi.mode == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        patch_mode_ = false;
-        patch_mode_first_tag_ = 0;
-      }
-      priv_ = m_rvfi.mode;
-    }
-  }
   if (patch_mode_) {
     if (!patch_mode_first_tag_) {
       patch_mode_first_tag_ = m_rvfi.order;
