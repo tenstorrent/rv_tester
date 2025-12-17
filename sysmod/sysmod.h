@@ -40,8 +40,6 @@ class sysmod {
     ~sysmod();
 
     void configure();
-    void core_harvest_plusargs();
-    void sc_harvest_plusargs();
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
     void is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor);
@@ -54,13 +52,6 @@ class sysmod {
     void load_csr_mmr_boot(uint64_t dut);
     void load_io(const std::string& io);
     void store_dm_rand();
-
-    uint32_t get_rand_mask(uint32_t n, uint32_t max);
-    int32_t  get_rand_ways_mask(int32_t n, int32_t max);
-    int32_t  get_rand_dis_ways(int32_t max);
-    int32_t  get_rand_sp_ways(int32_t max);
-    std::string get_rand_id(uint32_t mask, uint32_t ncores);
-    std::string get_id(uint32_t mask, uint32_t ncores);
 
     device* dev(uint64_t addr);
     device* dev(const std::string& tag);
