@@ -392,7 +392,7 @@ cvm::messenger::task<void> reset_sequence::check_system_config_done() {
       break;
 
     count++;
-    if (count > 2000)
+    if (count > (2000 * FLAGS_num_harts))
       cvm::log(cvm::ERROR, "Error: System check config not done... \n");
   }
   co_return;
