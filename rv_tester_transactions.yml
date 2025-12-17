@@ -1799,70 +1799,6 @@ dm_model:
                 width: 8
 
 
-aclint_checker:
-    num: 1
-    cr_ac_mmrwrite:
-        domain: 1
-        num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
-        fields:
-            addr:
-                qualify: "{data}.mask != '0"
-                width: ${TOP.PLATFORM.PALEN}
-            mask:
-                qualify: "{data}.mask != '0"
-                width: ${TOP.PLATFORM.RDLEN // 8}
-            data:
-                qualify: "{data}.mask != '0"
-                width: ${TOP.PLATFORM.RDLEN}
-    axi_ac_write:
-        domain: 1
-        num: 1
-        fields:
-            srcid:
-                width: 4
-            order:
-                width: 64
-            addr:
-                width: ${TOP.PLATFORM.PALEN}
-            mask:
-                width: 64
-            data:
-                width: ${TOP.PLATFORM.XLEN}
-            user:
-                width: 8
-    mtip_check:
-        domain: 1
-        num: 9
-        fields:
-            check_1:
-                width: 1
-            check_2:
-                width: 1
-            clock:
-                width: 64
-            hart:
-                width: 32
-    timesync_check:
-        domain: 1
-        num: ${TOP.PLATFORM.NHARTS}
-        fields:
-            clock:
-                width: 64
-            hart:
-                width: 32
-    time_mtime_synch_check:
-        domain: 1
-        num: ${TOP.PLATFORM.NHARTS}
-        fields:
-            clock:
-                width: 64
-            hart:
-                width: 32
-            mtime_data:
-                width: 64
-            ctime_data:
-                width: 64
-
 reset_driver:
     num: 1
     tick:
@@ -1911,95 +1847,11 @@ pwrmgmt:
         domain: 3
         num: 1
 
-snoop_gen:
-    num: 1
-    m_tick:
-        domain: 2
-        num: 1
-
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_assert_tick:
         domain: 2
         num: 1
-
-trace:
-    num: 1
-    m_core_no_fetch:
-        domain: 2
-        num: 1
-        fields:
-            val:
-                width: ${TOP.PLATFORM.NHARTS}
-    m_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-    m_detect_core_hang:
-        domain: 2
-        num: 1
-cla:
-    num: 1
-    m_core_no_fetch:
-        domain: 2
-        num: 1
-        fields:
-            val:
-                width: ${TOP.PLATFORM.NHARTS}
-    m_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-cla_smc:
-    num: 1
-    m_smc_tick:
-        domain: 3
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-overlay_driver:
-    num: 1
-    m_overlay_driver_tick:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 32
-
-    
-jtag_driver:
-    num: 1
-    m_jtag_driver_tick:
-        domain: 3
-        num: 1
-        fields:
-            cycle:
-                width: 32
-    jtag_tick:
-        domain: 3
-        num: 1
-        fields:
-            advance:
-                width: 64
-    jtag_pkt_ack:
-        domain: 3
-        num: 1
-        fields:
-            complete:
-                width: 1
-    jtag_rdata:
-        domain: 3
-        num: 1
-        fields:
-            rdata:
-                width: 1344
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
