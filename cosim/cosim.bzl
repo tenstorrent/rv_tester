@@ -108,7 +108,6 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
-            "@rv_tester//cosim/whisper_cov:archcov_sv",
             packet + "_sv",
             topology + "_sv",
             harness,
@@ -121,7 +120,6 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             name + "_rvfi",
             "@cvm//:plusargs",
-            "@rv_tester//cosim/whisper_cov:archsample_dpi",
             packet + "_cc",
          ],
         alwayslink = True,
