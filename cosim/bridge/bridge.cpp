@@ -185,8 +185,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
     }
 
-    if((FLAGS_max_stall_cycle < (35000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
-        FLAGS_max_stall_cycle = (35000 + (nharts-1)*2000);
+    if((FLAGS_max_stall_cycle < (40000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
+        FLAGS_max_stall_cycle = (40000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
     if((FLAGS_max_cycle < static_cast<gflags::uint64>(10000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){

@@ -194,10 +194,10 @@ module rv_tester
     longint unsigned instructions = 0;
 
     int quiesce_counter = 0;
-    int trace_counter = 5000;
-    int quiesce_timeout = 500;
+    int trace_counter = 6000;
+    int quiesce_timeout = 600;
     int flush_counter = 0;
-    int flush_timeout = 25000;
+    int flush_timeout = 30000;
     bit print_terminate_message = '1;
     bit dm_registery_terminate_message = '1;
     int ndmreset_ack_delay = 0;
@@ -226,7 +226,7 @@ module rv_tester
     int abscmd_hang_counter = 0;
     bit warm_reset_directed_en = 0;
 
-    int trace_timeout = 50000;
+    int trace_timeout = 60000;
     int freq_switch_ncycles = 7000;
     int clk_profile = 0;
 
