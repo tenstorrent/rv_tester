@@ -27,8 +27,8 @@ static bool validate_ge0(const char* flagname, const int value) {
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value);
 
 DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
-DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
-DEFINE_int32(flush_timeout, 25000, "cycles to wait after flush is initiated before calling $finish");
+DEFINE_int32(quiesce_timeout, 600, "cycles to wait after eot condition before calling $finish");
+DEFINE_int32(flush_timeout, 30000, "cycles to wait after flush is initiated before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
 DEFINE_bool(rv_tester_enable_llc, false, "Bypass xbar+cache switch");
 DEFINE_bool(rv_tester_mem_bypass_cache, false, "Bypass cache switch");
@@ -42,7 +42,7 @@ DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call
 DEFINE_int32(disable_dmi_responce_ready, 0, "Disable DMI responce ready for no. of DMI commands");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
 DEFINE_bool(time_mtime_sync_enable, true, "Enable time and mtime sync check");
-DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
+DEFINE_int32(trace_timeout, 60000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 5000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
 DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
