@@ -211,6 +211,7 @@ typedef struct rv_instr_s {
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
+  uint64_t core_cycle = 0; 
   uint64_t tag = 0;
   uint64_t branch_tag = 0;
   uint32_t opcode = 0;
