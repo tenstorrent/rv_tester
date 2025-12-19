@@ -14,7 +14,7 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
 
   subdevice* sub = nullptr;
   interrupter_base = addr;
-  sub = new interrupter("interrupter", interrupter_base, 1, loc, axi_mst_loc_l);
+  sub = new interrupter("interrupter", interrupter_base, 8, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
   subdevices_.emplace_back(sub);
