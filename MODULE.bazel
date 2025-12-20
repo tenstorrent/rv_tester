@@ -1,0 +1,88 @@
+module(name = "rv_tester", version = "0.0.0")
+
+# Local module dependencies with path overrides
+bazel_dep(name = "lsf_config", version = "")
+local_path_override(module_name = "lsf_config", path = "infra/lsf_config")
+
+bazel_dep(name = "bzsim", version = "0.0.0")
+local_path_override(module_name = "bzsim", path = "infra/bzsim_clone")
+
+# Internal bazel dependencies
+bazel_dep(name = "cvm", version = "2026.01.23-11.07.09")
+bazel_dep(name = "whisper", version = "2026.01.23-13.14.58")
+bazel_dep(name = "rules_verilator", version = "2026.01.23-11.07.09")
+bazel_dep(name = "rules_hdl", version = "2026.01.16-22.01.28")
+bazel_dep(name = "mem_manager", version = "2026.01.22-16.29.06")
+
+# BCR dependencies
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_m4", version = "0.2.3")
+bazel_dep(name = "rules_flex", version = "0.2.1")
+bazel_dep(name = "rules_bison", version = "0.2.2")
+bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "boost.algorithm", version = "1.89.0.bcr.2")
+bazel_dep(name = "boost.program_options", version = "1.89.0.bcr.2")
+bazel_dep(name = "fmt", version = "9.1.0")
+bazel_dep(name = "rules_cc", version = "0.0.9")
+
+bazel_dep(name = "corearchcoverage", version = "2026.02.02-17.54.03")
+
+# Python toolchain - use Python 3.9 to match cvm's requirements
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.9",
+)
+
+# Python pip dependencies for rv_tester
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "rv_tester_pypi",
+    python_version = "3.9",
+    requirements_lock = "//infra/bazel:requirements.txt",
+)
+use_repo(pip, "rv_tester_pypi")
+
+# Use local verilator via rules_verilator extension
+verilator_ext = use_extension("@rules_verilator//:extensions.bzl", "verilator")
+use_repo(verilator_ext, "verilator")
+
+
+# Non-bzlmod dependencies via module extension
+deps = use_extension("//infra/bazel:extensions.bzl", "deps")
+use_repo(
+    deps,
+    "opensrc-nlohmann-json",
+    "CoreArchChecker",
+    "opensrc-wall_clock_profiler",
+    "checkin-script",
+    "aegissocspec",
+    "risc-v-cpu-spec",
+    "opensrc-axi",
+    "opensrc-axi_llc",
+    "opensrc-tech_cells_generic",
+)
+
+
+bzsim_deps = use_extension("@bzsim//:extensions.bzl", "bzsim_deps")
+use_repo(
+    bzsim_deps,
+    "rules_vcs",
+    "rules_questasim",
+    "rules_spyglass",
+    "rules_vcf",
+    "rules_jg",
+    "rules_xcelium",
+    "rules_pkg",
+    "unit_test_bzsim",
+    "opensrc-unit-riscv-dv",
+    "rv_sim",
+    "bazel_clang_tidy",
+)
+
+internal_deps = use_extension("//infra/bazel:internal_extensions.bzl", "internal_deps")
+use_repo(
+    internal_deps,
+    "testgen",
+)

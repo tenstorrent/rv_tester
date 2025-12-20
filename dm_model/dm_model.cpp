@@ -171,9 +171,9 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
   if (FLAGS_debug_enable == 0x2 || FLAGS_debug_enable == 0x0) { //TODO: Add flags when AXI traffic is enabled via DTM
     if (dmi_resp.resp != 0x2){
       if (!FLAGS_dm_model_check_bypass)
-        cvm::log(cvm::ERROR, "Error: Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp);
+        cvm::log(cvm::ERROR, "Error: Expected an Error response as debug is disabled via DTM, but got a response of {:#x}\n", dmi_resp.resp);
       else
-        cvm::log(cvm::NONE, "[Mismatch] Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp); 
+        cvm::log(cvm::NONE, "[Mismatch] Expected an Error response as debug is disabled via DTM, but got a response of {:#x}\n", dmi_resp.resp); 
     }
     return;
   }  

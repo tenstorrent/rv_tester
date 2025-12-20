@@ -7,6 +7,9 @@ cc_library(
       "@cvm//:registry",
       "@cvm//:plusargs",
       "@cvm//:logger",
-    ],
+    ] + select({
+        "//:use_bzlmod": ["@boost.algorithm"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
 )

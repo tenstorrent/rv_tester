@@ -134,7 +134,7 @@ class jtag_sequence {
     bool exit = false;
     if (loop_idx == (loop_size-1) && loop_execution_cnt > 0) {
       std::vector<uint64_t> convertedArray = {};
-      cond_log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata before  . jtag_rdata = 0b{}\n",jtag_rdata);
+      cond_log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata before  . jtag_rdata = 0b{}\n",jtag_rdata.to_string());
       convertedArray = reverseJtagAndStripSIB(jtag_rdata, jtag_length_data_in_loop);
       loop_rdata = convertedArray[0];
       cond_log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata reversed and stripped . loop_rdata = {:x}, reversed bit size = {}\n",loop_rdata, jtag_length_data_in_loop);
@@ -386,9 +386,9 @@ class jtag_sequence {
     }
 
     if (FLAGS_reverse_jtag_rdata) {
-      cond_log(cvm::HIGH, "\n[jtag_sequence] jtag_rdata after shifting {} , reg_data_length {}\n", jtag_rdata_shifted,reg_length_data_local);
+      cond_log(cvm::HIGH, "\n[jtag_sequence] jtag_rdata after shifting {} , reg_data_length {}\n", jtag_rdata_shifted.to_string(),reg_length_data_local);
       jtag_reversed_rdata = reverseLowerBits(jtag_rdata_shifted, reg_length_data_local);
-      cond_log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data_local);
+      cond_log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata.to_string(),reg_length_data_local);
     }
 
     std::vector<uint64_t> convertedArray = {};

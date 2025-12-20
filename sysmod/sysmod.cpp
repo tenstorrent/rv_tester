@@ -370,10 +370,10 @@ sysmod::sc_harvest_plusargs()
     cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sc_dis_ways {}, should be between [0,{}]\n", dis_ways, nways);
 
   if ((dis_ways != -1) && (dis_ways % 4 != 0))
-    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sc_dis_ways {}, should be a multiple of 4\n", dis_ways, nways);
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sc_dis_ways {}, should be a multiple of 4\n", dis_ways);
 
   if ((sp_ways != -1) && (sp_ways < 0 || sp_ways > nways))
-    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sp_ways {}, should be between [0,{}]\n", sp_ways);
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sp_ways {}, should be between [0,{}]\n", sp_ways, nways);
 
   if ((mask != -1) && (mask_dis_ways < 0 || mask_dis_ways > nways))
     cvm::log(cvm::ERROR, "Error: Invalid plusarg: count(+sc_dis_ways_mask {}) should be between [0,{}]\n", mask, nways);

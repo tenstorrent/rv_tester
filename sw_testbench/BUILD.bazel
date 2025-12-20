@@ -22,6 +22,11 @@ verilator_defines = {
 
 harnesses = [ "sw_1c", "sw_2c"]
 
+filegroup(
+    name = "vcs_waiver",
+    srcs = ["sw_testbench_vcs_waiver.config"],
+)
+
 [
   [
     genrule(
@@ -82,6 +87,7 @@ harnesses = [ "sw_1c", "sw_2c"]
         verilator_top = "sw_tb.cpp",
         bzsimconfig = "//infra/bzsim-config:bzsimconfig",
         verilator_configs = [":pulp_platform_verilator_waiver.vlt"],
+        vcs_message_configs = [":vcs_waiver"],
         user_verilator_opts = verilator_defines,
     )
   ] for name in harnesses

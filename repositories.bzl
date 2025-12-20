@@ -2,19 +2,20 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
-def rv_tester_repositories():
+def rv_tester_repositories(bzlmod = False):
 
-    maybe(
-        http_archive,
-        name = "bazel_skylib",
-        urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        ],
-        #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
-    )
+    if not bzlmod:
+        maybe(
+            http_archive,
+            name = "bazel_skylib",
+            urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            ],
+            #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
+        )
 
-    corearchcoverage_hash="ec543e04e3268108ae8e4d0c7c060d00408593a7"
+    corearchcoverage_hash="85a8ffab"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,14 +24,15 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="a2c94589e7cd1c8724eadce48571776cd599448c"
-    maybe(
-        http_archive,
-        name = "cvm",
-        sha256 = "0b266eff002b617ea10692a6766ef01e69c4af6420134460b5ee93b5dd9f2ecb",
-        strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
-    )
+    if not bzlmod:
+        cvm_hash="3b1ae47"
+        maybe(
+            http_archive,
+            name = "cvm",
+            sha256 = "",
+            strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
+            url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
+        )
 
     opensrc_nlohmann_json_hash="ece38f1883dd1e59c498c63b8f53c3b4bcbc593c"
     maybe(
@@ -40,14 +42,15 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="1d1d4283f773c3fdcca46575db975fc9bfa92458"
-    maybe(
-        git_repository,
-        name = "whisper",
-        commit = whisper_hash,
-        shallow_since = "1656867071 -0400",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
-    )
+    if not bzlmod:
+        whisper_hash="4667b38d76bbbb6874145a081660c60c17a91821"
+        maybe(
+            git_repository,
+            name = "whisper",
+            commit = whisper_hash,
+            shallow_since = "1656867071 -0400",
+            remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
+        )
 
     CoreArchChecker_hash="7e9c0c182cd3f192d634c84f469269ae51516f5b"
     maybe(
@@ -58,14 +61,15 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
 
-    rules_python_version = "0.11.0"
-    maybe(
-        http_archive,
-        name = "rules_python",
-        sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
-        strip_prefix = "rules_python-{}".format(rules_python_version),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
-    )
+    if not bzlmod:
+        rules_python_version = "0.11.0"
+        maybe(
+            http_archive,
+            name = "rules_python",
+            sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
+            strip_prefix = "rules_python-{}".format(rules_python_version),
+            url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
+        )
 
     mem_manager_hash="585efffd1a79f43388339c193cdae420f32acad4"
     maybe(
