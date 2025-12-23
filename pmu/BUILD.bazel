@@ -10,7 +10,7 @@ filegroup(
     name = "pmu_spec",
     srcs = [
         "core_pmc_spec.csv",
-        "sc_pmc_spec.csv",
+        "sharedcache_pmc_spec.csv",
     ],
     visibility = ["//visibility:public"],
 )

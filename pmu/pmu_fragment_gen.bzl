@@ -14,7 +14,7 @@ def _pmu_fragment_gen_impl(ctx):
     for f in pmu_spec_files:
         if "core" in f.basename:
             core_pmc_csv = f
-        elif "sc" in f.basename:
+        elif "sharedcache" in f.basename:
             sc_pmc_csv = f
 
     if not core_pmc_csv or not sc_pmc_csv:

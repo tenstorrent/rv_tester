@@ -7,6 +7,7 @@ def pmu_gen(
     topology,
     harness,
     pmu_spec = "@rv_tester//pmu:pmu_spec",
+    pmu_fragments = None,
     visibility = None,
     cc_attrs = {},
     **kwargs
@@ -15,13 +16,17 @@ def pmu_gen(
     pmu_dpi = name + "_dpi"
     pmu_sv = name + "_sv"
 
-    # Generate PMU fragments from specification, including complete pmu.sv
-    pmu_fragment_gen(
-        name = name + "_pmu_fragments",
-        pmu_spec = pmu_spec,
-        pmu_template = "@rv_tester//pmu:pmu.sv",
-        cc_attrs = cc_attrs,
-    )
+    # Use provided pmu_fragments or generate new ones
+    if pmu_fragments:
+        fragments_name = pmu_fragments
+    else:
+        fragments_name = name + "_pmu_fragments"
+        pmu_fragment_gen(
+            name = fragments_name,
+            pmu_spec = pmu_spec,
+            pmu_template = "@rv_tester//pmu:pmu.sv",
+            cc_attrs = cc_attrs,
+        )
 
     # Merge cc_attrs with alwayslink, giving precedence to cc_attrs if it contains alwayslink
     cc_library_attrs = dict(cc_attrs)
@@ -44,7 +49,7 @@ def pmu_gen(
             "@cvm//:bitmanip",
             "@cvm//:registry",
             "@rv_tester//sysmod:sysmod_plusargs",
-            name + "_pmu_fragments_cc",  # Add generated headers
+            fragments_name + "_cc",  # Add generated headers
          ],
         visibility = visibility,
         **cc_library_attrs,
@@ -59,7 +64,7 @@ def pmu_gen(
             packet + "_sv",
             topology + "_sv",
             harness,
-            name + "_pmu_fragments_sv",  # Contains generated pmu.sv with inlined code
+            fragments_name + "_sv",  # Contains generated pmu.sv with inlined code
         ],
         visibility = visibility,
     )

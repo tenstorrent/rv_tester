@@ -3,6 +3,7 @@ load("@cvm//:defs.bzl", "packet_gen")
 load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
+load("@rv_tester//pmu:pmu_fragment_gen.bzl", "pmu_fragment_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
@@ -67,9 +68,21 @@ def rv_tester_gen(
         visibility = visibility,
     )
 
+    # Generate PMU YAML fragments first (needed for Mako includes in transactions.yml)
+    pmu_fragment_gen(
+        name = name + "_pmu_fragments",
+        pmu_spec = pmu_spec,
+        pmu_template = "@rv_tester//pmu:pmu.sv",
+        cc_attrs = cc_attrs,
+    )
+
     packet_gen(
         name = name + "_transactions",
-        src = "@rv_tester//:rv_tester_transactions.yml",
+        srcs = [
+            "@rv_tester//:rv_tester_transactions.yml",
+            name + "_pmu_fragments/gen_core_events.yaml",
+            name + "_pmu_fragments/gen_sc_events.yaml",
+        ],
         package = "rv_tester_transactions",
         topology = topology,
         cc_attrs = cc_attrs,
@@ -83,7 +96,7 @@ def rv_tester_gen(
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
-    
+
     sysmod_gen(
         name = name + "_sysmod",
         packet = name + "_transactions",
@@ -98,6 +111,7 @@ def rv_tester_gen(
         topology = topology,
         harness = name + "_harness",
         pmu_spec = pmu_spec,
+        pmu_fragments = name + "_pmu_fragments",
         cc_attrs = cc_attrs,
     )
 
