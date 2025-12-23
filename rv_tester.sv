@@ -922,11 +922,6 @@ module rv_tester
 
 `endif
 
-
-
-    // coverage
-    arch_sample arch_sample ();
-
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
     logic [NHARTS-1:0] boot_done;

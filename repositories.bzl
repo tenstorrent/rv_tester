@@ -14,15 +14,6 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="c8e5c86bd0f29b2cb3f829248f7b830b011114b5"
-    maybe(
-        git_repository,
-        name = "corearchcoverage",
-        commit = corearchcoverage_hash,
-        #recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
-    )
-
     cvm_hash="7c86c18a4bb142a0a8b197af784c9c9cf3779db7"
     maybe(
         http_archive,
