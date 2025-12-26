@@ -52,8 +52,10 @@ module top
 
     int unsigned order = '0;
     assign quiesced = '1;
-    assign dmi_req_ready = '0;
-    assign dmi_resp_valid = '0;
+    assign ntrace_terminate        = '1;
+    assign terminate_dst_trace_seq = '1;
+    assign dmi_terminate           = '1;
+    assign dmi_poll_timeout_terminate = '0;
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;

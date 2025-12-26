@@ -27,10 +27,8 @@ module rv_tester
     bit force_ref_clk_d2;
     logic rv_tester_enable_llc = 0;
     logic rv_tester_mem_bypass_cache = 1;
-    logic dm_model_bypass = 1;
-    initial begin
-      rv_tester_reset = '1;
-    end
+    logic rv_tester_reset = '1;
+    assign rv_tester_reset_ = rv_tester_reset;
     int unsigned rv_tester_mem_delay = 20;
 
     /* verilator lint_off UNOPTFLAT */
@@ -173,12 +171,9 @@ module rv_tester
     int num_builds = -1;
     int target_num_resets = 0;
 
-    bit trace_en = 0;
-    bit cla_en = 0;
 
     bit [NHARTS-1:0] poke_event_out;
     bit poke_event_in;
-    bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
 
@@ -187,14 +182,12 @@ module rv_tester
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
-    rv_tester_pkg::terminate_t sysmod_terminate;
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
     logic cosim_terminate_any;
     longint unsigned instructions = 0;
 
     int quiesce_counter = 0;
-    int trace_counter = 5000;
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
@@ -202,28 +195,6 @@ module rv_tester
     bit dm_registery_terminate_message = '1;
     int ndmreset_ack_delay = 0;
 
-    int hart_enable_mask = 0;
-    int num_harts = 0;
-    bit ntrace_stop_on_wrap = 0;
-    int rand_dmi_driver_dly = 0;
-    int sdtrig_multitrigger = 0;
-    int num_dm_randpc = 0;
-    int num_dm_randload = 0;
-    int num_dm_randstore = 0;
-    int trigger_config = 0;
-    bit priority_singlestep = 0;
-    bit disable_haltpoll = 0;
-    bit disable_abscmdpoll = 0;
-    bit disable_triggerpoll = 0;
-    int dm_single_step_count = 0;
-    int dmi_poll_counter = 0;
-    int dmi_poll_timeout = 50000;
-    int disable_dmi_responce_ready = 0;
-    logic dmi_poll_timeout_terminate;
-    logic [31:0] dmi_commands_in_queue;
-    bit sdtrig_display = 0;
-    bit nonexistent_hart = 0;
-    int abscmd_hang_counter = 0;
     bit warm_reset_directed_en = 0;
 
     int trace_timeout = 50000;
@@ -251,8 +222,7 @@ module rv_tester
     int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
     LU cvm_debug_cycle_on = '0;
     LU cvm_debug_cycle_off = '0;
-    logic ntrace_terminate;
-    
+
     // Termination condition variables for better readability
     logic sysmod_cosim_dmi_terminate;
     logic core_terminate_conditions;
@@ -274,14 +244,11 @@ module rv_tester
 
 
     // Extract common termination conditions for better readability
-    assign sysmod_cosim_dmi_terminate = (sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
+    assign sysmod_cosim_dmi_terminate = (sysmod_terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
     assign core_terminate_conditions = dut_terminate || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
     
-    // AREDDY
-    assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (unconditional_terminate && sysmod_terminate.terminate) || (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || terminate_dst_trace_seq) && (!cla_en || terminate_cla_seq )  && (!jtag_en || jtag_quiesced )) || dut_terminate || warm_reset_now;
-    // areddy
+    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || flush_counter >= flush_timeout) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -334,7 +301,6 @@ module rv_tester
             quiesce_counter <= '0;
             flush_counter   <= '0;
             instructions    <= '0;
-            dmi_poll_timeout_terminate <= '0;
             if (num_resets < 0) begin
                 clocks <= '0;
             end
@@ -347,14 +313,6 @@ module rv_tester
 
         if (terminate && terminated) begin
             num_resets      <= -1;
-        end
-        
-        if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
-           trace_counter <= trace_counter + 1;
-        end else if(trace_en) begin
-          trace_counter <='0;
-        end else if(!trace_en)begin
-          trace_counter <= trace_timeout + 10;
         end
     end
 
@@ -484,22 +442,8 @@ module rv_tester
             eot_syscall                     <= 0;
             perf                            <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk              <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly             <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            num_dm_randpc                   <= cvm_plusargs::get_int("iss_select_num_randpc");
-            num_dm_randload                 <= cvm_plusargs::get_int("iss_select_num_randload");
-            num_dm_randstore                <= cvm_plusargs::get_int("iss_select_num_randstore");
-            trigger_config                  <= cvm_plusargs::get_int("trigger_config");
-            priority_singlestep             <= cvm_plusargs::get_bool("priority_singlestep") != '0;
-            disable_haltpoll                <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
-            disable_abscmdpoll              <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
-            disable_triggerpoll             <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
-            nonexistent_hart                <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
-            sdtrig_multitrigger             <= cvm_plusargs::get_int("sdtrig_multitrigger");
-            dm_single_step_count            <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
-            dmi_poll_timeout                <= cvm_plusargs::get_int("dmi_poll_timeout");
-            disable_dmi_responce_ready      <= cvm_plusargs::get_int("disable_dmi_responce_ready");
             ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
             trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout                   <= cvm_plusargs::get_int("flush_timeout");
@@ -513,18 +457,8 @@ module rv_tester
             rv_tester_mem_bypass_cache      <= cvm_plusargs::get_bool("rv_tester_mem_bypass_cache") != '0;
             rv_tester_mem_delay             <= cvm_plusargs::get_int("rv_tester_mem_delay");
             assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
-            sdtrig_display                  <= cvm_plusargs::get_bool("sdtrig_display") != '0;
-            dm_model_bypass                 <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
-            trace_en                        <= cvm_plusargs::get_bool("trace_en") != '0;
-            cla_en                          <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0); // FIXME: get rid of this flags
-            jtag_en                         <= cvm_plusargs::get_bool("jtag_en") != '0;
             overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            rand_dmi_driver_dly             <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            hart_enable_mask                <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count                      <= '0;
-            ntrace_stop_on_wrap             <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0; // FIXME: remove areddy
-            num_harts                       <= cvm_plusargs::get_int("num_harts");
-            abscmd_hang_counter             <= cvm_plusargs::get_int("abscmd_hang_counter");
             warm_reset_directed_en          <= cvm_plusargs::get_bool("warm_reset_directed_en") != '0;
             debug_enable                    <= cvm_plusargs::get_int("debug_enable"); // FIXME: this also exists in cluster_rv_tester, to be removed with pwrmgmt refactor
 
@@ -789,8 +723,6 @@ module rv_tester
     `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
     `RV_TESTER_TRANSACTIONS_DOMAIN(3, dut_clk[SOC_CLK_IDX]);
 
-    rv_tester_pkg::dm_write_t  trickbox_dmi_write;
-
     // Writeback logic
     logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
     assign mcm_writeback_valid[0] = writeback_cl_valid;
@@ -824,103 +756,12 @@ module rv_tester
         .dut_core_reset(dut_reset[CORE_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .bootstrap,
-        .dmi_write(trickbox_dmi_write),
+        .dmi_write(dmi_write),
         .event_triggers(event_triggers),
         .interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
-
-`ifndef DMI_TB_WRITES_UNSUPPORTED
-    logic [7:0] misc_signals;
-    logic dmi_status;
-
-    dmi_driver i_dmi_driver(
-        .clk(dut_clk[AXI_CLK_IDX]),
-        .core_clk(dut_clk[CORE_CLK_IDX]),
-        .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
-        .dmi_warm_reset(~reset[WARM_RESET_IDX]),
-        .dmi_driver_dbg_enable ((debug_enable == 'h1) || (debug_enable == 'h3)),
-        .rand_dmi_driver_dly,
-        .hart_enable_mask,
-        .dm_single_step_count,
-        .sdtrig_multitrigger,
-        .num_dm_randpc,
-        .num_dm_randload,
-        .num_dm_randstore,
-        .trigger_config,
-        .priority_singlestep,
-        .disable_haltpoll,
-        .disable_abscmdpoll,
-        .disable_triggerpoll,
-        .terminate(sysmod_terminate.terminate),
-        .num_harts,
-        .sdtrig_display,
-        .nonexistent_hart,
-        .abscmd_hang_counter,
-
-        .dmi_req_ready,
-        .dmi_resp_valid,
-        .dmi_resp,
-        .disable_dmi_responce_ready,
-
-        .dmi_req_valid,
-        .dmi_req,
-        .dmi_resp_ready,
-        .dmi_status,
-        .dmi_commands_in_queue,
-        .misc_signals,
-        .DM_DebugReq_Valids(DM_DebugReq_Valids),
-
-        .trickbox_dmi_write(trickbox_dmi_write),
-        .rvfi(rvfi)
-    );
-
-    dm_model #(
-        .NUM(0),
-        `TOPOLOGY_CFG,
-        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
-    ) i_dm_model(
-        .clk(dut_clk[AXI_CLK_IDX]),
-
-        //.reset(sys_reset[TB_CLK_IDX]),
-        .reset(~(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX])),
-        .dmi_req(dmi_tx_req),
-        .dmi_req_valid(dmi_tx_req_vld),
-        .dmi_resp_valid(dmi_tx_resp_vld),
-        .dmi_resp(dmi_tx_resp),
-        .terminate,
-        .dm_mem_tx_vld,
-        .dm_mem_tx_we,
-        .dm_mem_tx_addr,
-        .dm_mem_tx_rd_data,
-        .dm_mem_tx_wr_data,
-        .dm_mem_tx_wr_data_be,
-        .dmi_status,
-        .dmi_commands_in_queue,
-        .dmi_warm_reset(~reset[WARM_RESET_IDX]),
-        .misc_signals,
-        .DM_DebugReq_Valids(DM_DebugReq_Valids),
-        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
-    );
-
-    always @(posedge dut_clk[AXI_CLK_IDX]) begin
-        if (sys_reset[TB_CLK_IDX] | !dmi_status)
-            dmi_poll_counter <= 0;
-        else if (dmi_status) begin
-            dmi_poll_counter <= dmi_poll_counter + 1;
-
-            if (dmi_poll_counter > dmi_poll_timeout) begin
-                $display("\n<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
-                dmi_poll_timeout_terminate <= 1;
-            end
-            else if ((dmi_poll_counter >= 'h1) && terminate && !dm_model_bypass) begin
-               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks);
-            end
-        end
-    end
-
-`endif
 
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
