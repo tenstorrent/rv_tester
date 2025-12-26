@@ -1,1 +1,0 @@
-exports_files(["dm_model.cpp", "dm_model.hpp", "dm_model.sv", "decode.h", "encoding.h", "opcodes.h", "processor.h",  "debug_rom.h", "debug_rom_defines.h", "debug_defines.h"])
