@@ -185,16 +185,16 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
     }
 
-    if((FLAGS_max_stall_cycle < (40000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
-        FLAGS_max_stall_cycle = (40000 + (nharts-1)*2000);
+    if((FLAGS_max_stall_cycle < (FLAGS_max_stall_cycle_base + (nharts-1)*FLAGS_max_stall_cycle_per_core_increment)) && (FLAGS_max_stall_cycle != 0)){
+        FLAGS_max_stall_cycle = (FLAGS_max_stall_cycle_base + (nharts-1)*FLAGS_max_stall_cycle_per_core_increment);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
-    if((FLAGS_max_cycle < static_cast<gflags::uint64>(10000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
-        FLAGS_max_cycle = (10000000 + (nharts-1)*75000);
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(FLAGS_max_cycle_base + (nharts - 1) * FLAGS_max_cycle_per_core_increment)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
+        FLAGS_max_cycle = (FLAGS_max_cycle_base + (nharts-1)*FLAGS_max_cycle_per_core_increment);
         print(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
     }
-    if((FLAGS_max_instr < static_cast<gflags::uint64>(100000 + (nharts - 1) * 20000)) && (FLAGS_max_instr != 0) && (FLAGS_eot != "max_instr") && (nharts != 1)){
-        FLAGS_max_instr = (100000 + (nharts-1)*20000);
+    if((FLAGS_max_instr < static_cast<gflags::uint64>(FLAGS_max_instr_base + (nharts - 1) * FLAGS_max_instr_per_core_increment)) && (FLAGS_max_instr != 0) && (FLAGS_eot != "max_instr") && (nharts != 1)){
+        FLAGS_max_instr = (FLAGS_max_instr_base + (nharts-1)*FLAGS_max_instr_per_core_increment);
         print(cvm::LOW, "Overwriting max_instr to {} cycles\n",FLAGS_max_instr );
     }
 
@@ -1540,7 +1540,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
     // First PMA is always in value field
     update_mem_attr(hart, src_t::iss, first_pma, 0);
-    
+
     if (page4kX) {
       update_mem_attr(hart, src_t::iss, second_pma, 1);
     }
@@ -1760,7 +1760,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         }
       }
       if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
-        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);     
+        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
       }
     }
   }
@@ -2464,10 +2464,10 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) {
     if (m.v_ext) {
       // For vector operations, use data_vec and split into chunks
       std::vector<uint64_t> data_chunks = create_dword_vec(m.data_vec);
-      
+
       // Calculate how many 8-byte chunks we need based on actual size
       size_t num_chunks = (m.size + 7) / 8; // Round up division
-      
+
       for (size_t i = 0; i < num_chunks && i < data_chunks.size(); ++i) {
         uint64_t chunk_addr = m.pa + (i * 8);
         uint8_t chunk_size = std::min(8, (int)(m.size - i * 8));
@@ -2477,7 +2477,7 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) {
       }
     } else {
       poke_mem(hart, m.cycle, m.pa, m.size, m.data, false, false);
-    }  
+    }
   }
 
   if (m.v_ext){
