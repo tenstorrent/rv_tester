@@ -5,6 +5,12 @@
 DECLARE_uint64(resetpc);
 DECLARE_uint64(resetpcfw);
 DECLARE_uint64(max_stall_cycle);
+DECLARE_uint64(max_stall_cycle_base);
+DECLARE_uint64(max_stall_cycle_per_core_increment);
+DECLARE_uint64(max_cycle_base);
+DECLARE_uint64(max_cycle_per_core_increment);
+DECLARE_uint64(max_instr_base);
+DECLARE_uint64(max_instr_per_core_increment);
 DECLARE_bool(bypass_cache);
 DECLARE_bool(bypass_mem);
 DECLARE_bool(timeout_scale_en);
