@@ -335,7 +335,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi
   nmi.cause = m_core_nmi.nmi_cause;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#{} {} 0 (nmi:{} cause:{})\n", count_, nmi.cycle, nmi.valid, nmi.cause);
+    log(cvm::NONE, "#{} {} {} (nmi:{} cause:{})\n", count_, nmi.cycle, id_, nmi.valid, nmi.cause);
 
   if (!FLAGS_cosim)
     return;

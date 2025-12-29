@@ -240,32 +240,6 @@ bridge::~bridge() {}
   assert(cac_.SetVlen(vlen_));
   csr_init();
 
-  // FIXME: Boot programming needs to move out of here
-  // Write num_harts to boot mem
-  bool valid;
-  poke_resource(id_, 0, 'm', memmap_.at("boot").base + boot_num_harts_offset, FLAGS_num_harts);
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_num_harts_offset, FLAGS_num_harts, false, false, valid) || !valid) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to poke boot memory\n", id_);
-    return;
-  }
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_hart_sync_en_offset, FLAGS_hart_sync_en, false, false, valid)|| !valid) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to poke boot memory\n", id_);
-    return;
-  }
-
-  if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
-    uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
-    poke_mem(0, 0, memmap_.at("boot").base + boot_sp_init_offset, 8, poke_data, false, false);
-    poke_data = uint64_t(FLAGS_num_sp_ways);
-    poke_mem(0, 0, memmap_.at("boot").base + boot_sp_ways_offset, 8, poke_data, false, false);
-  }
-  if (FLAGS_matp_swid) {
-    poke_mem(0, 0, memmap_.at("boot").base + boot_matp_swid_offset, 8, uint64_t(FLAGS_matp_swid), false, false);
-  }
-  if (FLAGS_num_sc_enabled_ways) {
-    poke_mem(0, 0, memmap_.at("boot").base + boot_sc_enabled_ways_offset, 8, uint64_t(FLAGS_num_sc_enabled_ways),false, false);
-  }
-
   // Parse plusargs and store in containers
   cosim_resynch_excp_addr_  = parser::parse_input(FLAGS_cosim_resynch_excp_addr , parser::type_tag<parser::pair_map<uint64_t, uint64_t>>{});
   cosim_resynch_excp_       = parser::parse_input(FLAGS_cosim_resynch_excp      , parser::type_tag<parser::vector<uint64_t>>{});
@@ -1520,7 +1494,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       w_.mem_write.valid = true;
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
-      if ((w.address<0x64000000) && (w.address>=0x60000000) && FLAGS_enable_sp_init)
+      if ((w.address<0x64000000) && (w.address>=0x60000000))
            num_sp_accesses_++;
     }
   }
