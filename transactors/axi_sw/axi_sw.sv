@@ -794,6 +794,8 @@ module axi_sw_mst #(
     endfunction
     export "DPI-C" function axi_sw_mst_w_8;
 
+    `undef AXI_SW_MST_W
+
     always_comb begin
         axi_mst_w_valid = reset_n ? !w_queue_empty : '0;
 
