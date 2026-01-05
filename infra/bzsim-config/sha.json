@@ -1,7 +1,7 @@
 {
     "repos": {
         "bzsim_clone": {
-            "sha": "b189f8a42c27c3760000c0c74d44da33d52e2adc",
+            "sha": "8a35622789f2281f642e0a45ecb0bdb7d21a0347",
             "url": "git@aus-gitlab.local.tenstorrent.com:riscv/dv/bzsim-tools.git"
         },
         "podman-scripts": {
