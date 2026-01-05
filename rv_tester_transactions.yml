@@ -700,6 +700,52 @@ logger:
             timeval:
                 width: 64
 
+pmu_core:
+    num: ${TOP.PLATFORM.NHARTS}
+    pmcounters_core:
+        domain: 1
+        num: 1
+        fields:
+            <<: *pmcounters_core_fields
+    hpmcounters_core:
+        domain: 1
+        num: 1
+        fields:
+            hpmcounter3:
+                width: 64
+            hpmcounter4:
+                width: 64
+            hpmcounter5:
+                width: 64
+            hpmcounter6:
+                width: 64
+            hpmcounter7:
+                width: 64
+            hpmcounter8:
+                width: 64
+            hpmcounter9:
+                width: 64
+            hpmcounter10:
+                width: 64
+    pmc_checker:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
+        fields:
+            terminate:
+                width: 1
+            event_csr:
+                width: 4
+            event_id:
+                width: 56
+
+pmu_sc:
+    num: 1
+    pmcounters_sc:
+        domain: 1
+        num: 1
+        fields:
+            <<: *pmcounters_sc_fields
+
 dm_model:
     num: 1
     dmi_status:

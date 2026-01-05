@@ -79,9 +79,9 @@ def rv_tester_gen(
     packet_gen(
         name = name + "_transactions",
         srcs = [
-            "@rv_tester//:rv_tester_transactions.yml",
             name + "_pmu_fragments/gen_core_events.yaml",
             name + "_pmu_fragments/gen_sc_events.yaml",
+            "@rv_tester//:rv_tester_transactions.yml",
         ],
         package = "rv_tester_transactions",
         topology = topology,
