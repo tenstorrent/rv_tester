@@ -812,6 +812,8 @@ module rv_tester
           .nmi_pend(nmi_pend[c]),
           .interrupt_pend(interrupt_pend[c]),
           .mtime(mtime),
+          .timeCsr(timeCsr[c]),
+          .MTIP(MTIP[c]),
           .imsic_msi(imsic_msi[c]),
           .debug_mode(debug_mode[c]),
           .haltreq(DM_DebugReq_Valids[c]),
