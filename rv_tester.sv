@@ -188,18 +188,17 @@ module rv_tester
     longint unsigned instructions = 0;
 
     int quiesce_counter = 0;
-    int trace_counter = 6000;
-    int quiesce_timeout = 600;
+    int quiesce_timeout;
     int flush_counter = 0;
-    int flush_timeout = 30000;
+    int flush_timeout;
     bit print_terminate_message = '1;
     bit dm_registery_terminate_message = '1;
     int ndmreset_ack_delay = 0;
 
     bit warm_reset_directed_en = 0;
 
-    int trace_timeout = 60000;
-    int freq_switch_ncycles = 7000;
+    int trace_timeout;
+    int freq_switch_ncycles;
     int clk_profile = 0;
 
     int assertion_test_cycle = 0;
@@ -249,7 +248,7 @@ module rv_tester
     assign core_terminate_conditions = dut_terminate || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
 
     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || flush_counter >= flush_timeout) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
+    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || (flush_timeout != 0 && flush_counter >= flush_timeout)) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -260,7 +259,7 @@ module rv_tester
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      else if(dyn_clk_switch & (clocks >10) &  (freq_switch_ncycles != 0 && (clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
         if(clock_mode == 3'b110)
