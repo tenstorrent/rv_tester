@@ -4,7 +4,6 @@ load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//pmu:pmu_fragment_gen.bzl", "pmu_fragment_gen")
-load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
@@ -58,7 +57,6 @@ def rv_tester_gen(
         srcs = [
             "@rv_tester//:rv_tester_pkg.sv",
             "@rv_tester//:rv_tester_defines.sv",
-            "@rv_tester//:dmi_driver.sv",
             "@rv_tester//:rv_tester_stall_checker.sv",
         ],
         deps = [
@@ -115,14 +113,6 @@ def rv_tester_gen(
         cc_attrs = cc_attrs,
     )
 
-    dm_model_gen(
-        name = name + "_dm_model",
-        packet = name  + "_transactions",
-        topology = topology,
-        harness = name + "_harness",
-        cc_attrs = cc_attrs,
-    )
-
     pwrmgmt_gen(
         name = name + "_pwrmgmt",
         packet = name  + "_transactions",
@@ -168,7 +158,6 @@ def rv_tester_gen(
             name + "_transactions_sv",
             name + "_sysmod_sv",
             name + "_pmu_sv",
-            name + "_dm_model_sv",
             name + "_interrupts_sv",
             name + "_triggers_sv",
             name + "_axi_sw_sv",
@@ -199,7 +188,6 @@ def rv_tester_gen(
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
-            name + "_dm_model_dpi",
             name + "_interrupts_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",
