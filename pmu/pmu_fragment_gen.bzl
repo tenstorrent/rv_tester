@@ -3,12 +3,8 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 def _pmu_fragment_gen_impl(ctx):
     name = ctx.attr.name
 
-    # Extract the two CSV files from pmu_spec
+    # Extract and validate CSV files from pmu_spec
     pmu_spec_files = ctx.files.pmu_spec
-    if len(pmu_spec_files) != 2:
-        fail("pmu_spec must contain exactly 2 CSV files (core and sc)")
-
-    # Identify core and sc CSV files by name
     core_pmc_csv = None
     sc_pmc_csv = None
     for f in pmu_spec_files:
@@ -17,8 +13,16 @@ def _pmu_fragment_gen_impl(ctx):
         elif "sharedcache" in f.basename:
             sc_pmc_csv = f
 
-    if not core_pmc_csv or not sc_pmc_csv:
-        fail("pmu_spec must contain core_pmc_spec.csv and sc_pmc_spec.csv")
+    # Consolidated validation with clear error message
+    errors = []
+    if len(pmu_spec_files) != 2:
+        errors.append("pmu_spec must contain exactly 2 CSV files, found %d" % len(pmu_spec_files))
+    if not core_pmc_csv:
+        errors.append("missing core_pmc_spec.csv (file with 'core' in name)")
+    if not sc_pmc_csv:
+        errors.append("missing sharedcache_pmc_spec.csv (file with 'sharedcache' in name)")
+    if errors:
+        fail("pmu_fragment_gen '%s' validation failed:\n  - %s" % (name, "\n  - ".join(errors)))
 
     # Get pmu_template if provided
     pmu_template_files = ctx.files.pmu_template if ctx.attr.pmu_template else []

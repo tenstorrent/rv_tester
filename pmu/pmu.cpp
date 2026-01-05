@@ -350,7 +350,6 @@ pmu::name_event_vector(std::vector<size_t>& filtering_events){
 void
 pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
 {
-  cvm::log(cvm::NONE, "INFO: Hart {}: PMC checker called with event_id {:#x}\n", id_, pmc_checker.event_id);
   if (!FLAGS_pmc_sideband_check)
     return;
   if (pmc_checker.terminate == 0){
