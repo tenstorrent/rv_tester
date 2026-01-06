@@ -94,6 +94,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            core_cycle:
+                width: 64
             hart:
                 width: 32
             first_uop:

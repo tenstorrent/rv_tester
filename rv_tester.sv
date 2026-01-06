@@ -86,7 +86,7 @@ module rv_tester
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[REF_CLK_IDX]), .fastest_clk(fastest_clk));
             end else if (c == TB_CLK_IDX ) begin
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[TB_CLK_IDX]), .fastest_clk(fastest_clk));
-            end else begin 
+            end else begin
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(def_clk[c]), .fastest_clk(fastest_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile1_clkgen(.clk(profile1_clk[c]), .fastest_clk(fastest_clk));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile2_clkgen(.clk(profile2_clk[c]), .fastest_clk(fastest_clk));
@@ -188,17 +188,17 @@ module rv_tester
     longint unsigned instructions = 0;
 
     int quiesce_counter = 0;
-    int quiesce_timeout = 500;
+    int quiesce_timeout;
     int flush_counter = 0;
-    int flush_timeout = 25000;
+    int flush_timeout;
     bit print_terminate_message = '1;
     bit dm_registery_terminate_message = '1;
     int ndmreset_ack_delay = 0;
 
     bit warm_reset_directed_en = 0;
 
-    int trace_timeout = 50000;
-    int freq_switch_ncycles = 7000;
+    int trace_timeout;
+    int freq_switch_ncycles;
     int clk_profile = 0;
 
     int assertion_test_cycle = 0;
@@ -246,9 +246,9 @@ module rv_tester
     // Extract common termination conditions for better readability
     assign sysmod_cosim_dmi_terminate = (sysmod_terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
     assign core_terminate_conditions = dut_terminate || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
-    
+
     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || flush_counter >= flush_timeout) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
+    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || (flush_timeout != 0 && flush_counter >= flush_timeout)) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -259,14 +259,14 @@ module rv_tester
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      else if(dyn_clk_switch & (clocks >10) &  (freq_switch_ncycles != 0 && (clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
         if(clock_mode == 3'b110)
             clock_mode <= 'b1;
         else
             clock_mode <= clock_mode + 1'b1;
-      end 
+      end
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -436,7 +436,7 @@ module rv_tester
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
-      
+
             eot_addr                        <= eot_get_addr();
             eot_status                      <= 1;
             eot_syscall                     <= 0;
@@ -478,7 +478,7 @@ module rv_tester
         if ((warm_reset_en  || warm_reset_directed_en) && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
-        
+
         // Deassert warm_reset_en when any termination condition is met
         if (core_terminate_conditions) begin
             warm_reset_en <= 0;
@@ -568,7 +568,7 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
- 
+
             rv_tester_sync3 terminate_sync3 (
                 .clk (dut_clk[c]),
                 .d   (terminate),
@@ -736,7 +736,7 @@ module rv_tester
     for(genvar i = 1; i < 8; i++) begin
         assign mcm_dfetch_valid[i] = 2'b00;
     end
-    
+
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 10*100;
@@ -777,7 +777,7 @@ module rv_tester
         assign writeback_addr[i] = '0;
         assign dfetch_addr[i] = '0;
     end
-    `endif 
+    `endif
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
           .NUM(c),
@@ -846,11 +846,11 @@ module rv_tester
           // Tying to 0 to prevent X-propagation
           `endif
 
-          
+
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
-    
+
     assign boot_done_all = &boot_done;
 `endif
 
@@ -917,7 +917,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
-    
+
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
             .NUM(c),

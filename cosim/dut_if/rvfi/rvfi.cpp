@@ -406,6 +406,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.valid = true;
   instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
+  instr.core_cycle = m_rvfi.core_cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
   instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_rdata ? vec_cmode_first_tag_ : m_rvfi.order;
@@ -738,7 +739,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   std::string dut_log;
 
-  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  dut_log += fmt::format("#{} {} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.core_cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
