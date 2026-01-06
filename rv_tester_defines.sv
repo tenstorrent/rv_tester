@@ -979,7 +979,9 @@ package rv_tester_params;
     output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
-    output logic [63:0]                      mtime,                                                 \
+    output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
+    output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
+    output logic                             MTIP               [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
@@ -1065,7 +1067,9 @@ package rv_tester_params;
     rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
-    logic [63:0]                             mtime;                                                 \
+    rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
+    logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
+    logic                                    MTIP            [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \

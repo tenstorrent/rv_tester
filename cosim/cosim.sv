@@ -129,7 +129,9 @@ import rv_tester_params::*;
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::nmi_t nmi_pend,
     input rv_tester_params::interrupt_pend_t interrupt_pend,
-    input logic [63:0] mtime,
+    input rv_tester_pkg::mtimeMmr_t mtime,
+    input logic [63:0] timeCsr,
+    input logic        MTIP,
     input rv_tester_params::msi_t imsic_msi,
     input debug_mode,
     input haltreq,
@@ -1391,12 +1393,55 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_core_nmis[0].data.nmi_assert = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai));
     assign m_core_nmis[0].data.nmi_cause = ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (~nmi_pend.nmi & nmi_pend_d1.nmi)) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.clai & nmi_pend_d1.clai)) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
+    // m_interrupt_pend
+    logic [63:0] mip_d1, mip_timer, mip_timer_d1;
+    logic [63:0] core_clocks;
+    logic seip_d1;
+    assign mip_timer = interrupt_pend.mip & 'he0;
+    always @(posedge clk) begin
+      mip_timer_d1 <= mip_timer;
+      mip_d1 <= interrupt_pend.mip;
+      seip_d1 <= interrupt_pend.seip;
+      core_clocks <= core_clocks + 1;
+      if (dut_core_reset) begin
+        core_clocks <= '0;
+      end
+    end
+
+    // Falling edge detection for rvfi_instr_ucode[0]
+    logic rvfi_instr_ucode_d1, ucode_end;
+    always_ff @(posedge clk) begin
+      rvfi_instr_ucode_d1 <= rvfi_instr_ucode[0];
+    end
+    assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
+
+    logic saw_rvfi_intr_trap;
+    always_ff @(posedge clk) begin
+      if (reset) saw_rvfi_intr_trap <= 1'b0;
+      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap <= 1'b1;
+      else if (ucode_end && saw_rvfi_intr_trap) saw_rvfi_intr_trap <= 1'b0;
+    end
+
+    assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
+    assign m_interrupt_pends[0].data.location = location;
+    assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
+    assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
+    assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
+    assign m_interrupt_pends[0].data.mip_clr = ~interrupt_pend.mip & mip_d1;
+    assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
+    assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
+    assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
+    assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
+    assign m_interrupt_pends[0].data.trap_intr = saw_rvfi_intr_trap;
+
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
+    assign m_imsic_msis[0].data.trap_intr = saw_rvfi_intr_trap;
     assign m_imsic_msis[0].data.user = imsic_msi.user;
 
     // m_mtime
@@ -1412,26 +1457,65 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
     localparam logic [CSRLEN-1:0] C_MENVCFG    = 'h30A;
     localparam logic [CSRLEN-1:0] C_HVIP       = 'h645;
+    localparam logic [CSRLEN-1:0] C_HIP        = 'h644;
+    localparam logic [CSRLEN-1:0] C_MISA       = 'h301;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~suppress_interrupts && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG, C_HVIP})) ||
-          (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
+         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG, C_MISA})) ||
+          (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI, C_HIP, C_HVIP}))));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
-      assign m_mtimes[n].data.mtime = mtime;
+      assign m_mtimes[n].data.mtime = mtime.Data;
+      assign m_mtimes[n].data.timeCsr = timeCsr;
+      assign m_mtimes[n].data.trap_intr = saw_rvfi_intr_trap;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
       assign m_mtimes[n].data.size = 8;
+      assign m_mtimes[n].data.cause = 8'h3;
     end
 
+      localparam int XTIP_CHANGE_PROPOGATION_LATENCY = 4;
+      logic xtip_changes, xtip_changes_d [XTIP_CHANGE_PROPOGATION_LATENCY-1:0];
+      assign xtip_changes = ((|m_interrupt_pends[0].data.mip_set[7:5]) || (|m_interrupt_pends[0].data.mip_clr[7:5]));
+      always @(posedge clk) begin
+        if (reset) begin
+          xtip_changes_d <= '{default:0};
+        end else begin
+          xtip_changes_d <= {xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-2:0], xtip_changes};
+        end
+      end
     // mtime packets from mip bits
-      assign m_mtimes[NRET].valid = ~suppress_interrupts && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
+      assign m_mtimes[NRET].valid = ~suppress_interrupts && rvfi_enabled && (mtime.WriteValid ||
+                                                                             xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-1] ||
+                                                                             (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ||
+                                                                             (clocks % 1000 == 0));
       assign m_mtimes[NRET].data.location = location;
       assign m_mtimes[NRET].data.cycle = clocks;
-      assign m_mtimes[NRET].data.mtime = mtime;
+      assign m_mtimes[NRET].data.mtime = mtime.Data;
+      assign m_mtimes[NRET].data.timeCsr = mtime.WriteValid ? mtime.Data : timeCsr;
+      assign m_mtimes[NRET].data.trap_intr = saw_rvfi_intr_trap;
       assign m_mtimes[NRET].data.mip = mip_timer;
       assign m_mtimes[NRET].data.size = 8;
+      assign m_mtimes[NRET].data.cause = mtime.WriteValid ? 8'h1 :
+                                         (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ? 8'h2 :
+                                         xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-1] ? 8'h4 : '0;
+
+    //------------------------------------
+    // m_mtip
+    //------------------------------------
+    logic mtip_prev, mtip_rise, mtip_fall;
+    always @(posedge clk) begin
+      mtip_prev <= MTIP;
+    end
+    assign mtip_rise = MTIP & ~mtip_prev;
+    assign mtip_fall = ~MTIP & mtip_prev;
+
+    assign m_mtips[0].valid = ~suppress_interrupts && rvfi_enabled && (mtip_rise | mtip_fall);
+    assign m_mtips[0].data.location = location;
+    assign m_mtips[0].data.mtip = MTIP;
+    assign m_mtips[0].data.trap_intr = saw_rvfi_intr_trap;
+    assign m_mtips[0].data.cycle = clocks;
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
