@@ -1393,21 +1393,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_core_nmis[0].data.nmi_assert = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai));
     assign m_core_nmis[0].data.nmi_cause = ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (~nmi_pend.nmi & nmi_pend_d1.nmi)) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.clai & nmi_pend_d1.clai)) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
-    // m_interrupt_pend
-    logic [63:0] mip_d1, mip_timer, mip_timer_d1;
-    logic [63:0] core_clocks;
-    logic seip_d1;
-    assign mip_timer = interrupt_pend.mip & 'he0;
-    always @(posedge clk) begin
-      mip_timer_d1 <= mip_timer;
-      mip_d1 <= interrupt_pend.mip;
-      seip_d1 <= interrupt_pend.seip;
-      core_clocks <= core_clocks + 1;
-      if (dut_core_reset) begin
-        core_clocks <= '0;
-      end
-    end
-
     // Falling edge detection for rvfi_instr_ucode[0]
     logic rvfi_instr_ucode_d1, ucode_end;
     always_ff @(posedge clk) begin
@@ -1421,19 +1406,6 @@ localparam CAM_IHBIT = CAM_IBITS;
       else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap <= 1'b1;
       else if (ucode_end && saw_rvfi_intr_trap) saw_rvfi_intr_trap <= 1'b0;
     end
-
-    assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
-    assign m_interrupt_pends[0].data.location = location;
-    assign m_interrupt_pends[0].data.cycle = clocks;
-    assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
-    assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
-    assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
-    assign m_interrupt_pends[0].data.mip_clr = ~interrupt_pend.mip & mip_d1;
-    assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
-    assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
-    assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
-    assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
-    assign m_interrupt_pends[0].data.trap_intr = saw_rvfi_intr_trap;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
