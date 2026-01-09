@@ -1,0 +1,9 @@
+Event ID,Name,Description,RTL?,Unit,Sub-Unit,Granularity,Internal/External,Emulation?,Implementation?,Priority,Multi-hot Encoding,Multi-dimensional Encoding
+0x0001,cpu_cycles,Event for each CPU cycle,Yes,FE,Core,1,Internal,No,Implemented,High,No,No
+0x0002,instructions,Event for each retired instruction,Yes,FE,Core,1,Internal,No,Implemented,High,No,No
+0x0003,l1d_read_access_all,Event (speculative) for a l1d_cache access caused by a all demand memory-read operation. Does not include accesses to IO or noncacheable regions,Yes,LS,LS,32,E,Yes,Count all the loads at resolve time,P0,No,No
+0x0004,l1d_read_miss,Event (speculative) for a l1d_cache refill that is due to a demand memory-read operation. Does not include accesses to IO or noncacheable regions,Yes,LS,CIF,8,E,Yes,Count at data fill time and count only the fills initiated by loads,P0,Yes,Yes
+
+
+
+
