@@ -19,18 +19,16 @@
 DEFINE_bool(rvfi, true, "Enable rvfi");
 DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
-DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
-DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
-DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
-
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
+DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
+DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -56,18 +54,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtip<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
-    rv_tester_transactions::cosim::m_mcmi_read<>,
-    rv_tester_transactions::cosim::m_mcmi_insert<>,
-    rv_tester_transactions::cosim::m_mcmi_write<>,
-    rv_tester_transactions::cosim::m_mcmi_bypass<>,
-    rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
-    rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
-    rv_tester_transactions::cosim::m_mcmi_ievict<>,
-    rv_tester_transactions::cosim::m_mcmi_devict<>,
-    rv_tester_transactions::cosim::m_mcmi_flush<>,
-    rv_tester_transactions::cosim::m_mcmi_writeback<>,
-    rv_tester_transactions::cosim::m_mcmi_dfetch<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
@@ -81,13 +69,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester::terminate_called,
     rv_tester::terminate_called_mem_checks
   >(cvm::topology::get_from_type("PLATFORM", 0));
-
-  // Flags configuration
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (ncores > 1) {
-    FLAGS_mcm = true;
-    cvm::log(cvm::NONE, "[plusargs] +mcm\n");
-  }
 
   // Reset/init configuration
   init();
@@ -108,9 +89,18 @@ void rvfi::init() {
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
     auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
-    bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
+    bridge_ = std::make_shared<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
     count_ = 1;
 
+    // Flags configuration
+    uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+    if (ncores > 1) {
+      FLAGS_mcm = true;
+      cvm::log(cvm::NONE, "[plusargs] +mcm\n");
+    }
+
+    // Share bridge with mcmi
+    if (FLAGS_mcm) mcmi_ = std::make_unique<mcmi>(loc_, id_, bridge_);
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
@@ -141,8 +131,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
   in_reset_ = false;
   cvm::log(cvm::MEDIUM, "[rvfi] reset\n");
 
-  if (FLAGS_cosim)
+  if (FLAGS_cosim){
     bridge_->reset();
+    // mcmi_->reset();
+  }
   else
     FLAGS_whisper_client_check = false;
 }
@@ -154,6 +146,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (loc_ != m_rvfi.location)
     return;
+
+  if (patch_mode_) {
+    if (!patch_mode_first_tag_) {
+      patch_mode_first_tag_ = m_rvfi.order;
+    }
+    if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
+      patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
+  }
 
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
@@ -169,19 +169,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   prev_uop_tag_ = m_rvfi.order;
-
-  if (patch_mode_) {
-    if (!patch_mode_first_tag_) {
-      patch_mode_first_tag_ = m_rvfi.order;
-      instr.tag = patch_mode_first_tag_;
-    }
-    if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
-      patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
-    log(cvm::HIGH, "Patch mode tag={} first_tag={}\n", m_rvfi.order, patch_mode_first_tag_);
-  }
-
-  if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
-      vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
 
   if (!m_rvfi.last_uop)
     return;
@@ -270,8 +257,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       if (mem_error_) {
         vec_cmode_mem_errors_[vec_cmode_first_tag_] = true;
       }
-    } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
-      vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
     if (FLAGS_cosim) bridge_->process_dut_excp(id_, m_trap.cause, m_trap.order, vec_cmode_first_tag_);
   }
@@ -294,6 +279,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.seip_set = m_interrupt_pend.seip_set;
   intr.seip_clr = m_interrupt_pend.seip_clr;
   intr.buserr_bit = m_interrupt_pend.buserr_bit;
+  intr.trap_intr = m_interrupt_pend.trap_intr;
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
@@ -327,15 +313,29 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   intr.cycle = m_mtime.cycle;
   intr.mip   = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
+  intr.timeCsr = m_mtime.timeCsr;
+  intr.trap_intr = m_mtime.trap_intr;
   intr.size  = m_mtime.size;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} (mtime={:#x}, size={})\n", intr.cycle, id_, intr.mtime, intr.size);
+    log(cvm::NONE, "#NA {} {} (time={:#x}, mtime={:#x}, size={}, cause={:#x})\n", intr.cycle, id_, intr.timeCsr, intr.mtime, intr.size, m_mtime.cause);
 
   if (!FLAGS_cosim)
     return;
 
   bridge_->process_dut_timer(id_, intr);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mtip<>& m_mtip) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} MTIP[{}] = {}\n", m_mtip.cycle, id_, m_mtip.mtip);
+  
+  if (!FLAGS_cosim)
+    return;
+  bridge_->process_dut_mtip(id_, m_mtip.cycle, m_mtip.mtip, m_mtip.trap_intr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi) {
@@ -351,7 +351,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi
   nmi.cause = m_core_nmi.nmi_cause;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#{} {} 0 (nmi:{} cause:{})\n", count_, nmi.cycle, nmi.valid, nmi.cause);
+    log(cvm::NONE, "#{} {} {} (nmi:{} cause:{})\n", count_, nmi.cycle, id_, nmi.valid, nmi.cause);
 
   if (!FLAGS_cosim)
     return;
@@ -371,6 +371,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data;
+  mem.trap_intr = m_imsic_msi.trap_intr;
   mem.size = 4;
 
   if (FLAGS_rvfi_log && (mem.data != 0))
@@ -405,6 +406,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.valid = true;
   instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
+  instr.core_cycle = m_rvfi.core_cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
   instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_rdata ? vec_cmode_first_tag_ : m_rvfi.order;
@@ -474,6 +476,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
     if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
     patch_mode_ = true;
+
     if (FLAGS_patch_mode_tag_override) {
       patch_mode_first_tag_ = m_rvfi.order;
       instr.tag = patch_mode_first_tag_;
@@ -736,7 +739,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   std::string dut_log;
 
-  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  dut_log += fmt::format("#{} {} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.core_cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
@@ -929,419 +932,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
   send_csr(c);
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
 
-  if (terminated_ || in_reset_)
-    return;
-
-  if (patch_access(m_mcmi_read.addr))
-    return;
-
-  mem_t m;
-  bool cacheable = (m_mcmi_read.attr & 0x1000) == 0x1000;
-  m.valid  = true;
-  m.hart   = m_mcmi_read.hart;
-  m.cycle  = m_mcmi_read.cycle;
-  m.opcode  = m_mcmi_read.opcode;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_read.order))
-      m.tag = patch_mode_tags_[m_mcmi_read.order];
-  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_read.order >= patch_mode_first_tag_)) {
-      patch_mode_tags_.emplace(m_mcmi_read.order, patch_mode_first_tag_);
-      m.tag = patch_mode_first_tag_;
-  }
-  else if (vec_cmode_tags_.contains(m_mcmi_read.order))
-      m.tag = vec_cmode_tags_[m_mcmi_read.order];
-  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  } else
-      m.tag = m_mcmi_read.order;
-  m.pa     = m_mcmi_read.addr;
-  m.size   = std::popcount(m_mcmi_read.mask);
-  m.data   = m_mcmi_read.data;
-  m.data_vec   = m_mcmi_read.data_vec;
-  m.amo    = m_mcmi_read.amo;
-  m.amo_op = m_mcmi_read.amo_op;
-  m.v_ext  = m_mcmi_read.v_ext;
-  m.field = m_mcmi_read.field;
-  m.elem_idx = m_mcmi_read.elem_idx;
-  m.splat = m_mcmi_read.splat;
-  uint8_t elemsize = m_mcmi_read.elem_size;
-
-  // Handle SC
-  // If read before bypass, store pass/fail result
-  // If bypass before read, check pass/fail result and send/don't send bypass
-  if (m.amo && m.amo_op == SC) {
-    if (sc_bypass_.find(m.tag) == sc_bypass_.end()) {
-      sc_result_.emplace(m.tag, m);
-    } else {
-      if (!sc_failed(sc_bypass_.at(m.tag))) {
-        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag), true);
-        sc_bypass_.erase(m.tag);
-      }
-    }
-    return;
-  }
-
-  uint64_t mask = m_mcmi_read.mask;
-  uint64_t numones = std::popcount(mask);
-  std::bitset<256> data_vec = m.data_vec;
-
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-  if (numones == consecutiveOnes) {
-      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements;
-        if (numones / elemsize) {
-          total_elements = numones / elemsize;
-          m.size = elemsize;
-        } else {
-          total_elements = 1;
-          m.size = numones;
-        }
-        for (int i=0; i<total_elements; i++){
-          uint64_t value = 0;
-          // Extract the bits for the current element
-          for (size_t j = 0; j < elemsize*8; ++j) {
-              size_t bit_index = i * elemsize*8 + j;
-              if (bit_index >= data_vec.size()) break; // Avoid overflow
-              if (data_vec[bit_index]) {
-                  value |= (1ULL << j);
-              }
-          }
-          m.data_vec = value;
-          m.elem_idx = m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-        }
-      }
-      else {
-        m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-      }
-  } else {
-      std::bitset<32> mask = m_mcmi_read.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_read.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_read.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
-          }
-      }
-
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-                uint16_t total_elements;
-                if (size / elemsize) {
-                  total_elements = size / elemsize;
-                  m.size = elemsize;
-                } else {
-                  total_elements = 1;
-                  m.size = size;
-                }
-                m.pa = m_mcmi_read.addr;
-                for (int i=0; i<total_elements; i++){
-                  size_t start, end;
-                  if (size / elemsize) {
-                    start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-                    end = dataAccumulated.size() - i * 2 * elemsize;
-                  } else {
-                    start = 0;
-                    end = dataAccumulated.size();
-                  }
-                  std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
-                  m.data_vec = value;
-                  m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-                }
-              } else{
-                m.pa = start_addr;
-                m.size = size;
-                std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-                m.data_vec = value;
-                m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-              }
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
-          }
-      }
-      m.size   = std::popcount(m_mcmi_read.mask);
-      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements;
-        if (size / elemsize) {
-          total_elements = size / elemsize;
-          m.size = elemsize;
-        } else {
-          total_elements = 1;
-          m.size = size;
-        }
-        m.pa = m_mcmi_read.addr;
-        for (int i=0; i<total_elements; i++){
-          size_t start, end;
-          if (size / elemsize) {
-            start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-            end = dataAccumulated.size() - i * 2 * elemsize;
-          } else {
-            start = 0;
-            end = dataAccumulated.size();
-          }
-          std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
-          m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
-          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-        }
-      } else{
-        m.pa = start_addr;
-        m.size = size;
-        std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-        m.data_vec = value;
-        m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
-        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m, cacheable);
-      }
-  }
-  if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
-    process_amo(m);
-  }
-}
-
-// Helper function to convert a hex string into a bitset
-std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
-  std::bitset<256> bits;
-  size_t len = hexString.length();
-  for (size_t i = 0; i < len; ++i) {
-      int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9')
-                     ? hexString[len - 1 - i] - '0'
-                     : hexString[len - 1 - i] - 'a' + 10;
-      for (int j = 3; j >= 0; --j) {
-          bits[(i * 4) + j] = (hexDigit >> j) & 1;
-      }
-  }
-  return bits;
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  if (patch_access(m_mcmi_insert.addr))
-    return;
-
-  uint64_t mask = m_mcmi_insert.mask;
-  uint64_t numones = std::popcount(mask);
-
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-
-  mem_t m;
-  m.valid = true;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_insert.order))
-      m.tag = patch_mode_tags_[m_mcmi_insert.order];
-  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_insert.order >= patch_mode_first_tag_)) {
-      patch_mode_tags_.emplace(m_mcmi_insert.order, patch_mode_first_tag_);
-      m.tag = patch_mode_first_tag_;
-  }
-  else if (vec_cmode_tags_.contains(m_mcmi_insert.order))
-      m.tag = vec_cmode_tags_[m_mcmi_insert.order];
-  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  } else
-      m.tag = m_mcmi_insert.order;
-  m.cycle = m_mcmi_insert.cycle;
-  m.v_ext = m_mcmi_insert.v_ext;
-  m.elem_idx = m_mcmi_insert.elem_idx;
-
-  if (numones == consecutiveOnes) {
-      m.pa = m_mcmi_insert.addr;
-      m.size = numones;
-      m.data = m_mcmi_insert.data;
-      m.data_vec = m_mcmi_insert.data_vec;
-      bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-  } else {
-      std::bitset<32> mask = m_mcmi_insert.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_insert.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_insert.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
-          }
-      }
-
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              m.pa = start_addr;
-              m.size = size;
-              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-              m.data_vec = value;
-              bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
-          }
-      }
-      m.pa = start_addr;
-      m.size = size;
-      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-  }
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  if (patch_access(m_mcmi_bypass.addr))
-    return;
-
-  uint64_t mask = m_mcmi_bypass.mask;
-  uint64_t numones = std::popcount(mask);
-
-  // Find the number of consecutive ones starting from the first set bit
-  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
-  mask >>= leadingZeros;
-  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-
-  mem_t m;
-  m.valid = true;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
-    m.tag = patch_mode_tags_[m_mcmi_bypass.order];
-
-  } else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
-    patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
-    m.tag = patch_mode_first_tag_;
-
-  } else if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
-    m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
-
-  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-
-  } else {
-    m.tag = m_mcmi_bypass.order;
-  }
-
-  m.hart   = m_mcmi_bypass.hart;
-  m.cycle  = m_mcmi_bypass.cycle;
-  m.v_ext  = m_mcmi_bypass.v_ext;
-  m.elem_idx = m_mcmi_bypass.elem_idx;
-  m.amo    = m_mcmi_bypass.amo;
-  m.amo_op = m_mcmi_bypass.amo_op;
-
-  if (numones == consecutiveOnes) {
-      m.pa     = m_mcmi_bypass.addr;
-      m.size   = std::popcount(m_mcmi_bypass.mask);
-      m.data   = m_mcmi_bypass.data;
-      m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size*8, 0);
-
-      if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
-        amo_writes_.emplace(m.tag, m);
-        return;
-      }
-
-      if (m.amo && m.amo_op == SC && sc_failed(m)) {
-        sc_bypass_.emplace(m.tag, m);
-        return;
-      }
-      if((m_mcmi_bypass.attr == 0x1000) && (!m.v_ext)) {
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
-        // Setting the Cache flag to true for CBO
-      }
-      else {
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-      }
-  } else {
-      std::bitset<32> mask = m_mcmi_bypass.mask;
-      std::vector<uint64_t> addresses;
-      std::vector<uint8_t> datas;
-
-      for (int i = 0; i < 32; i++) {
-          if (mask[i]) {
-              addresses.push_back(m_mcmi_bypass.addr + i);
-              uint8_t byte = 0;
-              for (int bit = i*8; bit < 8*(i+1); ++bit) {
-                  if (m_mcmi_bypass.data_vec[bit]) {
-                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
-                  }
-              }
-              datas.push_back(byte);
-          }
-      }
-
-      uint64_t start_addr = addresses[0];
-      size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
-
-      for (size_t i = 1; i < addresses.size(); ++i) {
-          if (addresses[i] == addresses[i - 1] + 1) {
-              ++size;
-              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
-          } else {
-              m.pa = start_addr;
-              m.size = size;
-              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-              m.data_vec = value;
-              m.v_ext = m_mcmi_bypass.v_ext;
-              m.elem_idx = m_mcmi_bypass.elem_idx;
-              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-              start_addr = addresses[i];
-              size = 1;
-              dataAccumulated = fmt::format("{:02x}", datas[i]);
-          }
-      }
-      m.pa = start_addr;
-      m.size = size;
-      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      m.v_ext = m_mcmi_bypass.v_ext;
-      m.elem_idx = m_mcmi_bypass.elem_idx;
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-  }
-}
 
 bool rvfi::sc_failed(mem_t& write) {
 
@@ -1358,252 +949,8 @@ bool rvfi::sc_failed(mem_t& write) {
   return true;
 }
 
-void rvfi::process_amo(mem_t& read) {
-
-  if (amo_writes_.find(read.tag) == amo_writes_.end()) {
-    cvm::log(cvm::ERROR, "Error: [mcmi] Amo read with no matching bypass write - inst tag={}\n", read.tag);
-    return;
-  }
-
-  mem_t m = amo_writes_.at(read.tag);
-  m.cycle = read.cycle;
-  amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
 
-bridge_->process_dut_mcm_bypass(m.hart, m, true);
-  amo_writes_.erase(read.tag);
-}
-
-void rvfi::amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size) {
-
-  bool sign = (op == AMOADD) || (op == AMOSWAP) || (op == AMOMAX) || (op == AMOMIN);
-  switch (size) {
-    case 1:
-      if (sign) amo_arithmetic<int8_t>(op, read_data, write_data, size);
-      else      amo_arithmetic<uint8_t>(op, read_data, write_data, size);
-      break;
-    case 2:
-      if (sign) amo_arithmetic<int16_t>(op, read_data, write_data, size);
-      else      amo_arithmetic<uint16_t>(op, read_data, write_data, size);
-      break;
-    case 4:
-      if (sign) amo_arithmetic<int32_t>(op, read_data, write_data, size);
-      else      amo_arithmetic<uint32_t>(op, read_data, write_data, size);
-      break;
-    case 8:
-      if (sign) amo_arithmetic<int64_t>(op, read_data, write_data, size);
-      else      amo_arithmetic<uint64_t>(op, read_data, write_data, size);
-      break;
-    default:
-      cvm::log(cvm::ERROR, "Error: [mcmi] Invalid amo op size - [op={}, size={}]\n", amo_op_to_string.at(op), size);
-      break;
-  }
-}
-
-template <typename T>
-void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size) {
-  T read = 0, write = 0;
-
-  read = T(read_data) & cvm::bitmanip::mask<T>(size*8);
-  write = T(write_data) & cvm::bitmanip::mask<T>(size*8);
-
-  T result = 0;
-
-  switch (op) {
-    case AMOADD:
-      result = read + write;
-      break;
-    case AMOAND:
-      result = read & write;
-      break;
-    case AMOOR:
-      result = read | write;
-      break;
-    case AMOXOR:
-      result = read ^ write;
-      break;
-    case AMOSWAP:
-      result = write;
-      break;
-    case AMOMIN:
-    case AMOMINU:
-      result = std::min(read, write);
-      break;
-    case AMOMAX:
-    case AMOMAXU:
-      result = std::max(read, write);
-      break;
-    default:
-      assert(false && "Error: [mcmi] Unknown amo operation");
-      break;
-  }
-
-  write_data = uint64_t(uint64_t(result) & cvm::bitmanip::mask<uint64_t>(size*8));
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  if (patch_access(m_mcmi_write.addr))
-    return;
-
-  mem_cl_t m;
-  m.valid = true;
-  m.cycle = m_mcmi_write.cycle;
-  m.pa = m_mcmi_write.addr;
-  m.mask = m_mcmi_write.mask;
-  m.data = m_mcmi_write.data;
-  m.error = m_mcmi_write.error;
-
-  if (check_axi_error(m.pa & ~0x3f)) {
-    m.error = 1;
-  }
-
-  bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  mem_t m;
-  m.valid = true;
-  m.tag = m_mcmi_ifetch_req.order;
-  m.pa = m_mcmi_ifetch_req.addr;
-  m.attr = m_mcmi_ifetch_req.attr;
-
-  ifetch_reqs_.emplace(m.tag, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
-    cvm::log(cvm::ERROR, "Error: [mcmi] Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
-  }
-
-  mem_t m;
-  m = ifetch_reqs_.at(m_mcmi_ifetch_resp.order);
-  m.cycle = m_mcmi_ifetch_resp.cycle;
-
-  // RVDE-17736: Manage fetch/evict signaling for ncio region
-  if (is_ncio(m.attr)) {
-    auto it = std::find_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; });
-    if (it == ncio_fetches_.end()) {
-      bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
-      ncio_fetches_.emplace_back(m);
-    }
-    active_ncio_fetches_.emplace_back(m);
-  } else {
-    bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
-    if (!ncio_fetches_.empty()) {
-      ncio_mem_transition_ = true;
-    }
-  }
-
-  ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
-
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  if (patch_access(m_mcmi_ievict.addr))
-    return;
-
-  mem_t m;
-  m.valid = true;
-  m.cycle = m_mcmi_ievict.cycle;
-  m.pa = m_mcmi_ievict.addr;
-
-  bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
-  bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Hart {}: Failed mcm devict for address : {:#x} , cycle : {}\n", m_mcmi_devict.hart,m_mcmi_devict.addr,m_mcmi_devict.cycle);
-    return;
-  }
-
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  cvm::log(cvm::FULL, "Remote Procedural Calls to Whisper for mcm flush (combination of writeback + evict) to addr : {:#x}\n",m_mcmi_flush.addr);
-  bool valid = false;
-
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart , m_mcmi_flush.cycle, m_mcmi_flush.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::HIGH,"Hart: {} No mcm dwriteback for cbo flush , since cacheline not present\n",m_mcmi_flush.hart);
-    return;
-  }
-
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart, m_mcmi_flush.cycle, m_mcmi_flush.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Hart {}: Failed cbo flush mcm devict for address : {:#x} , cycle : {}\n", m_mcmi_flush.hart,m_mcmi_flush.addr,m_mcmi_flush.cycle);
-    return;
-  }
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm writeback [sv implementation] to addr : {:#x}\n",m_mcmi_writeback.addr);
-
-  bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Failed mcm dwriteback for address : {:#x} , cycle : {}\n",m_mcmi_writeback.addr,m_mcmi_writeback.cycle);
-    return;
-  }
-
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm dfetch [sv implementation] to addr : {:#x}\n",m_mcmi_dfetch.addr);
-
-  bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_dfetch.cycle, m_mcmi_dfetch.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Error: Failed mcm dfetch for address : {:#x} , cycle : {}\n",m_mcmi_dfetch.addr,m_mcmi_dfetch.cycle);
-    return;
-  }
-
-}
 
 
 void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
@@ -1616,8 +963,12 @@ void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
   ncio_fetches_.erase(
     std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
       bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
-      if (evict)
-        process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+      if (evict) {
+        // Send m_mcmi_ievict message to mcmi via registry messenger
+        // mcmi is registered at the same location and handles m_mcmi_ievict
+        cvm::registry::messenger.signal<rv_tester_transactions::cosim::m_mcmi_ievict<>>(
+          loc_, rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+      }
       return evict;
     }),
     ncio_fetches_.end());

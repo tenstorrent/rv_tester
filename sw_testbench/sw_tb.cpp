@@ -1,15 +1,20 @@
-#include <stdio.h>
+#include <cstdio>
+#include <limits>
 #include <numeric>
+#include <string>
 
 #include "Vtop.h"
 #include "verilated.h"
-#ifdef VERILATOR_FST
-    #include "verilated_fst_c.h"
-#else
-    #include "verilated_vcd_c.h"
-#endif
-#include "cvm/registry.hpp"
 
+#ifdef VERILATOR_FST
+#   include "verilated_fst_c.h"
+using VltTraceFile = VerilatedFstC;
+#else
+#   include "verilated_vcd_c.h"
+using VltTraceFile = VerilatedVcdC;
+#endif
+
+#include "cvm/registry.hpp"
 
 int main(int argc, char** argv) {
 
@@ -20,93 +25,101 @@ int main(int argc, char** argv) {
 
     printf("[main] starting\n");
 
-    // Clock generation
-    auto loc = cvm::topology::get_from_type("CLKI", 0);
-    auto nclks = cvm::topology::attr(loc, "NCLKS").second;
-    auto core_clk_idx = cvm::topology::attr(loc, "CORE_CLK_IDX").second;
-    auto freq_mhz = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ").second;
-    std::vector<uint32_t> half_period_ps;
-    std::vector<uint32_t> toggles;
-    uint32_t time_increment = 0;
-    for (unsigned i=0; i<nclks; i++) {
-        top.clk_ext[i] = 0;
-        half_period_ps.push_back(1000000/(2*freq_mhz[i]));
-        toggles.push_back(0);
+    // Clock configuration
+    const auto loc = cvm::topology::get_from_type("CLKI", 0);
+    const size_t nclks = static_cast<size_t>(cvm::topology::attr(loc, "NCLKS").second);
+    const auto core_clk_idx = cvm::topology::attr(loc, "CORE_CLK_IDX").second;
+    const auto freq_mhz = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ").second;
+    std::vector<uint64_t> half_period_ps(nclks, 0);
+    std::vector<uint64_t> toggles(nclks, 0);
+    uint64_t time_increment = 0;
+    for (size_t i = 0; i < nclks; ++i) {
+        half_period_ps[i] = 1000000ULL/(2*freq_mhz[i]);
         time_increment = std::gcd(time_increment, half_period_ps[i]);
     }
 
-    int core_cycle = 0;
+    // Waveform tracing configuration
+    std::unique_ptr<VltTraceFile> tfp;
 
-    #ifdef VERILATOR_FST 
-        std::unique_ptr<VerilatedFstC> tfp;
-    #else
-        std::unique_ptr<VerilatedVcdC> tfp;
-    #endif
-
-    int vcd_cycle_on = 0;
-    int vcd_cycle_off = 0;
-    bool waves_started = false;
-
-    const char* vcd_cycle_on_parg_cstr = vl_mc_scan_plusargs("vcd_cycle_on=");
-    std::string vcd_cycle_on_parg = vcd_cycle_on_parg_cstr ? vcd_cycle_on_parg_cstr : "";
-    const char* vcd_cycle_off_parg_cstr = vl_mc_scan_plusargs("vcd_cycle_off=");
-    std::string vcd_cycle_off_parg = vcd_cycle_off_parg_cstr ? vcd_cycle_off_parg_cstr : "";
-
-    if (!vcd_cycle_on_parg.empty()) {
+    // Pick up +vcd_cyle_on, enable tracing if present
+    uint64_t vcd_cycle_on = 0;
+    if (const char* const plusargp = vl_mc_scan_plusargs("vcd_cycle_on=")) {
+        vcd_cycle_on = std::stoull(plusargp);
+#ifdef VERILATOR_WAVES
         Verilated::traceEverOn(true);
-        #ifdef VERILATOR_FST 
-            tfp = std::make_unique<VerilatedFstC>();
-        #else
-            tfp = std::make_unique<VerilatedVcdC>();
-        #endif
-        vcd_cycle_on = stoi(vcd_cycle_on_parg);
-    }
-    if (!vcd_cycle_off_parg.empty()){
-        vcd_cycle_off = stoi(vcd_cycle_off_parg);
+        tfp = std::make_unique<VltTraceFile>();
+#endif
     }
 
-    while (!Verilated::gotFinish()) {
-        top.eval();
+    // Pick up +vcd_cyle_off
+    uint64_t vcd_cycle_off = std::numeric_limits<uint64_t>::max();
+    if (const char* const plusargp = vl_mc_scan_plusargs("vcd_cycle_off=")) {
+        vcd_cycle_off = std::stoull(plusargp);
+    }
 
-        // Clock generation
+    // Number of core cycles evaluated
+    uint64_t core_cycles = 0;
+
+    // All clocks start as zero on first evaluation
+    for (unsigned i=0; i<nclks; i++) {
+        top.clk_ext[i] = 0;
+    }
+
+    // Initial model evaluation at time 0
+    top.eval();
+
+    // Verilator misfeature: partition instances are only created and added
+    // to the context after the first evaluation, so must regiser the trace
+    // callbacks after the first 'eval', but before the first 'dump'.
+    if (tfp) context.trace(tfp.get(), 99, 0);
+
+    while (true) {
+        // Number of core clock cycles so far
+        core_cycles = toggles[core_clk_idx]/2;
+
+        // Dump waveforms - This must always be immediately after 'eval',
+        // before time is incremented otherwise the dump will be performed as
+        // if dumped at the new time point
+        if (tfp) {
+            if (vcd_cycle_on <= core_cycles && core_cycles < vcd_cycle_off) {
+                if (!tfp->isOpen()) {
+#ifdef VERILATOR_FST
+                    tfp->open("dump.fst");
+#else
+                    tfp->open("dump.vcd");
+#endif
+                }
+                tfp->dump(context.time());
+            }
+        }
+
+        // Check if reached end of simulation
+        if (Verilated::gotFinish()) break;
+
+        // Advance time and clocks
         bool toggled = false;
         do {
             context.timeInc(time_increment);
-            for (unsigned i=0; i<nclks; i++) {
+            for (size_t i = 0; i < nclks; ++i) {
                 if ((context.time() % half_period_ps[i]) == 0) {
                     top.clk_ext[i] = !top.clk_ext[i];
-                    toggles[i]++;
+                    ++toggles[i];
                     toggled = true;
                 }
             }
         } while (!toggled);
-        core_cycle = toggles[core_clk_idx]/2;
 
-        // FST dump
-        if (tfp && (core_cycle >= vcd_cycle_on) && (core_cycle < vcd_cycle_off || vcd_cycle_off == 0)) {
-            if (!waves_started) {
-                #ifdef VERILATOR_WAVES
-                    top.trace(tfp.get(), 99);  // Trace 99 levels of hierarchy (or see below)
-                #endif
-
-                #ifdef VERILATOR_FST 
-                    tfp->open("dump.fst");
-                #else
-                    tfp->open("dump.vcd");
-                #endif
-            
-                waves_started = true;
-            }
-            tfp->dump(context.time());
-        } 
+        // Evaluate model
+        top.eval();
     }
 
-    if (tfp) {
+    // Close the waveform dump, if any
+    if (tfp && tfp->isOpen()) {
         tfp->flush();
         tfp->close();
     }
 
-    printf("[main] exiting after %d core cycles\n", core_cycle);
+    printf("[main] exiting after %lu core cycles\n", core_cycles);
     top.final();
     exit(0);
 }
