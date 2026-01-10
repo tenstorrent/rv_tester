@@ -136,7 +136,7 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C" function sysmod_trace_info;
 
-    function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
+    function void sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
     endfunction
