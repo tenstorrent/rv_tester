@@ -55,15 +55,11 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
     rv_tester_transactions::cosim::m_mtip<>,
+    rv_tester_transactions::cosim::m_mtime<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
-
-  // Special case: Subscribe to mtime packets from all cores
-  for (const auto& cosim_loc : cvm::topology::get_from_type("COSIM")) {
-    connect< rv_tester_transactions::cosim::m_mtime<> >(cosim_loc);
-  }
 
   connect<
     rv_tester::terminate_called,
