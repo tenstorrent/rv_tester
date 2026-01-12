@@ -4,7 +4,7 @@
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
-DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/trigger");
+DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/uarch_trigger");
 DEFINE_bool(nmi_rand_en, false, "Enable nmi_sequence tick");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset and first nmi sequence in the sim if random mode enabled");

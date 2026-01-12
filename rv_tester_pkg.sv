@@ -116,6 +116,11 @@ package rv_tester_pkg;
     } interrupt_t;
 
     typedef struct packed {
+        logic [63:0] Data;
+        logic WriteValid;
+    } mtimeMmr_t;
+
+    typedef struct packed {
         logic nmi;
         logic clai;
     } nmi_t;

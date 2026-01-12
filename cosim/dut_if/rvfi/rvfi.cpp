@@ -54,6 +54,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtip<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
@@ -278,6 +279,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.seip_set = m_interrupt_pend.seip_set;
   intr.seip_clr = m_interrupt_pend.seip_clr;
   intr.buserr_bit = m_interrupt_pend.buserr_bit;
+  intr.trap_intr = m_interrupt_pend.trap_intr;
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
@@ -311,15 +313,29 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   intr.cycle = m_mtime.cycle;
   intr.mip   = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
+  intr.timeCsr = m_mtime.timeCsr;
+  intr.trap_intr = m_mtime.trap_intr;
   intr.size  = m_mtime.size;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} (mtime={:#x}, size={})\n", intr.cycle, id_, intr.mtime, intr.size);
+    log(cvm::NONE, "#NA {} {} (time={:#x}, mtime={:#x}, size={}, cause={:#x})\n", intr.cycle, id_, intr.timeCsr, intr.mtime, intr.size, m_mtime.cause);
 
   if (!FLAGS_cosim)
     return;
 
   bridge_->process_dut_timer(id_, intr);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mtip<>& m_mtip) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} MTIP[{}] = {}\n", m_mtip.cycle, id_, m_mtip.mtip);
+  
+  if (!FLAGS_cosim)
+    return;
+  bridge_->process_dut_mtip(id_, m_mtip.cycle, m_mtip.mtip, m_mtip.trap_intr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi) {
@@ -355,6 +371,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data;
+  mem.trap_intr = m_imsic_msi.trap_intr;
   mem.size = 4;
 
   if (FLAGS_rvfi_log && (mem.data != 0))
@@ -389,6 +406,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.valid = true;
   instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
+  instr.core_cycle = m_rvfi.core_cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
   instr.tag = patch_mode_ && FLAGS_patch_mode_tag_override ? patch_mode_first_tag_ : vec_cmode_ && vec_cmode_pc_addr_ == m_rvfi.pc_rdata ? vec_cmode_first_tag_ : m_rvfi.order;
@@ -721,7 +739,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   std::string dut_log;
 
-  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  dut_log += fmt::format("#{} {} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.core_cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)

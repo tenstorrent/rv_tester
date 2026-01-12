@@ -14,11 +14,11 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    cvm_hash="1ac9a6b7ec2cdaf9c8bc838f857b92a5d293c7ad"
+    cvm_hash="972e7d951513f6949361250e4747a1e8497344b2"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "f37842986adabc32ec07b53855907742e9340926ae116b48d940c5b5500bd9cb",
+        sha256 = "403c363c6942fd1cf1821fb68c539ead656a20a44624ebd38979ae49dd44f39f",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )

@@ -979,7 +979,9 @@ package rv_tester_params;
     output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
-    output logic [63:0]                      mtime,                                                 \
+    output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
+    output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
+    output logic                             MTIP               [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
@@ -990,23 +992,18 @@ package rv_tester_params;
     output                                   pll_shutdown_done,                                     \
     output logic [1:0]                       cpl_xtriggers,                                         \
     input                                    terminate,                                             \
+    input                                    sysmod_terminate,                                      \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                         \
-    output logic                             terminate_cla_seq,                                     \
-    output logic                             terminate_ntrace_test,                                 \
+    output logic                             ntrace_terminate,                                      \
     output logic                             terminate_dst_trace_seq,                               \
-    output logic                             jtag_quiesced,                                         \
+    output logic                             dmi_terminate,                                         \
+    output logic                             dmi_poll_timeout_terminate,                            \
+    input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     output                                   quiesced,                                              \
     output                                   unconditional_terminate,                               \
     input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
-    input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
-    output                                   dmi_req_ready,                                         \
-    output                                   dmi_resp_valid,                                        \
-    output rv_tester_pkg::dmi_resp_t         dmi_resp,                                              \
-    input                                    dmi_req_valid,                                         \
-    input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
-    input                                    dmi_resp_ready,                                        \
     output [7:0]                             DM_DebugReq_Valids,                                  \
     output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
     output logic [1:0]                       dfetch_cl_valid,                                      \
@@ -1028,18 +1025,7 @@ package rv_tester_params;
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::hpmi_t          hpmi         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
-    output logic                                            dm_mem_tx_vld,                          \
-    output logic                                            dm_mem_tx_we,                           \
-    output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
-    output logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data,                      \
-    output logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,                      \
-    output logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,                   \
-                                                                                                    \
-    output logic                                            dmi_tx_req_vld,                         \
-    output logic                                            dmi_tx_resp_vld,                        \
-    output rv_tester_pkg::dmi_req_t                         dmi_tx_req,                             \
-    output rv_tester_pkg::dmi_resp_t                        dmi_tx_resp,                            \
-    input  logic                                            rv_tester_reset,                        \
+    input  logic                                            rv_tester_reset_,                        \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
@@ -1081,7 +1067,9 @@ package rv_tester_params;
     rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
-    logic [63:0]                             mtime;                                                 \
+    rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
+    logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
+    logic                                    MTIP            [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \
@@ -1092,37 +1080,19 @@ package rv_tester_params;
     logic                                    pll_shutdown_done;                                     \
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
+    logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                         \
-    logic                                    terminate_cla_seq;                                     \
-    logic                                    terminate_ntrace_test;                                 \
     logic                                    terminate_dst_trace_seq;                               \
-    logic                                    jtag_quiesced;                                         \
+    logic                                    ntrace_terminate;                                      \
+    logic                                    dmi_terminate;                                         \
+    logic                                    dmi_poll_timeout_terminate;                            \
     logic                                    quiesced;                                              \
     logic                                    unconditional_terminate;                               \
     logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
-    rv_tester_pkg::dm_write_t                dmi_write;                                             \
-    logic                                    dmi_req_ready;                                         \
-    logic                                    dmi_resp_valid;                                        \
-    rv_tester_pkg::dmi_resp_t                dmi_resp;                                              \
-    logic                                    dmi_req_valid;                                         \
-    rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
-    logic                                    dmi_resp_ready;                                        \
     logic [7:0]     DM_DebugReq_Valids;                                                             \
-                                                                                                    \
-    logic                                            dm_mem_tx_vld;                                 \
-    logic                                            dm_mem_tx_we;                                  \
-    logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr;                                \
-    logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data;                             \
-    logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data;                             \
-    logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be;                          \
-                                                                                                    \
-    logic                                            dmi_tx_req_vld;                                \
-    logic                                            dmi_tx_resp_vld;                               \
-    rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
-    rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
-    logic                                    rv_tester_reset;                                       \
+    logic                                    rv_tester_reset_;                                       \
     logic [51:0]                             dfetch_cl_addr[1:0];                                   \
     logic [1:0]                              dfetch_cl_valid;                                       \
     logic [51:0]                             writeback_cl_addr[1:0];                                \
@@ -1160,7 +1130,9 @@ package rv_tester_params;
     logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
     logic AcChk_force_ss_to_ref_clock_n;                                                            \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];           \
+    rv_tester_pkg::dm_write_t dmi_write;                                                            \
     logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire;
+
     
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

@@ -23,7 +23,7 @@ import rv_tester_params::*;
     //output rv_tester_pkg::jtag_if_t  jtag_req,
     //output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
     //input rv_tester_pkg::jtag_if_out  jtag_resp,
-    output rv_tester_pkg::terminate_t terminate,
+    output logic terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
@@ -75,7 +75,7 @@ import rv_tester_params::*;
             if (location != cvm_topology::nil) begin
               sysmod_set_scope(location);
             end
-            terminate.terminate = '0;
+            terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -85,7 +85,7 @@ import rv_tester_params::*;
 
     function void sysmod_terminate ();
         $display("[sysmod]: attempting to terminate");
-        terminate.terminate = '1;
+        terminate = '1;
     endfunction
     export "DPI-C" function sysmod_terminate;
 
@@ -136,7 +136,7 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C" function sysmod_trace_info;
 
-    function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
+    function void sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
     endfunction
