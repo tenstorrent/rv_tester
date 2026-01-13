@@ -1401,11 +1401,13 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
 
     logic saw_rvfi_intr_trap;
+    logic saw_rvfi_intr_trap_d1;
     always_ff @(posedge clk) begin
-      if (reset) saw_rvfi_intr_trap <= 1'b0;
-      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap <= 1'b1;
-      else if (ucode_end && saw_rvfi_intr_trap) saw_rvfi_intr_trap <= 1'b0;
+      if (reset) saw_rvfi_intr_trap_d1 <= 1'b0;
+      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap_d1 <= 1'b1;
+      else if (ucode_end && saw_rvfi_intr_trap_d1) saw_rvfi_intr_trap_d1 <= 1'b0;
     end
+    assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
