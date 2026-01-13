@@ -1,6 +1,7 @@
 #include "nmi_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "sysmod/trickbox/interrupter.h"
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -69,6 +70,19 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
   while (true) {
     // Wait for next tick generated after a random interval "nmi_interval"
     co_await assert_tick();
+
+    // Check if trickbox enable write is required (for random stimulus)
+    if (FLAGS_trickbox_write_enables_intr) {
+      bool intr_enabled = false;
+      auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+      if (!cvm::registry::messenger.call<interrupter::intr_enable_read_RPC>(sysmod_loc, intr_enabled)) {
+        cvm::log(cvm::ERROR, "[interrupts][h{}] Failed to read interrupt enable flag\n", id_);
+      }
+      if (!intr_enabled) {
+        cvm::log(cvm::MEDIUM, "[interrupts][h{}] NMI injection disabled, waiting for trickbox enable write\n", id_);
+        continue;  // Skip NMI injection if not enabled
+      }
+    }
 
     nmi_count_++;
     cvm::log(cvm::HIGH, "[interrupts][h{}] Starting nmi sequence - count = {}\n", id_, nmi_count_);
