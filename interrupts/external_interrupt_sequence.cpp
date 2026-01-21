@@ -6,23 +6,15 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-static bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
-  if (value <= 0) {
-      cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
-      return false;
-  }
-  return true;
-}
-DEFINE_bool(interrupt_injection_enable, false, "Enable event based external_interrupt_sequence in the sim");
-DEFINE_int32(interrupt_injection_count, 1, "Number of MSI in the sim if random mode enabled");
-DEFINE_int32(interrupt_injection_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
-DEFINE_validator(interrupt_injection_rand_delay_min, &validate_interrupt_injection_rand_delay_min);
-DEFINE_int32(interrupt_injection_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
-DEFINE_int32(interrupt_injection_initial_delay, 0, "Initial delay after which interrupt trigger starts");
-DEFINE_int32(interrupt_injection_event_mask, 0, "Bitmask to enable specific uarch event triggers");
-DEFINE_string(interrupt_injection_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
-DEFINE_string(interrupt_injection_label, "", "Label to trigger interrupt");
-DEFINE_string(interrupt_injection_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
+DEFINE_bool(lpx_msi, false, "Enable delayed interrupt generation in case of CLC3/CLC4 ");
+DEFINE_bool(lpx_pllsd, false, "Enable interrupt after PLL Shutdown for Cluster C3/C4");
+DEFINE_bool(patch_interrupt_trigger_en, false, "Enable patch event based external_interrupt_sequence in the sim");
+DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_interrupt_sequence in the sim");
+DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
+DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
+DEFINE_int32(interrupt_trigger_interval,10, "Max TB cycle interval between MSI random mode enabled");
+DEFINE_int32(lpx_msi_interval, 60000, "Max TB cycle interval between MSI and LPX");
+
 
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
@@ -36,10 +28,15 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
       triggers_loc,
       [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); });
 
+  trigger_interrupt_count_ =  cvm::rand::get<uint32_t>(FLAGS_trigger_interrupt_count);
   cvm::log(cvm::MEDIUM, "external_interrupt_sequence constructor\n");
   // trigger sequence threads`
-  if (FLAGS_interrupt_injection_enable) {
-    interrupt_injection_thread();
+  interrupts_driven = 0;
+  if (FLAGS_patch_interrupt_trigger_en) {
+    patch_trigger_mode_thread();
+  }
+  if (FLAGS_uarch_interrupt_trigger_en || FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
+    uarch_trigger_mode_thread();
   }
 }
 
@@ -52,36 +49,101 @@ external_interrupt_sequence::~external_interrupt_sequence() {
   }
 }
 
+void external_interrupt_sequence::gen_interrupt_timings(){
+  //  std::stringstream ss(FLAGS_trigger_interrupt_ratio);
+  //  std::vector<double> weights(FLAGS_trigger_interrupt_count);
+  //  cvm::rand::discrete_dist<uint8_t> dist(weights);
+  //  std::string temp;
+  //  std::vector<int> values;
+
+  //  while (getline(ss, temp, ':')) {
+  //     values.push_back(std::stoi(temp));
+  //  }
+  //  for (int i=1; i<=10; i++)
+  //     weights[i] = values[0];
+  //  for (int i=11; i<=30; i++)
+  //     weights[i] = values[1];
+  //  for (int i=30; i<=100; i++)
+  //     weights[i] = values[2];
+
+}
+
 void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds){
   last_trigger = current_trigger;
   current_trigger = trigger_info;
   drive_msi_in_curr_hart = (per_core_trigger_vlds == (1 << id_));
-  cvm::log(cvm::LOW,"[ExtInterruptSeq] capture_trigger_info: hart_id={}, per_core_trigger_vlds=0x{:x}, expected=0x{:x}, drive_msi_in_curr_hart={}\n", 
-           id_, per_core_trigger_vlds, (1 << id_), drive_msi_in_curr_hart);
 }
 
-void external_interrupt_sequence::interrupt_injection_thread() {
+void external_interrupt_sequence::patch_trigger_mode_thread() {
   auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->interrupt_trigger();
+    co_await m->patch_trigger_mode();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
 };
 
-cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
+void external_interrupt_sequence::uarch_trigger_mode_thread() {
+  auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
+    co_await m->uarch_trigger_mode();
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, this);
+};
+
+
+cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
+  while(1){
+    bool abrupt_exit = false;
+    // Wait for next selected trigger
+    co_await delayed_trigger();
+    if(last_trigger != current_trigger){ //trigger transition detected
+      gen_interrupt_timings();//empty as of today
+      interrupts_driven = 0;
+    }
+    if(interrupts_driven < trigger_interrupt_count_){
+       uint8_t num = rng1() % FLAGS_interrupt_trigger_interval ;
+       //wait for num cycles before driving next MSI
+       for(int i =0; i< num;i++){
+         co_await delayed_trigger();
+         if(last_trigger != current_trigger){
+           abrupt_exit = true;
+           break;
+         }
+       }
+
+       if(!abrupt_exit & drive_msi_in_curr_hart){
+         cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to patch_trigger");
+         drive_interrupt();
+         interrupts_driven++;
+       }
+    }
+  }
+}
+
+cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
-    cvm::log(cvm::LOW,"[ExtInterruptSeq] drive_msi_in_curr_hart = {}\n", drive_msi_in_curr_hart);
+    if(FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] waiting for random time before driving external interrupt as part of low power sequence \n");
+      for(int wait_clk=0; wait_clk < FLAGS_lpx_msi_interval; wait_clk ++) {
+        co_await trigger_tick();
+      }
+    }
     if(drive_msi_in_curr_hart){
-      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to trigger \n");
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger \n");
       drive_interrupt();
-      ext_interrupt_count_++;
+      interrupts_driven++;
     }
   }
 }
 
 cvm::messenger::task<void> external_interrupt_sequence::delayed_trigger() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_delayed_tick<>>(triggers_loc);
+  co_return;
+}
+
+cvm::messenger::task<void> external_interrupt_sequence::trigger_tick() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_tick<>>(triggers_loc);
   co_return;
 }
 
