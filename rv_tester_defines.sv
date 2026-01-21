@@ -459,7 +459,7 @@ package rv_tester_params;
     // --------------------------------------
     // C2 
     // --------------------------------------
-    typedef enum {C2,INTERRUPT,TRIGGER_COUNT} event_trigger_type_t;
+    typedef enum {C2,PATCH,UARCH_INTR,TRIGGER_COUNT} event_trigger_type_t;
     typedef struct packed {
         logic [63:0] data;
         logic [63:0] addr;

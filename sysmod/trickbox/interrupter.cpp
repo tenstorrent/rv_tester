@@ -3,6 +3,11 @@
 #include "interrupter.h"
 #include "sysmod/sysmod_plusargs.h"
 
+ DEFINE_bool(dbg_rnmi_ebreak_trigger, false, "To generate trigger for RNMI when ebreak is executed");
+ DEFINE_bool(dbg_rnmi_priority_trigger, false, "To generate trigger for RNMI when debug haltreq is asserted");
+ DEFINE_bool(dbg_rnmi_priv_de_trigger, false, "To generate trigger for RNMI when privmode is DE");
+ DEFINE_bool(dbg_rnmi_priv_dp_trigger, false, "To generate trigger for RNMI when privmode is DP");
+ DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
  DEFINE_bool(trickbox_write_enables_intr, false, "Require software write to trickbox address 0x9004040 before random interrupts start (for random stimulus)");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
