@@ -165,6 +165,7 @@ module axi_sw #(
 
     always @(posedge clk) begin
         if (sys_reset) begin
+
             /* verilator lint_off BLKSEQ */
             automatic byte unsigned _unused;
                 // FIXME add a reset for the axi xtor

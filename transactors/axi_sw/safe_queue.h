@@ -72,6 +72,13 @@ public:
     return std::make_pair(true, q.front());
   }
 
+  // Clear all elements.
+  void clear(void) {
+    std::lock_guard<std::mutex> lock(m);
+    std::queue<T> empty;
+    q.swap(empty);
+  }
+
   bool empty(void) {
     std::unique_lock<std::mutex> lock(m);
     return q.empty();

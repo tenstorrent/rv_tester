@@ -218,6 +218,13 @@ std::pair<bool, axi::b_t> axi::b() {
     return b_q_.try_dequeue();
 }
 
+void axi::reset() {
+    a_q_.clear();
+    w_q_.clear();
+    r_q_.clear();
+    b_q_.clear();
+}
+
 cvm::messenger::task<void> axi::operator()() {
     while (1)  {
         a_t a;

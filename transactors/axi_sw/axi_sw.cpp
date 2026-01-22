@@ -442,6 +442,10 @@ void axi_sw<W,AW,AR,RQ,BQ>::reset_ptrs() {
     b_dpi_fifo_.rptr_ = 0;
     b_dpi_fifo_.wptr_ = 0;
     b_dpi_fifo_.rptr_update_time_ = 0;
+
+    if (axi_) {
+        axi_->reset();
+    }
 }
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
