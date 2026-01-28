@@ -22,14 +22,11 @@ class external_interrupt_sequence {
 
   private:
 
-    void patch_trigger_mode_thread();
-    void uarch_trigger_mode_thread();
+    void interrupt_injection_thread();
 
-    cvm::messenger::task<void> patch_trigger_mode();
-    cvm::messenger::task<void> uarch_trigger_mode();
+    cvm::messenger::task<void> interrupt_trigger();
 
     cvm::messenger::task<void> delayed_trigger();
-    cvm::messenger::task<void> trigger_tick();
 
     void init();
     void drive_interrupt();
@@ -51,7 +48,6 @@ class external_interrupt_sequence {
     uint32_t trigger_interrupt_count_;
 
 
-    uint32_t interrupts_driven = 0;
     uint32_t ext_interrupt_count_ = 0;
     uint32_t ext_trig_interrupt_count_ = 0;
     uint32_t msi_m_file_addr  = 0x40000000;
