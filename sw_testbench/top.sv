@@ -33,16 +33,18 @@ module top
     assign core_no_fetch[cvm_topology_gen::mods.TOP.PLATFORM.NHARTS-1:0] = {cvm_topology_gen::mods.TOP.PLATFORM.NHARTS{reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX]}};
     /* verilator lint_on WIDTHEXPAND */
 
+    rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_next;
+
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
-        rvfi[idx].valid = (valid != '0);
-        rvfi[idx].order = {32'h0, order};
-        rvfi[idx].hart = hartid[HARTLEN-1:0];
-        rvfi[idx].pc_rdata = pc;
-        rvfi[idx].insn = insn;
-        rvfi[idx].uop = {32'h0, insn};
-        rvfi[idx].mode = 4'h3;
-        rvfi[idx].last_uop = '1;
+        rvfi_next[idx].valid = (valid != '0);
+        rvfi_next[idx].order = {32'h0, order};
+        rvfi_next[idx].hart = hartid[HARTLEN-1:0];
+        rvfi_next[idx].pc_rdata = pc;
+        rvfi_next[idx].insn = insn;
+        rvfi_next[idx].uop = {32'h0, insn};
+        rvfi_next[idx].mode = 4'h3;
+        rvfi_next[idx].last_uop = '1;
     endfunction
 
     export "DPI-C" function write_rvfi;
@@ -79,6 +81,7 @@ module top
         default:
             $error("No harness specified");
         endcase
+        rvfi <= rvfi_next;
     end
 
 endmodule
