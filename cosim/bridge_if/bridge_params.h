@@ -24,12 +24,6 @@ namespace {
     constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
     constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
-    constexpr uint64_t boot_num_harts_offset = 0x9000;
-    constexpr uint64_t boot_sp_init_offset = 0x9008;
-    constexpr uint64_t boot_sp_ways_offset = 0x9010;
-    constexpr uint64_t boot_hart_sync_en_offset = 0x9018;
-    constexpr uint64_t boot_matp_swid_offset = 0x9020;
-    constexpr uint64_t boot_sc_enabled_ways_offset = 0x9028;
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;

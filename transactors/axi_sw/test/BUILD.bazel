@@ -23,7 +23,7 @@ topology_gen(
 
 packet_gen(
     name = name + "_transactions",
-    src = name + "_transactions.yml",
+    srcs = [name + "_transactions.yml"],
     package = "rv_tester_transactions",
     topology = topology,
     cc_attrs = cc_attrs,

@@ -3,19 +3,28 @@ load("@cvm//:defs.bzl", "packet_gen")
 load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
-load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
+load("@rv_tester//pmu:pmu_fragment_gen.bzl", "pmu_fragment_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
-def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibility = None, cc_attrs = {}, **kwargs):
-    """Generate rv_tester build targets with CSR collateral available to all modules.
+def rv_tester_gen(
+    name, 
+    topology, 
+    csr_spec = "@rv_tester//csr:csr_spec",
+    pmu_spec = "@rv_tester//pmu:pmu_spec",
+    visibility = None, 
+    cc_attrs = {}, 
+    **kwargs
+):
+    """Generate rv_tester build targets with CSR and PMU collateral available to all modules.
     
-    This function generates CSR collateral files and makes them available as dependencies:
+    This function generates CSR and PMU collateral files and makes them available as dependencies:
     - csr_param_hpp: C++ header file for CSR definitions ({name}_csr_param.hpp)
     - {name}_csr_param_sv: SystemVerilog file for CSR definitions ({name}_csr_param.sv)
+    - PMU parameter files: Generated from pmu_spec
     
     The CSR collateral is automatically included in:
     - SystemVerilog modules: {name}_csr_param_sv is added to verilog_library deps
@@ -26,6 +35,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         name: Base name for generated targets
         topology: Topology target 
         csr_spec: CSR specification file
+        pmu_spec: PMU specification filegroup containing core and SC CSV files
         visibility: Target visibility
         cc_attrs: C++ compilation attributes
         **kwargs: Additional arguments
@@ -47,7 +57,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         srcs = [
             "@rv_tester//:rv_tester_pkg.sv",
             "@rv_tester//:rv_tester_defines.sv",
-            "@rv_tester//:dmi_driver.sv",
             "@rv_tester//:rv_tester_stall_checker.sv",
         ],
         deps = [
@@ -57,9 +66,21 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         visibility = visibility,
     )
 
+    # Generate PMU YAML fragments first (needed for Mako includes in transactions.yml)
+    pmu_fragment_gen(
+        name = name + "_pmu_fragments",
+        pmu_spec = pmu_spec,
+        pmu_template = "@rv_tester//pmu:pmu.sv",
+        cc_attrs = cc_attrs,
+    )
+
     packet_gen(
         name = name + "_transactions",
-        src = "@rv_tester//:rv_tester_transactions.yml",
+        srcs = [
+            name + "_pmu_fragments/gen_core_events.yaml",
+            name + "_pmu_fragments/gen_sc_events.yaml",
+            "@rv_tester//:rv_tester_transactions.yml",
+        ],
         package = "rv_tester_transactions",
         topology = topology,
         cc_attrs = cc_attrs,
@@ -73,7 +94,7 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
-    
+
     sysmod_gen(
         name = name + "_sysmod",
         packet = name + "_transactions",
@@ -87,14 +108,8 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
         packet = name  + "_transactions",
         topology = topology,
         harness = name + "_harness",
-        cc_attrs = cc_attrs,
-    )
-
-    dm_model_gen(
-        name = name + "_dm_model",
-        packet = name  + "_transactions",
-        topology = topology,
-        harness = name + "_harness",
+        pmu_spec = pmu_spec,
+        pmu_fragments = name + "_pmu_fragments",
         cc_attrs = cc_attrs,
     )
 
@@ -143,7 +158,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             name + "_transactions_sv",
             name + "_sysmod_sv",
             name + "_pmu_sv",
-            name + "_dm_model_sv",
             name + "_interrupts_sv",
             name + "_triggers_sv",
             name + "_axi_sw_sv",
@@ -174,7 +188,6 @@ def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibil
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
-            name + "_dm_model_dpi",
             name + "_interrupts_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",

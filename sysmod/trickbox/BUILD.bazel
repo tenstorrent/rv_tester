@@ -1,4 +1,24 @@
 cc_library(
+    name = "interrupter_cc",
+    hdrs = [
+        "subdevice.h",
+        "interrupter.h",
+    ],
+    deps = [
+        "//sysmod:device",
+        "@rv_tester//sysmod:sysmod_plusargs",
+        "@rv_tester//cosim/bridge:bridge_plusargs",
+        "@rv_tester//cosim/whisper_if:whisper_if",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:registry",
+        "@cvm//:logger",
+    ],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "ras_helper_cc",
     srcs = [
       "ras_helper.h",
@@ -85,5 +105,5 @@ cc_library(
 )
 
  
-exports_files(["ras_helper.h"])
+exports_files(["ras_helper.h", "interrupter.h"])
 
