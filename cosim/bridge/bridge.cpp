@@ -76,7 +76,6 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
-DEFINE_uint32(max_pend_nmi_age, 192, "Number of instructions allowed to retire before a pending nmi should be taken");
 DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
 DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
@@ -995,15 +994,16 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   if (!nmi_poke_pending_ && !d.nmi)
     return;
+
   if (!d.nmi && nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH ) {
     for (auto& [key, value] : nmis_) {
       if (!(get_csr(hart, src_t::dut, MNSTATUS) & 8ULL))
         continue;
       bridge_log(cvm::HIGH, "<{}> nmi_age_[{}][{}]++={}\n", w.time, hart, key, value);
       value++;
-      if ((value > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
+      if ((value > FLAGS_max_pend_intr_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
         error("Hart {}: Whisper wants to take NMI, DUT does not. cause:[{}] timeout: [{}] retires\n",
-          hart, key, FLAGS_max_pend_nmi_age);
+          hart, key, FLAGS_max_pend_intr_age);
       }
     }
     return;
@@ -1013,16 +1013,14 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
   }
 
-  // Timing sensitive resynch cases
-  // 1. DUT took nmi that deasserted before retire
+  // Bad stimulus cases, NMI must not be cleared until cleared from Handler.
   if (d.nmi && (nmis_.find(d.ncause) == nmis_.end()) && (prev_nmi_.valid != nmi_.valid)) {
-    bridge_log(cvm::MEDIUM, "<{}> DUT took NMI, Whisper does not want to. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, prev_nmi_.cause);
-    poke_nmi(hart, d.cycle, prev_nmi_.cause);
+    error("Hart {}: NMI cleared without taken\n", hart);
     return;
   }
 
   if (nmi_poke_pending_ && !debug_mode_ && patch_mode_ != IN_PATCH){
-    poke_dut_nmi(hart, d.cycle, d.ncause);
+    poke_nmi(hart, d.cycle, d.ncause);
     nmi_taken_count_++;
   }
 }
@@ -1096,10 +1094,18 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   for (const auto& [cause, age] : deferred_intr_age_) {
     if (age > FLAGS_max_pend_intr_age) {
       print_instr_stdout(hart, w);
-      error("Hart {}: Whisper wants to take interrupt, DUT does not. wcause: [{}], timeout: [{}] retires\n",
-        hart, cause, FLAGS_max_pend_intr_age);
+      error("Hart {}: Whisper wants to take interrupt, DUT did not after [{}] retires. wcause: [{}]\n",
+        hart, FLAGS_max_pend_intr_age, cause);
       return;
     }
+  }
+
+  if (intr_undeferred_due_to_xret_intr_csr_) {
+    if (!d.intr && w_.intr) {
+      error("Hart {}: Whisper took Interrupt, DUT did not after xRET or intr CSR write. wcause: [{}]", hart, w_.icause);
+    }
+    intr_undeferred_due_to_xret_intr_csr_ = false;
+    return;
   }
 
   // Reset intr_during_trap_ as Whisper step has been completed
@@ -1115,6 +1121,18 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     peek_mip(hart, d.cycle, tmp_mip_latest_);
     poke_mip(hart, d.cycle, tmp_mip_latest_ & ~intr_cleared_during_trap_);
     intr_cleared_during_trap_.reset();
+  }
+
+
+  // xRET check, interrupt pending must be taken post xRET
+  // Hence undeferring all interrupts in post-step of xRET
+  // Thus next step takes interrupt in Whisper
+
+  uint32_t csr_addr = 0;
+  if (cosim_util::is_xret_opcode(w.opcode) || (cosim_util::is_csr_opcode(w.opcode, csr_addr) && interrupt_csrs_for_check_.count(csr_addr))) {
+    defer_interrupt(hart, d.cycle, 0);
+    deferred_intr_age_.clear();
+    intr_undeferred_due_to_xret_intr_csr_ = true;
   }
 
   // Post step, update previous mip
@@ -1162,11 +1180,6 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
       nmi_to_string.count(static_cast<nmi>(d.ncause)) ? nmi_to_string.at(static_cast<nmi>(d.ncause)) : std::to_string(d.ncause),
       nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
     return;
-  }
-
-  // Clear nmi on first step after taking timing sensitive nmi
-  if (d.nmi && (nmis_.find(d.ncause) == nmis_.end())) {
-    clear_nmi(hart, d.cycle, d.ncause);
   }
 }
 
@@ -2022,7 +2035,6 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
     return true;
   }
   if (intr_csrs_mismatch(hart, instr, resource, dut, iss, cycle, d, w)) {
-    resynch_intr_csr_mismatch_++;
     return true;
   }
   if (instr.find("seed") != std::string::npos) {
@@ -2876,21 +2888,8 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
   bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.count(static_cast<intr>(cause))? intr_to_string.at(static_cast<intr>(cause)) : std::to_string(cause), virt_mode);
 }
 
-void bridge::poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause) {
-
-  clear_nmi(hart, time); // clear all previous NMI
-  uint64_t dut_age = FLAGS_max_nmi_resynch_age;
-  if (nmis_.find(dcause) != nmis_.end())
-    dut_age = dut_age < nmis_[dcause] ? dut_age : nmis_[dcause];
-  nmi_poke_pending_ = false;
-  for (const auto& [cause, age] : nmis_)
-    if ((cause == dcause) || (age >= dut_age))
-      poke_nmi(hart, time, cause);
-    else
-      nmi_poke_pending_ = true; // not all NMIs poked
-}
-
 void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
+  nmi_poke_pending_ = false;
   bridge_log(cvm::MEDIUM, "<{}> Whisper poke: nmi: {:#x}\n", time, cause);
 
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperNmiRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, cause)) {
@@ -3521,15 +3520,6 @@ void bridge::report_metrics() {
   // Regression level metrics from hart 0
   if (id_ == 0)
     print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc); // Average ipc
-
-
-  // TB refactoring metrics
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_pre_step_iss_intr_dut_not_taken\": \"{}\"}}\n", id_, pre_step_iss_intr_dut_not_taken_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_pre_step_virt_mode_mismatch\": \"{}\"}}\n", id_, pre_step_virt_mode_mismatch_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_pre_step_resynch_dut_intr_iss_not_taken\": \"{}\"}}\n", id_, pre_step_resynch_dut_intr_iss_not_taken_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_pre_step_cause_mismatch\": \"{}\"}}\n", id_, pre_step_cause_mismatch_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_post_step_both_not_taken_cause_mismatch\": \"{}\"}}\n", id_, post_step_both_not_taken_cause_mismatch_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_resynch_intr_csr_mismatch\": \"{}\"}}\n", id_, resynch_intr_csr_mismatch_);
 }
 
 bool bridge::may_peek_csr(uint64_t& data, uint64_t addr) {
