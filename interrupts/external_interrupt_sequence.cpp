@@ -256,5 +256,5 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
   }
   
   // Return invalid value if physical hart ID not found
-  return 0xFFFFFFFF;
+  return 0;
 }
