@@ -31,6 +31,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", id_);
+  ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       triggers_loc,
@@ -242,7 +243,7 @@ void external_interrupt_sequence::drive_interrupt(){
   }
 
 uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart_id) {
-  if (FLAGS_num_harts == 1) {
+  if (ncores_ == 1) {
     return 0;
   }
   std::istringstream ss(FLAGS_hart_enable_id);
@@ -257,7 +258,7 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
     }
     logical_id++;
   }
-  // Return invalid value if physical hart ID not found
+  // Return error if physical hart ID not found
   cvm::log(cvm::ERROR, "Error: [ExtInterruptSeq] Physical hart ID {} not found in hart_enable_id list\n", physical_hart_id);
   return 0;
 }
