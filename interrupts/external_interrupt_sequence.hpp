@@ -60,4 +60,5 @@ class external_interrupt_sequence {
     uint32_t intr_vs_id_vgein_ = 0;
     uint32_t intr_vs_id_random_ = 0;
     uint32_t intr_vs_id_two_ = 0;
+    uint32_t ncores_;
 };
