@@ -242,6 +242,9 @@ void external_interrupt_sequence::drive_interrupt(){
   }
 
 uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart_id) {
+  if (FLAGS_num_harts == 1) {
+    return 0;
+  }
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
   uint32_t logical_id = 0;
@@ -254,7 +257,7 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
     }
     logical_id++;
   }
-  
   // Return invalid value if physical hart ID not found
+  cvm::log(cvm::ERROR, "Error: [ExtInterruptSeq] Physical hart ID {} not found in hart_enable_id list\n", physical_hart_id);
   return 0;
 }
