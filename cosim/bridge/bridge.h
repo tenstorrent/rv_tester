@@ -195,7 +195,6 @@ private:
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_deferred_interrupts(hart_id_t hart, uint64_t& DeferredInterrupts);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
-  void poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause);
   void clear_nmi(hart_id_t hart, uint64_t time);
   void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
@@ -314,6 +313,24 @@ private:
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
   std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
+  std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, STIMECMP, MENVCFG, MIREG, SIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI,
+    MHPMEVENT3, 
+    MHPMEVENT4, 
+    MHPMEVENT5, 
+    MHPMEVENT6, 
+    MHPMEVENT7, 
+    MHPMEVENT8, 
+    MHPMEVENT9, 
+    MHPMEVENT10,
+    MHPMCOUNTER3, 
+    MHPMCOUNTER4, 
+    MHPMCOUNTER5, 
+    MHPMCOUNTER6, 
+    MHPMCOUNTER7, 
+    MHPMCOUNTER8, 
+    MHPMCOUNTER9, 
+    MHPMCOUNTER10
+  };
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -456,14 +473,8 @@ private:
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
 
-  uint64_t pre_step_iss_intr_dut_not_taken_ = 0;
-  uint64_t pre_step_virt_mode_mismatch_ = 0;
-  uint64_t pre_step_resynch_dut_intr_iss_not_taken_ = 0;
-  uint64_t pre_step_cause_mismatch_ = 0;
-  uint64_t post_step_both_not_taken_cause_mismatch_ = 0;
-  uint64_t resynch_intr_csr_mismatch_ = 0;
-
   std::bitset<64> intr_during_trap_ = 0;
   std::bitset<64> intr_cleared_during_trap_ = 0;
   bool intr_partially_deferred_ = false;
+  bool intr_undeferred_due_to_xret_intr_csr_ = false;
 };

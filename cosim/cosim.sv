@@ -1377,6 +1377,22 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_debugs[0].data.exit = ~debug_mode;
     assign m_debugs[0].data.haltreq = haltreq;
 
+    // Falling edge detection for rvfi_instr_ucode[0]
+    logic rvfi_instr_ucode_d1, ucode_end;
+    always_ff @(posedge clk) begin
+      rvfi_instr_ucode_d1 <= rvfi_instr_ucode[0];
+    end
+    assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
+
+    logic saw_rvfi_intr_trap, saw_rvfi_intr_trap_d1;
+    always_ff @(posedge clk) begin
+      if (reset) saw_rvfi_intr_trap_d1 <= 1'b0;
+      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap_d1 <= 1'b1;
+      else if (ucode_end && saw_rvfi_intr_trap_d1) saw_rvfi_intr_trap_d1 <= 1'b0;
+    end
+    assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
+
+
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
     always @(posedge clk) begin
@@ -1392,22 +1408,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_core_nmis[0].data.cycle = clocks;
     assign m_core_nmis[0].data.nmi_assert = ~suppress_interrupts & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai));
     assign m_core_nmis[0].data.nmi_cause = ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (~nmi_pend.nmi & nmi_pend_d1.nmi)) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.clai & nmi_pend_d1.clai)) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
-
-    // Falling edge detection for rvfi_instr_ucode[0]
-    logic rvfi_instr_ucode_d1, ucode_end;
-    always_ff @(posedge clk) begin
-      rvfi_instr_ucode_d1 <= rvfi_instr_ucode[0];
-    end
-    assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
-
-    logic saw_rvfi_intr_trap;
-    logic saw_rvfi_intr_trap_d1;
-    always_ff @(posedge clk) begin
-      if (reset) saw_rvfi_intr_trap_d1 <= 1'b0;
-      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap_d1 <= 1'b1;
-      else if (ucode_end && saw_rvfi_intr_trap_d1) saw_rvfi_intr_trap_d1 <= 1'b0;
-    end
-    assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
