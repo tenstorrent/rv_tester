@@ -14,7 +14,7 @@ module rv_tester
 
     typedef longint unsigned LU;
 
-    localparam int unsigned NoAddrRules = 25;
+    localparam int unsigned NoAddrRules = 100;
 
     typedef struct packed {
         int unsigned idx;
