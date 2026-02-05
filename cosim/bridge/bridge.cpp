@@ -2835,8 +2835,6 @@ bool bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
   }
 
   uint64_t defer_cause_mip = uint64_t{1} << w_cause;
-  if (w_cause == MTI || w_cause == STI)
-    defer_cause_mip |= (uint64_t{1} << STI) | (uint64_t{1} << VSTI);
 
   defer_interrupt(hart, time, mip.to_ullong() | defer_cause_mip | w_defer_mip);
 
@@ -2884,6 +2882,10 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
     virt_mode = false;
     return;
   }
+
+  // Since check_interrupt returns the cause based on interrupt id and current mode. 
+  // Hence need to increment the cause by 1 if it is a virtual interrupt and current mode is virtual.
+  if ((cause == SEI || cause == STI || cause == SSI) && (virt_mode)) cause++;
 
   bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.count(static_cast<intr>(cause))? intr_to_string.at(static_cast<intr>(cause)) : std::to_string(cause), virt_mode);
 }
