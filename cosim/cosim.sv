@@ -813,6 +813,22 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_disable_checkss[0].data.cycle       = clocks;
 
     // m_interrupt_pend
+
+    // Falling edge detection for rvfi_instr_ucode[0]
+    logic rvfi_instr_ucode_d1, ucode_end;
+    always_ff @(posedge clk) begin
+      rvfi_instr_ucode_d1 <= rvfi_instr_ucode[0];
+    end
+    assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
+
+    logic saw_rvfi_intr_trap, saw_rvfi_intr_trap_d1;
+    always_ff @(posedge clk) begin
+      if (reset) saw_rvfi_intr_trap_d1 <= 1'b0;
+      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap_d1 <= 1'b1;
+      else if (ucode_end && saw_rvfi_intr_trap_d1) saw_rvfi_intr_trap_d1 <= 1'b0;
+    end
+    assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
+
     logic [63:0] mip_d1, mip_timer, mip_timer_d1;
     logic [63:0] core_clocks;
     logic seip_d1;
@@ -837,6 +853,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
     assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
     assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
+    assign m_interrupt_pends[0].data.trap_intr = saw_rvfi_intr_trap;
 
     //-----------------------------------------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
@@ -1376,22 +1393,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_debugs[0].data.enter = debug_mode;
     assign m_debugs[0].data.exit = ~debug_mode;
     assign m_debugs[0].data.haltreq = haltreq;
-
-    // Falling edge detection for rvfi_instr_ucode[0]
-    logic rvfi_instr_ucode_d1, ucode_end;
-    always_ff @(posedge clk) begin
-      rvfi_instr_ucode_d1 <= rvfi_instr_ucode[0];
-    end
-    assign ucode_end = rvfi_instr_ucode_d1 & ~rvfi_instr_ucode[0];
-
-    logic saw_rvfi_intr_trap, saw_rvfi_intr_trap_d1;
-    always_ff @(posedge clk) begin
-      if (reset) saw_rvfi_intr_trap_d1 <= 1'b0;
-      else if (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR)) saw_rvfi_intr_trap_d1 <= 1'b1;
-      else if (ucode_end && saw_rvfi_intr_trap_d1) saw_rvfi_intr_trap_d1 <= 1'b0;
-    end
-    assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
-
 
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
