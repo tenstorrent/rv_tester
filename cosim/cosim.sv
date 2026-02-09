@@ -1450,19 +1450,11 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[n].data.cause = 8'h3;
     end
 
-      localparam int XTIP_CHANGE_PROPOGATION_LATENCY = 4;
-      logic xtip_changes, xtip_changes_d [XTIP_CHANGE_PROPOGATION_LATENCY-1:0];
+      logic xtip_changes;
       assign xtip_changes = ((|m_interrupt_pends[0].data.mip_set[7:5]) || (|m_interrupt_pends[0].data.mip_clr[7:5]));
-      always @(posedge clk) begin
-        if (reset) begin
-          xtip_changes_d <= '{default:0};
-        end else begin
-          xtip_changes_d <= {xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-2:0], xtip_changes};
-        end
-      end
     // mtime packets from mip bits
       assign m_mtimes[NRET].valid = ~suppress_interrupts && rvfi_enabled && (mtime.WriteValid ||
-                                                                             xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-1] ||
+                                                                             xtip_changes ||
                                                                              (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ||
                                                                              (clocks % 1000 == 0));
       assign m_mtimes[NRET].data.location = location;
@@ -1474,7 +1466,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[NRET].data.size = 8;
       assign m_mtimes[NRET].data.cause = mtime.WriteValid ? 8'h1 :
                                          (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ? 8'h2 :
-                                         xtip_changes_d[XTIP_CHANGE_PROPOGATION_LATENCY-1] ? 8'h4 : '0;
+                                         xtip_changes ? 8'h4 : '0;
 
     //------------------------------------
     // m_mtip
