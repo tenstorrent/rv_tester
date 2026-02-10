@@ -13,7 +13,6 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//pwrmgmt:patch_control_sequence.cpp",
             "@rv_tester//pwrmgmt:dfs_sequence.cpp",
             "@rv_tester//pwrmgmt:thub_sequence.cpp",
-            "@rv_tester//pwrmgmt:patch_utils.cpp",
         ],
         hdrs = [
             "@rv_tester//pwrmgmt:pwrmgmt.hpp",
@@ -21,7 +20,6 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//pwrmgmt:patch_control_sequence.hpp",
             "@rv_tester//pwrmgmt:dfs_sequence.hpp",
             "@rv_tester//pwrmgmt:thub_sequence.hpp",
-            "@rv_tester//pwrmgmt:patch_utils.hpp",
         ],
         deps = [
             "@rv_tester//transactors/axi_sw:axi_sw_mst",

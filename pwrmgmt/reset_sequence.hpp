@@ -3,13 +3,12 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 #include "pwrmgmt.hpp"
 #include "transactor.h"
 #include "svdpi.h"
 #include "axi_sw_mst.h"
-#include <unordered_map>
-#include <map>
 
 DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
 
@@ -100,6 +99,7 @@ class reset_sequence {
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
+    std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
 
     cvm::messenger::task<bool> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool exp_err_rsp = false);
     cvm::messenger::task<bool> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool exp_err_rsp = false);
@@ -121,8 +121,8 @@ class reset_sequence {
     void warm_reset(uint8_t assert);
     void reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
     void force_ref_clk(uint8_t assert);
-    cvm::messenger::task<void> write_hex_patches_directly();
-    cvm::messenger::task<void> write_hex_batch(uint64_t start_addr, const std::vector<uint32_t>& data);
+    void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
+    void read_patch_csv();
     std::string get_intf_name(interface_t value);
 
   private:
@@ -135,5 +135,4 @@ class reset_sequence {
     int reset_count_ = 0;
     uint32_t num_cores_ = 0;
     interface_t boot_interface = SMC;
-    
 };
