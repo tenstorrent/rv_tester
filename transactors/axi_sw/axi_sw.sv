@@ -163,16 +163,21 @@ module axi_sw #(
     // dummy return value to make sure it's not zDPI
     import "DPI-C" context function byte unsigned axi_sw_set_scope(int unsigned location);
 
-    always @(posedge clk) begin
-        if (sys_reset) begin
-
-            /* verilator lint_off BLKSEQ */
-            automatic byte unsigned _unused;
-                // FIXME add a reset for the axi xtor
-            if (LOCATION != cvm_topology::nil) begin
-                _unused = axi_sw_set_scope(LOCATION);
+    logic scope_set;
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            scope_set <= 1'b0;
+        end else begin
+            if (sys_reset || !scope_set) begin
+                /* verilator lint_off BLKSEQ */
+                automatic byte unsigned _unused;
+                    // FIXME add a reset for the axi xtor
+                if (LOCATION != cvm_topology::nil) begin
+                    _unused = axi_sw_set_scope(LOCATION);
+                end
+                /* verilator lint_on BLKSEQ */
+                scope_set <= 1'b1;
             end
-            /* verilator lint_on BLKSEQ */
         end
     end
 
