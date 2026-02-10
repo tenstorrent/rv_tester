@@ -46,7 +46,7 @@ DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming "
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
 DEFINE_bool(init_smc_cpl_ras_ibf, false, "Enable filter programming for CPL to access RAS MMRs ");
-DEFINE_string(patch_ucode_input_file_path, "", "Path to hex file containing patch ucode (assembly file with .s extension should be in same directory)");
+DEFINE_string(patch_ucode_path, "", "Path to hex file containing patch ucode (assembly file with .s extension should be in same directory)");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the hex file to be patched");
@@ -889,11 +889,11 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await tick();
   
   // Process patch hex file and corresponding assembly file
-  if (!FLAGS_patch_ucode_input_file_path.empty()) {
+  if (!FLAGS_patch_ucode_path.empty()) {
     cvm::log(cvm::HIGH, "[pwrmgmt] Reading and processing patch hex file with corresponding assembly\n");
-    PatchUtils::read_hex_and_assembly(FLAGS_patch_ucode_input_file_path);
+    PatchUtils::read_hex_and_assembly(FLAGS_patch_ucode_path);
   } else {
-    cvm::log(cvm::ERROR, "[pwrmgmt] No patch hex file specified. Use +patch_ucode_input_file_path to provide hex file path\n");
+    cvm::log(cvm::ERROR, "[pwrmgmt] No patch hex file specified. Use +patch_ucode_path to provide hex file path\n");
     co_return;
   }
   
