@@ -1,5 +1,7 @@
 #include <tuple>
 #include <string_view>
+#include <unordered_map>
+#include <mutex>
 
 #include "axi_sw.h"
 #include "cvm/topology.hpp"
@@ -72,6 +74,8 @@ DEFINE_validator(axi_sw_add_response_latency_range, &validate_add_response_laten
 
 namespace {
     bool destroyed = false;
+    std::mutex scope_cache_mutex;
+    std::unordered_map<std::uint32_t, svScope> scope_cache;
 }
 
 // Helper function to convert a string to lowercase.
@@ -102,6 +106,14 @@ axi_sw<W,AW,AR,RQ,BQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     read_bytes_(0), write_bytes_(0) {
 
     cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
+
+    {
+        std::lock_guard<std::mutex> lock(scope_cache_mutex);
+        auto it = scope_cache.find(static_cast<std::uint32_t>(loc_));
+        if (it != scope_cache.end() && it->second != nullptr) {
+            scope_ = it->second;
+        }
+    }
 
     ::destroyed = false;
 
@@ -373,7 +385,8 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
         if (!scope_) {
-          cvm::log(cvm::ERROR, "Error: scope_ not set before pushing r_dpi callback\n");
+          cvm::log(cvm::ERROR, "[axi_sw] Error: scope_ not set before pushing r_dpi callback loc={} id={} name={}\n",
+                   loc_, id_, name_);
         } else {
           cvm::registry::callbacks.push(
               scope_,
@@ -451,6 +464,12 @@ void axi_sw<W,AW,AR,RQ,BQ>::reset_ptrs() {
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 void axi_sw<W,AW,AR,RQ,BQ>::set_scope(svScope scope) {
     scope_ = scope;
+    cvm::log(cvm::FULL, "[axi_sw] set_scope loc={} id={} name={} scope={}\n",
+             loc_, id_, name_, scope_);
+    if (scope_ != nullptr) {
+        std::lock_guard<std::mutex> lock(scope_cache_mutex);
+        scope_cache[static_cast<std::uint32_t>(loc_)] = scope_;
+    }
 }
 
 extern "C" {
@@ -461,6 +480,11 @@ extern "C" {
     axi_sw_r_reset();
     axi_sw_b_reset();
 
+    cvm::log(cvm::FULL, "[axi_sw] axi_sw_set_scope loc={} scope={}\n", loc, scope);
+    if (scope != nullptr) {
+        std::lock_guard<std::mutex> lock(scope_cache_mutex);
+        scope_cache[static_cast<std::uint32_t>(loc)] = scope;
+    }
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);
