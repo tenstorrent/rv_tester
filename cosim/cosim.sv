@@ -844,7 +844,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
     assign m_interrupt_pends[0].valid = ~suppress_interrupts & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
-    assign m_interrupt_pends[0].data.cycle = core_clocks;
+    assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.core_cycle = core_clocks;
     assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
     assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
     assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;

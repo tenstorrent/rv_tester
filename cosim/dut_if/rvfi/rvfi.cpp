@@ -278,7 +278,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.trap_intr = m_interrupt_pend.trap_intr;
 
   std::string dut_log;
-  dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
+  dut_log += fmt::format("#NA {} {} {} ({} : mip={:#x} : ", intr.cycle, m_interrupt_pend.core_cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
   for (const auto& [k,v] : intr_to_string) {
     if (k == DEBUG)
       continue;
