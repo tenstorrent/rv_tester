@@ -179,7 +179,7 @@ private:
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
   void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
-  void pre_step_nmi_check(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
@@ -193,7 +193,6 @@ private:
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void defer_nmi(hart_id_t hart, uint64_t time, uint64_t nmi);
   void peek_deferred_interrupts(hart_id_t hart, uint64_t& DeferredInterrupts);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void clear_nmi(hart_id_t hart, uint64_t time);
@@ -314,8 +313,7 @@ private:
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
   std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
-  std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MIDELEG, HIDELEG, MVIEN, MVIP, HVIEN, HVIP, HVICTL, 
-    MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, STIMECMP, VSTIMECMP, HTIMEDELTA, MENVCFG, HENVCFG, MIREG, SIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI,
+  std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, STIMECMP, MENVCFG, MIREG, SIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI,
     MHPMEVENT3, 
     MHPMEVENT4, 
     MHPMEVENT5, 
@@ -398,7 +396,7 @@ private:
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
-  std::unordered_map<uint64_t, uint64_t> nmi_age_{};
+  std::unordered_map<uint64_t, uint64_t> nmis_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
@@ -407,7 +405,6 @@ private:
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
-  std::bitset<64> nmip_ = 0;
 
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
@@ -422,6 +419,7 @@ private:
   uint64_t resynch_icause_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  uint32_t nmi_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
   std::unordered_map<uint64_t, bool> hw_intr_set_;
   std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
@@ -479,5 +477,4 @@ private:
   std::bitset<64> intr_cleared_during_trap_ = 0;
   bool intr_partially_deferred_ = false;
   bool intr_undeferred_due_to_xret_intr_csr_ = false;
-  bool nmi_undeferred_due_to_xret_intr_csr_ = false;
 };
