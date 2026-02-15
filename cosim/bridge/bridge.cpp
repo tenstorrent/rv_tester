@@ -580,7 +580,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Interrupts
   pre_step_nmi_check(hart, d, w);
-  pre_step_interrupt_poke(hart, d);
+  pre_step_interrupt_process(hart, d);
   lrsc_fail_ = false;
 
   // Handle pre-step condition - LR/SC fail
@@ -1025,7 +1025,7 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
   }
 }
 
-void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
+void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   // Set mip ages for resynch cases
   if (prev_hw_mip_ != hw_mip_)
     hw_mip_age_ = 0;
@@ -1047,10 +1047,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
   uint64_t w_cause = 0;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
 
-  if (!d.intr && !w_intr) {
-    return;
-  }
-
   // If Whisper takes interrupt, then increase age of the interrupt
   if (w_intr) deferred_intr_age_[w_cause]++;
 
@@ -1068,13 +1064,33 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
   // xRET check, interrupt pending must be taken post xRET
   // Hence undeferring all interrupts in post-step of xRET
   // Thus next step takes interrupt in Whisper
-  uint32_t csr_addr = 0;
-  if ((cosim_util::is_csr_opcode(w_.opcode, csr_addr) && interrupt_csrs_for_check_.find(csr_addr) != interrupt_csrs_for_check_.end()) || cosim_util::is_xret_opcode(w_.opcode)) {
-    bridge_log(cvm::MEDIUM, "<{}> xRET check, interrupt pending must be taken post xRET, undeferring all interrupts\n", d.cycle);
-    defer_interrupt(hart, d.cycle, 0);
-    deferred_intr_age_.clear();
+  if (cosim_util::is_xret_opcode(w_.opcode)){
+    // If xRET is seen, then undefer all interrupts except for those that asserted during xRET or
+    // After xRET and before next instruction retires.
+    defer_interrupt(hart, d.cycle, 0 | (tmp_mip_latest_ ^ last_step_mip_).to_ullong());
     intr_undeferred_due_to_xret_intr_csr_ = true;
   }
+  // TODO: Add interrupt CSRs check for undeferring interrupts
+  // else if (cosim_util::is_csr_opcode(w_.opcode, csr_addr) && interrupt_csrs_for_check_.find(csr_addr) != interrupt_csrs_for_check_.end()){
+  //   // If CSR opcode is seen, then undefer all interrupts
+  //   defer_interrupt(hart, d.cycle, 0);
+  //   intr_undeferred_due_to_xret_intr_csr_ = true;
+  // }
+
+  if (intr_undeferred_due_to_xret_intr_csr_) {
+    uint64_t w_defer_mip = 0;
+    peek_deferred_interrupts(hart, w_defer_mip);
+    if (w_defer_mip != 0) {
+      for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end(); ) {
+        if (!(w_defer_mip & (1ULL << it->first))) it = deferred_intr_age_.erase(it); 
+        else ++it;
+      }
+    }
+    else deferred_intr_age_.clear();
+  }
+
+  // Update last_step_mip_ for next step
+  last_step_mip_ = tmp_mip_latest_;
 }
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
