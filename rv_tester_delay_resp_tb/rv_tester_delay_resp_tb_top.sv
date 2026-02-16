@@ -36,7 +36,8 @@ module rv_tester_delay_resp_tb_top #(
     parameter int unsigned AxiStrbWidth = 8,
     parameter int unsigned AxiUserWidth = 1,
     parameter int unsigned MaxInFlight = 16,
-    parameter int unsigned MaxBeatsPerBurst = 16
+    parameter int unsigned MaxBeatsPerBurst = 16,
+    parameter int CW = 8
 )(
     input logic vclk,
     input logic vrst_ni,
@@ -173,7 +174,7 @@ module rv_tester_delay_resp_tb_top #(
     logic beat_delay_timer_ff, beat_delay_timer_hold; 
 
     // Test data arrays (compile-time constants)
-    localparam int unsigned NUM_TESTS = 6;
+    localparam int unsigned NUM_TESTS = 7;
 
     // Test names array for generic test identification
     localparam string TEST_NAMES [NUM_TESTS] = '{
@@ -181,8 +182,9 @@ module rv_tester_delay_resp_tb_top #(
         "DIFFERENT DELAY TEST",
         "BURST DELAY TEST",
         "MULTI REQUEST TEST",
-        "BYPASS TEST", 
-        "INIT DELAY AND BEAT DELAY TEST"
+        "BYPASS TEST",
+        "INIT DELAY AND BEAT DELAY TEST",
+        "COUNTER OVERFLOW TEST"
     };
 
     localparam logic [AxiIdWidth-1:0] TEST_AR_IDS [NUM_TESTS] = '{
@@ -191,7 +193,8 @@ module rv_tester_delay_resp_tb_top #(
         8'hAA,  // Test 2: Burst test
         8'h33,  // Test 3: Multi-request test
         8'h99,   // Test 4: Bypass test (delay_cycles = 0)
-        8'hCC   // Test 5: Init delay and beat delay test
+        8'hCC,   // Test 5: Init delay and beat delay test
+        8'hDD   // Test 6: Counter overflow test
     };
     
     localparam logic [7:0] TEST_BURST_LENS [NUM_TESTS] = '{
@@ -200,7 +203,8 @@ module rv_tester_delay_resp_tb_top #(
         8'd3,    // Test 2: 4-beat burst (single request, multi-beat)
         8'd0,    // Test 3: Single beat (multi-request, single-beat each)
         8'd0,    // Test 4: Single beat (bypass test)
-        8'd3     // Test 5: Init delay and beat delay test
+        8'd3,    // Test 5: Init delay and beat delay test
+        8'd0     // Test 6: Single beat (counter overflow test)
     };
 
     localparam logic [7:0] TEST_NUM_AR_REQS [NUM_TESTS] = '{
@@ -209,7 +213,8 @@ module rv_tester_delay_resp_tb_top #(
         8'd1,    // Test 2: 1 request with 4-beat burst
         8'd4,    // Test 3: 4 requests with single beats each
         8'd1,    // Test 4: 1 request (bypass test)
-        8'd4     // Test 5: Init delay and beat delay test
+        8'd4,    // Test 5: Init delay and beat delay test
+        8'd1     // Test 6: 1 request (counter overflow test)
     };
 
     localparam logic [AxiDataWidth-1:0] TEST_DATA [NUM_TESTS] = '{
@@ -218,7 +223,8 @@ module rv_tester_delay_resp_tb_top #(
         64'hFEDCBA0987654321,
         64'h0000FFFF0000FFFF,
         64'h12345678_ABCDEF00,
-        64'hAAAAAAAA_BBBBBBBB
+        64'hAAAAAAAA_BBBBBBBB,
+        64'hDEADDEAD_DEADDEAD
     };
 
     // Test delay cycles array - dynamic delay configuration per test
@@ -228,7 +234,8 @@ module rv_tester_delay_resp_tb_top #(
         32'd20,  // Test 2: Normal delay
         32'd20,  // Test 3: Normal delay
         32'd0,  // Test 4: Zero delay (bypass test)
-        32'd10   // Test 5: Init delay and beat delay test
+        32'd10,  // Test 5: Init delay and beat delay test
+        32'd200  // Test 6: Counter overflow test (200 > 256/2, guarantees pop_time wraps)
     };
     
     localparam logic [31:0] TEST_INITAL_DELAY [NUM_TESTS] = '{
@@ -237,7 +244,8 @@ module rv_tester_delay_resp_tb_top #(
         32'd0,  // Test 2
         32'd0,  // Test 3
         32'd0,  // Test 4
-        32'd22   // Test 5: Init delay and beat delay test
+        32'd22,  // Test 5: Init delay and beat delay test
+        32'd0    // Test 6: Counter overflow test
     }; 
 
     localparam logic [31:0] TEST_BEAT_DELAY [NUM_TESTS] = '{
@@ -246,7 +254,8 @@ module rv_tester_delay_resp_tb_top #(
         32'd0,  // Test 2
         32'd0,  // Test 3
         32'd0,  // Test 4
-        32'd5  // Test 5: Init delay and beat delay test
+        32'd5,  // Test 5: Init delay and beat delay test
+        32'd0   // Test 6: Counter overflow test
     }; 
 
     logic [NUM_TESTS-1:0] initial_delay_done; // Flag to keep track of if the inital delay has been done; 
@@ -304,7 +313,8 @@ module rv_tester_delay_resp_tb_top #(
         .AxiStrbWidth(AxiStrbWidth),
         .AxiUserWidth(AxiUserWidth),
         .MaxInFlight(MaxInFlight),
-        .MaxBeatsPerBurst(MaxBeatsPerBurst)
+        .MaxBeatsPerBurst(MaxBeatsPerBurst),
+        .CW(CW)
     ) dut (
         .clk(clk),
         .rst_ni(rst_ni),
@@ -562,7 +572,20 @@ module rv_tester_delay_resp_tb_top #(
     assign test_done = (current_state == TEST_DONE);
     assign test_passed = (test_count == NUM_TESTS);  // Simplified without pass_count
 
-    // Add some asserstions 
+    // Delay checker - detects too-early responses and hangs from counter overflow
+    rv_tester_delay_resp_tb_check #(.TIMEOUT(500)) delay_chk (
+        .clk(clk),
+        .rst_ni(rst_ni),
+        .delay_cycles(delay_cycles),
+        .ar_valid(slv_req_ar_valid),
+        .ar_ready(mst_resp_ar_ready),
+        .r_valid(slv_resp_r_valid),
+        .r_ready(slv_req_r_ready),
+        .r_last(slv_resp_r_last),
+        .test_count(test_count)
+    );
+
+    // Add some asserstions
     `ifdef VCS
         // if the intial delays is not done, mst_resp_r_valid should not be high c
         INTI_DELAY_ASSERT: assert property (@(posedge clk) disable iff (!rst_ni) !initial_delay_done[test_count] && TEST_INITAL_DELAY[test_count] > 0 && beat_num != TEST_BURST_LENS[test_count] |-> !mst_resp_r_valid);
