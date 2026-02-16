@@ -22,7 +22,18 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
 #include <fmt/format.h>
+#include "csr_param.hpp"
+using namespace CSR;
 
+// CSRs that are renamed in the DUT (maps renamed address -> original CSR)
+inline const std::unordered_map<uint64_t, csr_base*> renamed_csr = {
+  {32, &mepc},
+  {33, &sepc},
+  {34, &vsepc},
+  {35, &mscratch},
+  {36, &sscratch},
+  {37, &vsscratch},
+};
 
 class bridge : public bridge_base {
 
@@ -161,10 +172,8 @@ private:
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
-  bool is_pmacfg_csr(uint64_t addr);
   bool is_csr_allowlist(uint64_t addr);
   bool is_csr_allowlist(const std::string& csr_name);
-  bool is_chicken_bit_csr(uint64_t addr);
   bool is_mtimecmp_mmr(uint64_t addr);
   bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
@@ -237,7 +246,7 @@ private:
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
-  bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
+  bool hyp_enabled() { return  (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
   void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev=false, bool seip_new=false, bool consider_seip=false);
 
@@ -314,9 +323,12 @@ private:
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
-  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
+
+  std::unordered_set<csr_base*> interrupt_csrs_to_resynch_ = {&mip, &sip, &hip, &vsip, &hgeip, &mtopi, &vstopi, &stopi};
   // TODO: Add interrupt CSRs for check
-  // std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, MVIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, MIDELEG, MVIEN, HIDELEG, HVIEN};
+  // std::unordered_set<csr_base*> interrupt_csrs_for_check_ = {&mvip, &sip, &hip, &vsip, &mie, &sie, &vsie, &hie, &mstatus, &sstatus, &hstatus, &vsstatus, &mnstatus, &mideleg, &mvien, &hideleg, &hvien};
+
+
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
