@@ -6,7 +6,7 @@ module rv_tester_delay_resp #(
     parameter type mst_resp_t                   = logic,
     parameter type r_chan_t                     = logic,  // R channel type parameter
     parameter type slv_ar_chan_t                = logic,
-    parameter int CW                            = 32,
+    parameter int CW                            = 64,
     parameter int unsigned MaxInFlight = 32'd16,
     parameter int unsigned MaxBeatsPerBurst = 32'd16
 ) (
