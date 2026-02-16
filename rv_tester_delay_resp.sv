@@ -6,6 +6,7 @@ module rv_tester_delay_resp #(
     parameter type mst_resp_t                   = logic,
     parameter type r_chan_t                     = logic,  // R channel type parameter
     parameter type slv_ar_chan_t                = logic,
+    parameter int CW                            = 32,
     parameter int unsigned MaxInFlight = 32'd16,
     parameter int unsigned MaxBeatsPerBurst = 32'd16
 ) (
@@ -63,7 +64,7 @@ module rv_tester_delay_resp #(
 
     typedef struct packed {
         logic [AxiIdWidth-1:0] orig_req_id;
-        int unsigned pop_time;
+        logic [CW        -1:0] pop_time;
     } fifo_entry_t;
 
     // R channel data with validity bit
@@ -80,7 +81,7 @@ module rv_tester_delay_resp #(
     logic push_en, pop_en, wr_en;
     logic fifo_full, fifo_empty;
     logic[$clog2(MaxInFlight+1)-1:0] write_ptr, read_ptr;
-    int unsigned global_timer;
+    logic [CW-1:0] global_timer;
     logic ar_req_check;
 
     beat_count_t output_beat_idx, next_output_beat_idx, eff_output_beat_idx;
@@ -180,7 +181,7 @@ module rv_tester_delay_resp #(
     assign push_en = ar_req_check && !fifo_full;
     assign push_entry = '{
                     orig_req_id: slv_req_ar_i.id,
-                    pop_time: global_timer + delay_cycles,
+                    pop_time: global_timer + CW'(delay_cycles),
                     default: '0
                 };
 
