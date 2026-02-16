@@ -64,7 +64,7 @@ module rv_tester_delay_resp #(
 
     typedef struct packed {
         logic [AxiIdWidth-1:0] orig_req_id;
-        logic [CW        -1:0] pop_time;
+        logic [CW        -1:0] push_time;
     } fifo_entry_t;
 
     // R channel data with validity bit
@@ -180,7 +180,7 @@ module rv_tester_delay_resp #(
     // Push entry to FIFO 
     assign push_entry = '{
                     orig_req_id: slv_req_ar_i.id,
-                    pop_time: global_timer + CW'(delay_cycles),
+                    push_time: global_timer,
                     default: '0
                 };
 
@@ -308,7 +308,7 @@ module rv_tester_delay_resp #(
             // Calculate RAM addresses using FIFO indices
             // For reading: use pop_idx from FIFO and current beat index
             
-            send_r_resp_out = !fifo_empty && global_timer >= pop_entry.pop_time && r_valid_ram_rd_data && slv_req_r_ready_i;
+            send_r_resp_out = !fifo_empty && (global_timer - pop_entry.push_time) >= CW'(delay_cycles) && r_valid_ram_rd_data && slv_req_r_ready_i;
             
             // Handle delayed read responses
             if (send_r_resp_out) begin
