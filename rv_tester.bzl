@@ -13,7 +13,7 @@ def rv_tester_gen(
     name, 
     topology, 
     csr_spec = "@rv_tester//csr:csr_spec",
-    cac_check_override = None,
+    csr_param_override = "@rv_tester//csr:csr_param_override",
     pmu_spec = "@rv_tester//pmu:pmu_spec",
     visibility = None, 
     cc_attrs = {}, 
@@ -48,7 +48,7 @@ def rv_tester_gen(
     csr_param_gen(
         name = name + "_csr_param",
         csr_spec = csr_spec,
-        cac_check_override = cac_check_override,
+        csr_param_override = csr_param_override,
         package = "csr_param",
         cc_attrs = cc_attrs,
     )
