@@ -178,7 +178,6 @@ module rv_tester_delay_resp #(
 
     
     // Push entry to FIFO 
-    assign push_en = ar_req_check && !fifo_full;
     assign push_entry = '{
                     orig_req_id: slv_req_ar_i.id,
                     pop_time: global_timer + CW'(delay_cycles),
@@ -273,6 +272,7 @@ module rv_tester_delay_resp #(
         slv_resp_o.r_valid = '0;
 
         // Internal signal defaults
+        push_en = '0;
         pop_en = '0;
         r_ram_wr_en = '0;
         r_ram_wr_addr = '0;
@@ -327,6 +327,8 @@ module rv_tester_delay_resp #(
                     next_output_beat_idx = output_beat_idx + beat_count_t'(1);
                 end                
             end
+
+            push_en = ar_req_check && !fifo_full;
 
             // if r_valid_ram_rd is valid and it's the last beat, use pop_idx + 1; else use pop_idx
             eff_pop_idx = send_r_resp_out &&  r_valid_ram_rd_data && r_ram_rd_data.r.last ? (next_pop_idx) : (pop_idx);
