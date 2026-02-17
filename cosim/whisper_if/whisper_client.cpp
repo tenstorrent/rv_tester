@@ -167,6 +167,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   args_str.insert(args_str.end(), {"--nmevec", std::to_string(getNmiExceptionPc()) });
 
   if (FLAGS_cplfw && FLAGS_cplfw_path != "")      args_str.push_back(FLAGS_cplfw_path);
+  if (FLAGS_debugrom && FLAGS_debugrom_path != "")      args_str.push_back(FLAGS_debugrom_path);
   if (FLAGS_bootrom && FLAGS_bootrom_path != "")  args_str.push_back(FLAGS_bootrom_path);
   if (FLAGS_load != "")                           args_str.push_back(FLAGS_load);
   if (FLAGS_traceptw)                             args_str.push_back("--traceptw");

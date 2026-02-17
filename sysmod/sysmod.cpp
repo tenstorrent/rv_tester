@@ -50,6 +50,8 @@ DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
+DEFINE_bool(debugrom, false, "Load debugrom before test");
+DEFINE_string(debugrom_path, "", "Path to debugrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
@@ -507,6 +509,7 @@ sysmod::reset() {
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   load_cplfw(FLAGS_cplfw_path);
+  // load_debugrom(FLAGS_debugrom_path);
   set_secure_region(FLAGS_stee_secure_region);
 }
 void
@@ -671,19 +674,6 @@ sysmod::compose() {
             base, 32, aplic, FLAGS_uart8250_iid, std::move(channel),
             // We only enable input when using a socket; When using stdio, we only output
             FLAGS_uart8250_sock);
-      } else if (type == "dm") {
-        // TODO: cvm::ERROR
-       // assert(masters.size() > 0);
-       // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
-
-      // } else if (type == "scratchpad_xtor") {
-      //   // TODO: cvm::ERROR
-      //   assert(masters.size() > 0);
-      //   device = std::make_unique<scratchpad_xtor>(tag, base, size, loc_, masters[0]);
-      //   cvm::registry::messenger.connect<scratchpad_xtor::scratchpad_xtor_read_t>(
-      //       loc_,
-      //       [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
-
       } else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
@@ -917,6 +907,27 @@ sysmod::load_cplfw(const std::string& cplfw) {
       }
     }
   }
+}
+
+void
+sysmod::load_debugrom(const std::string& debugrom) {
+
+  // if (FLAGS_debugrom && debugrom != "") {
+  //   cvm::log(cvm::MEDIUM, "Loading {}\n", debugrom);
+  //   if (debugrom.substr(debugrom.length() - 3) == "elf") {
+  //     if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_elf(debugrom)) {
+  //       cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
+  //       return;
+  //     }
+  //   }
+  //   if (debugrom.substr(debugrom.length() - 3) == "hex") {
+  //     if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_hex(debugrom)) {
+  //       cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
+  //       return;
+  //     }
+  //   }
+  //   cvm::log(cvm::NONE, "Loading {} complete\n", debugrom);
+  // }
 }
 
 void
