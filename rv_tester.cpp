@@ -329,6 +329,10 @@ extern "C" {
         }
         rv_tester_domain1_shutdown_registry();
     }
+
+    void rv_tester_clock_monitor(const uint64_t clocks, const uint32_t clock_mode) {
+        cvm::log(cvm::MEDIUM, "[{}] [CLOCK_MONITOR]: clock_mode={}\n", clocks, clock_mode);
+    }
 }
 
 svScope logger_instrument::scope;
