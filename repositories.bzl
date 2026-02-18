@@ -15,21 +15,13 @@ def rv_tester_repositories(bzlmod = False):
             #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
         )
 
-    corearchcoverage_hash="85a8ffab"
-    maybe(
-        git_repository,
-        name = "corearchcoverage",
-        commit = corearchcoverage_hash,
-        #recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
-    )
 
     if not bzlmod:
-        cvm_hash="3b1ae47"
+        cvm_hash="205ab14df6e3d2f1df6942716598465c901bee04"
         maybe(
             http_archive,
             name = "cvm",
-            sha256 = "",
+            sha256 = "fc6b09efa3cca7569948e9657d8405d5dbd7acd6f99cf6fa40f47e22f953864b",
             strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
             url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
         )
@@ -43,7 +35,7 @@ def rv_tester_repositories(bzlmod = False):
     )
 
     if not bzlmod:
-        whisper_hash="4667b38d76bbbb6874145a081660c60c17a91821"
+        whisper_hash="c349731df9bab5281d74ce862aebfcd72cd85f9e"
         maybe(
             git_repository,
             name = "whisper",
@@ -52,11 +44,11 @@ def rv_tester_repositories(bzlmod = False):
             remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
         )
 
-    CoreArchChecker_hash="7e9c0c182cd3f192d634c84f469269ae51516f5b"
+    CoreArchChecker_hash="788acd6944e086e47b8c095f1bcb256108d7904e"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "2c182d5538e710a341a8a9361f6b6fbf6f51cb2692528a3dde4622f71c5b7c61",
+        sha256 = "5f26d85430d0671ed79609675d6cb151bed68206dfe59ceb601bc4bf47236c40",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=CoreArchChecker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
@@ -88,7 +80,7 @@ def rv_tester_repositories(bzlmod = False):
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="5a5a2da7982ad208dfc64639bfc90f6f454946f7"
+    checkin_script_hash="f7faebb7a6255be562d1990be219217337a1142a"
     maybe(
         git_repository,
         name = "checkin-script",

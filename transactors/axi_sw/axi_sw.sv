@@ -21,26 +21,26 @@
     endfunction                                            \
     export "DPI-C" function name``_reset;
 
-`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, pop, popped, empty, out, rptr) \
-    localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];         \
-    localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];         \
-    localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);               \
-                                                                               \
-    T name``_q[DEPTH];                                                         \
-    name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                    \
-                                                                               \
-    assign name``_size  = name``_wptr - rptr;                                  \
-//  assign full  = name``_size == name``_D;                                    \
-    assign empty = name``_size == '0;                                          \
-                                                                               \
-    always @(posedge clk) begin                                                \
-        automatic logic popped_nxt = (reset_n) ? (pop): '0;                    \
-        popped <=  popped_nxt;                                                 \
-        rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(popped_nxt) : '0; \
-        name``_wptr   <= name``_wptr_nxt;                                      \
-    end                                                                        \
-                                                                               \
-    assign out = name``_q[name``_idx_t'(rptr % name``_D)];                     \
+`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, update_rptr, rptr_updated, empty, out, rptr) \
+    localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];               \
+    localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];               \
+    localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);                     \
+                                                                                     \
+    T name``_q[DEPTH];                                                               \
+    name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                          \
+                                                                                     \
+    assign name``_size  = name``_wptr - rptr;                                        \
+//  assign full  = name``_size == name``_D;                                          \
+    assign empty = name``_size == '0;                                                \
+                                                                                     \
+    always @(posedge clk) begin                                                      \
+        automatic logic rptr_updated_nxt = (reset_n) ? (update_rptr): '0;            \
+        rptr_updated <=  rptr_updated_nxt | sys_reset;                               \
+        rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(rptr_updated_nxt) : '0; \
+        name``_wptr   <= name``_wptr_nxt;                                            \
+    end                                                                              \
+                                                                                     \
+    assign out = name``_q[name``_idx_t'(rptr % name``_D)];                           \
     `AXI_SW_DPI_FIFO_RESET(name)
 
 module axi_sw #(
@@ -165,6 +165,7 @@ module axi_sw #(
 
     always @(posedge clk) begin
         if (sys_reset) begin
+
             /* verilator lint_off BLKSEQ */
             automatic byte unsigned _unused;
                 // FIXME add a reset for the axi xtor
@@ -689,17 +690,32 @@ module axi_sw_mst #(
 
     always_comb begin
         axi_mst_ar_valid = reset_n ? !ar_queue_empty : '0;
-        axi_mst_ar_id    = ar.id;
-        axi_mst_ar_addr  = ar.addr;
-        axi_mst_ar_len   = ar.len;
-        axi_mst_ar_size  = ar.size;
-        axi_mst_ar_burst = ar.burst;
-        axi_mst_ar_lock  = ar.lock;
-        axi_mst_ar_cache = ar.cache;
-        axi_mst_ar_prot  = ar.prot;
-        axi_mst_ar_qos   = ar.qos;
-        axi_mst_ar_region = ar.region;
-        axi_mst_ar_user  = ar.user;
+
+        axi_mst_ar_id    = 'X;
+        axi_mst_ar_addr  = 'X;
+        axi_mst_ar_len   = 'X;
+        axi_mst_ar_size  = 'X;
+        axi_mst_ar_burst = 'X;
+        axi_mst_ar_lock  = 'X;
+        axi_mst_ar_cache = 'X;
+        axi_mst_ar_prot  = 'X;
+        axi_mst_ar_qos   = 'X;
+        axi_mst_ar_region = 'X;
+        axi_mst_ar_user  = 'X;
+
+        if (axi_mst_ar_valid) begin
+          axi_mst_ar_id    = ar.id;
+          axi_mst_ar_addr  = ar.addr;
+          axi_mst_ar_len   = ar.len;
+          axi_mst_ar_size  = ar.size;
+          axi_mst_ar_burst = ar.burst;
+          axi_mst_ar_lock  = ar.lock;
+          axi_mst_ar_cache = ar.cache;
+          axi_mst_ar_prot  = ar.prot;
+          axi_mst_ar_qos   = ar.qos;
+          axi_mst_ar_region = ar.region;
+          axi_mst_ar_user  = ar.user;
+        end
     end
 
     logic aw_queue_rptr_incremented, aw_queue_empty;
@@ -717,18 +733,34 @@ module axi_sw_mst #(
 
     always_comb begin
         axi_mst_aw_valid = reset_n ? !aw_queue_empty : '0;
-        axi_mst_aw_id    = aw.id;
-        axi_mst_aw_addr  = aw.addr;
-        axi_mst_aw_len   = aw.len;
-        axi_mst_aw_size  = aw.size;
-        axi_mst_aw_burst = aw.burst;
-        axi_mst_aw_lock  = aw.lock;
-        axi_mst_aw_cache = aw.cache;
-        axi_mst_aw_prot  = aw.prot;
-        axi_mst_aw_qos   = aw.qos;
-        axi_mst_aw_region= aw.region;
-        axi_mst_aw_atop  = aw.atop;
-        axi_mst_aw_user  = aw.user;
+
+        axi_mst_aw_id    = 'X;
+        axi_mst_aw_addr  = 'X;
+        axi_mst_aw_len   = 'X;
+        axi_mst_aw_size  = 'X;
+        axi_mst_aw_burst = 'X;
+        axi_mst_aw_lock  = 'X;
+        axi_mst_aw_cache = 'X;
+        axi_mst_aw_prot  = 'X;
+        axi_mst_aw_qos   = 'X;
+        axi_mst_aw_region= 'X;
+        axi_mst_aw_atop  = 'X;
+        axi_mst_aw_user  = 'X;
+
+        if (axi_mst_aw_valid) begin
+          axi_mst_aw_id    = aw.id;
+          axi_mst_aw_addr  = aw.addr;
+          axi_mst_aw_len   = aw.len;
+          axi_mst_aw_size  = aw.size;
+          axi_mst_aw_burst = aw.burst;
+          axi_mst_aw_lock  = aw.lock;
+          axi_mst_aw_cache = aw.cache;
+          axi_mst_aw_prot  = aw.prot;
+          axi_mst_aw_qos   = aw.qos;
+          axi_mst_aw_region= aw.region;
+          axi_mst_aw_atop  = aw.atop;
+          axi_mst_aw_user  = aw.user;
+        end
     end
 
     logic w_queue_rptr_incremented, w_queue_empty;
@@ -763,11 +795,20 @@ module axi_sw_mst #(
     endfunction
     export "DPI-C" function axi_sw_mst_w_8;
 
+    `undef AXI_SW_MST_W
+
     always_comb begin
         axi_mst_w_valid = reset_n ? !w_queue_empty : '0;
-        axi_mst_w_data  = w.data;
-        axi_mst_w_strb  = w.strb;
-        axi_mst_w_last  = w.last;
+
+        axi_mst_w_data  = 'X;
+        axi_mst_w_strb  = 'X;
+        axi_mst_w_last  = 'X;
+
+        if (axi_mst_w_valid) begin
+          axi_mst_w_data  = w.data;
+          axi_mst_w_strb  = w.strb;
+          axi_mst_w_last  = w.last;
+        end
     end
 
     //assign axi_mst_b_ready = '1;

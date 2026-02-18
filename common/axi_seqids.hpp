@@ -7,4 +7,5 @@ namespace {
     constexpr uint32_t DST_TRACE_SEQ_ID       =  0x4;
     constexpr uint32_t SNOOP_GEN_SEQ_ID       =  0x5;
     constexpr uint32_t SCRATCHPAD_MEM_SEQ_ID  =  0x6;
+    constexpr uint32_t THUB_SEQ_ID            =  0x7;
 }

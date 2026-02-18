@@ -59,6 +59,7 @@ filegroup(
         name = name + "_rv_tester",
         topology = name + "_topology",
         csr_spec = "@rv_tester//csr:csr_spec",
+        pmu_spec = "@rv_tester//pmu:pmu_spec",
         cc_attrs = {
             'alwayslink': True,
             'linkstatic': True,

@@ -15,10 +15,11 @@ import rv_tester_params::*;
 );
 
   import "DPI-C" context function void triggers_set_scope(int unsigned location);
+  import "DPI-C" function int unsigned get_random_in_range(int unsigned min, int unsigned max);
 
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
   logic [NHARTS-1:0] event_trigger_vlds;
-  logic lpx_msi_en,lpx_pllsd_en;
+  logic [NHARTS-1:0] event_trigger_vlds_latched;
   
   genvar i;
   generate
@@ -42,84 +43,75 @@ import rv_tester_params::*;
   // -------------------------
   logic reset_d1;
   int unsigned tb_clocks = 0;
+  int unsigned interrupt_injection_count;
+  int unsigned interrupt_injection_initial_delay;
+  int unsigned interrupt_injection_rand_delay_min;
+  int unsigned interrupt_injection_rand_delay_max;
   always @(posedge tb_clk) begin
     tb_clocks <= tb_clocks + 1;
     reset_d1 <= reset;
     if (~reset & reset_d1) begin
-      lpx_msi_en <= cvm_plusargs::get_bool("lpx_msi") != '0;
-      lpx_pllsd_en <= cvm_plusargs::get_bool("lpx_pllsd") != '0;
+      interrupt_injection_count <= cvm_plusargs::get_int("interrupt_injection_count");
+      interrupt_injection_initial_delay <= cvm_plusargs::get_int("interrupt_injection_initial_delay");
+      interrupt_injection_rand_delay_min <= cvm_plusargs::get_int("interrupt_injection_rand_delay_min");
+      interrupt_injection_rand_delay_max <= cvm_plusargs::get_int("interrupt_injection_rand_delay_max");
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);
       end
     end
   end
 
-  bit [TRIGGER_COUNT-1:0] prev_event_trigger = 0;
-  bit interrupt_trigger_in_progress = 0;
-  int unsigned captured_clocks = 0;
-  int unsigned patch_trigger_start_clocks = 0;
-  int unsigned uarch_trigger_start_clocks = 0;
-  bit patch_event_based_interrupt = 0;
-  bit uarch_event_based_interrupt = 0;
-  bit patch_event_based_interrupt_delayed = 0;
-  bit uarch_event_based_interrupt_delayed = 0;
+  bit trigger_interrupt = 0;
+  bit trigger_interrupt_delayed = 0;
   int unsigned clocks = 0;
-  always @(posedge hart_specific_event_trigger[PATCH]) begin
-      /* verilator lint_off BLKSEQ */
-    if (reset) begin
-      patch_event_based_interrupt = 1'b0;
-    end
-    else begin 
-          patch_event_based_interrupt = 1'b1;
-          patch_trigger_start_clocks = clocks;
-    end
-      /* verilator lint_on BLKSEQ */
-  end
-  always @(posedge hart_specific_event_trigger[UARCH_INTR]) begin
-      /* verilator lint_off BLKSEQ */
-    if (reset) begin
-      uarch_event_based_interrupt = 1'b0;
-    end
-    else begin 
-          uarch_event_based_interrupt = 1'b1;
-          uarch_trigger_start_clocks = clocks;
-    end
-      /* verilator lint_on BLKSEQ */
-end
+  int unsigned cur_interrupt_count = 0;
+  int unsigned next_interrupt_clock = 0;
+  bit interrupt_sequence_active = 0;
 
+  /* verilator lint_off BLKANDNBLK */
+  /* verilator lint_off BLKSEQ */
   always @(posedge clk) begin
     clocks <= clocks + 1;
-    patch_event_based_interrupt_delayed <= patch_event_based_interrupt;
-    if(patch_trigger_start_clocks == clocks)
-      /* verilator lint_off BLKSEQ */
-          patch_event_based_interrupt = 1'b0;
-      /* verilator lint_on BLKSEQ */
+    trigger_interrupt_delayed <= trigger_interrupt;
+    if (hart_specific_event_trigger[INTERRUPT]) begin
+      cur_interrupt_count = interrupt_injection_count;
+      next_interrupt_clock = clocks + interrupt_injection_initial_delay;
+      // Latch event_trigger_vlds when initial trigger occurs
+      event_trigger_vlds_latched <= event_trigger_vlds;
+      interrupt_sequence_active = (cur_interrupt_count > 0);
+    end
+    if (reset) begin
+      trigger_interrupt <= 1'b0;
+      event_trigger_vlds_latched <= '0;
+      interrupt_sequence_active <= 1'b0;
+    end
+    else begin
+      trigger_interrupt = 1'b0;
+      if ((cur_interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
+        trigger_interrupt = 1'b1;
+        cur_interrupt_count <= cur_interrupt_count - 1;
+        next_interrupt_clock <= clocks + get_random_in_range(interrupt_injection_rand_delay_min, interrupt_injection_rand_delay_max);
+      end
+      // Clear latched value and flag when all interrupts are sent
+      if (cur_interrupt_count == 0) begin
+        event_trigger_vlds_latched <= '0;
+        interrupt_sequence_active <= 1'b0;
+      end
+    end
   end
-
-  always @(posedge clk) begin
-    clocks <= clocks + 1;
-    uarch_event_based_interrupt_delayed <= uarch_event_based_interrupt;
-    if(uarch_trigger_start_clocks == clocks)
-      /* verilator lint_off BLKSEQ */
-          uarch_event_based_interrupt = 1'b0;
-      /* verilator lint_on BLKSEQ */
-  end
+  /* verilator lint_on BLKSEQ */
+  /* verilator lint_on BLKANDNBLK */
 
   // m_event_trigger_ticks
-  assign m_event_trigger_ticks[0].valid = (uarch_event_based_interrupt | patch_event_based_interrupt) & (location != cvm_topology::nil);
+  assign m_event_trigger_ticks[0].valid = trigger_interrupt & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
-  assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, event_trigger_vlds};
+  // Use latched value when interrupt sequence is active, otherwise use current value
+  assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, 
+                                                                interrupt_sequence_active ? event_trigger_vlds_latched : event_trigger_vlds};
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = hart_specific_event_trigger;
   /* verilator lint_on WIDTHEXPAND */
-  assign m_event_trigger_delayed_ticks[0].valid = (uarch_event_based_interrupt_delayed | patch_event_based_interrupt_delayed) & (location != cvm_topology::nil);
+  assign m_event_trigger_delayed_ticks[0].valid = trigger_interrupt_delayed & (location != cvm_topology::nil);
   assign m_event_trigger_delayed_ticks[0].data.location = location;
-
-
-  // C-Sequence
-  // m_tick
-  assign m_ticks[0].valid = (lpx_msi_en || lpx_pllsd_en) & (location != cvm_topology::nil);
-  assign m_ticks[0].data.location = location;
-  assign m_ticks[0].data.cycle = tb_clocks;
 
 endmodule

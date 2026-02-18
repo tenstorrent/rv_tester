@@ -4,13 +4,18 @@
 #include "cvm/logger.hpp"
 #include <map>
 
+// Define MOVELLUS_PLL_MODEL by default unless explicitly overridden
+#ifndef MOVELLUS_PLL_MODEL
+#define MOVELLUS_PLL_MODEL
+#endif
+
 namespace {
   constexpr uint32_t pll_ip_ver             = 0x210'3000;
   constexpr uint32_t pll_control            = 0x210'3004;
   constexpr uint32_t pll_status             = 0x210'3008;
   constexpr uint32_t pll_interrupts         = 0x210'300C;
-  constexpr uint32_t pll_parameters0        = 0x210'3010;
-  constexpr uint32_t pll_parameters1        = 0x210'3014;
+  constexpr uint32_t pll_parameters0        = 0x210'3014;  // Address 014 from Ascalon_cpl_regs.yml
+  constexpr uint32_t pll_parameters1        = 0x210'3018;  // Address 018 from Ascalon_cpl_regs.yml
 
   constexpr uint32_t rst_ctl_nofetch_cfg_done_idx = 31;
   constexpr uint32_t rst_ctl_nofetch_clustercorego_idx = 27;
@@ -211,138 +216,122 @@ namespace {
     0x000f8067,         //jr	t6
   };
 
-  struct pll_status_reg_s {
-    // Common data for the register
-    static constexpr uint16_t ADDRESS = 0x008;
-    static constexpr uint32_t CPL_REG_SIZE = 32;
-    static constexpr const char* DESCRIPTION = "CPL PLL status Register";
+  // PLL Register Bit Definitions
+  // PLL Status Register bits
+  constexpr uint32_t PLL0_ACTIVE_BIT = 0;
+  constexpr uint32_t PLL0_LOCKED_BIT = 1;  
+  constexpr uint32_t PLL0_RESET_BIT = 2;
+  constexpr uint32_t PLL1_ACTIVE_BIT = 16;
+  constexpr uint32_t PLL1_LOCKED_BIT = 17;
+  constexpr uint32_t PLL1_RESET_BIT = 18;
   
-    union {
-      struct {
-        uint32_t pll0_active : 1;       // [0:0]   - Indicates PLL0 active status 0: PLL0 is shutdown, 1: PLL0 is active
-        uint32_t pll0_locked : 1;       // [1:1]   - Indicates PLL0 lock status 0: PLL0 is not locked, 1: PLL0 is locked
-        uint32_t pll0_reset : 1;        // [2:2]   - Indicates PLL0 Reset Status 0: PLL0 is not in Reset, 1: PLL0 is in Reset
-        uint32_t pll0_spare_status : 13; // [15:3]
-        uint32_t pll1_active : 1;       // [16:16] - Indicates PLL1 active status 0: PLL1 is shutdown, 1: PLL1 is active
-        uint32_t pll1_locked : 1;       // [17:17] - Indicates PLL1 lock status 0: PLL1 is not locked, 1: PLL1 is locked
-        uint32_t pll1_reset : 1;        // [18:18] - Indicates PLL1 Reset Status 0: PLL1 is not in Reset, 1: PLL1 is in Reset
-        uint32_t pll1_spare_status : 13; // [31:19]
-      };
-      uint32_t value;
-    };
+  // PLL Control Register bits
+  constexpr uint32_t PLL_DFS_REQ_BIT = 0;
+  constexpr uint32_t PLL_SHUTDOWN_REQ_BIT = 1;
+  constexpr uint32_t PLL_WAKEUP_REQ_BIT = 2;
+  constexpr uint32_t PLL_BYPASS_BIT = 3;
+  constexpr uint32_t PLL_SCALAR_MODE_BIT = 4;
+  constexpr uint32_t PLL_RESETB_BIT = 5;
+  constexpr uint32_t PLL_RESETB_OVERRIDE_BIT = 6;
+  constexpr uint32_t DIS_INACTIVE_PLL_SHUTDOWN_BIT = 7;
   
-    // Constructor to initialize the register value
-    pll_status_reg_s() : value(0) {}
-  
-    // Function to pack the register into a uint32_t with bit reversal
-    uint32_t pack() const {
-      return value;
-    }
-  
-    // Function to unpack the register from a uint32_t
-    void unpack(uint32_t packed_value) {
-      value = packed_value;
-    }
-  };
+  // PLL Interrupt Register bits
+  constexpr uint32_t DFS_DONE_BIT = 0;
+  constexpr uint32_t SHUTDOWN_DONE_BIT = 1;
+  constexpr uint32_t WAKEUP_DONE_BIT = 2;
+  constexpr uint32_t PLL_LOCK_LOST_BIT = 3;
+  constexpr uint32_t COLD_POWERUP_DONE_BIT = 4;
 
-  struct pll_control_reg_s {
-    // Common data for the register
-    static constexpr uint16_t ADDRESS = 0x004;
-    static constexpr uint32_t CPL_REG_SIZE = 32;
-    static constexpr const char* DESCRIPTION = "CPL PLL Control Register";
   
-    union {
-      struct {
-        uint32_t spare : 13;                   // [31:19] - Spare Bits
-        uint32_t ext_dfs_ongoing : 1;         // [18:18] - Indicates CPL initiated DFS request based on EXT DFS request.
-        uint32_t p_state : 4;                   // [17:14] - P-State Request from SMC.
-        uint32_t ext_pll_dfs_req : 1;         // [13:13] - DFS request from External agent.
-        uint32_t pll_sel_override : 1;        // [12:12] - PLL mux sel override control
-        uint32_t pll_sel : 4;                   // [11:8]  - PLL mux sel override
-        uint32_t dis_inactive_pll_shutdown : 1; // [7:7]   - Inactive PLL shutdown override
-        uint32_t pll_resetb_override : 1;       // [6:6]   - PLL reset override control
-        uint32_t pll_resetb : 1;                // [5:5]   - PLL reset override
-        uint32_t pll_scalar_mode : 1;          // [4:4]   - Glitch free scalr mode frequency switch.
-        uint32_t pll_bypass : 1;                // [3:3]   - Bypass mode control
-        uint32_t pll_wakeup_req : 1;            // [2:2]   - SW initiated PLL wakeup request
-        uint32_t pll_shutdown_req : 1;          // [1:1]   - SW initiated PLL shutdown request
-        uint32_t pll_dfs_req : 1;               // [0:0]   - Trigger to change PLL frequency.
-      };
-      uint32_t value;
+  // PLL Programming Utility Functions
+  namespace pll_utils {
+    
+    struct pll_params_t {
+      uint32_t fcw_int;
+      uint32_t postdiv;
+      uint32_t freq_ratio;
+      uint32_t scalar_div;
+      uint32_t main_divider_div;
+      uint32_t pre_divider_div;
     };
-  
-    // Constructor
-    pll_control_reg_s() : value(0) {}  
-  
-    // Function to pack the register into a uint32_t with bit reversal
-    uint32_t pack() const {
-      uint32_t reversed_value = 0;
-      for (int i = 0; i < 32; ++i) {
-        if ((value >> i) & 1) {
-          reversed_value |= (1 << (31 - i));
-        }
+    
+    // Calculate PLL parameters for given frequency
+    inline pll_params_t calculate_pll_params(uint32_t target_freq_mhz, uint32_t ref_freq_mhz = 100) {
+      pll_params_t params = {};
+      
+#ifdef MOVELLUS_PLL_MODEL
+      // According to MOVELLUS Equation:
+      // Fout = Fcw_int * (1 / (2**postdiv)) * Ref
+      // Supported frequencies: 1000, 1600, 2000, 2500, 2700 MHz
+      switch(target_freq_mhz) {
+        case 1000: params.fcw_int = 20; params.postdiv = 1; break;  // 1GHz
+        case 1600: params.fcw_int = 32; params.postdiv = 1; break;  // 1.6GHz  
+        case 2000: params.fcw_int = 40; params.postdiv = 1; break;  // 2.0GHz  
+        case 2500: params.fcw_int = 50; params.postdiv = 1; break;  // 2.5GHz  
+        case 2700: params.fcw_int = 54; params.postdiv = 1; break;  // 2.7GHz
+        default:
+          // For other frequencies, calculate dynamically
+          // Solve: target_freq = fcw_int * ref_freq / (2**postdiv)
+          params.postdiv = 1;
+          params.fcw_int = target_freq_mhz / (ref_freq_mhz / (1 << params.postdiv));
+          if (params.fcw_int > 63) {
+            params.postdiv = 2;
+            params.fcw_int = target_freq_mhz / (ref_freq_mhz / (1 << params.postdiv));
+          }
+          if (params.fcw_int > 63) {
+            params.postdiv = 3;
+            params.fcw_int = target_freq_mhz / (ref_freq_mhz / (1 << params.postdiv));
+          }
+          break;
       }
-      return reversed_value;
+#else
+      // Generic PLL model
+      params.freq_ratio = 2400 / target_freq_mhz;
+      params.scalar_div = 1;
+      params.main_divider_div = 52;
+      params.pre_divider_div = params.freq_ratio;
+#endif
+      return params;
     }
+    
+    // Configure PLL Parameters0 register with calculated values
+    inline uint32_t configure_pll_parameters0(uint32_t current_value, const pll_params_t& params) {
+#ifdef MOVELLUS_PLL_MODEL
+      // Configure postdiv in bits [27:25]
+      return (current_value & ~(0x7 << 25)) | (params.postdiv << 25);
+#else
+      // Configure Generic PLL fields
+      uint32_t new_value = current_value;
+      new_value = (new_value & ~(0x3F << 0)) | (params.pre_divider_div << 0);        // [5:0]
+      new_value = (new_value & ~(0x3F << 6)) | (params.main_divider_div << 6);       // [11:6]
+      new_value = (new_value & ~(0x1 << 16)) | (params.scalar_div << 16);            // [16:16]
+      return new_value;
+#endif
+    }
+    
+    // Configure PLL Parameters1 register with calculated values
+    inline uint32_t configure_pll_parameters1(uint32_t current_value, const pll_params_t& params) {
+#ifdef MOVELLUS_PLL_MODEL
+      // Configure fcw_int in bits [27:20]
+      return (current_value & ~(0xFF << 20)) | (params.fcw_int << 20);
+#else
+      // Generic PLL doesn't use parameters1 register typically
+      return current_value;
+#endif
+    }
+  }
   
-    // Function to unpack the register from a uint32_t
-    void unpack(uint32_t packed_value) {
-      uint32_t reversed_value = 0;
-       for (int i = 0; i < 32; ++i) {
-        if ((packed_value >> i) & 1) {
-          reversed_value |= (1 << (31 - i));
-        }
-      }
-      value = reversed_value;
-    }
-  };
+  // NTrace MMRs 
+  constexpr uint32_t tr_ram_control            = 0x4208'0000;
+  constexpr uint32_t tr_ram_start_low          = 0x4208'0010;
+  constexpr uint32_t tr_ram_limit_low          = 0x4208'0018;
+  constexpr uint32_t tr_ram_wp_low             = 0x4208'0020;
+  constexpr uint32_t tr_ram_rp_low             = 0x4208'0028; 
+  constexpr uint32_t tr_funnel_control         = 0x4208'1000;
+  constexpr uint32_t tr_funnel_disinput        = 0x4208'1008;
+  constexpr uint32_t cdbg_tr_frame_cfg         = 0x4200'21A8;
+  constexpr uint32_t tr_te_control             = 0x4200'1000;
 
-  struct pll_interrupts_reg_s {
-    // Common data for the register
-    static constexpr uint16_t ADDRESS = 0x00C;
-    static constexpr uint32_t CPL_REG_SIZE = 32;
-    static constexpr const char* DESCRIPTION = "CPL PLL interrupts";
-  
-    union {
-      struct {
-        uint32_t spare : 25;             // [31:7] - Spare Bits
-        uint32_t ext_dfs_req : 1;       // [6:6]  - HW to set this bit when pll_control_reg[ext_pll_dfs_req] is set
-        uint32_t ext_dfs_done : 1;      // [5:5]  - External initiated DFS completion indication to SMC
-        uint32_t cold_powerup_done : 1; // [4:4]  - Cold powerup done interrupt to SMC
-        uint32_t pll_lock_lost : 1;     // [3:3]  - Indicates if active PLL lost its lock
-        uint32_t wakeup_done : 1;        // [2:2]  - Wake interrupt to uC on C4 exit
-        uint32_t shutdown_done : 1;      // [1:1]  - shutdown status interrupt to uC on thermal
-        uint32_t dfs_done : 1;          // [0:0]  - Parameter update done interrupt to uC on on DFS done
-      };
-      uint32_t value;
-    };
-  
-    // Constructor
-    pll_interrupts_reg_s() : value(0) {}
-  
-    // Function to pack the register into a uint32_t with bit reversal
-    uint32_t pack() const {
-      uint32_t reversed_value = 0;
-      for (int i = 0; i < 32; ++i) {
-        if ((value >> i) & 1) {
-          reversed_value |= (1 << (31 - i));
-        }
-      }
-      return reversed_value;
-    }
-  
-    // Function to unpack the register from a uint32_t
-    void unpack(uint32_t packed_value) {
-      uint32_t reversed_value = 0;
-      for (int i = 0; i < 32; ++i) {
-        if ((packed_value >> i) & 1) {
-          reversed_value |= (1 << (31 - i));
-        }
-      }
-      value = reversed_value;
-    }
-  };
-  
 }
 
 class pwrmgmt {
