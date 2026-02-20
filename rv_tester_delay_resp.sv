@@ -6,12 +6,13 @@ module rv_tester_delay_resp #(
     parameter type mst_resp_t                   = logic,
     parameter type r_chan_t                     = logic,  // R channel type parameter
     parameter type slv_ar_chan_t                = logic,
+    parameter int CW                            = 16,
     parameter int unsigned MaxInFlight = 32'd16,
     parameter int unsigned MaxBeatsPerBurst = 32'd16
 ) (
     input   logic                       clk_i,
     input   logic                       rst_ni,
-    input   int unsigned                delay_cycles,     // Runtime configurable delay
+    input   logic[CW-1:0]               delay_cycles,     // Runtime configurable delay
     
     // Slave Port Inputs (From Core) -- AR Channel
     input   slv_ar_chan_t               slv_req_ar_i,
@@ -63,7 +64,7 @@ module rv_tester_delay_resp #(
 
     typedef struct packed {
         logic [AxiIdWidth-1:0] orig_req_id;
-        int unsigned pop_time;
+        logic [CW        -1:0] push_time;
     } fifo_entry_t;
 
     // R channel data with validity bit
@@ -80,7 +81,7 @@ module rv_tester_delay_resp #(
     logic push_en, pop_en, wr_en;
     logic fifo_full, fifo_empty;
     logic[$clog2(MaxInFlight+1)-1:0] write_ptr, read_ptr;
-    int unsigned global_timer;
+    logic [CW-1:0] global_timer;
     logic ar_req_check;
 
     beat_count_t output_beat_idx, next_output_beat_idx, eff_output_beat_idx;
@@ -177,10 +178,9 @@ module rv_tester_delay_resp #(
 
     
     // Push entry to FIFO 
-    assign push_en = ar_req_check && !fifo_full;
     assign push_entry = '{
                     orig_req_id: slv_req_ar_i.id,
-                    pop_time: global_timer + delay_cycles,
+                    push_time: global_timer,
                     default: '0
                 };
 
@@ -272,6 +272,7 @@ module rv_tester_delay_resp #(
         slv_resp_o.r_valid = '0;
 
         // Internal signal defaults
+        push_en = '0;
         pop_en = '0;
         r_ram_wr_en = '0;
         r_ram_wr_addr = '0;
@@ -307,7 +308,7 @@ module rv_tester_delay_resp #(
             // Calculate RAM addresses using FIFO indices
             // For reading: use pop_idx from FIFO and current beat index
             
-            send_r_resp_out = !fifo_empty && global_timer >= pop_entry.pop_time && r_valid_ram_rd_data && slv_req_r_ready_i;
+            send_r_resp_out = !fifo_empty && CW'(global_timer - pop_entry.push_time) >= CW'(delay_cycles) && r_valid_ram_rd_data && slv_req_r_ready_i;
             
             // Handle delayed read responses
             if (send_r_resp_out) begin
@@ -326,6 +327,8 @@ module rv_tester_delay_resp #(
                     next_output_beat_idx = output_beat_idx + beat_count_t'(1);
                 end                
             end
+
+            push_en = ar_req_check && !fifo_full;
 
             // if r_valid_ram_rd is valid and it's the last beat, use pop_idx + 1; else use pop_idx
             eff_pop_idx = send_r_resp_out &&  r_valid_ram_rd_data && r_ram_rd_data.r.last ? (next_pop_idx) : (pop_idx);
