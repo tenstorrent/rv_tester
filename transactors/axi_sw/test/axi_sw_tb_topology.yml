@@ -49,3 +49,15 @@ top:
         STRB_WIDTH: 64
         ID_WIDTH: 4
         USER_WIDTH: 4
+    iommu_axi_tr_req_mst:
+      count: 1
+      type:
+        - iommu_axi_tr_req_mst
+        - platform_transactor_mst
+      attrs:
+        <<: *rv_tester_axi_sw_mst
+        ADDR_WIDTH: 64
+        DATA_WIDTH: 512
+        STRB_WIDTH: 64
+        ID_WIDTH: 4
+        USER_WIDTH: 4

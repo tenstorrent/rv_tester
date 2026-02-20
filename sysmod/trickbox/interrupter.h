@@ -78,10 +78,13 @@ public:
     processDelayedRandomInterrupts();
 
   }
+  // RPC to check interrupt enable flag (for NMI sequence)
+  CVM_MESSENGER_procedure_call(intr_enable_read_RPC, bool (bool&));
+
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
-  virtual void driveMSIInterrupt(uint64_t t_data)
+  virtual void driveMSIInterrupt(uint64_t intr_num, uint64_t t_data)
   {
-    uint32_t interrupt_num = t_data & 0xfff;
+    uint64_t interrupt_num = intr_num;
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
@@ -134,7 +137,7 @@ public:
           } else {
             // 30% chance to use random VS ID != VGEIN
             do {
-              vs_id = (rng() % 5) + 1; // Range [1,5]
+              vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while (vs_id == vgein);
             intr_vs_id_random_++;
           }
@@ -148,12 +151,12 @@ public:
             data.push_back(0x0);
             strb.push_back(0x0);
           }
-          for (uint8_t i = 0; i < 4; ++i) {
+          for (uint8_t i = 0; i < 8; ++i) {
             uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
             data[i] = currentByte;
-            strb[i] = 0x1;
+            if(i < 4) strb[i] = 0x1;
           }
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
         } else {
           // Dual interrupt case
           // First interrupt with VGEIN
@@ -165,37 +168,37 @@ public:
             data.push_back(0x0);
             strb.push_back(0x0);
           }
-          for (uint8_t i = 0; i < 4; ++i) {
+          for (uint8_t i = 0; i < 8; ++i) {
             uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
             data[i] = currentByte;
-            strb[i] = 0x1;
+            if(i < 4) strb[i] = 0x1;
           }
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
 
           // Second interrupt with different VS ID
           uint32_t second_vs_id;
           if ((rng() % 100) < 70) {
             // 70% chance to pick VS ID with HGEIE set
             do {
-              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
-              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
 
           // Drive second interrupt
           addr1 = msi_vs_file_addr + (second_vs_id << 12) + (interrupt_hart << 18);
-          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb, exp_err_rsp});
           intr_vs_id_two_++;
         }
       } else {
         is_vgein_intr = false;
-        if (!disable_vs_id_randomisation) vs_id = (rng() % 5) + 1; // Range [1,5]
+        if (!disable_vs_id_randomisation) vs_id = (rng() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
         addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
       }
 
@@ -212,10 +215,10 @@ public:
       data1.push_back(0x0);
       strb1.push_back(0x0);
     }
-    for (uint8_t i = 0; i < 4; ++i) {
+    for (uint8_t i = 0; i < 8; ++i) {
       uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
       data1[i] = currentByte;
-      strb1[i] = 0x1;
+      if(i < 4) strb1[i] = 0x1;
     }
     if (!is_vgein_intr) {
       cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, exp_err_rsp});
@@ -253,7 +256,10 @@ protected:
   {
 
     //RANDOM imsic_intr
-    if(FLAGS_random_imsic_intr && (intr_count <= (int)FLAGS_max_intr_count)){
+    // If trickbox_write_enables_intr is true, check intr_enable_flag_ (for random stimulus)
+    // Otherwise, allow random interrupts without the write (for directed tests - backward compatible)
+    bool intr_enable_check = FLAGS_trickbox_write_enables_intr ? intr_enable_flag_ : true;
+    if(FLAGS_random_imsic_intr && intr_enable_check && (intr_count <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
         uint64_t intr_num = 1;
         unsigned intr_file = 0;
@@ -267,18 +273,19 @@ protected:
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng() % (FLAGS_imsic_intr_threshold ));
-  if(!FLAGS_disable_vs_imsic_intr)
-          intr_num = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+  cvm::rand::uniform_dist<uint64_t> rand_intr_num_64b(0, UINT64_MAX);
+  intr_num =  (rand_intr_num_64b() & (FLAGS_imsic_intr_mask));
+  if(!FLAGS_disable_vs_imsic_intr && intr_file == 2)
+          intr_num = (rand_intr_num_64b() & (FLAGS_imsic_vs_intr_mask )) ; //gen iter between 1 to max simul instr
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
-
-        intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold)) + 1 ; //gen iter between 1 to max simul instr
+  
+        uint32_t intr_addr = (intr_num & 0xfff)|(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
-        driveMSIInterrupt(intr_num);
+        driveMSIInterrupt(intr_num, intr_addr);
         if(limit_interrupts){
           intr_count++;
         }
@@ -321,4 +328,5 @@ private:
   uint32_t intr_vs_id_vgein_ = 0;
   uint32_t intr_vs_id_random_ = 0;
   uint32_t intr_vs_id_two_ = 0;
+  bool intr_enable_flag_ = false;  // Flag to enable interrupts (set by software write)
 };

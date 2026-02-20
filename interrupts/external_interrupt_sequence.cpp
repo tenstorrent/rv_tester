@@ -6,15 +6,23 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-DEFINE_bool(lpx_msi, false, "Enable delayed interrupt generation in case of CLC3/CLC4 ");
-DEFINE_bool(lpx_pllsd, false, "Enable interrupt after PLL Shutdown for Cluster C3/C4");
-DEFINE_bool(patch_interrupt_trigger_en, false, "Enable patch event based external_interrupt_sequence in the sim");
-DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_interrupt_sequence in the sim");
-DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
-DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
-DEFINE_int32(interrupt_trigger_interval,10, "Max TB cycle interval between MSI random mode enabled");
-DEFINE_int32(lpx_msi_interval, 60000, "Max TB cycle interval between MSI and LPX");
-
+static bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
+  if (value <= 0) {
+      cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
+      return false;
+  }
+  return true;
+}
+DEFINE_bool(interrupt_injection_enable, false, "Enable event based external_interrupt_sequence in the sim");
+DEFINE_int32(interrupt_injection_count, 1, "Number of MSI in the sim if random mode enabled");
+DEFINE_int32(interrupt_injection_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
+DEFINE_validator(interrupt_injection_rand_delay_min, &validate_interrupt_injection_rand_delay_min);
+DEFINE_int32(interrupt_injection_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
+DEFINE_int32(interrupt_injection_initial_delay, 0, "Initial delay after which interrupt trigger starts");
+DEFINE_int32(interrupt_injection_event_mask, 0, "Bitmask to enable specific uarch event triggers");
+DEFINE_string(interrupt_injection_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
+DEFINE_string(interrupt_injection_label, "", "Label to trigger interrupt");
+DEFINE_string(interrupt_injection_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
 
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
@@ -23,20 +31,16 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", id_);
+  ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       triggers_loc,
       [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); });
 
-  trigger_interrupt_count_ =  cvm::rand::get<uint32_t>(FLAGS_trigger_interrupt_count);
   cvm::log(cvm::MEDIUM, "external_interrupt_sequence constructor\n");
   // trigger sequence threads`
-  interrupts_driven = 0;
-  if (FLAGS_patch_interrupt_trigger_en) {
-    patch_trigger_mode_thread();
-  }
-  if (FLAGS_uarch_interrupt_trigger_en || FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
-    uarch_trigger_mode_thread();
+  if (FLAGS_interrupt_injection_enable) {
+    interrupt_injection_thread();
   }
 }
 
@@ -49,102 +53,36 @@ external_interrupt_sequence::~external_interrupt_sequence() {
   }
 }
 
-void external_interrupt_sequence::gen_interrupt_timings(){
-  //TODO: uncomment once dists are working fine
-  //  std::stringstream ss(FLAGS_trigger_interrupt_ratio);
-  //  std::vector<double> weights(FLAGS_trigger_interrupt_count);
-  //  cvm::rand::discrete_dist<uint8_t> dist(weights);
-  //  std::string temp;
-  //  std::vector<int> values;
-
-  //  while (getline(ss, temp, ':')) {
-  //     values.push_back(std::stoi(temp));
-  //  }
-  //  for (int i=1; i<=10; i++)
-  //     weights[i] = values[0];
-  //  for (int i=11; i<=30; i++)
-  //     weights[i] = values[1];
-  //  for (int i=30; i<=100; i++)
-  //     weights[i] = values[2];
-
-}
-
 void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds){
   last_trigger = current_trigger;
   current_trigger = trigger_info;
   drive_msi_in_curr_hart = (per_core_trigger_vlds == (1 << id_));
+  cvm::log(cvm::LOW,"[ExtInterruptSeq] capture_trigger_info: hart_id={}, per_core_trigger_vlds=0x{:x}, expected=0x{:x}, drive_msi_in_curr_hart={}\n", 
+           id_, per_core_trigger_vlds, (1 << id_), drive_msi_in_curr_hart);
 }
 
-void external_interrupt_sequence::patch_trigger_mode_thread() {
+void external_interrupt_sequence::interrupt_injection_thread() {
   auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->patch_trigger_mode();
+    co_await m->interrupt_trigger();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
 };
 
-void external_interrupt_sequence::uarch_trigger_mode_thread() {
-  auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->uarch_trigger_mode();
-    co_return;
-  };
-  cvm::registry::messenger.fork(task, this);
-};
-
-
-cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
-  while(1){
-    bool abrupt_exit = false;
-    // Wait for next selected trigger
-    co_await delayed_trigger();
-    if(last_trigger != current_trigger){ //trigger transition detected
-      gen_interrupt_timings();//empty as of today
-      interrupts_driven = 0;
-    }
-    if(interrupts_driven < trigger_interrupt_count_){
-       uint8_t num = rng1() % FLAGS_interrupt_trigger_interval ;
-       //wait for num cycles before driving next MSI
-       for(int i =0; i< num;i++){
-         co_await delayed_trigger();
-         if(last_trigger != current_trigger){
-           abrupt_exit = true;
-           break;
-         }
-       }
-
-       if(!abrupt_exit & drive_msi_in_curr_hart){
-         cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to patch_trigger");
-         drive_interrupt();
-         interrupts_driven++;
-       }
-    }
-  }
-}
-
-cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
+cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
   while(1){
     co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
-    if(FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
-      cvm::log(cvm::LOW,"[ExtInterruptSeq] waiting for random time before driving external interrupt as part of low power sequence \n");
-      for(int wait_clk=0; wait_clk < FLAGS_lpx_msi_interval; wait_clk ++) {
-        co_await trigger_tick();
-      }
-    }
+    cvm::log(cvm::LOW,"[ExtInterruptSeq] drive_msi_in_curr_hart = {}\n", drive_msi_in_curr_hart);
     if(drive_msi_in_curr_hart){
-      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger \n");
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to trigger \n");
       drive_interrupt();
-      interrupts_driven++;
+      ext_interrupt_count_++;
     }
   }
 }
 
 cvm::messenger::task<void> external_interrupt_sequence::delayed_trigger() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_delayed_tick<>>(triggers_loc);
-  co_return;
-}
-
-cvm::messenger::task<void> external_interrupt_sequence::trigger_tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_tick<>>(triggers_loc);
   co_return;
 }
 
@@ -163,12 +101,14 @@ void external_interrupt_sequence::drive_interrupt(){
     intr_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
 
-  intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
+  do {
+    intr_num = (rng1() & (FLAGS_imsic_intr_mask));
+    if(intr_file == 0x02) intr_num &= FLAGS_imsic_vs_intr_mask;
+  } while(intr_num == 0);
   cvm::log(cvm::MEDIUM,"[ExtInterruptSeq] Driving interrupt for Physical hart: {}, intr_num: {}\n", id_, intr_num);
 
 	if(!FLAGS_disable_vs_imsic_intr)
-    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
-  if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;
+    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) + 1; //gen iter between 1 to GEILEN
   cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt logical hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
 
    uint32_t addr;
@@ -216,7 +156,7 @@ void external_interrupt_sequence::drive_interrupt(){
           } else {
             // 30% chance to use random VS ID != VGEIN
             do {
-              intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while (intr_vs_id == vgein);
             intr_vs_id_random_++;
           }
@@ -259,13 +199,13 @@ void external_interrupt_sequence::drive_interrupt(){
           if ((rng1() % 100) < 70) {
             // 70% chance to pick VS ID with HGEIE set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
           } else {
             // 30% chance to pick VS ID with HGEIE not set
             do {
-              second_vs_id = (rng1() % 5) + 1; // Range [1,5]
+              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
             } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
             // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
           }
@@ -277,7 +217,7 @@ void external_interrupt_sequence::drive_interrupt(){
         }
       } else {
         is_vgein_intr = false;
-        intr_vs_id = (rng1() % 5) + 1; // Range [1,5]
+        intr_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
         addr = msi_vs_file_addr+ (intr_vs_id << 12) + (intr_hart << 18);
       }
    }else{
@@ -303,6 +243,9 @@ void external_interrupt_sequence::drive_interrupt(){
   }
 
 uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart_id) {
+  if (ncores_ == 1) {
+    return 0;
+  }
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
   uint32_t logical_id = 0;
@@ -315,7 +258,7 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
     }
     logical_id++;
   }
-  
-  // Return invalid value if physical hart ID not found
-  return 0xFFFFFFFF;
+  // Return error if physical hart ID not found
+  cvm::log(cvm::ERROR, "Error: [ExtInterruptSeq] Physical hart ID {} not found in hart_enable_id list\n", physical_hart_id);
+  return 0;
 }

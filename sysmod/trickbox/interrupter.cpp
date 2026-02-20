@@ -3,20 +3,16 @@
 #include "interrupter.h"
 #include "sysmod/sysmod_plusargs.h"
 
- DEFINE_bool(dbg_rnmi_ebreak_trigger, false, "To generate trigger for RNMI when ebreak is executed");
- DEFINE_bool(dbg_rnmi_priority_trigger, false, "To generate trigger for RNMI when debug haltreq is asserted");
- DEFINE_bool(dbg_rnmi_priv_de_trigger, false, "To generate trigger for RNMI when privmode is DE");
- DEFINE_bool(dbg_rnmi_priv_dp_trigger, false, "To generate trigger for RNMI when privmode is DP");
- DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
+ DEFINE_bool(trickbox_write_enables_intr, false, "Require software write to trickbox address 0x9004040 before random interrupts start (for random stimulus)");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
  DEFINE_bool(disable_s_imsic_intr, false, "Drive random imsic  interrups to S file");
  DEFINE_bool(disable_vs_imsic_intr, true, "Drive random imsic  interrups to VS file");
  DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
- DEFINE_int32(imsic_intr_threshold, 256, "imsic_intr interrupts threshold value");
- DEFINE_int32(imsic_vs_intr_threshold, 63, "imsic_vs_intr interrupts threshold value");
+ DEFINE_uint64(imsic_intr_mask, 0xff, "imsic_intr interrupts mask value");
+ DEFINE_uint64(imsic_vs_intr_mask, 0x3f, "imsic_vs_intr interrupts mask value");
  DEFINE_int32(imsic_vs_id_threshold, 5, "imsic guest file id threshold value");
  DEFINE_int32(imsic_hart_threshold, 1, "harts threshold value");
  DEFINE_int32(imsic_intr_start_delay, 5000, "delay after which random interrupts should start");
@@ -36,6 +32,11 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
    if(FLAGS_max_intr_count>0){
      limit_interrupts = 1;
    }
+  // Register RPC for checking interrupt enable flag (used by NMI sequence)
+  cvm::registry::messenger.procedure<intr_enable_read_RPC>(loc, [this] (bool& enabled) {
+    enabled = intr_enable_flag_;
+    return true;
+  });
  // intr_loc_ = cvm::topology::get_from_type("INTERRUPTS", 0);
 }
 
@@ -91,7 +92,8 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0]
     //mask:    0xfff                   0xfff        0xf                  0xfff
     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
-    driveMSIInterrupt(t_data);
+    uint64_t intr_num = t_data & 0xfff;
+    driveMSIInterrupt(intr_num, t_data);
   }
   else if ((addr > interrupter_base) && (addr < (interrupter_base + 0x1000))) {
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write delayed - addr={:#x} data={:#x}\n", addr, t_data);
@@ -107,6 +109,11 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   }
   else if (addr == (interrupter_base + 0x4000)) { // FIXME missing functionality
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
+  }
+  // ---- Interrupt Enable Flag ----
+  else if (addr == (interrupter_base + 0x4040)) {
+    intr_enable_flag_ = (t_data != 0);
+    cvm::log(cvm::MEDIUM, "[Trickbox] Interrupt enable flag set to {} at addr {:#x}\n", intr_enable_flag_, addr);
   }
   // ---- NMI deassert ----
   else if ((addr >= nmi_deassert_base) && (addr <= nmi_deassert_base +(hart_count_*nmi_stride))) {

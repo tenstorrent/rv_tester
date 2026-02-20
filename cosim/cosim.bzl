@@ -28,6 +28,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
             "@rv_tester//cosim/utils/general:util",
             packet + "_cc",
             name + "_bridge",
+            name + "_mcmi",
             "@rv_tester//sysmod/htif:htif",
             "@rv_tester//cosim/whisper_if:whisper_decoder",
             "@rv_tester//transactors/axi_sw:axi",
@@ -37,6 +38,26 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
             "@cvm//:bitmanip",
             "@cvm//:registry",
          ],
+        alwayslink = True,
+        visibility = visibility,
+    )
+
+    native.cc_library(
+        name = name + "_mcmi",
+        srcs = [
+            "@rv_tester//cosim/dut_if/mcmi:mcmi.cpp",
+        ],
+        hdrs = [
+            "@rv_tester//cosim/dut_if/mcmi:mcmi.h",
+        ],
+        deps = [
+            "@rv_tester//:structs",
+            "@rv_tester//:plusargs",
+            name + "_bridge",
+            "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
+            "@rv_tester//cosim/utils/general:util",
+            packet + "_cc",
+        ],
         alwayslink = True,
         visibility = visibility,
     )
@@ -87,7 +108,6 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
-            "@rv_tester//cosim/whisper_cov:archcov_sv",
             packet + "_sv",
             topology + "_sv",
             harness,
@@ -100,7 +120,6 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             name + "_rvfi",
             "@cvm//:plusargs",
-            "@rv_tester//cosim/whisper_cov:archsample_dpi",
             packet + "_cc",
          ],
         alwayslink = True,

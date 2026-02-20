@@ -54,6 +54,7 @@ harnesses = [ "sw_1c", "sw_2c"]
         name = name + "_rv_tester",
         topology = name + "_topology",
         csr_spec = "@rv_tester//csr:csr_spec",
+        pmu_spec = "@rv_tester//pmu:pmu_spec",
         cc_attrs = {
             'alwayslink': True,
             'linkstatic': True,
