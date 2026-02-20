@@ -201,7 +201,8 @@ module rv_tester_mem #(
                     .r_chan_t         ( mst_r_chan_rdly_t       ),
                     .slv_ar_chan_t    ( slv_ar_chan_rdly_t      ),
                     .MaxInFlight      ( MaxInFlightReadReq      ),
-                    .MaxBeatsPerBurst ( MaxBeatsPerBurst        )
+                    .MaxBeatsPerBurst ( MaxBeatsPerBurst        ),
+                    .CW               ( 32                      )
                 ) i_rv_test_rdly (
                     .clk_i                  ( clk_gated                     ),
                     .rst_ni                 ( rst_n                         ),
