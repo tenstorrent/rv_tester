@@ -1004,8 +1004,10 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     return;
   }
 
-  if (!debug_mode_ && patch_mode_ != IN_PATCH){
+  if (!debug_mode_ && patch_mode_ != IN_PATCH && d.nmi){
     bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+    // Undeferring all NMIs
+    defer_nmi(hart, d.cycle, 0);
   }
 
   // Bad stimulus cases, NMI must not be cleared until cleared from Handler.
@@ -1022,10 +1024,6 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     nmi_undeferred_due_to_xret_intr_csr_ = true;
     return;
   }
-
-  // Undeferring all NMIs
-  defer_nmi(hart, d.cycle, 0);
-
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
