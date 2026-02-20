@@ -108,7 +108,7 @@ module rv_tester_delay_resp_tb_top #(
     logic [7:0] beat_num;  // Track beats within current burst
     logic [31:0] received_resp_count;  // Track number of complete responses received
     // DUT interface signals
-    logic [31:0] delay_cycles;
+    logic [CW-1:0] delay_cycles;
     // Slave AR channel
     logic [AxiIdWidth-1:0] slv_req_ar_id;
     logic [AxiAddrWidth-1:0] slv_req_ar_addr;
@@ -228,14 +228,14 @@ module rv_tester_delay_resp_tb_top #(
     };
 
     // Test delay cycles array - dynamic delay configuration per test
-    localparam logic [31:0] TEST_DELAY_CYCLES [NUM_TESTS] = '{
-        32'd20,  // Test 0: Normal delay
-        32'd20,  // Test 1: Normal delay
-        32'd20,  // Test 2: Normal delay
-        32'd20,  // Test 3: Normal delay
-        32'd0,  // Test 4: Zero delay (bypass test)
-        32'd10,  // Test 5: Init delay and beat delay test
-        32'd200  // Test 6: Counter overflow test (200 > 256/2, guarantees pop_time wraps)
+    localparam logic [CW-1:0] TEST_DELAY_CYCLES [NUM_TESTS] = '{
+        CW'('d20),  // Test 0: Normal delay
+        CW'('d20),  // Test 1: Normal delay
+        CW'('d20),  // Test 2: Normal delay
+        CW'('d20),  // Test 3: Normal delay
+        CW'('d0),   // Test 4: Zero delay (bypass test)
+        CW'('d10),  // Test 5: Init delay and beat delay test
+        CW'('d200)  // Test 6: Counter overflow test (200 > 256/2), guarantees pop_time wraps)
     };
     
     localparam logic [31:0] TEST_INITAL_DELAY [NUM_TESTS] = '{
@@ -264,7 +264,7 @@ module rv_tester_delay_resp_tb_top #(
     logic [AxiIdWidth-1:0] stored_ar_ids [NUM_TESTS];
 
     // Dynamic delay assignment based on current test
-    assign delay_cycles = (test_count < NUM_TESTS) ? TEST_DELAY_CYCLES[test_count] : 32'd0;
+    assign delay_cycles = (test_count < NUM_TESTS) ? TEST_DELAY_CYCLES[test_count] : '0;
 
     // Initial timer instance 
 
@@ -573,7 +573,10 @@ module rv_tester_delay_resp_tb_top #(
     assign test_passed = (test_count == NUM_TESTS);  // Simplified without pass_count
 
     // Delay checker - detects too-early responses and hangs from counter overflow
-    rv_tester_delay_resp_tb_check #(.TIMEOUT(500)) delay_chk (
+    rv_tester_delay_resp_tb_check #(
+        .TIMEOUT(500),
+        .CW(CW)
+    ) delay_chk (
         .clk(clk),
         .rst_ni(rst_ni),
         .delay_cycles(delay_cycles),

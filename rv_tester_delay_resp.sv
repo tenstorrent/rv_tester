@@ -6,13 +6,13 @@ module rv_tester_delay_resp #(
     parameter type mst_resp_t                   = logic,
     parameter type r_chan_t                     = logic,  // R channel type parameter
     parameter type slv_ar_chan_t                = logic,
-    parameter int CW                            = 64,
+    parameter int CW                            = 16,
     parameter int unsigned MaxInFlight = 32'd16,
     parameter int unsigned MaxBeatsPerBurst = 32'd16
 ) (
     input   logic                       clk_i,
     input   logic                       rst_ni,
-    input   int unsigned                delay_cycles,     // Runtime configurable delay
+    input   logic[CW-1:0]               delay_cycles,     // Runtime configurable delay
     
     // Slave Port Inputs (From Core) -- AR Channel
     input   slv_ar_chan_t               slv_req_ar_i,
@@ -308,7 +308,7 @@ module rv_tester_delay_resp #(
             // Calculate RAM addresses using FIFO indices
             // For reading: use pop_idx from FIFO and current beat index
             
-            send_r_resp_out = !fifo_empty && (global_timer - pop_entry.push_time) >= CW'(delay_cycles) && r_valid_ram_rd_data && slv_req_r_ready_i;
+            send_r_resp_out = !fifo_empty && CW'(global_timer - pop_entry.push_time) >= CW'(delay_cycles) && r_valid_ram_rd_data && slv_req_r_ready_i;
             
             // Handle delayed read responses
             if (send_r_resp_out) begin

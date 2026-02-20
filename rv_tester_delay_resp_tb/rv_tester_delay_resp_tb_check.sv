@@ -1,15 +1,16 @@
 module rv_tester_delay_resp_tb_check #(
-    parameter int unsigned TIMEOUT = 500   // max cycles to wait after AR for R response
+    parameter int unsigned TIMEOUT = 500,  // max cycles to wait after AR for R response
+    parameter int CW = 32
 )(
-    input logic        clk,
-    input logic        rst_ni,
-    input logic [31:0] delay_cycles,       // configured delay for current test
-    input logic        ar_valid,           // slave AR valid
-    input logic        ar_ready,           // master AR ready
-    input logic        r_valid,            // slave R response valid (from DUT output)
-    input logic        r_ready,            // slave R ready
-    input logic        r_last,             // R last beat
-    input logic [31:0] test_count          // for display messages
+    input logic          clk,
+    input logic          rst_ni,
+    input logic [CW-1:0] delay_cycles,       // configured delay for current test
+    input logic          ar_valid,           // slave AR valid
+    input logic          ar_ready,           // master AR ready
+    input logic          r_valid,            // slave R response valid (from DUT output)
+    input logic          r_ready,            // slave R ready
+    input logic          r_last,             // R last beat
+    input logic [31:0]   test_count          // for display messages
 );
 
     logic [31:0] cycle_count;

@@ -12,7 +12,7 @@ module rv_tester_delay_resp_wrapper #(
 )(
     input  logic clk,
     input  logic rst_ni,
-    input  logic [31:0] delay_cycles,
+    input  logic [CW-1:0] delay_cycles,
     
     // AXI Slave Interface (AR channel only)
     input  logic [AxiIdWidth-1:0] slv_req_ar_id,
