@@ -1059,6 +1059,7 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
       if (!intr_during_trap_.test(it->first)) deferred_intr_age_.erase(it++); 
       else it++;
     }
+    return;
   }
 
   // xRET check, interrupt pending must be taken post xRET
@@ -1095,10 +1096,6 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
-  if (!d.intr && !w_.intr) {
-    return;
-  }
-
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
     // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
     if (d.icause == 0)
@@ -1117,7 +1114,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   // DUT cause should match whisper cause
-  if ((d.icause != w_.icause) && !FLAGS_cosim_resynch) {
+  if ((d.intr && w_.intr) && (d.icause != w_.icause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
     return;
@@ -1156,7 +1153,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
   // Post step, update previous mip
   tmp_mip_prev_ = tmp_mip_latest_;
-  bridge_log(cvm::MEDIUM, "<{}> Post Step Interrupt Check. EXIT\n", w.time);
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
