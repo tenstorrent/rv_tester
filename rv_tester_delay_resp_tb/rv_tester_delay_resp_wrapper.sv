@@ -7,11 +7,12 @@ module rv_tester_delay_resp_wrapper #(
     parameter int unsigned AxiStrbWidth = 8,
     parameter int unsigned AxiUserWidth = 1,
     parameter int unsigned MaxInFlight = 16,
-    parameter int unsigned MaxBeatsPerBurst = 16
+    parameter int unsigned MaxBeatsPerBurst = 16,
+    parameter int CW = 32
 )(
     input  logic clk,
     input  logic rst_ni,
-    input  logic [31:0] delay_cycles,
+    input  logic [CW-1:0] delay_cycles,
     
     // AXI Slave Interface (AR channel only)
     input  logic [AxiIdWidth-1:0] slv_req_ar_id,
@@ -163,7 +164,8 @@ module rv_tester_delay_resp_wrapper #(
         .r_chan_t(mst_r_chan_t),
         .slv_ar_chan_t(slv_ar_chan_t),
         .MaxInFlight(MaxInFlight),
-        .MaxBeatsPerBurst(MaxBeatsPerBurst)
+        .MaxBeatsPerBurst(MaxBeatsPerBurst),
+        .CW(CW)
     ) dut (
         .clk_i(clk),
         .rst_ni(rst_ni),

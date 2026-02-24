@@ -134,25 +134,4 @@ verilog_library(
     visibility = ["//visibility:public"],
 )
 
-verilog_library(
-    name = "rv_tester_delay_resp_tb",
-    srcs = ["//rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_top.sv"],
-    deps = [
-        "//rv_tester_delay_resp_tb:rv_tester_delay_resp_wrapper_sv",
-        "//:rv_tester_delay_resp", 
-        "//:rv_tester_lib", 
-        "@opensrc-axi//:axi"
-    ],
-    visibility = ["//visibility:public"],
-)
-
-verilog_unit(
-    name = "rv_tester_delay_resp_tb",
-    lib  = "rv_tester_delay_resp_tb",
-    top  = "rv_tester_delay_resp_tb_top",
-    verilator_top = "//rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_top.cpp",
-    verilator_configs = ["//rv_tester_delay_resp_tb:rv_tester_delay_resp_tb.vlt"],
-    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
-)
-
 exports_files(["rv_tester.cpp", "rv_tester_assert_handler.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "dmi_driver.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_mem.sv", "rv_tester_delay_resp.sv", "rv_tester_transactions.yml", "rv_tester_axi_typedef.svh", "rv_tester_axi_assign.svh", "rv_tester_stall_checker.sv", "rv_tester_plusargs.cpp", "rv_tester_plusargs.h", "rv_tester_structs.h", "rv_tester_lib.sv", "rv_tester_tick_generator.sv", "rv_tester_keeper.sv" ])

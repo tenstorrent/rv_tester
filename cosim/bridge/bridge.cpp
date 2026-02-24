@@ -756,8 +756,11 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 
-  uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
-  update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  if (c.csr_addr >= mhpmevent3.address && c.csr_addr <= mhpmevent31.address) process_counter_overflow(hart, c);
+  else {
+    uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
+    update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -1001,8 +1004,10 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     return;
   }
 
-  if (!debug_mode_ && patch_mode_ != IN_PATCH){
+  if (!debug_mode_ && patch_mode_ != IN_PATCH && d.nmi){
     bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+    // Undeferring all NMIs
+    defer_nmi(hart, d.cycle, 0);
   }
 
   // Bad stimulus cases, NMI must not be cleared until cleared from Handler.
@@ -1019,10 +1024,6 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     nmi_undeferred_due_to_xret_intr_csr_ = true;
     return;
   }
-
-  // Undeferring all NMIs
-  defer_nmi(hart, d.cycle, 0);
-
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -2653,7 +2654,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     }
     if (i.mip_set[ir] && hw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
       hw_intr_set_[ir] = true;
-      poke_local_interrupt(hart, i.cycle, std::bitset<64>(1ULL << ir), i.trap_intr);
+      poke_non_standard_interrupt(hart, i.cycle, std::bitset<64>(1ULL << ir), i.trap_intr);
     }
   }
 // ================================================================================================================
@@ -2683,14 +2684,23 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       bridge_log(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
     poke_mip(hart, i.cycle, mip_);
   }
+
+  // Counter overflow i.e LCOFI are handled by poke OF bit of MHPMEVENT3-10 CSRs
+  if (i.mip_set[LCOFI]) {
+    bridge_log(cvm::MEDIUM, "<{}> LCOFI set: mip={}\n", i.cycle, to_string(i));
+  }
+  if (i.mip_clr[LCOFI])
+    bridge_log(cvm::MEDIUM, "<{}> LCOFI cleared: mip={}\n", i.cycle, to_string(i));
+
+
   // Local - use dynamic bus error interrupt bit position instead of hardcoded BUS_ERRI
   uint8_t buserr_bit = i.buserr_bit; // Get dynamic bit position
-  if (i.mip_set[LCOFI] || i.mip_set[buserr_bit] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI] || i.mip_set[C_ENTROPY]) {
+  if (i.mip_set[buserr_bit] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI] || i.mip_set[C_ENTROPY]) {
     bridge_log(cvm::MEDIUM, "<{}> Local interrupt set: mip={} buserr_bit={}\n", i.cycle, to_string(i), buserr_bit);
 
-    std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI | i.mip_set[buserr_bit] << buserr_bit | i.mip_set[C_HWAI] << C_HWAI |
+    std::bitset<64> non_std_mip_bits = i.mip_set[buserr_bit] << buserr_bit | i.mip_set[C_HWAI] << C_HWAI |
       static_cast<uint64_t>(i.mip_set[LO_PRI_RASI]) << LO_PRI_RASI | static_cast<uint64_t>(i.mip_set[HI_PRI_RASI]) << HI_PRI_RASI | static_cast<uint64_t>(i.mip_set[C_ENTROPY]) << C_ENTROPY;
-    poke_local_interrupt(hart, i.cycle, l_mip, i.trap_intr);
+    poke_non_standard_interrupt(hart, i.cycle, non_std_mip_bits, i.trap_intr);
   }
  }
 
@@ -2739,13 +2749,25 @@ void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool tr
   check_and_defer_interrupt(hart, cycle, tmp_mip_latest_, trap_intr);
 }
 
-void bridge::poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip, bool trap_intr) {
+void bridge::process_counter_overflow(hart_id_t hart, csr_t c) {
+  bridge_log(cvm::MEDIUM, "<{}> Counter overflow: {:#x}\n", c.cycle, c.csr_addr);
+  peek_mip(hart, c.cycle, tmp_mip_prev_);
+  uint64_t mhpmeventx;
+  peek_resource(hart, 'c', c.csr_addr, mhpmeventx);
+  mhpmeventx |= (1ULL << 63);
+  poke_resource(hart, c.cycle, 'c', c.csr_addr, mhpmeventx);
+  peek_mip(hart, c.cycle, tmp_mip_latest_);
+  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
+  check_and_defer_interrupt(hart, c.cycle, tmp_mip_latest_);
+}
+
+void bridge::poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr) {
   peek_mip(hart, cycle, mip_);
   tmp_mip_prev_ = mip_;
-  poke_mip(hart, cycle, mip_ | l_mip);
-  tmp_mip_latest_ = mip_ | l_mip;
+  poke_mip(hart, cycle, mip_ | non_std_mip_bits);
+  tmp_mip_latest_ = mip_ | non_std_mip_bits;
   check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  check_and_defer_interrupt(hart, cycle, mip_ | l_mip, trap_intr);
+  check_and_defer_interrupt(hart, cycle, mip_ | non_std_mip_bits, trap_intr);
 }
 
 void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
