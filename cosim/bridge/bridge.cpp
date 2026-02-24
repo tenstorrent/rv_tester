@@ -1088,6 +1088,9 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
     return;
   }
+  
+  
+  num_taken_interrupts_[static_cast<intr>(d.icause)]++;
 
 
   // New check for Whisper wants to take interrupt, DUT does not.
@@ -3522,15 +3525,11 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_hwerr_fault\": {}}}\n", id_, num_exceptions_ld_hwerr_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_hwerr_fault\": {}}}\n", id_, num_exceptions_late_st_hwerr_fault_);
 
-  for (const auto& [p,ps] : priv_to_string) {
-    for (const auto& [i,is] : intr_to_string) {
-      if (num_taken_interrupts_[p][i] != 0) {
-        std::string ps_lower = std::string(ps);
-        std::string is_lower = std::string(is);
-        std::transform(ps_lower.begin(), ps_lower.end(), ps_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-        std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}_{}\": {}}}\n", id_, is_lower, ps_lower, num_taken_interrupts_[p][i]);
-      }
+  for (const auto& [i,is] : intr_to_string) {
+    if (num_taken_interrupts_[i] != 0) {
+      std::string is_lower = std::string(is);
+      std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}\": {}}}\n", id_, is_lower, num_taken_interrupts_[i]);
     }
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
