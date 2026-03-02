@@ -440,7 +440,7 @@ private:
   uint64_t saplic_base_=0, saplic_end_=0;
 
 
-  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<intr, int> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
   int num_exceptions_insn_err_access_fault_ = 0;
   int num_exceptions_ld_err_access_fault_ = 0;
