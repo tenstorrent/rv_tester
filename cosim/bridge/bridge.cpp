@@ -3,6 +3,7 @@
 
 #include "bridge.h"
 #include "util.h"
+#include "common/device_address_map/device_address_map.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
@@ -113,7 +114,8 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
-  : bridge_log_("h" + std::to_string(id) + "_bridge.log"),
+  : sc_slice_base_(generate_sc_device_addr(0) + 0x8),
+    bridge_log_("h" + std::to_string(id) + "_bridge.log"),
     loc_(loc),
     id_(id),
     num_harts_(num_harts),
@@ -2168,7 +2170,7 @@ bool bridge::debug_mem_access(const uint64_t& pa){
 }
 
 bool bridge::unsupported_mmr_access(const uint64_t& pa){
-  if ( pa >= mmr_lo_addr && pa < mmr_hi_addr)
+  if ( pa >= mmr_lo_addr() && pa < mmr_hi_addr())
     return true;
   if (pa >= sep_base_ && pa < sep_end_)
     return true;
@@ -3214,11 +3216,11 @@ bool bridge::is_chicken_bit_csr(uint64_t addr) {
 }
 
 bool bridge::is_mtimecmp_mmr(uint64_t addr) {
-  return (addr == (mtimecmp_mmr + (id_ * 8)));
+  return (addr == (mtimecmp_mmr() + (id_ * 8)));
 }
 
 bool bridge::is_mtime_mmr(uint64_t addr) {
-  return (addr == mtime_mmr);
+  return (addr == mtime_mmr());
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {

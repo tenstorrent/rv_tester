@@ -10,6 +10,7 @@
 #include "cosim/bridge/bridge_plusargs.h"
 #include "rv_tester_plusargs.h"
 #include "transactors/axi_sw/axi.h"
+#include "common/device_address_map/device_address_map.h"
 
 #include <iostream>
 #include <chrono>
@@ -22,9 +23,9 @@ DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
-DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
-DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
+DEFINE_uint64(debug_entry_pc, 0, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc, 0, "Debug Mode exit PC");
+DEFINE_uint64(debug_mem_base, 0, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
@@ -81,6 +82,12 @@ void rvfi::check() {
 }
 
 void rvfi::init() {
+  if (FLAGS_debug_entry_pc == 0 && FLAGS_debug_exit_pc == 0 && FLAGS_debug_mem_base == 0) {
+    uint64_t dm_base = generate_dm_device_addr(0);
+    FLAGS_debug_entry_pc = dm_base + 0x800;
+    FLAGS_debug_exit_pc = dm_base + 0x8cc;
+    FLAGS_debug_mem_base = dm_base;
+  }
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
@@ -106,13 +113,15 @@ bool rvfi::patch_access (uint64_t addr) {
   if (!patch_mode_)
       return false;
 
-  if (addr >= patch_ram_lo && addr < patch_ram_hi)
+  uint64_t patch_lo = generate_cpl_device_addr(0) + 0x4c000;
+  uint64_t patch_hi = patch_lo + 0x1fff;
+  if (addr >= patch_lo && addr < patch_hi)
       return true;
 
-  uint64_t pcontrol0 = 0x42005040; //areddy
-  for (int i=0; i<8; i++) // do this for all cores0-8
-    if (addr == (pcontrol0 + (i*0x10000)))
+  for (int i = 0; i < 8; i++) {
+    if (addr == generate_cr_device_addr(0, i) + 0x5040)
       return true;
+  }
   return false;
 }
 

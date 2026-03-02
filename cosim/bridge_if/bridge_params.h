@@ -2,6 +2,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include "common/device_address_map/device_address_map.h"
 
 namespace {
 
@@ -9,12 +10,14 @@ namespace {
     constexpr int xlen = 64;
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
-    constexpr uint64_t mmr_lo_addr = 0x4200'0000;
-    constexpr uint64_t mmr_hi_addr = 0x421b'ffff;
+    // MMR range from device_address_map (base to last device AXISW 0x1B + 64K)
+    inline uint64_t mmr_lo_addr() { return device_address_map_mmr_base_addr(); }
+    inline uint64_t mmr_hi_addr() { return generate_axisw_device_addr(0) + 0xFFFF; }
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;
-    constexpr uint64_t patch_ram_lo = 0x4214C000;
-    constexpr uint64_t patch_ram_hi = 0x4214DFFF;
+    // CPL patch RAM range (generate_cpl_device_addr() + 0x4c000 .. 0x4DFFF)
+    inline uint64_t patch_ram_lo() { return generate_cpl_device_addr(0) + 0x4c000; }
+    inline uint64_t patch_ram_hi() { return generate_cpl_device_addr(0) + 0x4DFFF; }
     constexpr uint16_t hgatp_valid_modes[] = {0, 8, 9, 10};
     constexpr uint16_t pmm_legal_values[] = {0, 2};
     constexpr uint64_t pmm_hstatus_mask_lo = 48;
@@ -22,8 +25,9 @@ namespace {
     constexpr uint64_t pmm_mask_size = 2;
     constexpr uint64_t time_csr = 0xC01;
     constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
-    constexpr uint64_t mtime_mmr = 0x4218'0000;
-    constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
+    // ACLINT M-time / M-timecmp (generate_acl_device_addr() + 0 / + 0x8000)
+    inline uint64_t mtime_mmr() { return generate_acl_device_addr(0) + 0; }
+    inline uint64_t mtimecmp_mmr() { return generate_acl_device_addr(0) + 0x8000; }
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
@@ -469,9 +473,10 @@ namespace {
     };
 #undef CSRS
 
+    // SC MMR entries: .address is offset within SC device; full address = get_mmr_full_address(i)
     const std::array<mmr_entry, 419> mmrs {{
-        {"sc_ctrl",                       0x1A0000},
-        {"sc_sp",                         0x1A0010},
+        {"sc_ctrl",                       0x0000},
+        {"sc_sp",                         0x0010},
         {"sc_cc_capabilities",            0x1A00C0},
         {"sc_cc_mon_ctl",                 0x1A00C8},
         {"sc_cc_mon_ctr_val",             0x1A00D0},
@@ -494,7 +499,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A02E8},
         {"sc_dbg_signal_mask1",           0x1A02F0},
         {"sc_dbg_signal_match1",          0x1A02F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A0300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x0300},
         {"sc_dbg_transition_mask",        0x1A0318},
         {"sc_dbg_transition_from_value",  0x1A0320},
         {"sc_dbg_transition_to_value",    0x1A0328},
@@ -519,7 +524,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A12E8},
         {"sc_dbg_signal_mask1",           0x1A12F0},
         {"sc_dbg_signal_match1",          0x1A12F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A1300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x1300},
         {"sc_dbg_transition_mask",        0x1A1318},
         {"sc_dbg_transition_from_value",  0x1A1320},
         {"sc_dbg_transition_to_value",    0x1A1328},
@@ -544,7 +549,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A22E8},
         {"sc_dbg_signal_mask1",           0x1A22F0},
         {"sc_dbg_signal_match1",          0x1A22F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A2300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x2300},
         {"sc_dbg_transition_mask",        0x1A2318},
         {"sc_dbg_transition_from_value",  0x1A2320},
         {"sc_dbg_transition_to_value",    0x1A2328},
@@ -569,7 +574,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A32E8},
         {"sc_dbg_signal_mask1",           0x1A32F0},
         {"sc_dbg_signal_match1",          0x1A32F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A3300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x3300},
         {"sc_dbg_transition_mask",        0x1A3318},
         {"sc_dbg_transition_from_value",  0x1A3320},
         {"sc_dbg_transition_to_value",    0x1A3328},
@@ -594,7 +599,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A42E8},
         {"sc_dbg_signal_mask1",           0x1A42F0},
         {"sc_dbg_signal_match1",          0x1A42F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A4300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x4300},
         {"sc_dbg_transition_mask",        0x1A4318},
         {"sc_dbg_transition_from_value",  0x1A4320},
         {"sc_dbg_transition_to_value",    0x1A4328},
@@ -619,7 +624,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A52E8},
         {"sc_dbg_signal_mask1",           0x1A52F0},
         {"sc_dbg_signal_match1",          0x1A52F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A5300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x5300},
         {"sc_dbg_transition_mask",        0x1A5318},
         {"sc_dbg_transition_from_value",  0x1A5320},
         {"sc_dbg_transition_to_value",    0x1A5328},
@@ -644,7 +649,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A62E8},
         {"sc_dbg_signal_mask1",           0x1A62F0},
         {"sc_dbg_signal_match1",          0x1A62F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A6300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x6300},
         {"sc_dbg_transition_mask",        0x1A6318},
         {"sc_dbg_transition_from_value",  0x1A6320},
         {"sc_dbg_transition_to_value",    0x1A6328},
@@ -669,7 +674,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A72E8},
         {"sc_dbg_signal_mask1",           0x1A72F0},
         {"sc_dbg_signal_match1",          0x1A72F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A7300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x7300},
         {"sc_dbg_transition_mask",        0x1A7318},
         {"sc_dbg_transition_from_value",  0x1A7320},
         {"sc_dbg_transition_to_value",    0x1A7328},
@@ -694,7 +699,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A82E8},
         {"sc_dbg_signal_mask1",           0x1A82F0},
         {"sc_dbg_signal_match1",          0x1A82F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A8300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x8300},
         {"sc_dbg_transition_mask",        0x1A8318},
         {"sc_dbg_transition_from_value",  0x1A8320},
         {"sc_dbg_transition_to_value",    0x1A8328},
@@ -719,7 +724,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1A92E8},
         {"sc_dbg_signal_mask1",           0x1A92F0},
         {"sc_dbg_signal_match1",          0x1A92F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1A9300},
+        {"sc_dbg_signal_edge_detect_cfg", 0x9300},
         {"sc_dbg_transition_mask",        0x1A9318},
         {"sc_dbg_transition_from_value",  0x1A9320},
         {"sc_dbg_transition_to_value",    0x1A9328},
@@ -744,7 +749,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AA2E8},
         {"sc_dbg_signal_mask1",           0x1AA2F0},
         {"sc_dbg_signal_match1",          0x1AA2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AA300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xA300},
         {"sc_dbg_transition_mask",        0x1AA318},
         {"sc_dbg_transition_from_value",  0x1AA320},
         {"sc_dbg_transition_to_value",    0x1AA328},
@@ -769,7 +774,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AB2E8},
         {"sc_dbg_signal_mask1",           0x1AB2F0},
         {"sc_dbg_signal_match1",          0x1AB2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AB300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xB300},
         {"sc_dbg_transition_mask",        0x1AB318},
         {"sc_dbg_transition_from_value",  0x1AB320},
         {"sc_dbg_transition_to_value",    0x1AB328},
@@ -794,7 +799,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AC2E8},
         {"sc_dbg_signal_mask1",           0x1AC2F0},
         {"sc_dbg_signal_match1",          0x1AC2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AC300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xC300},
         {"sc_dbg_transition_mask",        0x1AC318},
         {"sc_dbg_transition_from_value",  0x1AC320},
         {"sc_dbg_transition_to_value",    0x1AC328},
@@ -819,7 +824,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AD2E8},
         {"sc_dbg_signal_mask1",           0x1AD2F0},
         {"sc_dbg_signal_match1",          0x1AD2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AD300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xD300},
         {"sc_dbg_transition_mask",        0x1AD318},
         {"sc_dbg_transition_from_value",  0x1AD320},
         {"sc_dbg_transition_to_value",    0x1AD328},
@@ -844,7 +849,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AE2E8},
         {"sc_dbg_signal_mask1",           0x1AE2F0},
         {"sc_dbg_signal_match1",          0x1AE2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AE300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xE300},
         {"sc_dbg_transition_mask",        0x1AE318},
         {"sc_dbg_transition_from_value",  0x1AE320},
         {"sc_dbg_transition_to_value",    0x1AE328},
@@ -869,7 +874,7 @@ namespace {
         {"sc_dbg_signal_match0",          0x1AF2E8},
         {"sc_dbg_signal_mask1",           0x1AF2F0},
         {"sc_dbg_signal_match1",          0x1AF2F8},
-        {"sc_dbg_signal_edge_detect_cfg", 0x1AF300},
+        {"sc_dbg_signal_edge_detect_cfg", 0xF300},
         {"sc_dbg_transition_mask",        0x1AF318},
         {"sc_dbg_transition_from_value",  0x1AF320},
         {"sc_dbg_transition_to_value",    0x1AF328},
@@ -878,18 +883,19 @@ namespace {
         {"sc_dbg_any_change",             0x1AF340},
         {"sc_dbg_mux_control_A",          0x1AF388},
         {"sc_dbg_mux_control_B",          0x1AF390},
-        {"sc_chicken_bits",               0x421a0040},
-        {"scb_cab_chicken",               0x421a0fc8},
-        {"scb_acb_chicken",               0x421a0fd0},
-        {"sc_pmu_select_0",               0x421a0140},
-        {"sc_pmu_select_1",               0x421a0148},
-        {"sc_pmu_select_2",               0x421a0150},
-        {"sc_pmu_select_3",               0x421a0158},
-        {"sc_pmu_select_4",               0x421a0160},
-        {"sc_pmu_select_5",               0x421a0168},
-        {"sc_pmu_select_6",               0x421a0170},
-        {"sc_pmu_select_7",               0x421a0178}
+        {"sc_chicken_bits",               0x40},
+        {"scb_cab_chicken",               0xfc8},
+        {"scb_acb_chicken",               0xfd0},
+        {"sc_pmu_select_0",               0x140},
+        {"sc_pmu_select_1",               0x148},
+        {"sc_pmu_select_2",               0x150},
+        {"sc_pmu_select_3",               0x158},
+        {"sc_pmu_select_4",               0x160},
+        {"sc_pmu_select_5",               0x168},
+        {"sc_pmu_select_6",               0x170},
+        {"sc_pmu_select_7",               0x178}
     }};
+    inline uint64_t get_mmr_full_address(size_t i) { return generate_sc_device_addr(0) + mmrs[i].address; }
 
     enum patch_mode {
         NO_PATCH = 0,

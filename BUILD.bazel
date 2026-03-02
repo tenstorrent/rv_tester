@@ -84,6 +84,13 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+# MMR/IMSIC/device address generation; uses topology + plusargs (see common/device_address_map).
+alias(
+    name = "device_handler",
+    actual = "//common/device_address_map:device_address_map",
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "structs",
     hdrs = [":rv_tester_structs.h"],

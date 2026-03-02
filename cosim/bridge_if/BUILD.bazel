@@ -6,6 +6,7 @@ cc_library(
                ],
     deps = [
         "@CoreArchChecker//src:cac_lib",
+        "//common/device_address_map:device_address_map",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],

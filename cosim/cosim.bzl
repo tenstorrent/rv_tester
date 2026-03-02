@@ -22,6 +22,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             "@rv_tester//:structs",
             "@rv_tester//:plusargs",
+            "@rv_tester//:device_handler",
             "@rv_tester//cosim/utils/eot:eot_plusargs",
             "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
@@ -75,6 +76,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
                 csr_param + "_cc",
                 "@rv_tester//common:parser",
                 "@rv_tester//:structs",
+                "@rv_tester//:device_handler",
                 "@rv_tester//cosim/utils/general:util",
                 "@rv_tester//cosim/whisper_if:whisper_if",
                 "@rv_tester//cosim/whisper_if:whisper_decoder",

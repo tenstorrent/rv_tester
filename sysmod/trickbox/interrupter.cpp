@@ -2,6 +2,7 @@
 #include "cvm/logger.hpp"
 #include "interrupter.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "common/device_address_map/device_address_map.h"
 
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
  DEFINE_bool(trickbox_write_enables_intr, false, "Require software write to trickbox address 0x9004040 before random interrupts start (for random stimulus)");
@@ -38,6 +39,10 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
     return true;
   });
  // intr_loc_ = cvm::topology::get_from_type("INTERRUPTS", 0);
+
+  msi_m_file_addr = generate_imsic_m_addr(0, 0);
+  msi_s_file_addr = generate_imsic_s_addr(0, 0);
+  msi_vs_file_addr = msi_s_file_addr;
 }
 
 
