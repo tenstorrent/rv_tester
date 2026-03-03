@@ -1,4 +1,5 @@
-FROM rockylinux:8.5 as risc-p-cores/base
+ARG CONTAINER_HUB
+FROM ${CONTAINER_HUB}/riscv/dv/compiler-tools-container:bfefc2f477e0598333d4b7a16f20f1e4209ba02dbd635344366d4a9d34bd94ad as risc-p-cores/base
 # supreme hack to rename root to not show up as root in external license servers
 RUN sed -i 's/\broot\b/risc-p-cores/g' /etc/passwd /etc/shadow /etc/group /etc/gshadow \
     && mv /root /risc-p-cores
@@ -7,13 +8,24 @@ FROM risc-p-cores/base as risc-p-cores/riscv-gnu-toolchain
 COPY ./opt/riscv /opt/riscv/
 
 FROM risc-p-cores/base as risc-p-cores/verible
-RUN mkdir -p /opt/verible && curl -sSL https://github.com/chipsalliance/verible/releases/download/v0.0-1789-g43d1b6fe/verible-v0.0-1789-g43d1b6fe-CentOS-8.4.2105-na-x86_64.tar.gz | tar xvzf - --strip-components=1 -C /opt/verible
+RUN mkdir -p /opt/verible && curl -sSL https://github.com/chipsalliance/verible/releases/download/v0.0-3946-g851d3ff4/verible-v0.0-3946-g851d3ff4-linux-static-x86_64.tar.gz | tar xvzf - --strip-components=1 -C /opt/verible
 
 FROM risc-p-cores/base as risc-p-cores/repo
 COPY ./repo /opt/repo
 
-ARG CONTAINER_HUB
-FROM ${CONTAINER_HUB}/riscv/forks/bazel-remote:fc73034221067aa6ed4dcd713125cc3f85fbea57 as bazel-remote
+# https://aus-gitlab.local.tenstorrent.com/riscv/forks/bazel-remote/container_registry/8
+FROM ${CONTAINER_HUB}/riscv/forks/bazel-remote:daa673bed809519728c2c687e3f2f905921a226c as bazel-remote
+
+FROM risc-p-cores/base as risc-p-cores/slang
+ARG SLANG_VERSION=9.0
+WORKDIR /opt
+RUN yum --enablerepo=powertools -y install cmake python3
+RUN curl -fsSL "https://github.com/MikePopoloski/slang/archive/refs/tags/v${SLANG_VERSION}.tar.gz" \
+    | tar -xvzf -
+# get a version of g++ that works for the slang build
+RUN source /opt/rh/gcc-toolset-12/enable \
+    && cmake -S /opt/slang-${SLANG_VERSION} -B /opt/slang-build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /opt/slang-build -j"$(nproc)"
 
 FROM risc-p-cores/base as risc-p-cores/dev
 
@@ -31,11 +43,13 @@ RUN yum --enablerepo=powertools -y install \
     unzip                                  \
     time                                   \
     python39                               \
+    python39-devel                         \
     python2                                \
     emacs                                  \
     libXScrnSaver                          \
     numactl-libs                           \
     boost1.78-devel                        \
+    boost1.78-static                       \
     libpng12                               \
     hdf5-devel                             \
     ninja-build                            \
@@ -48,17 +62,51 @@ RUN yum --enablerepo=powertools -y install \
     perf                                   \
     gperftools                             \
     ncurses-compat-libs                    \
-    postgresql-libs
+    apptainer                              \
+    postgresql-libs                        \
+    xorg-x11-server-Xvfb                   \
+    jq                                     \
+    gtkwave                                \
+    dejavu-sans-fonts                      \
+    libxkbcommon-x11                       \
+    xcb-util-renderutil                    \
+    xcb-util-keysyms                       \
+    xcb-util-image                         \
+    xcb-util-wm                            \
+    pulseaudio-libs-glib2                  \
+    ShellCheck                             \
+    tini                                   \
+    zstd                                   \
+    pciutils
+
+# install ruby
+RUN yum module reset ruby -y && yum install @ruby:3.1 -y
+RUN gem install asciidoctor asciidoctor-pdf asciidoctor-diagram asciidoctor-kroki pygments.rb
 
 RUN ln -s /usr/include/boost1.78/boost /usr/include
 RUN cd /usr/lib64 && find -maxdepth 1 -name "libboost_*.so.1.78.0" -type f -exec bash -c 'ln -s "$1" "${1%.1.78.0}"' bash {} \;
+RUN cd /usr/lib64 && find -name "libboost_*.a" -type f -exec bash -c 'ln -s "$1" "$(basename "$1")"' bash {} \;
+
 
 RUN yum --enablerepo=powertools -y install \
-    gcc-toolset-12                         \
-    gcc-toolset-11-valgrind                \
-    llvm-toolset-14.0.6                    \
-    clang-tools-extra-14.0.6               \
-    git
+    rsync                                  \
+    texinfo                                \
+    flex                                   \
+    bison                                  \
+    m4                                     \
+    expat-devel                            \
+    ncurses-devel                          \
+    lz4-devel                              \
+    patch                                  \
+    bzip2                                  \
+    wget                                   \
+    cpio                                   \
+    automake                               \
+    cmake                                  \
+    lcov                                   \
+    libvncserver-devel                     \
+    gstreamer1-plugins-base                \
+    xz
 
 RUN alternatives --set python $(which python2)
 RUN python3 -m pip install pandas                                                         \
@@ -68,8 +116,10 @@ RUN python3 -m pip install pandas                                               
                            typing                                                         \
                            lxml                                                           \
                            openpyxl                                                       \
-                           systemrdl-compiler==1.23.0                                     \
-                           peakrdl-uvm                                                    \
+                           systemrdl-compiler==1.27.3                                     \
+                           peakrdl-uvm==2.3.0                                             \
+                           peakrdl-ipxact==3.4.4                                          \
+                           peakrdl-systemrdl==0.3.0                                       \
                            pytest                                                         \
                            prettytable                                                    \
                            sortedcontainers                                               \
@@ -82,48 +132,88 @@ RUN python3 -m pip install pandas                                               
                            bitstring                                                      \
                            zstd                                                           \
                            aiofiles                                                       \
-                           https://github.com/darshakk/banyan/archive/refs/heads/main.zip
+                           behave                                                         \
+                           virtualenv                                                     \
+                           pybind11                                                       \
+                           riscof                                                         \
+                           fusesoc                                                        \
+                           tqdm                                                           \
+                           matplotlib                                                     \
+                           pexpect                                                        \
+                           rich                                                           \
+                           progressbar2                                                   \
+                           tqdm                                                           \
+                           flake8                                                         \
+                           black                                                          \
+                           fpdf2                                                          \
+                           sympy                                                          \
+                           pillow                                                         \
+                           intervaltree                                                   \
+                           reportlab                                                      \
+                           pypdf                                                          \
+                           pre-commit                                                     \
+                           fdt
 
 RUN curl -ssL https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash;  \
-    yum -y install MariaDB-shared MariaDB-devel python39-devel;                 \
+    yum -y install MariaDB-shared MariaDB-devel;                 \
     python3 -m pip install mariadb
 
+ARG VERILOG_PERL_SHA=4e47bf9087c12c3f9e2a300c1ff7a4e547b578c9
+RUN curl -ssL https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-verilog-perl/-/archive/${VERILOG_PERL_SHA}/verilog-perl-${VERILOG_PERL_SHA}.tar.bz2 \
+    | tar xvjf -; \
+    cd opensrc-verilog-perl-${VERILOG_PERL_SHA} && perl Makefile.PL && make && make install
 
-ARG BAZEL_VERSION=6.0.0
-ARG BAZEL_INSTALLER_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh
+# Install Bazel 6.5.0
+ARG BAZEL_VERSION_6=6.5.0
+ARG BAZEL_INSTALLER_URL_6=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION_6}/bazel-${BAZEL_VERSION_6}-installer-linux-x86_64.sh
 
-RUN curl -o bazel-installer.sh -sSL ${BAZEL_INSTALLER_URL} \
-    && chmod +x bazel-installer.sh                         \
-    && ./bazel-installer.sh                                \
-    && rm bazel-installer.sh                               \
+RUN curl -o bazel-6-installer.sh -sSL ${BAZEL_INSTALLER_URL_6} \
+    && chmod +x bazel-6-installer.sh                           \
+    && ./bazel-6-installer.sh --prefix=/usr/local/bazel-6.5.0  \
+    && rm bazel-6-installer.sh
+
+# Install Bazel 7.7.1
+ARG BAZEL_VERSION_7=7.7.1
+ARG BAZEL_INSTALLER_URL_7=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION_7}/bazel-${BAZEL_VERSION_7}-installer-linux-x86_64.sh
+
+RUN curl -o bazel-7-installer.sh -sSL ${BAZEL_INSTALLER_URL_7} \
+    && chmod +x bazel-7-installer.sh                           \
+    && ./bazel-7-installer.sh --prefix=/usr/local/bazel-7.7.1  \
+    && rm bazel-7-installer.sh
+
+# Install Bazel 8.5.0
+ARG BAZEL_VERSION_8=8.5.0
+ARG BAZEL_INSTALLER_URL_8=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION_8}/bazel-${BAZEL_VERSION_8}-installer-linux-x86_64.sh
+
+RUN curl -o bazel-8-installer.sh -sSL ${BAZEL_INSTALLER_URL_8} \
+    && chmod +x bazel-8-installer.sh                           \
+    && ./bazel-8-installer.sh --prefix=/usr/local/bazel-8.5.0  \
+    && rm bazel-8-installer.sh
+
+# Create symlinks for all versions in /usr/local/bin
+RUN ln -s /usr/local/bazel-6.5.0/bin/bazel /usr/local/bin/bazel-6.5.0 \
+    && ln -s /usr/local/bazel-7.7.1/bin/bazel /usr/local/bin/bazel-7.7.1 \
+    && ln -s /usr/local/bazel-8.5.0/bin/bazel /usr/local/bin/bazel-8.5.0 \
+    && ln -s /usr/local/bin/bazel-6.5.0 /usr/local/bin/bazel-6 \
+    && ln -s /usr/local/bin/bazel-7.7.1 /usr/local/bin/bazel-7 \
+    && ln -s /usr/local/bin/bazel-8.5.0 /usr/local/bin/bazel-8 \
+    && ln -s /usr/local/bin/bazel-6.5.0 /usr/local/bin/bazel \
     && bazel version
 
 RUN useradd --uid 1000 _replaceme
 RUN chmod go+w /etc/passwd
 RUN su -c "bazel version" - _replaceme
+RUN su -c "bazel-7 version" - _replaceme
+RUN su -c "bazel-8 version" - _replaceme
 RUN chmod go+rwx /home/_replaceme /home/_replaceme/.cache/bazel
 
 COPY --from=risc-p-cores/riscv-gnu-toolchain /opt/riscv /usr/local
 COPY --from=risc-p-cores/verible /opt/verible /usr/local
 COPY --from=risc-p-cores/repo /opt/repo /usr/local
-COPY --from=bazel-remote /opt/bazel-remote /usr/local
+COPY --from=bazel-remote       /opt/bazel-remote                  /usr/local
+COPY --from=risc-p-cores/slang /opt/slang-build/bin/slang /usr/local/bin/slang
 
 WORKDIR /work
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["bash"]
-
-FROM risc-p-cores/dev as risc-p-cores/verilator
-ARG VERILATOR_VERSION=4.228
-RUN yum -y install autoconf flex bison m4
-RUN curl -SsL https://github.com/verilator/verilator/archive/refs/tags/v${VERILATOR_VERSION}.tar.gz | tar xvz
-RUN cd verilator-${VERILATOR_VERSION} && scl enable gcc-toolset-12 -- bash -c 'autoconf && ./configure && make -j4 && make install' && cd .. && rm -rf verilator-${VERILATOR_VERSION}
-
-ARG BAZEL_BUILDFARM_VERSION=1.11.2
-
-FROM risc-p-cores/dev as risc-p-cores/bazel-buildfarm
-
-RUN curl -sSL https://github.com/bazelbuild/bazel-buildfarm/archive/refs/tags/${BAZEL_BUILDFARM_VERSION}.tar.gz | tar xvzf - && mv bazel-buildfarm-${BAZEL_BUILDFARM_VERSION} bazel-buildfarm
-RUN cd bazel-buildfarm  \
-    && rm .bazelversion \
-    && bazel build //src/main/java/build/buildfarm:buildfarm-server //src/main/java/build/buildfarm:buildfarm-memory-worker //src/main/java/build/buildfarm:buildfarm-shard-worker

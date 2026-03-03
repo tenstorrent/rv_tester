@@ -2,26 +2,29 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
-def rv_tester_repositories():
+def rv_tester_repositories(bzlmod = False):
 
-    maybe(
-        http_archive,
-        name = "bazel_skylib",
-        urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        ],
-        #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
-    )
+    if not bzlmod:
+        maybe(
+            http_archive,
+            name = "bazel_skylib",
+            urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            ],
+            #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
+        )
 
-    cvm_hash="972e7d951513f6949361250e4747a1e8497344b2"
-    maybe(
-        http_archive,
-        name = "cvm",
-        sha256 = "403c363c6942fd1cf1821fb68c539ead656a20a44624ebd38979ae49dd44f39f",
-        strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
-    )
+
+    if not bzlmod:
+        cvm_hash="205ab14df6e3d2f1df6942716598465c901bee04"
+        maybe(
+            http_archive,
+            name = "cvm",
+            sha256 = "fc6b09efa3cca7569948e9657d8405d5dbd7acd6f99cf6fa40f47e22f953864b",
+            strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
+            url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
+        )
 
     opensrc_nlohmann_json_hash="ece38f1883dd1e59c498c63b8f53c3b4bcbc593c"
     maybe(
@@ -31,14 +34,15 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="c349731df9bab5281d74ce862aebfcd72cd85f9e"
-    maybe(
-        git_repository,
-        name = "whisper",
-        commit = whisper_hash,
-        shallow_since = "1656867071 -0400",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
-    )
+    if not bzlmod:
+        whisper_hash="c349731df9bab5281d74ce862aebfcd72cd85f9e"
+        maybe(
+            git_repository,
+            name = "whisper",
+            commit = whisper_hash,
+            shallow_since = "1656867071 -0400",
+            remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
+        )
 
     CoreArchChecker_hash="788acd6944e086e47b8c095f1bcb256108d7904e"
     maybe(
@@ -49,14 +53,15 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
 
-    rules_python_version = "0.11.0"
-    maybe(
-        http_archive,
-        name = "rules_python",
-        sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
-        strip_prefix = "rules_python-{}".format(rules_python_version),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
-    )
+    if not bzlmod:
+        rules_python_version = "0.11.0"
+        maybe(
+            http_archive,
+            name = "rules_python",
+            sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
+            strip_prefix = "rules_python-{}".format(rules_python_version),
+            url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
+        )
 
     mem_manager_hash="585efffd1a79f43388339c193cdae420f32acad4"
     maybe(
