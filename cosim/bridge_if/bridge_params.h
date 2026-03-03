@@ -381,6 +381,7 @@ namespace {
       CSR(SISELECT,         0x150, "siselect")                                 \
       CSR(SIREG,            0x151, "sireg")                                    \
       CSR(VSIREG,           0x251, "vsireg")                                   \
+      CSR(VSISELECT,        0x250, "vsiselect")                                \
       CSR(MIREG,            0x351, "mireg")                                    \
       CSR(STOPEI,           0x15c, "stopei", true)                             \
       CSR(VSTOPEI,          0x25c, "vstopei"       ,true)                      \
