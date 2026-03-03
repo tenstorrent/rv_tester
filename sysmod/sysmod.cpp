@@ -509,7 +509,7 @@ sysmod::reset() {
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   load_cplfw(FLAGS_cplfw_path);
-  // load_debugrom(FLAGS_debugrom_path);
+  load_debugrom(FLAGS_debugrom_path);
   set_secure_region(FLAGS_stee_secure_region);
 }
 void
@@ -912,22 +912,21 @@ sysmod::load_cplfw(const std::string& cplfw) {
 void
 sysmod::load_debugrom(const std::string& debugrom) {
 
-  // if (FLAGS_debugrom && debugrom != "") {
-  //   cvm::log(cvm::MEDIUM, "Loading {}\n", debugrom);
-  //   if (debugrom.substr(debugrom.length() - 3) == "elf") {
-  //     if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_elf(debugrom)) {
-  //       cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
-  //       return;
-  //     }
-  //   }
-  //   if (debugrom.substr(debugrom.length() - 3) == "hex") {
-  //     if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_hex(debugrom)) {
-  //       cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
-  //       return;
-  //     }
-  //   }
-  //   cvm::log(cvm::NONE, "Loading {} complete\n", debugrom);
-  // }
+  if (FLAGS_debugrom && debugrom != "") {
+    cvm::log(cvm::MEDIUM, "Loading {}\n", debugrom);
+    if (debugrom.substr(debugrom.length() - 3) == "elf") {
+      if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_elf(debugrom)) {
+        cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
+        return;
+      }
+    }
+    if (debugrom.substr(debugrom.length() - 3) == "hex") {
+      if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_hex(debugrom)) {
+        cvm::log(cvm::ERROR, "Error: [sysmod] No debugrom defined");
+        return;
+      }
+    }
+  }
 }
 
 void
