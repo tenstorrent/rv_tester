@@ -107,6 +107,9 @@ void reset_sequence::start(int reset_count) {
   reset_count_ = reset_count;
 
   cvm::log(cvm::NONE, "[reset_sequence] count = {}\n", reset_count_);
+  cvm::log(cvm::NONE, "[reset_sequence] num_cores_ = {}\n", num_cores_);
+  cvm::log(cvm::NONE, "[reset_sequence] FLAGS_num_harts = {}\n", FLAGS_num_harts);
+  cvm::log(cvm::NONE, "[reset_sequence] FLAGS_dcls_en = {}\n", FLAGS_dcls_en);
   
   // Sequence threads
   if (reset_count_ < 0)
@@ -561,6 +564,8 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   uint64_t fuse = fuse_val();
 
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+ 
+  if(FLAGS_dcls_en) ncores = ncores/2;
 
   cvm::log(cvm::HIGH, "[pwrmgmt] Programming fuse MMRs\n", trace_fuse_mmr);
   for (uint32_t i = 0; i < ncores; ++i) {
@@ -817,14 +822,32 @@ std::vector<uint8_t> reset_sequence::convert_to_byte_array(const std::vector<uin
 
 uint64_t reset_sequence::core_fuse_val() {
   uint64_t core_fuse = 0;
-  std::vector<uint64_t> id = mhartid();
-  for (uint32_t i=0; i<id.size(); ++i)
-    core_fuse |= (((i << 1u) | 1u) << (4 * id[i]));
+  
+  // In DCLS mode, enable all cores irrespective of hart_enable_mask
+  if (FLAGS_dcls_en) {
+    uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+    cvm::log(cvm::HIGH, "[pwrmgmt] DCLS mode enabled - enabling all {} cores\n", ncores);
+    
+    // Enable all cores: for each core i, set ((i << 1) | 1) at position (4 * i)
+    for (uint32_t i = 0; i < ncores; ++i) {
+      core_fuse |= (((i << 1u) | 1u) << (4 * i));
+    }
+  } else {
+    // Normal mode: use hart_enable_id from core harvesting
+    std::vector<uint64_t> id = mhartid();
+    for (uint32_t i=0; i<id.size(); ++i)
+      core_fuse |= (((i << 1u) | 1u) << (4 * id[i]));
+  }
+  
   core_fuse = core_fuse << core_fuse_idx;
   return core_fuse;
 }
 
 uint64_t reset_sequence::core_en(uint32_t c) {
+  // In DCLS mode, all cores are enabled
+  if (FLAGS_dcls_en) {
+    return 1;
+  }
   return static_cast<uint64_t>((FLAGS_hart_enable_mask & (1u << c)) >> c);
 }
 
