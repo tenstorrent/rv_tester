@@ -13,6 +13,7 @@ DECLARE_string(cplfw_path);
 DECLARE_uint64(seed);
 DECLARE_uint32(num_harts);
 DECLARE_uint32(hart_enable_mask);
+DECLARE_bool(dcls_en);
 DECLARE_string(hart_enable_id);
 DECLARE_int32(sc_dis_ways_mask);
 DECLARE_uint32(debug_enable);
