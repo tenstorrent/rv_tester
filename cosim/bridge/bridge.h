@@ -121,10 +121,10 @@ private:
           }
       }
   template <typename... Args>
-      void error(Args&&... args) {
+      void error(std::string_view format, Args&&... args) {
           std::string prefix = "Error: ";
           if (patch_mode_) { prefix += "PATCH ";}
-          std::string out ="\n" + prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          std::string out ="\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
   bool flags_bridge_log_;
@@ -180,12 +180,11 @@ private:
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
   void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_check(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d);
+  void pre_step_interrupt_process(  hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -315,25 +314,8 @@ private:
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
   std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
-  std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MIDELEG, HIDELEG, MVIEN, MVIP, HVIEN, HVIP, HVICTL, 
-    MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, STIMECMP, VSTIMECMP, HTIMEDELTA, MENVCFG, HENVCFG, MIREG, SIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI,
-    MHPMEVENT3, 
-    MHPMEVENT4, 
-    MHPMEVENT5, 
-    MHPMEVENT6, 
-    MHPMEVENT7, 
-    MHPMEVENT8, 
-    MHPMEVENT9, 
-    MHPMEVENT10,
-    MHPMCOUNTER3, 
-    MHPMCOUNTER4, 
-    MHPMCOUNTER5, 
-    MHPMCOUNTER6, 
-    MHPMCOUNTER7, 
-    MHPMCOUNTER8, 
-    MHPMCOUNTER9, 
-    MHPMCOUNTER10
-  };
+  // TODO: Add interrupt CSRs for check
+  // std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, MVIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, MIDELEG, MVIEN, HIDELEG, HVIEN};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -404,6 +386,7 @@ private:
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
+  std::bitset<64> last_step_mip_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
@@ -424,7 +407,6 @@ private:
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
-  std::unordered_map<uint64_t, bool> hw_intr_set_;
   std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;

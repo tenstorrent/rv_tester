@@ -1,35 +1,25 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@bzsim//:verilog_unit.bzl", "verilog_unit")
 
-exports_files(["rv_tester_delay_resp_tb_top.sv", "rv_tester_delay_resp_tb.vlt", "rv_tester_delay_resp_tb_top.cpp"], visibility = ["//visibility:public"])
-
-_name = "rv_tester_delay_resp_tb"
-
-# DUT wrapper
 verilog_library(
-    name = "rv_tester_delay_resp_wrapper_sv",
-    srcs = ["rv_tester_delay_resp_wrapper.sv"],
-    deps = ["//:rv_tester_delay_resp", "@opensrc-axi//:axi", "//:rv_tester_lib"],
-    visibility = ["//visibility:public"],
-)
-
-# Testbench top
-verilog_library(
-    name = "rv_tester_delay_resp_tb_top_sv",
-    srcs = ["rv_tester_delay_resp_tb_top.sv"],
+    name = "rv_tester_delay_resp_tb",
+    srcs = [
+        ":rv_tester_delay_resp_tb_top.sv",
+        ":rv_tester_delay_resp_tb_check.sv",
+        ":rv_tester_delay_resp_wrapper.sv",
+    ],
     deps = [
-        ":rv_tester_delay_resp_wrapper_sv",
-        "@opensrc-axi//:axi",
-        "//:rv_tester_lib"
+        "//:rv_tester_delay_resp",
+        "//:rv_tester_lib",
+        "@opensrc-axi//:axi"
     ],
     visibility = ["//visibility:public"],
 )
 
-# Main verilog_unit target
 verilog_unit(
-    name          = _name,
+    name          = "rv_tester_delay_resp_tb",
     top           = "rv_tester_delay_resp_tb_top",
-    lib           = "rv_tester_delay_resp_tb_top_sv",
+    lib           = "rv_tester_delay_resp_tb",
     verilator_top = "rv_tester_delay_resp_tb_top.cpp",
     verilator_configs = [":rv_tester_delay_resp_tb.vlt"],
     bzsimconfig = "//infra/bzsim-config:bzsimconfig",
