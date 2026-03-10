@@ -166,6 +166,8 @@ bit [PA_WIDTH-1:0] debug_entry_pc_const='h0a110800;
 bit [PA_WIDTH-1:0] debug_exit_pc_const='h0a110860;
 bit [PA_WIDTH-1:0] mmr_hi_addr_const='h42a1FFFF;
 bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
+bit [PA_WIDTH-1:0] mmr_hi_addr_const_pl2='h220cFFFF;
+bit [PA_WIDTH-1:0] mmr_lo_addr_const_pl2='h220c0000;
 
 genvar gi,gj;
 
@@ -213,10 +215,15 @@ localparam CAM_IHBIT = CAM_IBITS;
     // function memmap_decode: compares address to memory map ranges
     //----------------------------------------------------------------------------
 
-    function automatic bit memmap_decode(input rule_t [NoAddrRules-1:0] mem_map, input bit [PA_WIDTH-1:0] address );
+    function automatic bit memmap_decode(input rule_t [NoAddrRules-1:0] mem_map, input bit [PA_WIDTH-1:0] address , input bit is_pl2_build);
         memmap_decode = 1'b0;
+        if(is_pl2_build) begin
+          if ((address < mmr_hi_addr_const_pl2) & (address >= mmr_lo_addr_const_pl2))
+            return(1'b1);
+        end else begin
         if ((address < mmr_hi_addr_const) & (address >= mmr_lo_addr_const))
            return(1'b1);
+        end
         /* verilator lint_off WIDTH */
         for(int i=0;i<NoAddrRules;i=i+1) begin
             if ((address >= mem_map[i].start_addr) & (address < mem_map[i].end_addr) & (mem_map[i].idx == 1)) begin
@@ -526,6 +533,15 @@ localparam CAM_IHBIT = CAM_IBITS;
     //        6) Multi-cycle UOPS (where last_uop == 0)
     //
     //---------------------------------------------------------------------------------
+    bit is_pl2_build;
+    always @(posedge clk) begin
+        if (reset) begin
+            is_pl2_build <= '0;
+        end
+        else begin
+            is_pl2_build <= cvm_plusargs::get_bool("is_pl2_build") != '0;
+        end
+    end
     for(genvar n=0;n<NRET;n=n+1) begin
         assign sc_rw[n]        = rvfi[n].valid & ((rvfi[n].insn[6:0] == 7'b0101111) & (rvfi[n].insn[14:13] == 2'b01)  & (rvfi[n].insn[31:27] == 5'b00011));
         assign csr_rw[n]       = rvfi[n].valid & (((rvfi[n].insn[6:0] == 7'b1110011) & (rvfi[n].insn[14:12] != 3'b000)) | |rvfi[n].csr_wmask);
@@ -539,7 +555,7 @@ localparam CAM_IHBIT = CAM_IBITS;
                                    );
 
         assign exit_dbg[n]     = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_exit_pc));
-        assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr);
+        assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr, is_pl2_build);
 
         assign mflags[n]       = rvfi[n].flags_valid;
         assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0);
