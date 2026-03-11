@@ -5,7 +5,7 @@ aplic_device::read(const transactor::read_t& r, data_t& data)
 {
   uint64_t addr = r.addr;
   size_t size = r.length;
-  uint32_t value;
+  uint32_t value = 0;
 
   aplic_->read(addr, size, value);
   serializeInt(value, size, data);
