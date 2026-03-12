@@ -162,12 +162,14 @@ localparam GP_WIDTH  = $size(rvfi[0].rd_wdata);
 localparam FP_WIDTH  = $size(rvfi[0].frd_wdata);
 localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
 localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
+bit [PA_WIDTH-1:0] dm_mmr_base='h42190000;
 bit [PA_WIDTH-1:0] debug_entry_pc_const='h0a110800;
 bit [PA_WIDTH-1:0] debug_exit_pc_const='h0a110860;
 bit [PA_WIDTH-1:0] mmr_hi_addr_const='h42a1FFFF;
 bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
-bit [PA_WIDTH-1:0] mmr_hi_addr_const_pl2='h220cFFFF;
-bit [PA_WIDTH-1:0] mmr_lo_addr_const_pl2='h220c0000;
+bit [PA_WIDTH-1:0] mmr_hi_addr_const_pl2='h220FFFFF;
+bit [PA_WIDTH-1:0] mmr_lo_addr_const_pl2='h22000000;
+bit [PA_WIDTH-1:0] dm_mmr_base_pl2='h220D0000;
 
 genvar gi,gj;
 
@@ -430,8 +432,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     longint unsigned instr_count;
     bit [PA_WIDTH-1:0] debug_entry_pc;
     bit [PA_WIDTH-1:0] debug_exit_pc;
-    longint unsigned debug_entry_pc_arg;
-    longint unsigned debug_exit_pc_arg;
+    longint unsigned debug_entry_pc_offset_arg;
+    longint unsigned debug_exit_pc_offset_arg;
     int hart_enable_mask;
     int nharts;
     longint unsigned hart;
@@ -1504,8 +1506,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
     //--------------------------------------------------------------------
-    assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
-    assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const;
+    assign debug_entry_pc = (debug_entry_pc_offset_arg != '0) ? (((is_pl2_build) ? PA_WIDTH'(dm_mmr_base_pl2) : PA_WIDTH'(dm_mmr_base)) | PA_WIDTH'(debug_entry_pc_offset_arg)) : debug_entry_pc_const;
+    assign debug_exit_pc  = (debug_exit_pc_offset_arg != '0)  ? (((is_pl2_build) ? PA_WIDTH'(dm_mmr_base_pl2) : PA_WIDTH'(dm_mmr_base)) | PA_WIDTH'(debug_exit_pc_offset_arg))  : debug_exit_pc_const;
 
 /* verilator lint_off WIDTHEXPAND */
     assign hart = NUM;
@@ -1553,8 +1555,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         max_instructions <= cvm_plusargs::get_ulongint("max_instr");
         nharts <= cvm_plusargs::get_int("num_harts");
         hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
-        debug_entry_pc_arg <= cvm_plusargs::get_ulongint("debug_entry_pc");
-        debug_exit_pc_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc");
+        debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
+        debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");

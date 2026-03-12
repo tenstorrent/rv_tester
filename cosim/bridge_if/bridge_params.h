@@ -11,7 +11,7 @@ namespace {
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
     // MMR range from device_address_map (base to last device AXISW 0x1B + 64K)
-    inline uint64_t mmr_lo_addr() { return device_address_map_mmr_base_addr(); }
+    inline uint64_t mmr_lo_addr() { return generate_cr_device_addr(0); }
     inline uint64_t mmr_hi_addr() { return generate_axisw_device_addr(0) + 0xFFFF; }
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;

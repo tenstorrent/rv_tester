@@ -23,13 +23,15 @@ DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
-DEFINE_uint64(debug_entry_pc, 0, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0, "Debug Mode exit PC");
-DEFINE_uint64(debug_mem_base, 0, "Debug Memory Base Address");
+DEFINE_uint64(debug_entry_pc_offset, 0x800, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc_offset, 0x8cc, "Debug Mode exit PC");
+DEFINE_uint64(debug_mem_base_offset, 0x0, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
+
+DECLARE_bool(is_pl2_build);
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -82,12 +84,6 @@ void rvfi::check() {
 }
 
 void rvfi::init() {
-  if (FLAGS_debug_entry_pc == 0 && FLAGS_debug_exit_pc == 0 && FLAGS_debug_mem_base == 0) {
-    uint64_t dm_base = generate_dm_device_addr(0);
-    FLAGS_debug_entry_pc = dm_base + 0x800;
-    FLAGS_debug_exit_pc = dm_base + 0x8cc;
-    FLAGS_debug_mem_base = dm_base;
-  }
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
@@ -113,8 +109,16 @@ bool rvfi::patch_access (uint64_t addr) {
   if (!patch_mode_)
       return false;
 
-  uint64_t patch_lo = generate_cpl_device_addr(0) + 0x4c000;
-  uint64_t patch_hi = patch_lo + 0x1fff;
+  uint64_t patch_lo;
+  uint64_t patch_hi;
+  if(FLAGS_is_pl2_build) {
+    uint64_t cpl_sram_end_offset = (1 << device_address_map_cpl_sram_offset_end_bit()) - 1;
+    patch_lo = generate_cpl_sram_device_addr(0);
+    patch_hi = patch_lo + cpl_sram_end_offset;
+  } else {
+    patch_lo = generate_cpl_sram_device_addr(0) + 0xc000;
+    patch_hi = generate_cpl_sram_device_addr(0) + 0xdfff;
+  }
   if (addr >= patch_lo && addr < patch_hi)
       return true;
 
@@ -908,7 +912,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if ((uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(0) + FLAGS_debug_exit_pc_offset) {
 
     rv_debug_t debug;
 
