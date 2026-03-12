@@ -31,8 +31,6 @@ DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode 
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 
-DECLARE_bool(is_pl2_build);
-
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
