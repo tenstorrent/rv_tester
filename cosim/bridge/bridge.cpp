@@ -2971,6 +2971,7 @@ void bridge::process_debug_haltreq(bool haltreq) {
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
+  // Fallback hardcoded debug ROM when debugrom_path is not set.
   uint64_t debugROM[26] = {
     0x7b2000737b202473,
     0x7b30257310852823,
@@ -3009,9 +3010,12 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
-  for(int i=25; i>=0; i--) {
-    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
-    poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
+  // Only poke the legacy hardcoded ROM when path was not passed, else user provided ROM will be poked to retain backwards compatibility with csv flow.
+  if (FLAGS_debugrom_path.empty()) {
+    for (int i = 25; i >= 0; i--) {
+      uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25 - i) * 8;
+      poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i], false, false);
+    }
   }
 }
 
