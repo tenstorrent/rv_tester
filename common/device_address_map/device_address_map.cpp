@@ -19,7 +19,8 @@ uint32_t device_address_map_imsic_cluster_id_start_bit() { return FLAGS_imsic_cl
 uint32_t device_address_map_imsic_core_id_start_bit() { return FLAGS_imsic_core_id_start_bit; }
 uint32_t device_address_map_cpl_offset_end_bit() { return FLAGS_cpl_offset_end_bit; }
 uint32_t device_address_map_cpl_sram_offset_end_bit() { return FLAGS_cpl_sram_offset_end_bit; }
-
+uint32_t device_address_map_patch_ram_start_offset() { return FLAGS_patch_ram_start_offset; }
+uint32_t device_address_map_patch_ram_size() { return FLAGS_patch_ram_size; }
 // --- Generic device address ---
 // is_imsic = (priv_level == IMSIC_M || priv_level == IMSIC_S)
 // IMSIC: res |= device_id << IMSIC_CORE_ID_START_BIT, res |= cluster_id << IMSIC_CLUSTER_ID_START_BIT
@@ -75,7 +76,7 @@ uint64_t generate_tr_device_addr(uint32_t cluster_id) {
 }
 
 uint64_t generate_cpl_device_addr(uint32_t cluster_id) {
-  return generate_device_addr(FLAGS_cpl_device_id, cluster_id, FLAGS_mmr_m);
+  return generate_device_addr(FLAGS_cpl_device_id_start, cluster_id, FLAGS_mmr_m);
 }
 
 uint64_t generate_cpl_sram_device_addr(uint32_t cluster_id) {

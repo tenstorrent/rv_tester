@@ -19,6 +19,8 @@ uint32_t device_address_map_imsic_cluster_id_start_bit();
 uint32_t device_address_map_imsic_core_id_start_bit();
 uint32_t device_address_map_cpl_offset_end_bit();
 uint32_t device_address_map_cpl_sram_offset_end_bit();
+uint32_t device_address_map_patch_ram_start_offset();
+uint32_t device_address_map_patch_ram_size();
 
 // Generic device address
 // For IMSIC, device_id is used as core index in the address encoding

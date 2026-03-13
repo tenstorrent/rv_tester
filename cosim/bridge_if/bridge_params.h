@@ -15,9 +15,6 @@ namespace {
     inline uint64_t mmr_hi_addr() { return generate_axisw_device_addr(0) + 0xFFFF; }
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;
-    // CPL patch RAM range (generate_cpl_device_addr() + 0x4c000 .. 0x4DFFF)
-    inline uint64_t patch_ram_lo() { return generate_cpl_device_addr(0) + 0x4c000; }
-    inline uint64_t patch_ram_hi() { return generate_cpl_device_addr(0) + 0x4DFFF; }
     constexpr uint16_t hgatp_valid_modes[] = {0, 8, 9, 10};
     constexpr uint16_t pmm_legal_values[] = {0, 2};
     constexpr uint64_t pmm_hstatus_mask_lo = 48;

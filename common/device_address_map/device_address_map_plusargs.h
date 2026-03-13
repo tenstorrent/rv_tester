@@ -25,8 +25,9 @@ DECLARE_uint32(cpl_sram_offset_end_bit);
 // Device ID plusargs
 DECLARE_uint32(cr_start_device_id);
 DECLARE_uint32(tr_device_id);
-DECLARE_uint32(cpl_device_id);
+DECLARE_uint32(cpl_device_id_start);
 DECLARE_uint32(cpl_sram_device_id);
+DECLARE_uint32(cpl_device_id_end);
 DECLARE_uint32(acl_device_id);
 DECLARE_uint32(dm_device_id);
 DECLARE_uint32(sc_device_id);
@@ -37,3 +38,7 @@ DECLARE_uint32(imsic_m);
 DECLARE_uint32(mmr_m);
 DECLARE_uint32(imsic_s);
 DECLARE_uint32(mmr_s);
+
+// Patch RAM plusargs
+DECLARE_uint32(patch_ram_start_offset);
+DECLARE_uint32(patch_ram_size);

@@ -106,21 +106,14 @@ void rvfi::init() {
 bool rvfi::patch_access (uint64_t addr) {
   if (!patch_mode_)
       return false;
-
-  uint64_t patch_lo;
-  uint64_t patch_hi;
-  if(FLAGS_is_pl2_build) {
-    uint64_t cpl_sram_end_offset = (1 << device_address_map_cpl_sram_offset_end_bit()) - 1;
-    patch_lo = generate_cpl_sram_device_addr(0);
-    patch_hi = patch_lo + cpl_sram_end_offset;
-  } else {
-    patch_lo = generate_cpl_sram_device_addr(0) + 0xc000;
-    patch_hi = generate_cpl_sram_device_addr(0) + 0xdfff;
-  }
+  
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint64_t patch_lo = generate_cpl_sram_device_addr(0) + device_address_map_patch_ram_start_offset();
+  uint64_t patch_hi = patch_lo + device_address_map_patch_ram_size() - 1;
   if (addr >= patch_lo && addr < patch_hi)
       return true;
 
-  for (int i = 0; i < 8; i++) {
+  for (uint32_t i = 0; i < ncores; i++) {
     if (addr == generate_cr_device_addr(0, i) + 0x5040)
       return true;
   }
