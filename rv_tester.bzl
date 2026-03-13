@@ -52,6 +52,13 @@ def rv_tester_gen(
         cc_attrs = cc_attrs,
     )
 
+    pmu_fragment_gen(
+        name = name + "_pmu_fragments",
+        pmu_spec = pmu_spec,
+        pmu_template = "@rv_tester//pmu:pmu.sv",
+        cc_attrs = cc_attrs,
+    )
+
     verilog_library(
         name = name + "_harness",
         srcs = [
@@ -62,16 +69,9 @@ def rv_tester_gen(
         deps = [
             topology + "_sv",
 	    "@opensrc-axi//:axi",
+            name + "_pmu_fragments_pmu_defines_sv",
         ],
         visibility = visibility,
-    )
-
-    # Generate PMU YAML fragments first (needed for Mako includes in transactions.yml)
-    pmu_fragment_gen(
-        name = name + "_pmu_fragments",
-        pmu_spec = pmu_spec,
-        pmu_template = "@rv_tester//pmu:pmu.sv",
-        cc_attrs = cc_attrs,
     )
 
     packet_gen(
@@ -155,6 +155,7 @@ def rv_tester_gen(
         deps = [
             "@cvm//:logger_sv",
             name + "_harness",
+            name + "_pmu_fragments_pmu_defines_sv",
             name + "_transactions_sv",
             name + "_sysmod_sv",
             name + "_pmu_sv",

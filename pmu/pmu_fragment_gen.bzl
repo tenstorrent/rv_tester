@@ -32,8 +32,8 @@ def _pmu_fragment_gen_impl(ctx):
     gen_events_sc_hpp = ctx.outputs.gen_events_sc_hpp
     gen_core_events_sv = ctx.outputs.gen_core_events_sv
     gen_sc_events_sv = ctx.outputs.gen_sc_events_sv
-    gen_core_defines_sv = ctx.outputs.gen_core_defines_sv
-    gen_sc_defines_sv = ctx.outputs.gen_sc_defines_sv
+    gen_pmu_core_pkg_sv = ctx.outputs.gen_pmu_core_pkg_sv
+    gen_pmu_sc_pkg_sv = ctx.outputs.gen_pmu_sc_pkg_sv
     gen_core_monitor_sv = ctx.outputs.gen_core_monitor_sv
     gen_sc_monitor_sv = ctx.outputs.gen_sc_monitor_sv
     gen_core_events_yaml = ctx.outputs.gen_core_events_yaml
@@ -47,8 +47,8 @@ def _pmu_fragment_gen_impl(ctx):
     args.add("--gen_events_sc_hpp", gen_events_sc_hpp)
     args.add("--gen_core_events_sv", gen_core_events_sv)
     args.add("--gen_sc_events_sv", gen_sc_events_sv)
-    args.add("--gen_core_defines_sv", gen_core_defines_sv)
-    args.add("--gen_sc_defines_sv", gen_sc_defines_sv)
+    args.add("--gen_pmu_core_pkg_sv", gen_pmu_core_pkg_sv)
+    args.add("--gen_pmu_sc_pkg_sv", gen_pmu_sc_pkg_sv)
     args.add("--gen_core_monitor_sv", gen_core_monitor_sv)
     args.add("--gen_sc_monitor_sv", gen_sc_monitor_sv)
     args.add("--gen_core_events_yaml", gen_core_events_yaml)
@@ -58,7 +58,7 @@ def _pmu_fragment_gen_impl(ctx):
     outputs = [
         gen_events_core_hpp, gen_events_sc_hpp,
         gen_core_events_sv, gen_sc_events_sv,
-        gen_core_defines_sv, gen_sc_defines_sv,
+        gen_pmu_core_pkg_sv, gen_pmu_sc_pkg_sv,
         gen_core_monitor_sv, gen_sc_monitor_sv,
         gen_core_events_yaml, gen_sc_events_yaml,
     ]
@@ -96,8 +96,8 @@ _pmu_fragment_gen = rule(
         "gen_events_sc_hpp": attr.output(mandatory = True),
         "gen_core_events_sv": attr.output(mandatory = True),
         "gen_sc_events_sv": attr.output(mandatory = True),
-        "gen_core_defines_sv": attr.output(mandatory = True),
-        "gen_sc_defines_sv": attr.output(mandatory = True),
+        "gen_pmu_core_pkg_sv": attr.output(mandatory = True),
+        "gen_pmu_sc_pkg_sv": attr.output(mandatory = True),
         "gen_core_monitor_sv": attr.output(mandatory = True),
         "gen_sc_monitor_sv": attr.output(mandatory = True),
         "gen_core_events_yaml": attr.output(mandatory = True),
@@ -112,7 +112,7 @@ _pmu_fragment_gen = rule(
     provides = [DefaultInfo],
 )
 
-def pmu_fragment_gen(name, pmu_spec, pmu_template = None, visibility = None, cc_attrs = {}, **kwargs):
+def pmu_fragment_gen(name, pmu_spec, package = "", pmu_template = None, visibility = None, cc_attrs = {}, **kwargs):
     """Generate PMU fragment files from CSV specifications.
 
     Args:
@@ -127,8 +127,8 @@ def pmu_fragment_gen(name, pmu_spec, pmu_template = None, visibility = None, cc_
     gen_events_sc_hpp = name + "/gen_events_sc.hpp"
     gen_core_events_sv = name + "/gen_core_events.sv"
     gen_sc_events_sv = name + "/gen_sc_events.sv"
-    gen_core_defines_sv = name + "/gen_core_defines.sv"
-    gen_sc_defines_sv = name + "/gen_sc_defines.sv"
+    gen_pmu_core_pkg_sv = name + "/gen_pmu_core_pkg.sv"
+    gen_pmu_sc_pkg_sv = name + "/gen_pmu_sc_pkg.sv"
     gen_core_monitor_sv = name + "/gen_core_monitor.sv"
     gen_sc_monitor_sv = name + "/gen_sc_monitor.sv"
     gen_core_events_yaml = name + "/gen_core_events.yaml"
@@ -143,8 +143,8 @@ def pmu_fragment_gen(name, pmu_spec, pmu_template = None, visibility = None, cc_
         gen_events_sc_hpp = gen_events_sc_hpp,
         gen_core_events_sv = gen_core_events_sv,
         gen_sc_events_sv = gen_sc_events_sv,
-        gen_core_defines_sv = gen_core_defines_sv,
-        gen_sc_defines_sv = gen_sc_defines_sv,
+        gen_pmu_core_pkg_sv = gen_pmu_core_pkg_sv,
+        gen_pmu_sc_pkg_sv = gen_pmu_sc_pkg_sv,
         gen_core_monitor_sv = gen_core_monitor_sv,
         gen_sc_monitor_sv = gen_sc_monitor_sv,
         gen_core_events_yaml = gen_core_events_yaml,
@@ -173,10 +173,22 @@ def pmu_fragment_gen(name, pmu_spec, pmu_template = None, visibility = None, cc_
         hdrs = [
             gen_core_events_sv,
             gen_sc_events_sv,
-            gen_core_defines_sv,
-            gen_sc_defines_sv,
             gen_core_monitor_sv,
             gen_sc_monitor_sv,
+        ],
+        deps = [name + '_pmu_defines_sv'],
+        visibility = visibility,
+    )
+
+    if package:
+        gen_pmu_core_pkg_sv = name + "/" + package + "_core_pkg.sv"
+        gen_pmu_sc_pkg_sv = name + "/" + package + "_sc_pkg.sv"
+
+    verilog_library(
+        name = name + '_pmu_defines_sv',
+        srcs = [
+            gen_pmu_core_pkg_sv,
+            gen_pmu_sc_pkg_sv,
         ],
         visibility = visibility,
     )
