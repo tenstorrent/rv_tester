@@ -108,13 +108,14 @@ bool rvfi::patch_access (uint64_t addr) {
       return false;
   
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  uint64_t patch_lo = generate_cpl_sram_device_addr(0) + device_address_map_patch_ram_start_offset();
+  uint32_t cluster_id = 0;
+  uint64_t patch_lo = generate_cpl_sram_device_addr(cluster_id) + device_address_map_patch_ram_start_offset();
   uint64_t patch_hi = patch_lo + device_address_map_patch_ram_size() - 1;
   if (addr >= patch_lo && addr < patch_hi)
       return true;
 
   for (uint32_t i = 0; i < ncores; i++) {
-    if (addr == generate_cr_device_addr(0, i) + 0x5040)
+    if (addr == generate_cr_device_addr(cluster_id, i) + 0x5040)
       return true;
   }
   return false;
@@ -903,7 +904,8 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(0) + FLAGS_debug_exit_pc_offset) {
+  uint32_t cluster_id = 0;
+  if ((uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
 
     rv_debug_t debug;
 

@@ -11,8 +11,8 @@ namespace {
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
     // MMR range from device_address_map (base to last device AXISW 0x1B + 64K)
-    inline uint64_t mmr_lo_addr() { return generate_cr_device_addr(0); }
-    inline uint64_t mmr_hi_addr() { return generate_axisw_device_addr(0) + 0xFFFF; }
+    inline uint64_t mmr_lo_addr() { uint32_t cluster_id = 0; return generate_cr_device_addr(cluster_id); }
+    inline uint64_t mmr_hi_addr() { uint32_t cluster_id = 0; return generate_axisw_device_addr(cluster_id) + 0xFFFF; }
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;
     constexpr uint16_t hgatp_valid_modes[] = {0, 8, 9, 10};
@@ -23,8 +23,8 @@ namespace {
     constexpr uint64_t time_csr = 0xC01;
     constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     // ACLINT M-time / M-timecmp (generate_acl_device_addr() + 0 / + 0x8000)
-    inline uint64_t mtime_mmr() { return generate_acl_device_addr(0) + 0; }
-    inline uint64_t mtimecmp_mmr() { return generate_acl_device_addr(0) + 0x8000; }
+    inline uint64_t mtime_mmr() { uint32_t cluster_id = 0; return generate_acl_device_addr(cluster_id) + 0; }
+    inline uint64_t mtimecmp_mmr() { uint32_t cluster_id = 0; return generate_acl_device_addr(cluster_id) + 0x8000; }
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
@@ -892,7 +892,7 @@ namespace {
         {"sc_pmu_select_6",               0x0170},
         {"sc_pmu_select_7",               0x0178}
     }};
-    inline uint64_t get_mmr_full_address(uint32_t addr_offset) { return generate_sc_device_addr(0) + addr_offset; }
+    inline uint64_t get_mmr_full_address(uint32_t addr_offset) { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + addr_offset; }
 
     enum patch_mode {
         NO_PATCH = 0,

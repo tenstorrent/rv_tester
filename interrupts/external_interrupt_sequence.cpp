@@ -44,8 +44,9 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
     interrupt_injection_thread();
   }
 
-  msi_m_file_addr = generate_imsic_m_addr(0, 0);
-  msi_s_file_addr = generate_imsic_s_addr(0, 0);
+  uint32_t cluster_id = 0;
+  msi_m_file_addr = generate_imsic_m_addr(cluster_id, 0);
+  msi_s_file_addr = generate_imsic_s_addr(cluster_id, 0);
   msi_vs_file_addr = msi_s_file_addr;
 }
 

@@ -114,7 +114,7 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
-  : sc_slice_base_(generate_sc_device_addr(0) + 0x8),
+  : sc_slice_base_([]() { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + 0x8; }()),
     bridge_log_("h" + std::to_string(id) + "_bridge.log"),
     loc_(loc),
     id_(id),
@@ -623,7 +623,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  if (d.pc.pc_rdata == generate_dm_device_addr(0) + FLAGS_debug_exit_pc_offset) {
+  if (d.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
@@ -916,8 +916,9 @@ void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
 
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
+  uint32_t cluster_id = 0;
   uint32_t opcode;
-  if (instr.pc.pc_rdata == generate_dm_device_addr(0) + FLAGS_debug_exit_pc_offset) {
+  if (instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     opcode = opcode_nop;
   }
   else if ((instr.excp && (instr.ecause == 3)) || dtvec_ebreak_) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
@@ -1956,6 +1957,7 @@ bool bridge::is_cracked_csr(const std::string& instr) {
 
 
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
+  uint32_t cluster_id = 0;
 
   if (d.mem_read.valid && resynch_on_pa(d.mem_read.pa, d.cycle)) {
     return true;
@@ -1970,7 +1972,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
     return true;
   }
 
-  if (d.pc.pc_rdata == generate_dm_device_addr(0) + FLAGS_debug_exit_pc_offset) {
+  if (d.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
@@ -2164,7 +2166,8 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
 }
 
 bool bridge::debug_mem_access(const uint64_t& pa){
-  if (debug_mode_ && pa >= generate_dm_device_addr(0) + FLAGS_debug_mem_base_offset && pa < (generate_dm_device_addr(0) + FLAGS_debug_mem_base_offset + FLAGS_debug_mem_size))
+  uint32_t cluster_id = 0;
+  if (debug_mode_ && pa >= generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset && pa < (generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset + FLAGS_debug_mem_size))
     return true;
   return false;
 }
@@ -3024,8 +3027,9 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
+  uint32_t cluster_id = 0;
   for(int i=25; i>=0; i--) {
-    uint64_t debugROM_loc = generate_dm_device_addr(0) + FLAGS_debug_entry_pc_offset + (25-i)*8;
+    uint64_t debugROM_loc = generate_dm_device_addr(cluster_id) + FLAGS_debug_entry_pc_offset + (25-i)*8;
     poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
   }
 }
