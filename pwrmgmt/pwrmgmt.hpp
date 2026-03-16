@@ -17,8 +17,8 @@ namespace {
   constexpr uint32_t pll_parameters0        = 0x210'3014;  // Address 014 from Ascalon_cpl_regs.yml
   constexpr uint32_t pll_parameters1        = 0x210'3018;  // Address 018 from Ascalon_cpl_regs.yml
 
-  constexpr uint32_t rst_ctl_nofetch_cfg_done_idx = 31;
-  constexpr uint32_t rst_ctl_nofetch_clustercorego_idx = 27;
+  constexpr uint32_t rst_ctl_cplsmchasdhake_cfg_done_idx = 19;
+  constexpr uint32_t rst_ctl_cplsmchandshake_clustercorego_idx = 3;
   constexpr uint32_t cold_powerup_idx       = 4;
   constexpr uint32_t dfs_done_idx           = 0;
   constexpr uint32_t dfs_req_idx            = 0;
@@ -33,6 +33,7 @@ namespace {
   constexpr uint32_t rst_ctl_cold           = 0x210'2004;
   constexpr uint32_t rst_ctl_warm           = 0x210'2008;
   constexpr uint32_t rst_ctl_nofetch        = 0x210'200C;
+  constexpr uint32_t rst_ctl_cplsmchandshake = 0x210'2020;
 
   constexpr uint32_t cpl_cl_cold_reset_n    = 0;
   constexpr uint32_t cpl_cl_warm_reset_n    = 0;
