@@ -58,6 +58,7 @@ module top
     assign terminate_dst_trace_seq = '1;
     assign dmi_terminate           = '1;
     assign dmi_poll_timeout_terminate = '0;
+    assign uvm_done = '1;
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;
