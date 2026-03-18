@@ -568,7 +568,9 @@ package rv_tester_params;
     output                                   tj_shutdown,                                           \
     output                                   tj_max,                                                \
     input                                    cvm_done,                                              \
+    `ifdef UVM_MACROS_SVH                                                                           \
     output                                   uvm_done,                                              \
+    `endif                                                                                          \
     output                                   pll_dfs_done,                                          \
     output                                   pll_shutdown_done,                                     \
     output logic [1:0]                       cpl_xtriggers,                                         \
@@ -661,8 +663,10 @@ package rv_tester_params;
     logic                                    pll_shutdown_done;                                     \
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
-    logic                                    cvm_done;                                              \
+    `ifdef UVM_MACROS_SVH                                                                           \
     logic                                    uvm_done;                                              \
+    `endif                                                                                          \
+    logic                                    cvm_done;                                              \
     logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                         \
