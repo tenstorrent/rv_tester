@@ -662,6 +662,7 @@ package rv_tester_params;
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
     logic                                    cvm_done;                                              \
+    logic                                    uvm_done;                                              \
     logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                         \

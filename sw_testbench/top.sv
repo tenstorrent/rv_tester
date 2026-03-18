@@ -15,9 +15,9 @@ module top
       SW_1C,
       SW_2C
     } harness_id;
-
+ 
     localparam harness_id HARNESS = `HARNESS;
-
+    
     `RV_TESTER_VARS(cvm_topology_gen::mods)
 
     rv_tester #(
