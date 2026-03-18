@@ -567,6 +567,8 @@ package rv_tester_params;
     output                                   dut_terminate,                                         \
     output                                   tj_shutdown,                                           \
     output                                   tj_max,                                                \
+    input                                    cvm_done,                                              \
+    output                                   uvm_done,                                              \
     output                                   pll_dfs_done,                                          \
     output                                   pll_shutdown_done,                                     \
     output logic [1:0]                       cpl_xtriggers,                                         \
@@ -659,6 +661,8 @@ package rv_tester_params;
     logic                                    pll_shutdown_done;                                     \
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
+    logic                                    cvm_done;                                              \
+    logic                                    uvm_done;                                              \
     logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                         \
