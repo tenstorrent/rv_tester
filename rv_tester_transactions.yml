@@ -488,6 +488,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            core_cycle:
+                width: 64
             hw:
                 width: 1
             mip:

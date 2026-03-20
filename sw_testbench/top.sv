@@ -15,9 +15,9 @@ module top
       SW_1C,
       SW_2C
     } harness_id;
-
+ 
     localparam harness_id HARNESS = `HARNESS;
-
+    
     `RV_TESTER_VARS(cvm_topology_gen::mods)
 
     rv_tester #(
@@ -58,6 +58,9 @@ module top
     assign terminate_dst_trace_seq = '1;
     assign dmi_terminate           = '1;
     assign dmi_poll_timeout_terminate = '0;
+  `ifdef UVM_MACROS_SVH
+    assign uvm_done = '1;
+  `endif 
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;

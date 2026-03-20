@@ -121,10 +121,10 @@ private:
           }
       }
   template <typename... Args>
-      void error(Args&&... args) {
+      void error(std::string_view format, Args&&... args) {
           std::string prefix = "Error: ";
           if (patch_mode_) { prefix += "PATCH ";}
-          std::string out ="\n" + prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          std::string out ="\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
   bool flags_bridge_log_;
@@ -180,16 +180,16 @@ private:
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
   void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_check(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d);
+  void pre_step_interrupt_process(  hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip, bool trap_intr);
+  void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr);
+  void process_counter_overflow(hart_id_t hart, csr_t csr);
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
@@ -314,25 +314,8 @@ private:
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
   std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
-  std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MIDELEG, HIDELEG, MVIEN, MVIP, HVIEN, HVIP, HVICTL, 
-    MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, STIMECMP, VSTIMECMP, HTIMEDELTA, MENVCFG, HENVCFG, MIREG, SIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI,
-    MHPMEVENT3, 
-    MHPMEVENT4, 
-    MHPMEVENT5, 
-    MHPMEVENT6, 
-    MHPMEVENT7, 
-    MHPMEVENT8, 
-    MHPMEVENT9, 
-    MHPMEVENT10,
-    MHPMCOUNTER3, 
-    MHPMCOUNTER4, 
-    MHPMCOUNTER5, 
-    MHPMCOUNTER6, 
-    MHPMCOUNTER7, 
-    MHPMCOUNTER8, 
-    MHPMCOUNTER9, 
-    MHPMCOUNTER10
-  };
+  // TODO: Add interrupt CSRs for check
+  // std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, MVIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, MIDELEG, MVIEN, HIDELEG, HVIEN};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -403,6 +386,7 @@ private:
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
+  std::bitset<64> last_step_mip_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
@@ -423,7 +407,6 @@ private:
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
-  std::unordered_map<uint64_t, bool> hw_intr_set_;
   std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
@@ -439,7 +422,7 @@ private:
   uint64_t saplic_base_=0, saplic_end_=0;
 
 
-  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<intr, int> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
   int num_exceptions_insn_err_access_fault_ = 0;
   int num_exceptions_ld_err_access_fault_ = 0;

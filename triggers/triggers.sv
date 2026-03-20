@@ -52,7 +52,7 @@ import rv_tester_params::*;
     reset_d1 <= reset;
     if (~reset & reset_d1) begin
       interrupt_injection_count <= cvm_plusargs::get_int("interrupt_injection_count");
-      interrupt_injection_initial_delay <= cvm_plusargs::get_int("interrupt_injection_initial_delay");
+      interrupt_injection_initial_delay <= cvm_rand::get("interrupt_injection_initial_delay");
       interrupt_injection_rand_delay_min <= cvm_plusargs::get_int("interrupt_injection_rand_delay_min");
       interrupt_injection_rand_delay_max <= cvm_plusargs::get_int("interrupt_injection_rand_delay_max");
       if (location != cvm_topology::nil) begin

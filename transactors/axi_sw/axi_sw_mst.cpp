@@ -366,7 +366,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
           }
       }
       else {
-          cvm::log(cvm::ERROR, "[{}] Error: unhandled axi_mst transaction type {}\n");
+          cvm::log(cvm::ERROR, "[axi_sw_mst] Error: unhandled axi_mst transaction type\n");
           return false;
       }
       return true;

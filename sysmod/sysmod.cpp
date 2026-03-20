@@ -55,6 +55,8 @@ DEFINE_string(debugrom_path, "", "Path to debugrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
+// DCLS
+DEFINE_bool(dcls_en, false, "Enable DCLS i.e. Dual core lockstep mode");
 //core harvesting
 //FIXME: Move these defines to cluster_rv_tester/harvesting_agent.cpp once all rv_tester deps are moved
 DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
@@ -257,6 +259,7 @@ void sysmod::configure()
 }
 
 // Harvesting methods removed - now handled by harvesting module
+
 
 sysmod::~sysmod()
 {

@@ -1,5 +1,6 @@
 module rv_tester
-    import rv_tester_params::*;
+    import rv_tester_params::*,
+           pmu_core_pkg::INSTRUCTIONS;
 #(
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY
@@ -126,6 +127,7 @@ module rv_tester
     import "DPI-C" function bit pwrmgmt_get_pwrmgmt_en_from_plusargs(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
     import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
+    import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
 
     localparam int unsigned MaxInFlightReadReq = topology.TOP.PLATFORM.MAX_IN_FLIGHT_READ_REQ;
     localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
@@ -246,26 +248,33 @@ module rv_tester
     // Extract common termination conditions for better readability
     assign sysmod_cosim_dmi_terminate = (sysmod_terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
     assign core_terminate_conditions = dut_terminate || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
-
-    assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+`ifdef UVM_MACROS_SVH
+    assign terminate           = uvm_done && (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+`else    
+     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+`endif   
     assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || (flush_timeout != 0 && flush_counter >= flush_timeout)) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
-
+    assign cvm_done = terminate_1T;
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
       if (rv_tester_reset & !rerun_now_ff)begin
             clock_mode <= clk_profile[2:0];
+            rv_tester_clock_monitor(clocks, {29'b0, clk_profile[2:0]});
       end
       /* verilator lint_off WIDTH */
       else if(dyn_clk_switch & (clocks >10) &  (freq_switch_ncycles != 0 && (clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
-        if(clock_mode == 3'b110)
+        if(clock_mode == 'b110) begin
             clock_mode <= 'b1;
-        else
+            rv_tester_clock_monitor(clocks, 'b1);
+        end else begin
             clock_mode <= clock_mode + 1'b1;
+            rv_tester_clock_monitor(clocks, {29'b0, clock_mode + 1'b1});
+        end
       end
       /* verilator lint_on WIDTH */
     end
@@ -469,7 +478,7 @@ module rv_tester
             cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
 
         end
-        clock_mode           <= clk_profile[2:0];
+        if (!dyn_clk_switch) clock_mode <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");

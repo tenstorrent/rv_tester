@@ -582,7 +582,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Interrupts
   pre_step_nmi_check(hart, d, w);
-  pre_step_interrupt_poke(hart, d);
+  pre_step_interrupt_process(hart, d);
   lrsc_fail_ = false;
 
   // Handle pre-step condition - LR/SC fail
@@ -633,7 +633,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
   post_step_satp_write_poke(hart, d, w);
-  post_step_csr_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
     cac_.ResetStatus(hart);
@@ -758,8 +757,11 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 
-  uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
-  update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  if (c.csr_addr >= mhpmevent3.address && c.csr_addr <= mhpmevent31.address) process_counter_overflow(hart, c);
+  else {
+    uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
+    update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -1003,8 +1005,10 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     return;
   }
 
-  if (!debug_mode_ && patch_mode_ != IN_PATCH){
+  if (!debug_mode_ && patch_mode_ != IN_PATCH && d.nmi){
     bridge_log(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.ncause);
+    // Undeferring all NMIs
+    defer_nmi(hart, d.cycle, 0);
   }
 
   // Bad stimulus cases, NMI must not be cleared until cleared from Handler.
@@ -1021,13 +1025,9 @@ void bridge::pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_sta
     nmi_undeferred_due_to_xret_intr_csr_ = true;
     return;
   }
-
-  // Undeferring all NMIs
-  defer_nmi(hart, d.cycle, 0);
-
 }
 
-void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
+void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   // Set mip ages for resynch cases
   if (prev_hw_mip_ != hw_mip_)
     hw_mip_age_ = 0;
@@ -1049,10 +1049,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
   uint64_t w_cause = 0;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
 
-  if (!d.intr && !w_intr) {
-    return;
-  }
-
   // If Whisper takes interrupt, then increase age of the interrupt
   if (w_intr) deferred_intr_age_[w_cause]++;
 
@@ -1065,14 +1061,42 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d) {
       if (!intr_during_trap_.test(it->first)) deferred_intr_age_.erase(it++); 
       else it++;
     }
+    return;
   }
+
+  // xRET check, interrupt pending must be taken post xRET
+  // Hence undeferring all interrupts in post-step of xRET
+  // Thus next step takes interrupt in Whisper
+  if (cosim_util::is_xret_opcode(w_.opcode)){
+    // If xRET is seen, then undefer all interrupts except for those that asserted during xRET or
+    // After xRET and before next instruction retires.
+    defer_interrupt(hart, d.cycle, 0 | (tmp_mip_latest_ ^ last_step_mip_).to_ullong());
+    intr_undeferred_due_to_xret_intr_csr_ = true;
+  }
+  // TODO: Add interrupt CSRs check for undeferring interrupts
+  // else if (cosim_util::is_csr_opcode(w_.opcode, csr_addr) && interrupt_csrs_for_check_.find(csr_addr) != interrupt_csrs_for_check_.end()){
+  //   // If CSR opcode is seen, then undefer all interrupts
+  //   defer_interrupt(hart, d.cycle, 0);
+  //   intr_undeferred_due_to_xret_intr_csr_ = true;
+  // }
+
+  if (intr_undeferred_due_to_xret_intr_csr_) {
+    uint64_t w_defer_mip = 0;
+    peek_deferred_interrupts(hart, w_defer_mip);
+    if (w_defer_mip != 0) {
+      for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end(); ) {
+        if (!(w_defer_mip & (1ULL << it->first))) it = deferred_intr_age_.erase(it); 
+        else ++it;
+      }
+    }
+    else deferred_intr_age_.clear();
+  }
+
+  // Update last_step_mip_ for next step
+  last_step_mip_ = tmp_mip_latest_;
 }
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
-
-  if (!d.intr && !w_.intr) {
-    return;
-  }
 
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
     // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
@@ -1083,12 +1107,23 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     return;
   }
 
+  if (intr_undeferred_due_to_xret_intr_csr_) {
+    if (!d.intr && w_.intr) {
+      error("Hart {}: Whisper took Interrupt, DUT did not after xRET or intr CSR write. wcause: [{}]", hart, w_.icause);
+    }
+    intr_undeferred_due_to_xret_intr_csr_ = false;
+    return;
+  }
+
   // DUT cause should match whisper cause
-  if ((d.icause != w_.icause) && !FLAGS_cosim_resynch) {
+  if ((d.intr && w_.intr) && (d.icause != w_.icause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
     return;
   }
+  
+  
+  num_taken_interrupts_[static_cast<intr>(d.icause)]++;
 
 
   // New check for Whisper wants to take interrupt, DUT does not.
@@ -1100,14 +1135,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
         hart, FLAGS_max_pend_intr_age, cause);
       return;
     }
-  }
-
-  if (intr_undeferred_due_to_xret_intr_csr_) {
-    if (!d.intr && w_.intr) {
-      error("Hart {}: Whisper took Interrupt, DUT did not after xRET or intr CSR write. wcause: [{}]", hart, w_.icause);
-    }
-    intr_undeferred_due_to_xret_intr_csr_ = false;
-    return;
   }
 
   // Reset intr_during_trap_ as Whisper step has been completed
@@ -1125,17 +1152,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     intr_cleared_during_trap_.reset();
   }
 
-
-  // xRET check, interrupt pending must be taken post xRET
-  // Hence undeferring all interrupts in post-step of xRET
-  // Thus next step takes interrupt in Whisper
-
-  uint32_t csr_addr = 0;
-  if (cosim_util::is_xret_opcode(w.opcode) || (cosim_util::is_csr_opcode(w.opcode, csr_addr) && interrupt_csrs_for_check_.count(csr_addr))) {
-    defer_interrupt(hart, d.cycle, 0);
-    deferred_intr_age_.clear();
-    intr_undeferred_due_to_xret_intr_csr_ = true;
-  }
 
   // Post step, update previous mip
   tmp_mip_prev_ = tmp_mip_latest_;
@@ -1276,32 +1292,6 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
 bool bridge::is_custom_excp(uint64_t cause) {
   return (cause >= 25 && cause <= 55);
-}
-
-void bridge::post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
-  uint32_t csr_addr;
-  if (FLAGS_hw_ras_interrupt_resynch && cosim_util::is_csr_opcode(w.opcode, csr_addr) && csr_addr == MIP) {
-    uint64_t hw_mip = 0;
-    for (auto& [ir, val] : hw_intr_set_)
-      hw_mip |= (val ? (uint64_t(1) << ir) : 0);
-    if (hw_mip) {
-      bridge_log(cvm::MEDIUM, "Hart: {} <{}> Poking MIP with hw_mip: {:#x}\n", hart, d.cycle, hw_mip);
-      std::bitset<64> mip;
-      peek_mip(hart, d.cycle, mip);
-      if (mip.to_ullong() != (mip.to_ullong() | hw_mip))
-        poke_mip(hart, d.cycle, mip | std::bitset<64>(hw_mip));
-    }
-  }
-  if (!FLAGS_poke_mip_timer && cosim_util::is_csr_opcode(w.opcode, csr_addr) && (csr_addr == STIMECMP || csr_addr == VSTIMECMP)) {
-    peek_mip(hart, d.cycle, tmp_mip_latest_);
-    uint64_t timer_bits = 1<<STI | 1<<VSTI;
-    if (tmp_mip_latest_.to_ullong() & timer_bits) {
-      auto tmp_mip_prev = std::bitset<64>(tmp_mip_latest_.to_ullong() & ~timer_bits);
-      bridge_log(cvm::MEDIUM, "<{}> Hart:{} Reevaluating MIP bits due to CSR read/write to CSR:{:#x}\n", d.cycle, hart, csr_addr);
-      check_mip_change(tmp_mip_prev, tmp_mip_latest_); // it has a side effect of increasing age by 1 for timer bits but thats ok
-      check_and_defer_interrupt(hart, d.cycle, tmp_mip_latest_);
-    }
-  }
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
@@ -2644,20 +2634,19 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
 // ================================================================================================================
   // RVTOOLS-4557: These interrupts when asserted from a HW source cannot be cleared by software write(CSRRW/CSRRC)
   // They will be cleared by MMR writes.
-  // Thus any CSRRW/CSRRC to MIP needs to be poked to whisper with this case
-  // see post_step_csr_poke on the poking to Whisper
-  for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit)}) {
+  // Thus any CSRRW/CSRRC to MIP needs to be poked to whisper
+  std::bitset<64> non_std_intr = 0;
+  for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit), uint64_t(C_HWAI)}) {
     if (i.mip_set[ir] && i.hw)
-      hw_intr_set_[ir] = true;
     if (i.mip_clr[ir]) {
       hw_intr_clear_cycle_[ir] = i.cycle;
-      hw_intr_set_[ir] = false;
     }
     if (i.mip_set[ir] && hw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
-      hw_intr_set_[ir] = true;
-      poke_local_interrupt(hart, i.cycle, std::bitset<64>(1ULL << ir), i.trap_intr);
+      bridge_log(cvm::HIGH, "<{}> MIP[{}] SW cleared in the last cycle, HW asserted in this cycle. Poking to Whisper.\n", i.cycle, ir);
+      non_std_intr |= std::bitset<64>(1ULL << ir);
     }
   }
+  if (non_std_intr.to_ullong() != 0) poke_non_standard_interrupt(hart, i.cycle, non_std_intr, i.trap_intr);
 // ================================================================================================================
 
   // Handling needed only for hw interrupts
@@ -2685,14 +2674,23 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       bridge_log(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
     poke_mip(hart, i.cycle, mip_);
   }
+
+  // Counter overflow i.e LCOFI are handled by poke OF bit of MHPMEVENT3-10 CSRs
+  if (i.mip_set[LCOFI]) {
+    bridge_log(cvm::MEDIUM, "<{}> LCOFI set: mip={}\n", i.cycle, to_string(i));
+  }
+  if (i.mip_clr[LCOFI])
+    bridge_log(cvm::MEDIUM, "<{}> LCOFI cleared: mip={}\n", i.cycle, to_string(i));
+
+
   // Local - use dynamic bus error interrupt bit position instead of hardcoded BUS_ERRI
   uint8_t buserr_bit = i.buserr_bit; // Get dynamic bit position
-  if (i.mip_set[LCOFI] || i.mip_set[buserr_bit] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI] || i.mip_set[C_ENTROPY]) {
+  if (i.mip_set[buserr_bit] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI] || i.mip_set[C_ENTROPY]) {
     bridge_log(cvm::MEDIUM, "<{}> Local interrupt set: mip={} buserr_bit={}\n", i.cycle, to_string(i), buserr_bit);
 
-    std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI | i.mip_set[buserr_bit] << buserr_bit | i.mip_set[C_HWAI] << C_HWAI |
+    std::bitset<64> non_std_mip_bits = i.mip_set[buserr_bit] << buserr_bit | i.mip_set[C_HWAI] << C_HWAI |
       static_cast<uint64_t>(i.mip_set[LO_PRI_RASI]) << LO_PRI_RASI | static_cast<uint64_t>(i.mip_set[HI_PRI_RASI]) << HI_PRI_RASI | static_cast<uint64_t>(i.mip_set[C_ENTROPY]) << C_ENTROPY;
-    poke_local_interrupt(hart, i.cycle, l_mip, i.trap_intr);
+    poke_non_standard_interrupt(hart, i.cycle, non_std_mip_bits, i.trap_intr);
   }
  }
 
@@ -2741,13 +2739,25 @@ void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool tr
   check_and_defer_interrupt(hart, cycle, tmp_mip_latest_, trap_intr);
 }
 
-void bridge::poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip, bool trap_intr) {
+void bridge::process_counter_overflow(hart_id_t hart, csr_t c) {
+  bridge_log(cvm::MEDIUM, "<{}> Counter overflow: {:#x}\n", c.cycle, c.csr_addr);
+  peek_mip(hart, c.cycle, tmp_mip_prev_);
+  uint64_t mhpmeventx;
+  peek_resource(hart, 'c', c.csr_addr, mhpmeventx);
+  mhpmeventx |= (1ULL << 63);
+  poke_resource(hart, c.cycle, 'c', c.csr_addr, mhpmeventx);
+  peek_mip(hart, c.cycle, tmp_mip_latest_);
+  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
+  check_and_defer_interrupt(hart, c.cycle, tmp_mip_latest_);
+}
+
+void bridge::poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr) {
   peek_mip(hart, cycle, mip_);
   tmp_mip_prev_ = mip_;
-  poke_mip(hart, cycle, mip_ | l_mip);
-  tmp_mip_latest_ = mip_ | l_mip;
+  poke_mip(hart, cycle, mip_ | non_std_mip_bits);
+  tmp_mip_latest_ = mip_ | non_std_mip_bits;
   check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  check_and_defer_interrupt(hart, cycle, mip_ | l_mip, trap_intr);
+  check_and_defer_interrupt(hart, cycle, mip_ | non_std_mip_bits, trap_intr);
 }
 
 void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
@@ -3506,15 +3516,11 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_hwerr_fault\": {}}}\n", id_, num_exceptions_ld_hwerr_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_hwerr_fault\": {}}}\n", id_, num_exceptions_late_st_hwerr_fault_);
 
-  for (const auto& [p,ps] : priv_to_string) {
-    for (const auto& [i,is] : intr_to_string) {
-      if (num_taken_interrupts_[p][i] != 0) {
-        std::string ps_lower = std::string(ps);
-        std::string is_lower = std::string(is);
-        std::transform(ps_lower.begin(), ps_lower.end(), ps_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-        std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}_{}\": {}}}\n", id_, is_lower, ps_lower, num_taken_interrupts_[p][i]);
-      }
+  for (const auto& [i,is] : intr_to_string) {
+    if (num_taken_interrupts_[i] != 0) {
+      std::string is_lower = std::string(is);
+      std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}\": {}}}\n", id_, is_lower, num_taken_interrupts_[i]);
     }
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
