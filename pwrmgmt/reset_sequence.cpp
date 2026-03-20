@@ -376,10 +376,10 @@ cvm::messenger::task<void> reset_sequence::program_tjshutdown_in_cpl_sram() {
 };
 
 cvm::messenger::task<void> reset_sequence::send_start_of_execution_to_cpl() {
-  auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
-  data = data | (1 << rst_ctl_nofetch_clustercorego_idx);
-  data = data & (~(1 << rst_ctl_nofetch_cfg_done_idx));
-  co_await write(rst_ctl_nofetch, SZ_4B, data, boot_interface);
+  auto data = co_await read(rst_ctl_cplsmchandshake, SZ_4B, boot_interface);
+  data = data | (1 << rst_ctl_cplsmchandshake_clustercorego_idx);
+  data = data & (~(1 << rst_ctl_cplsmchasdhake_cfg_done_idx));
+  co_await write(rst_ctl_cplsmchandshake, SZ_4B, data, boot_interface);
   co_return;
 }
 
@@ -390,8 +390,8 @@ cvm::messenger::task<void> reset_sequence::check_system_config_done() {
     for (int i=0; i<10; ++i)
       co_await tick();
 
-    auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
-    if (data & (1 << rst_ctl_nofetch_cfg_done_idx))
+    auto data = co_await read(rst_ctl_cplsmchandshake, SZ_4B, boot_interface);
+    if (data & (1 << rst_ctl_cplsmchasdhake_cfg_done_idx))
       break;
 
     count++;
