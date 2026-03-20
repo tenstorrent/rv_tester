@@ -567,10 +567,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   check_debug_mode_entry_via_ebreak(d);
 
   // Handle pre-step condition - Debug
+  // When +debugrom=true, Whisper is loaded with the real debug ROM; skip poking retire PC
+  // so ISS memory matches the ELF (e.g. dret) instead of the DUT's last uop encoding.
   if (debug_mode_) {
-    if (FLAGS_emulate_debug_mode) {
+    if (FLAGS_emulate_debug_mode && !FLAGS_debugrom) {
       pre_step_debug_poke(hart, d);
-    } else {
+    } else if (!FLAGS_emulate_debug_mode) {
       return;
     }
   }
