@@ -57,6 +57,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
+    void process(const rv_tester_transactions::cosim::m_mhpm_counter_ovf<>& m_mhpm_counter_ovf);
 
     void process(const rv_tester::terminate_called&);
     void process(const rv_tester::terminate_called_mem_checks&);

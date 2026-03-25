@@ -54,6 +54,7 @@ public:
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
+  virtual void process_counter_overflow(csr_t& c) override;
   virtual void process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_fp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::bitset<256>, 32>& array);
@@ -189,7 +190,6 @@ private:
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
   void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr);
-  void process_counter_overflow(hart_id_t hart, csr_t csr);
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
@@ -407,7 +407,7 @@ private:
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
-  std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
+  std::unordered_map<uint64_t, uint64_t> sw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
