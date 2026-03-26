@@ -695,14 +695,14 @@ module rv_tester
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;
     logic ndmreset_ack_clocks_latched = 1'b0;
-    logic warm_reset_latched;
+    logic dut_reset_axi_latched = 1'b0;
     logic warm_reset_deasserted = 1'b0;
 
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
-        warm_reset_latched <= warm_reset;  // Track previous state of warm_reset
+        dut_reset_axi_latched <= dut_reset[AXI_CLK_IDX];
         if(cold_reset === 1'b0)begin
-        if ((warm_reset_latched == 1'b1) && (warm_reset == 1'b0))  begin
+        if (ndmreset_ack_clocks_latched && dut_reset_axi_latched && !dut_reset[AXI_CLK_IDX])  begin
             warm_reset_deasserted <= 1'b1;
         end
         if (!dut_reset_req && warm_reset_deasserted)  begin
