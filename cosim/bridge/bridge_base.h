@@ -26,4 +26,6 @@ public:
   virtual void process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool trap_intr) = 0;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t &m) = 0;
   virtual void process_debug_haltreq(bool haltreq) = 0;
+  /// Align bridge/Whisper debug state with DUT (RVFI m_debug.enter); controlled by +sync_debug_mode_from_dut (default on).
+  virtual void sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_in_debug) = 0;
 };

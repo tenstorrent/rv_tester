@@ -18,6 +18,7 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
 #include "csr_param.hpp"
+#include "cosim/bridge/bridge_plusargs.h"
 using namespace CSR;
 
 #include <cstring>          // strlen
@@ -71,6 +72,9 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
+DEFINE_bool(sync_debug_mode_from_dut, true,
+            "Keep bridge debug_mode_ and Whisper in sync with DUT debug_mode (from RVFI m_debug.enter). "
+            "Disable with +sync_debug_mode_from_dut=false if a legacy scenario requires the old behavior.");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
@@ -2979,6 +2983,34 @@ void bridge::peek_seip(hart_id_t hart, uint64_t time, bool& seip) {
 
 void bridge::process_debug_haltreq(bool haltreq) {
   debug_haltreq_asserted = haltreq;
+}
+
+void bridge::sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_in_debug) {
+  if (!FLAGS_sync_debug_mode_from_dut)
+    return;
+  if (dut_in_debug == debug_mode_)
+    return;
+  bridge_log(cvm::HIGH, "<{}> sync_debug_mode_from_dut: bridge={} dut={} -> {}\n", cycle, debug_mode_, dut_in_debug,
+             dut_in_debug ? "enter" : "exit");
+  if (dut_in_debug) {
+    if (!debug_mode_) {
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperEnterDebugRPC>(
+              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+        error("Hart {}: Whisper enter debug failed (sync_debug_mode_from_dut)\n", hart);
+        return;
+      }
+    }
+    debug_mode_ = true;
+  } else {
+    if (debug_mode_) {
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(
+              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+        error("Hart {}: Whisper exit debug failed (sync_debug_mode_from_dut)\n", hart);
+        return;
+      }
+    }
+    debug_mode_ = false;
+  }
 }
 
 // Debug Mode
