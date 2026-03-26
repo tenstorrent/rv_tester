@@ -663,9 +663,6 @@ package rv_tester_params;
     logic                                    pll_shutdown_done;                                     \
     logic [1:0]                              cpl_xtriggers;                                         \
     logic                                    terminate;                                             \
-    `ifdef UVM_MACROS_SVH                                                                           \
-    logic                                    uvm_done;                                              \
-    `endif                                                                                          \
     logic                                    cvm_done;                                              \
     logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
