@@ -661,8 +661,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   if (patch_mode_ == ENTER_PATCH)
     patch_mode_ = IN_PATCH;
 
-  if (patch_mode_ == EXIT_PATCH)
+  if (patch_mode_ == EXIT_PATCH) {
+    defer_interrupt(hart, d.cycle, 0);
+    defer_nmi(hart, d.cycle, 0);
     patch_mode_ = NO_PATCH;
+  }
 
 }
 
@@ -3027,6 +3030,8 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
 void bridge::exit_debug_mode(rv_debug_t& d) {
   bridge_log(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
+  defer_interrupt(d.hart, d.cycle, 0);
+  defer_nmi(d.hart, d.cycle, 0);
   debug_mode_ = false;
 }
 
