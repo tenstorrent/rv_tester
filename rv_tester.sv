@@ -180,6 +180,11 @@ module rv_tester
     logic trace_quiesced;
 
     logic terminate_1T = '0;
+    localparam int unsigned CVM_DONE_DELAY_CYCLES = 500;
+    localparam int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500;
+    logic [CVM_DONE_DELAY_CYCLES-1:0] cvm_done_terminate_delay_sr;
+    logic [CVM_DONE_DRAINED_DELAY_CYCLES-1:0] cvm_done_drained_delay_sr;
+    logic cvm_done_drained;
     logic terminated_1T = '0;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
@@ -253,11 +258,15 @@ module rv_tester
 `else    
      assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
 `endif   
-    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || (flush_timeout != 0 && flush_counter >= flush_timeout)) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
+    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (flush_complete || (flush_timeout != 0 && flush_counter >= flush_timeout)) && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
-    assign cvm_done = terminate_1T;
+    // Assert `cvm_done` CVM_DONE_DELAY_CYCLES TB clk cycles after `terminate_1T` (uvm/CVM handshake).
+    assign cvm_done = cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1];
+    // Assert `cvm_done_drained` CVM_DONE_DRAINED_DELAY_CYCLES TB clk cycles after `cvm_done`.
+    assign cvm_done_drained = cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-1];
+
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
       if (rv_tester_reset & !rerun_now_ff)begin
@@ -563,6 +572,25 @@ module rv_tester
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
         terminated_1T <= terminated;
 
+    end
+
+    always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (rv_tester_reset) begin
+            cvm_done_terminate_delay_sr <= '0;
+            cvm_done_drained_delay_sr <= '0;
+        end else begin
+            if (terminate_1T === 'b1) begin
+                cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], terminate_1T};
+            end else begin
+                cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], '0};
+            end
+            if(cvm_done === 'b1) begin
+                cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0],
+                    cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1]};
+            end else begin
+                cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0], '0};
+            end
+        end
     end
 
     // sys_reset per clock domain
