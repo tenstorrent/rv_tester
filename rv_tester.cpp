@@ -312,8 +312,8 @@ extern "C" {
         cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
     }
 
-    void rv_tester_streaming_dpi_init() {
-        cvm::log(cvm::HIGH, "Streaming DPI init\n");
+    void rv_tester_streaming_dpi_init_domain_1() {
+        cvm::log(cvm::MEDIUM, "Streaming DPI init\n");
         char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
         if ((env_var != nullptr && std::string(env_var) == "1")) {
             cvm::log(cvm::NONE, "[streaming_dpi] initializing offline dpi\n");

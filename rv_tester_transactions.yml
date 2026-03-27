@@ -1993,6 +1993,10 @@ triggers:
                 width: 32
 
 __domains:
+
+    1: 
+        dpi_init: "rv_tester_streaming_dpi_init"
+
     2:
         always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
         priority: highest_priority
