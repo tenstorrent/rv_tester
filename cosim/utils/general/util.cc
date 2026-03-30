@@ -140,3 +140,10 @@ bool cosim_util::is_csr_opcode(const uint32_t& opcode, uint32_t&csr_addr) {
   csr_addr = (opcode >> 20) & 0xfff;
   return true;
 }
+
+bool cosim_util::is_xret_opcode(const uint32_t& opcode) {
+  return ((opcode == 0x30200073) ||   // mret
+          (opcode == 0x10200073) ||   // sret
+          (opcode == 0x10200073) ||   // vsret
+          (opcode == 0x70200073));    // mnret
+}

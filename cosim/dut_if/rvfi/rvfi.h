@@ -12,6 +12,8 @@
 #include "bridge_if.h"
 #include "cosim/bridge/bridge.h"
 #include "cosim/utils/eot/eot.h"
+#include "cosim/dut_if/mcmi/mcmi.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 #include "rv_tester/rv_tester_structs.h"
 #include "cosim/utils/eot/eot_plusargs.h"
@@ -32,7 +34,6 @@ class rvfi {
   }
 
   public:
-
     rvfi(cvm::topology::loc_t loc, unsigned id);
     ~rvfi();
     void check();
@@ -51,35 +52,18 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs);
     void process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi);
     void process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_interrupt_pend);
+    void process(const rv_tester_transactions::cosim::m_mtip<>& m_mtip);
     void process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
-
-    // FIXME Move out to a different file?
-    void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
-    void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
-    void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
-    void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
-    void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
-    void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
-    void process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict);
-    void process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush);
-    void process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback);
-    void process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch);
 
     void process(const rv_tester::terminate_called&);
     void process(const rv_tester::terminate_called_mem_checks&);
     void process(const bridge::error_loc &);
 
     void process_ncio_fetches(const rv_instr_t& instr);
-    void process_amo(mem_t& read);
     bool sc_failed(mem_t& write);
-    void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
-
-    template <typename T>
-    void amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
     void print_csr(csr_t& csr);
@@ -104,7 +88,8 @@ class rvfi {
     cvm::topology::loc_t loc_;
     unsigned id_;
 
-    std::unique_ptr<bridge> bridge_;
+    std::shared_ptr<bridge> bridge_;
+    std::unique_ptr<mcmi> mcmi_;
     std::unique_ptr<eot> eot_;
 
     rv_instr_t prev_instr_;
@@ -117,9 +102,9 @@ class rvfi {
     uint64_t prev_branch_tag_ = 0;
 
     bool     vec_cmode_ = false;
-    uint64_t vec_cmode_pc_addr_ = 0;
     uint64_t vec_cmode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
+    uint64_t vec_cmode_pc_addr_ = 0;
 
     // RVDE-24355: Track memory errors during vector conservative mode
     std::unordered_map<uint64_t, bool> vec_cmode_mem_errors_;
@@ -127,7 +112,6 @@ class rvfi {
     bool patch_mode_ = false;
     uint64_t patch_mode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
-
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
     std::vector<mem_t> active_ncio_fetches_;

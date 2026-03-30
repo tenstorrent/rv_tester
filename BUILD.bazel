@@ -3,6 +3,12 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@bzsim//:verilog_unit.bzl", "verilog_unit")
 load("@bzsim//:sim.bzl", "sim_test_suite")
 
+config_setting(
+    name = "use_bzlmod",
+    define_values = {"use_bzlmod": "1"},
+    visibility = ["//visibility:public"],
+)
+
 verilog_library(
     name = "dpic_pkg",
     srcs = ["dpic_pkg.sv"],
@@ -105,6 +111,14 @@ verilog_library(
 )
 
 verilog_library(
+    name = "rv_tester_keeper",
+    srcs = [
+        "@rv_tester//:rv_tester_keeper.sv",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
     name = "rv_tester_lib",
     srcs = ["rv_tester_lib.sv"],
     visibility = ["//visibility:public"],
@@ -120,4 +134,4 @@ verilog_library(
     visibility = ["//visibility:public"],
 )
 
-exports_files(["rv_tester.cpp", "rv_tester_assert_handler.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "dmi_driver.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_mem.sv", "rv_tester_delay_resp.sv", "rv_tester_transactions.yml", "rv_tester_axi_typedef.svh", "rv_tester_axi_assign.svh", "rv_tester_stall_checker.sv", "rv_tester_plusargs.cpp", "rv_tester_plusargs.h", "rv_tester_structs.h", "rv_tester_lib.sv", "rv_tester_tick_generator.sv"])
+exports_files(["rv_tester.cpp", "rv_tester_assert_handler.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "dmi_driver.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_mem.sv", "rv_tester_delay_resp.sv", "rv_tester_transactions.yml", "rv_tester_axi_typedef.svh", "rv_tester_axi_assign.svh", "rv_tester_stall_checker.sv", "rv_tester_plusargs.cpp", "rv_tester_plusargs.h", "rv_tester_structs.h", "rv_tester_lib.sv", "rv_tester_tick_generator.sv", "rv_tester_keeper.sv" ])

@@ -5,6 +5,12 @@
 DECLARE_uint64(resetpc);
 DECLARE_uint64(resetpcfw);
 DECLARE_uint64(max_stall_cycle);
+DECLARE_uint64(max_stall_cycle_base);
+DECLARE_uint64(max_stall_cycle_per_core_increment);
+DECLARE_uint64(max_cycle_base);
+DECLARE_uint64(max_cycle_per_core_increment);
+DECLARE_uint64(max_instr_base);
+DECLARE_uint64(max_instr_per_core_increment);
 DECLARE_bool(bypass_cache);
 DECLARE_bool(bypass_mem);
 DECLARE_bool(timeout_scale_en);
@@ -27,3 +33,4 @@ DECLARE_uint64(pa_mask);
 // FIXME Temporary solution; need to revisit
 DECLARE_bool(vip);
 DECLARE_bool(vip_axi_dpi);
+DECLARE_bool(warm_reset_directed_en);

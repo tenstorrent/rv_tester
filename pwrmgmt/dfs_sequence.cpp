@@ -2,6 +2,10 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "fmt/ranges.h"
+#include "pwrmgmt.hpp"
+
+// DPI import to control clock mode from SystemVerilog
+// extern "C" void rv_tester_set_clock_mode(unsigned int new_clock_mode); // TODO: Fix DPI export visibility issue
 
 // DPI import to control clock mode from SystemVerilog
 // extern "C" void rv_tester_set_clock_mode(unsigned int new_clock_mode); // TODO: Fix DPI export visibility issue
@@ -12,15 +16,21 @@ DEFINE_bool(dfs_rand_en, false, "Enable random dfs injection in the sim");
 DEFINE_string(dfs_count, "200:250", "Number of dfs sequences in the sim");
 DEFINE_string(dfs_interval, "5000:10000", "soc cycle interval between dfs sequences in the sim");
 DEFINE_string(dfs_range_mhz, "1000:2700", "Range of core clock frequency supported");
-DEFINE_string(dfs_width, "1:1", "soc cycle width of dfs sequences in the sim");
+DEFINE_string(dfs_width, "20:20", "soc cycle width of dfs sequences in the sim");
 
 
 dfs_sequence::dfs_sequence
   (cvm::topology::loc_t loc, unsigned) : 
-  loc_(loc), dfs_read_count_(0), dfs_write_count_(0) {
+  loc_(loc), 
+  dfs_read_count_(0), 
+  dfs_write_count_(0) {
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  
+  // Channels - create dedicated channels for read/write responses to avoid cross-consumption
+  r_channel_ = cvm::registry::messenger.channel<axi::r_t>(smc_axi_loc_);
+  b_channel_ = cvm::registry::messenger.channel<axi::b_t>(smc_axi_loc_);
   
   // main sequence thread
   if (FLAGS_dfs_rand_en)
@@ -45,7 +55,6 @@ void dfs_sequence::main_thread() {
 
 cvm::messenger::task<void> dfs_sequence::main() {
   co_await tick();
-  FLAGS_pll_dfs_timeout = 5;
   while (true) {
     co_await dfs_write();
     co_await tick();
@@ -55,15 +64,19 @@ cvm::messenger::task<void> dfs_sequence::main() {
 
 cvm::messenger::task<void> dfs_sequence::dfs_write() {
   cvm::log(cvm::HIGH, "Initialing DFS ");
-  pll_status_reg_s reg_status;
-  pll_control_reg_s reg_control;
-  pll_interrupts_reg_s reg_interrupts;
-  uint64_t pll_parameter_reg = 0;
-  auto data = co_await read(pll_status, SZ_4B);
-  reg_status.unpack(static_cast<uint32_t>(data));
+  
+  // Check PLL status using direct bit manipulation
+  auto pll_status_data = co_await read(pll_status, SZ_4B);
+  uint32_t status_reg = static_cast<uint32_t>(pll_status_data);
+  
   // Check if PLLs are both active and locked for DFS operation
-  bool pll0_usable = reg_status.pll0_active && reg_status.pll0_locked;
-  bool pll1_usable = reg_status.pll1_active && reg_status.pll1_locked;
+  bool pll0_active = (status_reg >> PLL0_ACTIVE_BIT) & 1;
+  bool pll0_locked = (status_reg >> PLL0_LOCKED_BIT) & 1;
+  bool pll1_active = (status_reg >> PLL1_ACTIVE_BIT) & 1;
+  bool pll1_locked = (status_reg >> PLL1_LOCKED_BIT) & 1;
+  
+  bool pll0_usable = pll0_active && pll0_locked;
+  bool pll1_usable = pll1_active && pll1_locked;
 
   if (pll0_usable) {
     cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL0 is active and locked\n");
@@ -71,8 +84,8 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
     cvm::log(cvm::MEDIUM, "[dfs_sequence] PLL1 is active and locked\n");
   } else {
     cvm::log(cvm::ERROR, "[dfs_sequence] Error: No PLLs are active and locked (PLL0: active=%d locked=%d, PLL1: active=%d locked=%d)\n", 
-             static_cast<int>(reg_status.pll0_active), static_cast<int>(reg_status.pll0_locked), 
-             static_cast<int>(reg_status.pll1_active), static_cast<int>(reg_status.pll1_locked));
+             static_cast<int>(pll0_active), static_cast<int>(pll0_locked), 
+             static_cast<int>(pll1_active), static_cast<int>(pll1_locked));
     co_return; // Early return to prevent DFS operation when no usable PLLs
   }
 
@@ -85,28 +98,59 @@ cvm::messenger::task<void> dfs_sequence::dfs_write() {
   // Set the clock mode in SystemVerilog to match the selected profile
   // rv_tester_set_clock_mode(clock_profile); // TODO: Fix DPI export visibility issue
   
-  uint32_t freq_ratio = 2400 / pll_dfs_freq;
-  co_await write(pll_parameter_reg, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx));
+  // Calculate PLL parameters using common utility function
+  auto params = pll_utils::calculate_pll_params(pll_dfs_freq, ref_clk_freq);
+  
+#ifdef MOVELLUS_PLL_MODEL
+  cvm::log(cvm::MEDIUM, "[dfs_sequence] Using Movellus PLL: fcw_int={}, postdiv={} for {} MHz\n", 
+           params.fcw_int, params.postdiv, pll_dfs_freq);
+  
+  // Configure PLL Parameters1 register (fcw_int)
+  auto rdata1 = co_await read(pll_parameters1, SZ_4B);
+  auto new_params1 = pll_utils::configure_pll_parameters1(static_cast<uint32_t>(rdata1), params);
+  co_await write(pll_parameters1, SZ_4B, new_params1);
+  
+  // Configure PLL Parameters0 register (postdiv)
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0);
+  
+#else
+  // Generic PLL model
+  cvm::log(cvm::MEDIUM, "[dfs_sequence] Using Generic PLL: freq_ratio={} for {} MHz\n", 
+           params.freq_ratio, pll_dfs_freq);
+  
+  auto rdata0 = co_await read(pll_parameters0, SZ_4B);
+  auto new_params0 = pll_utils::configure_pll_parameters0(static_cast<uint32_t>(rdata0), params);
+  co_await write(pll_parameters0, SZ_4B, new_params0);
+#endif
 
-  // Set up control register for DFS request
-  reg_control.pll_dfs_req = 1;
+  // Set up control register for DFS request using direct bit manipulation
+  uint32_t control_reg = 0;
+  control_reg |= (1 << PLL_DFS_REQ_BIT);  // Set DFS request bit
+  // dis_inactive_pll_shutdown is 0 by default (bit not set)
+  co_await write(pll_control, SZ_4B, static_cast<uint64_t>(control_reg));
 
-  reg_control.dis_inactive_pll_shutdown = 0;
-  co_await write(pll_control, SZ_4B, static_cast<uint64_t>(reg_control.pack()));
-
-  uint32_t count = 0;
-  while (true) {
+  for (uint32_t i=0; i<FLAGS_pll_dfs_timeout; i++) {
     co_await tick();
-    auto data = co_await read(pll_interrupts, SZ_4B);
-    reg_interrupts.unpack(static_cast<uint32_t>(data));
-    if (reg_interrupts.dfs_done)
-      break;
-
-    count++;
-    if (count > FLAGS_pll_dfs_timeout)
-      cvm::log(cvm::ERROR, "Error: PLL dfs not done after {} soc clocks\n", FLAGS_pll_dfs_timeout);
+  }  
+  
+  // Check DFS completion using direct bit manipulation
+  auto interrupt_data = co_await read(pll_interrupts, SZ_4B);
+  uint32_t interrupt_reg = static_cast<uint32_t>(interrupt_data);
+  bool dfs_done = (interrupt_reg >> DFS_DONE_BIT) & 1;
+  
+  if (!dfs_done) {
+    cvm::log(cvm::ERROR, "Error: PLL dfs not done after {} soc clocks\n", FLAGS_pll_dfs_timeout);
+  } else {
+    cvm::log(cvm::MEDIUM, "[dfs_sequence] Core frequency change successful. DFS complete\n");
+    
+    // Clear pll_dfs_req bit after successful DFS completion
+    uint32_t clear_control_reg = control_reg & ~(1 << PLL_DFS_REQ_BIT);
+    // pll_dfs_req bit is already 0 in clear_control_reg, so just write it
+    co_await write(pll_control, SZ_4B, static_cast<uint64_t>(clear_control_reg));
+    cvm::log(cvm::MEDIUM, "[dfs_sequence] Cleared pll_dfs_req bit after DFS completion\n");
   }
-  cvm::log(cvm::MEDIUM, "[dfs_sequence] Core frequency change successful. DFS complete\n");
   co_return;
 }
 
@@ -117,20 +161,36 @@ cvm::messenger::task<void> dfs_sequence::tick() {
 
 cvm::messenger::task<uint64_t> dfs_sequence::read(uint64_t addr, size_t sz, block_t block /* = BLOCK */) {
   assert(sz <= 8);
-  cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::read_request_t{addr, sz});
+  
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::r_t>(r_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t ar_txn;
+  ar_txn.w    = false;
+  ar_txn.addr = addr;
+  ar_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(smc_axi_loc_, ar_txn, id)) {
+    cvm::log(cvm::ERROR, "[smc] read req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return 0;
+  }
+  
   dfs_read_count_++;
+  cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
 
   if (!block)
     co_return 0;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(smc_axi_loc_);
-  auto data = convert_to_dword_array(resp.data);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel_, [&id](const auto& r) { return r.id == id; });
+  auto data1 = convert_to_dword_array(resp.data);
   // FIXME - check why this alignment is needed
-  uint64_t dword = (addr % 8) ? (data[0] >> 32) : data[0];
+  uint64_t dword = (addr % 8) ? (data1[0] >> 32) : data1[0];
   uint64_t mask = (sz == 8) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
   dword &= mask;
-  cvm::log(cvm::MEDIUM, "[smc] read resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data[0], dword, mask);
+  cvm::log(cvm::MEDIUM, "[smc] read resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data1[0], dword, mask);
   co_return dword;
 }
 
@@ -144,14 +204,33 @@ cvm::messenger::task<void> dfs_sequence::write(uint64_t addr, size_t sz, uint64_
   std::vector<bool> strb(8, false);
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
-  cvm::log(cvm::MEDIUM, "[smc] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, sz, byte_array, strb});
+  
+  // Clear channel to remove any stale responses
+  cvm::registry::messenger.clear_channel<axi::b_t>(b_channel_);
+  
+  // Use RPC to allocate transaction ID
+  axi::a_no_id_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.addr = addr;
+  aw_txn.size = log2(sz);
+  
+  unsigned id;
+  if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(smc_axi_loc_, aw_txn, id)) {
+    cvm::log(cvm::ERROR, "[smc] write req - addr={:#x}, sz={} failed to allocate axi ID\n", addr, sz);
+    co_return;
+  }
+  
+  // Send write data
+  cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(smc_axi_loc_, axi::w_t{byte_array, strb, 1});
+  
   dfs_write_count_++;
+  cvm::log(cvm::MEDIUM, "[smc] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
 
   if (!block)
     co_return;
 
-  auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
+  // Wait for response on dedicated channel with ID filtering
+  auto resp = co_await cvm::registry::messenger.wait<axi::b_t>(b_channel_, [&id](const auto& b) { return b.id == id; });
   cvm::log(cvm::MEDIUM, "[smc] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
   co_return;
 }

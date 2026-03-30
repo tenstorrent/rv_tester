@@ -139,13 +139,13 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
         ended_ = true;
         if (FLAGS_eot == "max_instr") {
            cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-           cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, FLAGS_max_instr);
+           cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, hartid, FLAGS_max_instr);
            cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
            eot_terminate(true);
            return;
         } else {
            cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-           cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", cycle, FLAGS_max_instr);
+           cvm::log(cvm::ERROR, "<{}> Error: Hart:<{}> max_instr limit reached: {}\n", cycle, hartid, FLAGS_max_instr);
            cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n",cycle);
            eot_terminate(true);
            return;

@@ -24,12 +24,6 @@ namespace {
     constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
     constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
-    constexpr uint64_t boot_num_harts_offset = 0x9000;
-    constexpr uint64_t boot_sp_init_offset = 0x9008;
-    constexpr uint64_t boot_sp_ways_offset = 0x9010;
-    constexpr uint64_t boot_hart_sync_en_offset = 0x9018;
-    constexpr uint64_t boot_matp_swid_offset = 0x9020;
-    constexpr uint64_t boot_sc_enabled_ways_offset = 0x9028;
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
@@ -128,7 +122,7 @@ namespace {
       CSR(VLENB,            0xC22, "vlenb")                                    \
       CSR(MTINST,           0x34A, "mtinst")                                   \
       CSR(MTVAL2,           0x34B, "mtval2")                                   \
-      CSR(MENVCFG,          0x30A, "menvcfg")                                  \
+      CSR(MENVCFG,          0x30A, "menvcfg"      , true)                      \
       CSR(MENVCFGH,         0x31A, "menvcfgh")                                 \
       CSR(MSECCFG,          0x747, "mseccfg")                                  \
       CSR(MSECCFGH,         0x757, "mseccfgh")                                 \
@@ -387,6 +381,7 @@ namespace {
       CSR(SISELECT,         0x150, "siselect")                                 \
       CSR(SIREG,            0x151, "sireg")                                    \
       CSR(VSIREG,           0x251, "vsireg")                                   \
+      CSR(VSISELECT,        0x250, "vsiselect")                                \
       CSR(MIREG,            0x351, "mireg")                                    \
       CSR(STOPEI,           0x15c, "stopei", true)                             \
       CSR(VSTOPEI,          0x25c, "vstopei"       ,true)                      \
@@ -948,6 +943,7 @@ namespace {
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
         CUSTOM_SINGLE_STEP      = 31,
+        CUSTOM_VLZERO_EXCP      = 39,
         CUSTOM_VEC_CMODE        = 55
     } excp;
 

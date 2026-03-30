@@ -253,4 +253,5 @@ class axi : public transactor {
         cvm::messenger::task<void> w (w_t &&);
         std::pair<bool, r_t> r(bool block = false);
         std::pair<bool, b_t> b();
+        void reset();
 };

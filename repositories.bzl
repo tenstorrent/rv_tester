@@ -2,26 +2,19 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
-def rv_tester_repositories():
+def rv_tester_repositories(bzlmod = False):
 
-    maybe(
-        http_archive,
-        name = "bazel_skylib",
-        urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-        ],
-        #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
-    )
+    if not bzlmod:
+        maybe(
+            http_archive,
+            name = "bazel_skylib",
+            urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            ],
+            #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
+        )
 
-    corearchcoverage_hash="ec543e04e3268108ae8e4d0c7c060d00408593a7"
-    maybe(
-        git_repository,
-        name = "corearchcoverage",
-        commit = corearchcoverage_hash,
-        #recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
-    )
 
     if not bzlmod:
         cvm_hash="6095a11fdb15bda022e9fb08ea7998f40f1540f5"
@@ -41,32 +34,34 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="1d1d4283f773c3fdcca46575db975fc9bfa92458"
-    maybe(
-        git_repository,
-        name = "whisper",
-        commit = whisper_hash,
-        shallow_since = "1656867071 -0400",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
-    )
+    if not bzlmod:
+        whisper_hash="c349731df9bab5281d74ce862aebfcd72cd85f9e"
+        maybe(
+            git_repository,
+            name = "whisper",
+            commit = whisper_hash,
+            shallow_since = "1656867071 -0400",
+            remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
+        )
 
-    CoreArchChecker_hash="7e9c0c182cd3f192d634c84f469269ae51516f5b"
+    CoreArchChecker_hash="788acd6944e086e47b8c095f1bcb256108d7904e"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "2c182d5538e710a341a8a9361f6b6fbf6f51cb2692528a3dde4622f71c5b7c61",
+        sha256 = "5f26d85430d0671ed79609675d6cb151bed68206dfe59ceb601bc4bf47236c40",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=CoreArchChecker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
 
-    rules_python_version = "0.11.0"
-    maybe(
-        http_archive,
-        name = "rules_python",
-        sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
-        strip_prefix = "rules_python-{}".format(rules_python_version),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
-    )
+    if not bzlmod:
+        rules_python_version = "0.11.0"
+        maybe(
+            http_archive,
+            name = "rules_python",
+            sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
+            strip_prefix = "rules_python-{}".format(rules_python_version),
+            url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
+        )
 
     mem_manager_hash="585efffd1a79f43388339c193cdae420f32acad4"
     maybe(
@@ -85,7 +80,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="5a5a2da7982ad208dfc64639bfc90f6f454946f7"
+    checkin_script_hash="f7faebb7a6255be562d1990be219217337a1142a"
     maybe(
         git_repository,
         name = "checkin-script",

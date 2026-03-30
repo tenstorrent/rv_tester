@@ -11,7 +11,9 @@ import rv_tester_params::*;
   input logic reset,
   input logic boot_done,
   input logic [63:0] clocks,
+  /* verilator lint_off BLKANDNBLK */
   output logic nmi,
+  /* verilator lint_on BLKANDNBLK */
   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
 );
 
@@ -20,9 +22,7 @@ import rv_tester_params::*;
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.INTERRUPTS.ID, NUM);
   always @(posedge clk) begin
     if (sys_reset) begin
-      /* verilator lint_off BLKANDNBLK */
       nmi <= '0;
-      /* verilator lint_on BLKANDNBLK */
       if (location != cvm_topology::nil) begin
         interrupts_set_scope(location);
       end

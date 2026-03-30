@@ -7,6 +7,7 @@
 #include "rv_tester_transactions.hpp"
 #include "pwrmgmt.hpp"
 #include "transactor.h"
+#include "axi_sw_mst.h"
 #include "svdpi.h"
 
 // DECLARE_uint32(num_harts);
@@ -25,6 +26,14 @@ class thub_sequence {
 
     thub_sequence(cvm::topology::loc_t loc, unsigned id);
     ~thub_sequence();
+
+    using smc_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<1>,
+        rv_tester_transactions::axi_sw_mst::r<1>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<1>
+    >;
 
   private:
 
@@ -53,6 +62,7 @@ class thub_sequence {
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
     void blocking_seq_tick(uint8_t val);
+    cvm::messenger::pool<axi::r_t>::channel_info channel;
 
   private:
 

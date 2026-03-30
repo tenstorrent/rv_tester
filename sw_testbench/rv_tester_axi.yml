@@ -32,6 +32,15 @@ rv_tester_smc_axi_mst_attrs: &rv_tester_smc_axi_mst_attrs
   ID_WIDTH: 15
   USER_WIDTH: 4
 
+rv_tester_iommu_axi_tr_req_mst_count: &rv_tester_iommu_axi_tr_req_mst_count 1
+
+rv_tester_iommu_axi_tr_req_mst_attrs: &rv_tester_iommu_axi_tr_req_mst_attrs
+  ADDR_WIDTH: 56
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH: 10
+  USER_WIDTH: 1
+
 rv_tester_dm_axi_count: &rv_tester_dm_axi_count 1
 
 rv_tester_dm_axi_attrs: &rv_tester_dm_axi_attrs
