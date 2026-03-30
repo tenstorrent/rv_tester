@@ -1,3 +1,0 @@
-exports_files(["jtag_driver.sv", "jtag_driver.cpp", "jtag_driver.hpp", "jtag_sequence.cpp", "jtag_sequence.hpp"])
-
-

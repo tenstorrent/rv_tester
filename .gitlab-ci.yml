@@ -45,6 +45,16 @@ notify_riscv_cluster:
         UPDATE_DIRECTORY: rv-common
         UPDATE_TARGET_BRANCH: ascalon/work/core
 
+notify_riscv_cluster_bbl:
+    stage: notify
+    extends:
+        - .notify-template
+    trigger:
+        project: riscv/riscv_cluster
+        branch: babylon/work/core
+    variables:
+        UPDATE_DIRECTORY: rv-common
+        UPDATE_TARGET_BRANCH: babylon/work/core
 
 asan+ubsan:
     extends:

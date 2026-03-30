@@ -17,6 +17,7 @@ DEFINE_bool(enable_cross, false, "Are cross features are enabled");
 DEFINE_bool(dbg_rand_core, false, "To randomize the core-id to which the core the DM snippet is targetted to");
 DEFINE_int32(dbg_rand_core_idx, 0, "Random Core idx to which the DM commands are targetted");
 DEFINE_bool(dry_space_access, false, "Dry space access guarding");
+DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
@@ -93,6 +94,9 @@ void debugger::get_all_csv_templates()
             {
               if (FLAGS_enable_cross && (filename.size() > 14) && filename.substr(filename.size() - 14) == "scratchpad.csv") {
                 cvm::log(cvm::NONE, "[Debugger]:Skipping Scratchpad file in cross:{}\n", filename); 
+              }
+              else if (FLAGS_time_mtime_sync_enable && filename.size() > 13 && filename.substr(filename.size() - 13) == "stopcount.csv") {
+                cvm::log(cvm::NONE, "[Debugger]:Skipping Stopcount file in time_mtime_sync:{}\n", filename); 
               }
               else {
                 csvFilePaths.push_back(entry.path().string());

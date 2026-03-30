@@ -134,7 +134,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.qos  =0;
   aw_txn.region  =0;
   aw_txn.atop  =0;
-  aw_txn.user  =8;
+  aw_txn.user  = io_coh_user_bits | 8;
   aw_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
 
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
@@ -237,7 +237,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   ar_txn.qos  =0;
   ar_txn.region  =0;
   ar_txn.atop  =0;
-  ar_txn.user  =0;
+  ar_txn.user  =io_coh_user_bits;
   ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
@@ -286,7 +286,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   a_txn.qos  =0;
   a_txn.region  =0;
   a_txn.atop  =0;
-  a_txn.user  =0;
+  a_txn.user  = io_coh_user_bits;
   a_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
@@ -343,7 +343,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   /////-----------------------------
   uint32_t wresp_id = a_txn.id ;
     //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-
+if(blocking_mode){
   axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
     wresp_channel,
     [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; }
@@ -371,7 +371,7 @@ if (!a_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
     cvm::log(cvm::NONE, "[io_coh_helper] Backdoor whisper poke NOT DONE  because of bad response burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
   }
   }
-
+  }
   }
   burst_in_flight = false;
   co_return;
@@ -431,7 +431,23 @@ void
       //create array of structs
       txns_vec = {};
     }
-  } else if(addr ==(io_coh_helper_base + 0x400)) {
+    
+  }else if(addr ==(io_coh_helper_base + 0x340)){
+    io_coh_user_bits = t_data & 0xFF;
+    cvm::log(cvm::HIGH, "[io_coh_helper] Setting User bits to  {:#x}  \n",io_coh_user_bits);
+
+  }else if(addr ==(io_coh_helper_base + 0x380)) {
+    cvm::log(cvm::HIGH, "[io_coh_helper] Blocking/Non Blocking type {:#x}  \n",t_data);
+    if(t_data == 1){
+      cvm::log(cvm::HIGH, "[io_coh_helper]  Set to Non Blocking type  \n");
+      blocking_mode = false;
+    }else{
+      cvm::log(cvm::HIGH, "[io_coh_helper]  Set to Blocking type  \n");
+      blocking_mode = true;
+    }
+    
+  } 
+  else if(addr ==(io_coh_helper_base + 0x400)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer trigger {:#x}  \n",t_data);
     
     if(tx_type == 0){

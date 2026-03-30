@@ -134,14 +134,14 @@
       },
 
       "stvec" : {
-          "stvec-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
+          "stvec-comment"   : "Hardwired to zero except for FS, VS, and SD.",
           "reset"           : "0x0",
           "mask"            : "0xffffffffffffffff",
           "poke_mask"       : "0xffffffffffffffff"
       },
 
       "medeleg" : {
-          "medeleg-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
+          "medeleg-comment"   : "Hardwired to zero except for FS, VS, and SD.",
           "reset"           : "0x0",
           "mask"            : "0xfffffffffffff7ff",
           "poke_mask"       : "0xfffffffffffff7ff"
