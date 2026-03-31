@@ -17,7 +17,7 @@ def rv_tester_repositories(bzlmod = False):
 
 
     if not bzlmod:
-        cvm_hash="6095a11fdb15bda022e9fb08ea7998f40f1540f5"
+        cvm_hash="205ab14df6e3d2f1df6942716598465c901bee04"
         maybe(
             http_archive,
             name = "cvm",
