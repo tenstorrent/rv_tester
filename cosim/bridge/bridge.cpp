@@ -563,8 +563,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.time = d.cycle;
 
   if ((d.intr && !d.icause && !d.virt_mode) ||  // icause is set to zero for debug mode
-      (d.excp && (d.ecause == CUSTOM_SINGLE_STEP))) {
-    // Debug mode
+      (d.excp && (d.ecause == CUSTOM_SINGLE_STEP)) ||
+      (d.excp && (d.ecause == DEBUG_MODE_ENTRY))) {
+    // TODO: Investigate whether Whisper will model icount trigger DPC correctly
+    // or if the TB is expected to poke and overwrite DPC on debug entry.
+    for (const auto& csr : d.csr)
+      if (csr.valid && csr.csr_addr == DPC) poke_resource(hart, d.cycle, 'c', DPC, csr.csr_wdata);
     return;
   }
 
@@ -1245,7 +1249,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     // Vector conservative mode
     if (d.ecause == 55) {
       resynch(hart, d);
-    } else if (d.ecause == 33) { // custom debug mode enter exception
+    } else if (d.ecause ==  DEBUG_MODE_ENTRY) {
       rv_debug_t debug;
       debug.cycle = d.cycle;
       debug.enter = true;
@@ -1976,6 +1980,11 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
 
   if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
+    return true;
+  }
+
+  if (w.is_cancelled && !d.excp && !d.intr) {
+    bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[Whisper cancelled (trigger action=1 debug entry); DUT retired — poke ISS from DUT]\n", d.cycle);
     return true;
   }
 
@@ -3011,6 +3020,7 @@ void bridge::sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_i
         error("Hart {}: Whisper exit debug failed (sync_debug_mode_from_dut)\n", hart);
         return;
       }
+
     }
     debug_mode_ = false;
   }
