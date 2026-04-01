@@ -565,10 +565,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   if ((d.intr && !d.icause && !d.virt_mode) ||  // icause is set to zero for debug mode
       (d.excp && (d.ecause == CUSTOM_SINGLE_STEP)) ||
       (d.excp && (d.ecause == DEBUG_MODE_ENTRY))) {
-    // TODO: Investigate whether Whisper will model icount trigger DPC correctly
-    // or if the TB is expected to poke and overwrite DPC on debug entry.
+    // TODO: Investigate whether Whisper will model debug entry CSRs (DPC, DCSR)
+    // correctly or if the TB is expected to poke and overwrite on debug entry.
     for (const auto& csr : d.csr)
-      if (csr.valid && csr.csr_addr == DPC) poke_resource(hart, d.cycle, 'c', DPC, csr.csr_wdata);
+      if (csr.valid && (csr.csr_addr == DPC || csr.csr_addr == DCSR))
+        poke_resource(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata);
     return;
   }
 
@@ -631,7 +632,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
@@ -1978,7 +1979,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
     return true;
   }
 
-  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
@@ -1986,6 +1987,26 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
   if (w.is_cancelled && !d.excp && !d.intr) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[Whisper cancelled (trigger action=1 debug entry); DUT retired — poke ISS from DUT]\n", d.cycle);
     return true;
+  }
+
+  // Workaround: Whisper's trigger model diverges from DUT on cancelled post-trigger
+  // instructions — trigger CSR state (hit bit, count), minstret (DUT completed the
+  // instruction but Whisper cancelled it). Resynch these until Whisper models
+  // step-vs-trigger priority and post-trigger retire correctly.
+  // TODO: Remove once Whisper fixes icount trigger modeling.
+  if (FLAGS_debugrom) {
+    if (debug_mode_) {
+      uint32_t csr_addr;
+      if (cosim_util::is_csr_opcode(d.opcode, csr_addr) &&
+          (csr_addr >= TSELECT && csr_addr <= TDATA3)) {
+        bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debugrom workaround — trigger CSR {:#x} in debug mode]\n", d.cycle, csr_addr);
+        return true;
+      }
+    }
+    if (instr == "csr:minstret" || instr == "csr:minstreth") {
+      bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debugrom workaround — minstret off-by-one from cancelled post-trigger]\n", d.cycle);
+      return true;
+    }
   }
 
   return false;

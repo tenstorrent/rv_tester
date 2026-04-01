@@ -968,6 +968,7 @@ namespace {
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
         {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"},
+        {CUSTOM_SINGLE_STEP      , "CUSTOM_SINGLE_STEP"},
         {DEBUG_MODE_ENTRY        , "DEBUG_MODE_ENTRY"}
     };
 
