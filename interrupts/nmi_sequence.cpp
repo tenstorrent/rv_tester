@@ -30,6 +30,8 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
     random_mode_thread();
   } else if (FLAGS_nmi == "uarch_trigger") {
     trigger_mode_thread();
+  } else if (FLAGS_nmi != "off") {
+    cvm::log(cvm::ERROR, "Error: [nmi_sequence][h{}] Invalid value for +nmi flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_nmi);
   }
 }
 
