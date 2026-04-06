@@ -87,7 +87,7 @@ public:
     uint64_t interrupt_num = intr_num;
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
-    unsigned vs_id = (t_data>>28) & 0xfff;
+    unsigned vs_id = (t_data>>28) & 0x3f;
     unsigned disable_vs_id_randomisation = (t_data>>40) & 0x1;
     bool is_vgein_intr = false;
     bool exp_err_rsp = (interrupt_hart < FLAGS_num_harts) ? false : true;
