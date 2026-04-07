@@ -81,6 +81,7 @@ import pmu_core_pkg::*;
         cycle_period_counter <= 0;
         instruction_period_counter <= instructions;
       end else begin
+        if(perf_enabled)begin
         if (perf_start) begin
           cycle_period_counter <= 1;  // Start counting from 1 to get full period before first sync
           instruction_period_counter <= instructions;
@@ -110,6 +111,7 @@ import pmu_core_pkg::*;
           end
         end
         cpu_cycles <= cpu_cycles + 1;
+        end
       end
       terminate_1T <= terminate;
     end
@@ -121,7 +123,9 @@ import pmu_core_pkg::*;
             if (reset) begin
                 pmcounter[i] <= 0;
             end else begin
-                pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]};
+              if(perf_enabled)begin
+                pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]}; 
+              end
             end
         end
         assign pmcounter_vec[i] = pmcounter[i];
@@ -142,6 +146,7 @@ import pmu_core_pkg::*;
     bit [NRET-1:0] perf_match_array_start;
     bit [NRET-1:0] perf_match_array_end;
     always @(*) begin
+      
       for (integer n = 0; n < NRET; n++) begin
         perf_match_array_start[n] = (rvfi[n].insn == 32'h00058013) && rvfi[n].valid;
         perf_match_array_end[n] = (rvfi[n].insn == 32'h00060013) && rvfi[n].valid;
@@ -149,6 +154,7 @@ import pmu_core_pkg::*;
 
       perf_start = | perf_match_array_start;
       perf_end = | perf_match_array_end;
+     
     end
 
     logic [3:0]  instr_avg;
@@ -183,7 +189,7 @@ import pmu_core_pkg::*;
 
     always_comb begin
       for (integer i = 0; i < NRET; i++) begin
-        pmc_checkers[i].valid = !reset  && (mhpm_write[i] || (terminate^terminate_1T));
+        pmc_checkers[i].valid = !reset  && (mhpm_write[i] || (terminate^terminate_1T)) && perf_enabled;
         pmc_checkers[i].data.location   = location;
         pmc_checkers[i].data.terminate  = terminate;
         pmc_checkers[i].data.event_csr  = rvfi[i].csr_addr[3:0] - 4'h3;
@@ -198,7 +204,7 @@ import pmu_core_pkg::*;
     `include "gen_sc_events.sv"
 
 
-    assign hpmcounters_cores[0].valid            = !reset  && ((|mhpm_write) || (terminate^terminate_1T));
+    assign hpmcounters_cores[0].valid            = !reset  && ((|mhpm_write) || (terminate^terminate_1T)) && perf_enabled;
     assign hpmcounters_cores[0].data.location    = location;
     assign hpmcounters_cores[0].data.hpmcounter3 = hpmi[HPMCOUNTER3];
     assign hpmcounters_cores[0].data.hpmcounter4 = hpmi[HPMCOUNTER4];
@@ -211,7 +217,7 @@ import pmu_core_pkg::*;
 
     always_ff @(posedge clk) begin : overflow_logic
         automatic logic overflow_nxt = '0;
-        if (!reset) begin
+        if (!reset && perf_enabled) begin
             if (SC_PMCI_ENABLED == 1) begin
                 for (int i = 0; i < EVENT_COUNT; i++) begin
                     overflow_nxt |= pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
@@ -233,7 +239,7 @@ import pmu_core_pkg::*;
     always_ff @(posedge clk) begin : pmcounters_overflow_bit
         if (reset) begin
             pmcounter_overflow_bit <= '0;
-        end else if (pmcounters_cores[0].valid) begin
+        end else if (pmcounters_cores[0].valid && perf_enabled) begin
             if (SC_PMCI_ENABLED == 1) begin
                 for (int i = 0; i < EVENT_COUNT; i++) begin
                     pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
