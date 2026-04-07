@@ -24,7 +24,6 @@ DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
-DECLARE_bool(debugrom);
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
