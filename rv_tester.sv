@@ -113,7 +113,7 @@ module rv_tester
          end
      end
 
-    import "DPI-C" function void rv_tester_streaming_dpi_init();
+    //import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
@@ -230,6 +230,12 @@ module rv_tester
     LU cvm_debug_cycle_on = '0;
     LU cvm_debug_cycle_off = '0;
 
+
+    bit rv_tester_reset_dut_clk;
+    bit rv_tester_reset_core_clk_d1;
+    bit rv_tester_reset_core_clk_d2;
+    bit rv_tester_streaming_dpi_init;
+    
     // Termination condition variables for better readability
     logic sysmod_cosim_dmi_terminate;
     logic core_terminate_conditions;
@@ -362,7 +368,8 @@ module rv_tester
             streaming_dpi_shutdowned <= 0;
 
             // Used for offine DPI
-            rv_tester_streaming_dpi_init();
+            //rv_tester_streaming_dpi_init();
+            rv_tester_reset_dut_clk <= 1'b1;
         end
         if (terminated && !streaming_dpi_shutdowned) begin
             // Used for zebu offline DPI to shutdown the registry
@@ -370,6 +377,11 @@ module rv_tester
             streaming_dpi_shutdowned <= 1;
         end
     end
+    always @(posedge dut_clk[CORE_CLK_IDX]) begin
+       rv_tester_reset_core_clk_d1 <= rv_tester_reset_dut_clk;
+       rv_tester_reset_core_clk_d2 <= rv_tester_reset_core_clk_d1;
+    end
+    assign rv_tester_streaming_dpi_init = rv_tester_reset_core_clk_d1 & ~rv_tester_reset_core_clk_d2;
     /*
     * 2-way DPI call used to periodically calculate the model performance
     *   - perf_period: controls how often performance measurement it made.
