@@ -1123,8 +1123,9 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     return;
   }
   
-  
-  num_taken_interrupts_[static_cast<intr>(d.icause)]++;
+  if(d.intr) {
+    num_taken_interrupts_[static_cast<intr>(d.icause)]++;
+  }
 
 
   // New check for Whisper wants to take interrupt, DUT does not.
