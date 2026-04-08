@@ -780,45 +780,6 @@ reset_driver:
             num_clocks:
                 width: 64
 
-pwrmgmt:
-    num: 1
-    m_tick:
-        domain: 3
-        num: 1
-        fields:
-            cycle:
-                width: 32
-    m_smc_axi_sp_tick:
-        domain: 3
-        num: 1
-    m_smc_axi_csr_tick:
-        domain: 3
-        num: 1
-    m_pcontrol_tick:
-        domain: 3
-        num: 1
-    m_dfs_tick:
-        domain: 3
-        num: 1
-    m_thub_tick:
-        domain: 3
-        num: 1
-    m_force_ref_clk:
-        domain: 3
-        num: 1
-    m_cold_reset_ack:
-        domain: 3
-        num: 1
-    m_force_ref_clk_ack:
-        domain: 3
-        num: 1
-    m_tj_shutdown_ack:
-        domain: 3
-        num: 1
-    m_tj_max_ack:
-        domain: 3
-        num: 1
-
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_assert_tick:

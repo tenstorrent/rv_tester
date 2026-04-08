@@ -58,6 +58,10 @@ module top
     assign terminate_dst_trace_seq = '1;
     assign dmi_terminate           = '1;
     assign dmi_poll_timeout_terminate = '0;
+    int unsigned reset_deassert_cycle = 100;
+    assign warm_reset_en = '0;
+    assign num_resets = -1;
+    assign target_num_resets = 0;
   `ifdef UVM_MACROS_SVH
     assign uvm_done = '1;
   `endif 
@@ -73,8 +77,11 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
-        if (!reset[COLD_RESET_IDX]) begin
-          order <= order + 1;
+        order <= order + 1;
+        if (order <= reset_deassert_cycle) begin
+            cold_reset <= '1;
+        end else begin
+            cold_reset <= '0;
         end
         case(HARNESS)
         SW_1C:
