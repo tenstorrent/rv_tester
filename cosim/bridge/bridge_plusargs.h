@@ -6,3 +6,4 @@ DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DECLARE_uint64(max_cycle);
 DECLARE_bool(whisper_client_check);
+DECLARE_bool(sync_debug_mode_from_dut);

@@ -81,6 +81,7 @@ public:
   virtual void enter_debug_mode(rv_debug_t& d) override;
   virtual void exit_debug_mode(rv_debug_t& d) override;
   virtual void process_debug_haltreq(bool haltreq) override;
+  void sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_in_debug) override;
 
   void reset();
   void csr_init();

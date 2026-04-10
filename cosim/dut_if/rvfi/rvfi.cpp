@@ -387,6 +387,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_debug<>& m_debug) {
     return;
 
   bridge_->process_debug_haltreq(m_debug.haltreq);
+  bridge_->sync_debug_mode_from_dut(static_cast<hart_id_t>(id_), m_debug.cycle, m_debug.enter != 0);
 }
 
 void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {
@@ -899,7 +900,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && (uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
 
