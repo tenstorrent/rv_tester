@@ -566,6 +566,40 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   check_debug_mode_entry_via_ebreak(d);
 
+  if (patch_mode_ == EXIT_PATCH && (check_debug_entry_at_patch_exit_ || is_priv_debug_mode_)) {
+    bridge_log(cvm::HIGH, "<{}> Patch exit into debug (excp33={}, priv_debug={}), stepping whisper and skipping DE until debug vector\n",
+               d.cycle, check_debug_entry_at_patch_exit_, is_priv_debug_mode_);
+    check_debug_entry_at_patch_exit_ = false;
+    skip_de_until_debug_vector_ = true;
+    patch_mode_ = NO_PATCH;
+
+    if (!debug_mode_) {
+      pre_step_exception_poke(hart, d);
+      pre_step_nmi_check(hart, d, w);
+      pre_step_interrupt_process(hart, d);
+      w_.clear();
+      step(hart, w);
+      step_++;
+    } else {
+      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, FLAGS_debug_entry_pc);
+      bool valid = false;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, FLAGS_debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
+        error("Hart {}: Failed to poke whisper PC to debug vector\n", id_);
+    }
+    debug_mode_ = true;
+    return;
+  }
+
+  if (skip_de_until_debug_vector_) {
+    update_dut_state(hart, d);
+    if (d.pc.pc_rdata == FLAGS_debug_entry_pc) {
+      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, FLAGS_debug_entry_pc);
+      skip_de_until_debug_vector_ = false;
+    } else {
+      return;
+    }
+  }
+
   // Handle pre-step condition - Debug
   if (debug_mode_) {
     if (FLAGS_emulate_debug_mode) {
@@ -808,15 +842,15 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  if (FLAGS_pc_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_pc_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
-  if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     if (d.priv == DP)
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -1213,8 +1247,17 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
 
 void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  if (patch_mode_ != NO_PATCH)
+  if (patch_mode_ != NO_PATCH) {
+    if (d.excp && d.ecause == 33 && !check_debug_entry_at_patch_exit_) {
+      bridge_log(cvm::MEDIUM, "<{}> Debug entry (exception 33) during patch mode, deferring\n", d.cycle);
+      check_debug_entry_at_patch_exit_ = true;
+      deferred_debug_entry_.cycle = d.cycle;
+      deferred_debug_entry_.enter = true;
+      deferred_debug_entry_.exit  = false;
+      deferred_debug_entry_.hart  = d.hart;
+    }
     return;
+  }
 
   if(debug_mode_ && FLAGS_emulate_debug_mode && (d.excp )){
     excp_in_debug_mode = true;
