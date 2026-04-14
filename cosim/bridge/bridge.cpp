@@ -18,7 +18,6 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
 #include "csr_param.hpp"
-#include "cosim/bridge/bridge_plusargs.h"
 using namespace CSR;
 
 #include <cstring>          // strlen
@@ -72,9 +71,6 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
-DEFINE_bool(sync_debug_mode_from_dut, true,
-            "Keep bridge debug_mode_ and Whisper in sync with DUT debug_mode (from RVFI m_debug.enter). "
-            "Disable with +sync_debug_mode_from_dut=false if a legacy scenario requires the old behavior.");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
@@ -562,25 +558,52 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.time = d.cycle;
 
   if ((d.intr && !d.icause && !d.virt_mode) ||  // icause is set to zero for debug mode
-      (d.excp && (d.ecause == CUSTOM_SINGLE_STEP)) ||
-      (d.excp && (d.ecause == DEBUG_MODE_ENTRY))) {
-    // TODO: Investigate whether Whisper will model debug entry CSRs (DPC, DCSR)
-    // correctly or if the TB is expected to poke and overwrite on debug entry.
-    for (const auto& csr : d.csr)
-      if (csr.valid && (csr.csr_addr == dpc.address || csr.csr_addr == dcsr.address))
-        poke_resource(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata);
+      (d.excp && (d.ecause == CUSTOM_SINGLE_STEP))) {
+    // Debug mode
     return;
   }
 
   check_debug_mode_entry_via_ebreak(d);
 
+  if (patch_mode_ == EXIT_PATCH && (check_debug_entry_at_patch_exit_ || is_priv_debug_mode_)) {
+    bridge_log(cvm::HIGH, "<{}> Patch exit into debug (excp33={}, priv_debug={}), stepping whisper and skipping DE until debug vector\n",
+               d.cycle, check_debug_entry_at_patch_exit_, is_priv_debug_mode_);
+    check_debug_entry_at_patch_exit_ = false;
+    skip_de_until_debug_vector_ = true;
+    patch_mode_ = NO_PATCH;
+
+    if (!debug_mode_) {
+      pre_step_exception_poke(hart, d);
+      pre_step_nmi_check(hart, d, w);
+      pre_step_interrupt_process(hart, d);
+      w_.clear();
+      step(hart, w);
+      step_++;
+    } else {
+      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, FLAGS_debug_entry_pc);
+      bool valid = false;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, FLAGS_debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
+        error("Hart {}: Failed to poke whisper PC to debug vector\n", id_);
+    }
+    debug_mode_ = true;
+    return;
+  }
+
+  if (skip_de_until_debug_vector_) {
+    update_dut_state(hart, d);
+    if (d.pc.pc_rdata == FLAGS_debug_entry_pc) {
+      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, FLAGS_debug_entry_pc);
+      skip_de_until_debug_vector_ = false;
+    } else {
+      return;
+    }
+  }
+
   // Handle pre-step condition - Debug
-  // When +debugrom=true, Whisper is loaded with the real debug ROM; skip poking retire PC
-  // so ISS memory matches the ELF (e.g. dret) instead of the DUT's last uop encoding.
   if (debug_mode_) {
-    if (FLAGS_emulate_debug_mode && !FLAGS_debugrom) {
+    if (FLAGS_emulate_debug_mode) {
       pre_step_debug_poke(hart, d);
-    } else if (!FLAGS_emulate_debug_mode) {
+    } else {
       return;
     }
   }
@@ -631,7 +654,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
@@ -818,15 +841,15 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  if (FLAGS_pc_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_pc_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
-  if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     if (d.priv == DP)
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -1223,8 +1246,17 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
 
 void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  if (patch_mode_ != NO_PATCH)
+  if (patch_mode_ != NO_PATCH) {
+    if (d.excp && d.ecause == 33 && !check_debug_entry_at_patch_exit_) {
+      bridge_log(cvm::MEDIUM, "<{}> Debug entry (exception 33) during patch mode, deferring\n", d.cycle);
+      check_debug_entry_at_patch_exit_ = true;
+      deferred_debug_entry_.cycle = d.cycle;
+      deferred_debug_entry_.enter = true;
+      deferred_debug_entry_.exit  = false;
+      deferred_debug_entry_.hart  = d.hart;
+    }
     return;
+  }
 
   if(debug_mode_ && FLAGS_emulate_debug_mode && (d.excp )){
     excp_in_debug_mode = true;
@@ -1250,7 +1282,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     // Vector conservative mode
     if (d.ecause == 55) {
       resynch(hart, d);
-    } else if (d.ecause ==  DEBUG_MODE_ENTRY) {
+    } else if (d.ecause == 33) { // custom debug mode enter exception
       rv_debug_t debug;
       debug.cycle = d.cycle;
       debug.enter = true;
@@ -1978,34 +2010,9 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
     return true;
   }
 
-  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
-  }
-
-  if (w.is_cancelled && !d.excp && !d.intr) {
-    bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[Whisper cancelled (trigger action=1 debug entry); DUT retired — poke ISS from DUT]\n", d.cycle);
-    return true;
-  }
-
-  // Workaround: Whisper's trigger model diverges from DUT on cancelled post-trigger
-  // instructions — trigger CSR state (hit bit, count), minstret (DUT completed the
-  // instruction but Whisper cancelled it). Resynch these until Whisper models
-  // step-vs-trigger priority and post-trigger retire correctly.
-  // TODO: Remove once Whisper fixes icount trigger modeling.
-  if (FLAGS_debugrom) {
-    if (debug_mode_) {
-      uint32_t csr_addr;
-      if (cosim_util::is_csr_opcode(d.opcode, csr_addr) &&
-          (csr_addr >= tselect.address && csr_addr <= tdata3.address)) {
-        bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debugrom workaround — trigger CSR {:#x} in debug mode]\n", d.cycle, csr_addr);
-        return true;
-      }
-    }
-    if (instr == "csr:minstret" || instr == "csr:minstreth") {
-      bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debugrom workaround — minstret off-by-one from cancelled post-trigger]\n", d.cycle);
-      return true;
-    }
   }
 
   return false;
@@ -3019,38 +3026,8 @@ void bridge::process_debug_haltreq(bool haltreq) {
   debug_haltreq_asserted = haltreq;
 }
 
-void bridge::sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_in_debug) {
-  if (!FLAGS_sync_debug_mode_from_dut)
-    return;
-  if (dut_in_debug == debug_mode_)
-    return;
-  bridge_log(cvm::HIGH, "<{}> sync_debug_mode_from_dut: bridge={} dut={} -> {}\n", cycle, debug_mode_, dut_in_debug,
-             dut_in_debug ? "enter" : "exit");
-  if (dut_in_debug) {
-    if (!debug_mode_) {
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperEnterDebugRPC>(
-              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
-        error("Hart {}: Whisper enter debug failed (sync_debug_mode_from_dut)\n", hart);
-        return;
-      }
-    }
-    debug_mode_ = true;
-  } else {
-    if (debug_mode_) {
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(
-              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
-        error("Hart {}: Whisper exit debug failed (sync_debug_mode_from_dut)\n", hart);
-        return;
-      }
-
-    }
-    debug_mode_ = false;
-  }
-}
-
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
-  // Fallback hardcoded debug ROM when debugrom_path is not set.
   uint64_t debugROM[26] = {
     0x7b2000737b202473,
     0x7b30257310852823,
@@ -3089,12 +3066,9 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
-  // Only poke the legacy hardcoded ROM when path was not passed, else user provided ROM will be poked to retain backwards compatibility with csv flow.
-  if (FLAGS_debugrom_path.empty()) {
-    for (int i = 25; i >= 0; i--) {
-      uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25 - i) * 8;
-      poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i], false, false);
-    }
+  for(int i=25; i>=0; i--) {
+    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
+    poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
   }
 }
 

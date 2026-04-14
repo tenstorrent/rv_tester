@@ -8,8 +8,6 @@ DECLARE_string(load_lz4);
 DECLARE_string(load_bin);
 DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
-DECLARE_bool(debugrom);
-DECLARE_string(debugrom_path);
 DECLARE_bool(cplfw);
 DECLARE_string(cplfw_path);
 DECLARE_uint64(seed);
