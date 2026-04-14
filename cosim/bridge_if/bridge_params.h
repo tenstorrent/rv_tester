@@ -943,7 +943,6 @@ namespace {
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
         CUSTOM_SINGLE_STEP      = 31,
-        DEBUG_MODE_ENTRY        = 33,
         CUSTOM_VLZERO_EXCP      = 39,
         CUSTOM_VEC_CMODE        = 55
     } excp;
@@ -967,9 +966,7 @@ namespace {
         {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
-        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"},
-        {CUSTOM_SINGLE_STEP      , "CUSTOM_SINGLE_STEP"},
-        {DEBUG_MODE_ENTRY        , "DEBUG_MODE_ENTRY"}
+        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
     };
 
     typedef enum : size_t {
