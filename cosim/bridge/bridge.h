@@ -441,6 +441,8 @@ private:
   bool terminated_=false, end_mcm_=false, metrics_reported_=false;
   bool check_nmi_at_patch_exit_ = false;
   uint64_t check_nmi_at_patch_cause_ = 0;
+  bool check_intr_at_patch_exit_ = false;
+  uint64_t check_intr_at_patch_cause_ = 0;
   bool check_debug_entry_at_patch_exit_ = false;
   bool skip_de_until_debug_vector_ = false;
   rv_debug_t deferred_debug_entry_{};
