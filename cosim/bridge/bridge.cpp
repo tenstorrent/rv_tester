@@ -71,12 +71,9 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
-<<<<<<< HEAD
 DEFINE_bool(sync_debug_mode_from_dut, false,
             "Keep bridge debug_mode_ and Whisper in sync with DUT debug_mode (from RVFI m_debug.enter). "
             "Disable with +sync_debug_mode_from_dut=false if a legacy scenario requires the old behavior.");
-=======
->>>>>>> master
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
@@ -955,7 +952,7 @@ void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
   uint32_t opcode;
-  if (!FLAGS_debugrom && instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = opcode_nop;
   }
   else if ((instr.excp && (instr.ecause == 3)) || dtvec_ebreak_) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
@@ -1254,7 +1251,7 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
 void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
   if (patch_mode_ != NO_PATCH) {
-    if (d.excp && d.ecause == 33 && !check_debug_entry_at_patch_exit_) {
+    if (d.excp && d.ecause == CUSTOM_DBG_ENTRY && !check_debug_entry_at_patch_exit_) {
       bridge_log(cvm::MEDIUM, "<{}> Debug entry (exception 33) during patch mode, deferring\n", d.cycle);
       check_debug_entry_at_patch_exit_ = true;
       deferred_debug_entry_.cycle = d.cycle;
@@ -1287,9 +1284,9 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
 
     // Vector conservative mode
-    if (d.ecause == 55) {
+    if (d.ecause == CUSTOM_VEC_CMODE) {
       resynch(hart, d);
-    } else if (d.ecause == 33) { // custom debug mode enter exception
+    } else if (d.ecause == CUSTOM_DBG_ENTRY) { // custom debug mode enter exception
       rv_debug_t debug;
       debug.cycle = d.cycle;
       debug.enter = true;
