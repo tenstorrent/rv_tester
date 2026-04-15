@@ -31,6 +31,11 @@ verilog_library(
 verilog_library(
     name = "rv_tester_tick_generator",
     srcs = ["rv_tester_tick_generator.sv"],
+    deps = [
+        "@cvm//:plusargs_sv",
+        "@cvm//:random_sv",
+        "@cvm//:topology_sv",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -50,19 +55,6 @@ config_setting(
 verilog_library(
     name = "no_cosim",
     srcs = ["define_no_cosim.sv"],
-)
-
-bool_flag(
-    name = "pwrmgmt",
-    build_setting_default = True,
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "pwrmgmt_off",
-    flag_values = {
-      ":pwrmgmt" : "False",
-    }
 )
 
 filegroup(

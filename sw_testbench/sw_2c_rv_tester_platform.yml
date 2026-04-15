@@ -52,4 +52,4 @@ rv_tester_reseti_attrs: &rv_tester_reseti_attrs
   CRITICAL_HOLD_IDX: 2
 
 rv_tester_pwrmgmt_attrs: &rv_tester_pwrmgmt_attrs
-  PWRMGMT_EN: 1
+  PWRMGMT_EN: 0

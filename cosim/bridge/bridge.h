@@ -81,7 +81,6 @@ public:
   virtual void enter_debug_mode(rv_debug_t& d) override;
   virtual void exit_debug_mode(rv_debug_t& d) override;
   virtual void process_debug_haltreq(bool haltreq) override;
-  void sync_debug_mode_from_dut(hart_id_t hart, uint64_t cycle, bool dut_in_debug) override;
 
   void reset();
   void csr_init();
@@ -442,6 +441,9 @@ private:
   bool terminated_=false, end_mcm_=false, metrics_reported_=false;
   bool check_nmi_at_patch_exit_ = false;
   uint64_t check_nmi_at_patch_cause_ = 0;
+  bool check_debug_entry_at_patch_exit_ = false;
+  bool skip_de_until_debug_vector_ = false;
+  rv_debug_t deferred_debug_entry_{};
   enum patch_mode patch_mode_ = NO_PATCH;
 
   // Containers for storing result of parsing plusargs

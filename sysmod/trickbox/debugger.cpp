@@ -18,7 +18,9 @@ DEFINE_bool(dbg_rand_core, false, "To randomize the core-id to which the core th
 DEFINE_int32(dbg_rand_core_idx, 0, "Random Core idx to which the DM commands are targetted");
 DEFINE_bool(dry_space_access, false, "Dry space access guarding");
 DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
-
+ // FIXME: pwrmmgmt has been moved out
+DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
+DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
       timeCompare_(6), IntrHart_(6), delayedRandomIntValid_(6), IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
