@@ -24,6 +24,8 @@
 #include "cvm/registry.hpp"
 #include "nlohmann/json.hpp"
 
+DECLARE_bool(debugrom);
+DECLARE_string(debugrom_path);
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
@@ -168,6 +170,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
 
   if (FLAGS_cplfw && FLAGS_cplfw_path != "")      args_str.push_back(FLAGS_cplfw_path);
   if (FLAGS_bootrom && FLAGS_bootrom_path != "")  args_str.push_back(FLAGS_bootrom_path);
+  if (FLAGS_debugrom && FLAGS_debugrom_path != "") args_str.push_back(FLAGS_debugrom_path);
   if (FLAGS_load != "")                           args_str.push_back(FLAGS_load);
   if (FLAGS_traceptw)                             args_str.push_back("--traceptw");
   if (FLAGS_whisper_csv_log)                      args_str.push_back("--csv");

@@ -71,9 +71,7 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
-DEFINE_bool(sync_debug_mode_from_dut, false,
-            "Keep bridge debug_mode_ and Whisper in sync with DUT debug_mode (from RVFI m_debug.enter). "
-            "Disable with +sync_debug_mode_from_dut=false if a legacy scenario requires the old behavior.");
+DECLARE_bool(debugrom);
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
@@ -605,9 +603,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Debug
   if (debug_mode_) {
-    if (FLAGS_emulate_debug_mode) {
+    if (FLAGS_emulate_debug_mode && !FLAGS_debugrom) {
       pre_step_debug_poke(hart, d);
-    } else {
+    } else if (!FLAGS_emulate_debug_mode) {
       return;
     }
   }
@@ -3069,9 +3067,11 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
-  for(int i=25; i>=0; i--) {
-    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
-    poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
+  if (!FLAGS_debugrom) {
+    for(int i=25; i>=0; i--) {
+      uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
+      poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
+    }
   }
 }
 
