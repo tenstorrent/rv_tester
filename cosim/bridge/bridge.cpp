@@ -1133,10 +1133,27 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
+  // Check deferred interrupt at patch exit (mirrors NMI exit check)
+  if (w_.intr && patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
+    if (check_intr_at_patch_cause_ != w_.icause)
+      error("Hart {}: Interrupt cause mismatch at patch exit, whisper:{} dut: {}\n", hart, w_.icause, check_intr_at_patch_cause_);
+    check_intr_at_patch_exit_ = false;
+    return;
+  }
+
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
     // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
     if (d.icause == 0)
       return;
+
+    // If entering patch mode, defer the interrupt check to patch exit
+    // (mirrors NMI handling at patch entry)
+    if (patch_mode_ == ENTER_PATCH) {
+      check_intr_at_patch_exit_ = true;
+      check_intr_at_patch_cause_ = d.icause;
+      bridge_log(cvm::MEDIUM, "<{}> Interrupt detected at patch entry, deferring to exit. dcause:[{}]\n", w.time, d.icause);
+      return;
+    }
 
     error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
     return;
