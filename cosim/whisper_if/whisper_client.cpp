@@ -24,8 +24,6 @@
 #include "cvm/registry.hpp"
 #include "nlohmann/json.hpp"
 
-DECLARE_bool(debugrom);
-DECLARE_string(debugrom_path);
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");

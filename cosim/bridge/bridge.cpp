@@ -71,7 +71,6 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
-DECLARE_bool(debugrom);
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
@@ -660,7 +659,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  // Legacy flow: detect debug exit by PC match. New flow (+debugrom): sync_debug_mode_from_dut
+  // handles exit via debug_mode falling edge on dret.
+  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
@@ -2017,7 +2018,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
     return true;
   }
 
-  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
