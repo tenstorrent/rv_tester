@@ -972,6 +972,14 @@ namespace {
         {CUSTOM_SINGLE_STEP      , "CUSTOM_SINGLE_STEP"},
     };
 
+    enum priv_mode : uint8_t {
+        PRIV_USER           = 0,
+        PRIV_SUPERVISOR     = 1,
+        PRIV_MACHINE        = 3,
+        PRIV_DEBUG_ROM      = 6,
+        PRIV_DEBUG_PROGBUF  = 7,
+    };
+
     typedef enum : size_t {
         DEBUG       = 0,
         SSI         = 1,
