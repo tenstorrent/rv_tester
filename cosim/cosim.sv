@@ -1130,8 +1130,35 @@ localparam CAM_IHBIT = CAM_IBITS;
     //assign send_regs = send_regs_i & ~send_regs_d1;
 
     // m_csri
+    // Counter overflow (mhpmevent) events are delayed by 10 cycles to align
+    // with RTL change propagation time. Non-mhpmevent events pass through immediately.
+    localparam logic [CSRLEN-1:0] C_MHPMEVENT3  = 'h323;
+    localparam logic [CSRLEN-1:0] C_MHPMEVENT31 = 'h33F;
+    localparam int COUNTER_OVF_DELAY = 10;
 
-    for (genvar n = 0; n < NCSRI; n++) begin
+    for (genvar n = 0; n < NCSRI; n++) begin : gen_csri_delay
+        logic csri_is_mhpmevent;
+        assign csri_is_mhpmevent = csri[n].valid & (csri[n].data.addr >= C_MHPMEVENT3) & (csri[n].data.addr <= C_MHPMEVENT31);
+
+        logic [COUNTER_OVF_DELAY-1:0] ovf_valid_sr;
+        logic [COUNTER_OVF_DELAY-1:0] [CSRLEN-1:0] ovf_addr_sr;
+
+        always_ff @(posedge clk) begin
+            if (reset || dut_core_reset) begin
+                ovf_valid_sr <= '0;
+            end else begin
+                ovf_valid_sr <= {ovf_valid_sr[COUNTER_OVF_DELAY-2:0], csri_is_mhpmevent};
+                ovf_addr_sr  <= {ovf_addr_sr[COUNTER_OVF_DELAY-2:0], csri[n].data.addr};
+            end
+        end
+
+        assign m_mhpm_counter_ovfs[n].valid         = rvfi_enabled & ~dut_core_reset & ovf_valid_sr[COUNTER_OVF_DELAY-1];
+        assign m_mhpm_counter_ovfs[n].data.location = location;
+        assign m_mhpm_counter_ovfs[n].data.cycle    = clocks;
+        assign m_mhpm_counter_ovfs[n].data.hart     = NUM;
+        assign m_mhpm_counter_ovfs[n].data.addr     = ovf_addr_sr[COUNTER_OVF_DELAY-1];
+
+
         assign m_csris[n].valid         = rvfi_enabled & ~dut_core_reset & csri[n].valid;
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle    = clocks;
