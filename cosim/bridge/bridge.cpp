@@ -602,6 +602,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle pre-step condition - Debug
+  // Legacy flow (+debugrom=false): poke DUT opcode into Whisper memory before each step
+  //   so Whisper executes what the DUT retired (hardcoded ROM doesn't match real execution).
+  // New flow (+debugrom=true): real debug ROM ELF loaded into Whisper; skip poke so
+  //   Whisper steps natively through the ROM and comparisons are meaningful.
   if (debug_mode_) {
     if (FLAGS_emulate_debug_mode && !FLAGS_debugrom) {
       pre_step_debug_poke(hart, d);
@@ -3067,6 +3071,8 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
+  // Legacy flow: poke hardcoded ROM into Whisper memory at debug_entry_pc.
+  // New flow (+debugrom): real ROM already loaded via sysmod/whisper_client; skip poke.
   if (!FLAGS_debugrom) {
     for(int i=25; i>=0; i--) {
       uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
