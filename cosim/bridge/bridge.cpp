@@ -976,15 +976,14 @@ void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
 // Pre-step debug entry: handle CUSTOM_DBG_ENTRY (exception 33) before Whisper steps.
 // Sets debug_mode_ via enter_debug_mode() and pokes DPC/DCSR when +debugrom.
 void bridge::pre_step_debug_entry(hart_id_t hart, const rv_instr_t& d) {
-  if (!(d.excp && d.ecause == CUSTOM_DBG_ENTRY))
+  if (!FLAGS_debugrom || !(d.excp && d.ecause == CUSTOM_DBG_ENTRY))
     return;
   rv_debug_t debug{.enter = true, .exit = false, .cycle = d.cycle, .hart = d.hart};
   enter_debug_mode(debug);
   // TODO: Remove DPC/DCSR poke when Whisper models icount post-trigger correctly.
-  if (FLAGS_debugrom)
-    for (const auto& csr : d.csr)
-      if (csr.valid && (csr.csr_addr == DPC || csr.csr_addr == DCSR))
-        poke_resource(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata);
+  for (const auto& csr : d.csr)
+    if (csr.valid && (csr.csr_addr == DPC || csr.csr_addr == DCSR))
+      poke_resource(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata);
 }
 
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
@@ -2056,6 +2055,16 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
   if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
+  }
+
+  // Whisper cancelled post-trigger instruction that DUT completed
+  if (w.is_cancelled && !d.excp && !d.intr) return true;
+
+  // TODO: Revisit when Whisper models icount/step trigger interactions correctly.
+  if (FLAGS_debugrom) {
+    uint32_t csr_addr;
+    if (debug_mode_ && cosim_util::is_csr_opcode(d.opcode, csr_addr) && csr_addr >= TSELECT && csr_addr <= TINFO) return true;
+    if (instr == "csr:minstret" || instr == "csr:minstreth") return true;
   }
 
   return false;
