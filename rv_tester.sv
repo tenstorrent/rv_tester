@@ -218,8 +218,8 @@ module rv_tester
     int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
     LU cvm_debug_cycle_on = '0;
     LU cvm_debug_cycle_off = '0;
-    logic dut_terminate_any;
-    logic ntrace_terminate;
+    //logic dut_terminate_any;
+    //logic ntrace_terminate;
 
     bit rv_tester_reset_dut_clk;
     bit rv_tester_reset_core_clk_d1;
