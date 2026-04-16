@@ -21,9 +21,15 @@ cc_library(
         "@cvm//:registry",
         "@cvm//:messenger",
        "@opensrc-nlohmann-json//:json",
-    ],
+    ] + select({
+        "//:use_bzlmod": ["@boost.program_options"],
+        "//conditions:default": [],
+    }),
     alwayslink = True,
-    linkopts = ["-lrt", "-lboost_program_options"],
+    linkopts = ["-lrt"] + select({
+        "//:use_bzlmod": [],
+        "//conditions:default": ["-lboost_program_options"],
+    }),
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",
     local_defines = ["LZ4_COMPRESS"],

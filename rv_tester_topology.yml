@@ -77,6 +77,15 @@ rv_tester: &rv_tester
       attrs:
         <<: *rv_tester_smc_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
+    
+    iommu_axi_tr_req_mst:
+      count: *rv_tester_iommu_axi_tr_req_mst_count
+      type:
+        - iommu_axi_tr_req_mst
+        - platform_transactor_iommu_tr_req_mst
+      attrs:
+        <<: *rv_tester_iommu_axi_tr_req_mst_attrs
+        <<: *rv_tester_axi_sw_mst
 
     dm_axi:
       count: *rv_tester_dm_axi_count

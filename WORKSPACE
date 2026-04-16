@@ -32,17 +32,8 @@ rv_tester_dependencies2()
 load("//infra/bazel:dependencies3.bzl", "rv_tester_dependencies3")
 rv_tester_dependencies3()
 
-# don't want testgen in repositories.bzl, as it's only for internal use
-# let other repos' testgen supercede this one in downstream repos
-testgen_hash="50e12d558b97250deb7a671a524278a61a06a60c"
-git_repository(
-    name = "testgen",
-    commit = testgen_hash,
-    shallow_since = "1677278961 -0600",
-    recursive_init_submodules = True,
-    remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
-)
-
+load("//infra/bazel:internal_repositories.bzl", "internal_repositories")
+internal_repositories()
 load("@testgen//:repositories.bzl", "testgen_dependencies")
 testgen_dependencies()
 
@@ -58,8 +49,6 @@ cvm_toolchains1()
 load("@cvm//deps:toolchains2.bzl", "cvm_toolchains2")
 cvm_toolchains2()
 
-load("@corearchcoverage//infra/bazel:repositories.bzl","corearchcoverage_dependencies")
-corearchcoverage_dependencies()
 
 load(
     "@rules_vcs//vcs:repositories.bzl",

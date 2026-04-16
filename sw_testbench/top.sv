@@ -15,9 +15,9 @@ module top
       SW_1C,
       SW_2C
     } harness_id;
-
+ 
     localparam harness_id HARNESS = `HARNESS;
-
+    
     `RV_TESTER_VARS(cvm_topology_gen::mods)
 
     rv_tester #(
@@ -33,16 +33,18 @@ module top
     assign core_no_fetch[cvm_topology_gen::mods.TOP.PLATFORM.NHARTS-1:0] = {cvm_topology_gen::mods.TOP.PLATFORM.NHARTS{reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX]}};
     /* verilator lint_on WIDTHEXPAND */
 
+    rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_next;
+
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
-        rvfi[idx].valid = (valid != '0);
-        rvfi[idx].order = {32'h0, order};
-        rvfi[idx].hart = hartid[HARTLEN-1:0];
-        rvfi[idx].pc_rdata = pc;
-        rvfi[idx].insn = insn;
-        rvfi[idx].uop = {32'h0, insn};
-        rvfi[idx].mode = 4'h3;
-        rvfi[idx].last_uop = '1;
+        rvfi_next[idx].valid = (valid != '0);
+        rvfi_next[idx].order = {32'h0, order};
+        rvfi_next[idx].hart = hartid[HARTLEN-1:0];
+        rvfi_next[idx].pc_rdata = pc;
+        rvfi_next[idx].insn = insn;
+        rvfi_next[idx].uop = {32'h0, insn};
+        rvfi_next[idx].mode = 4'h3;
+        rvfi_next[idx].last_uop = '1;
     endfunction
 
     export "DPI-C" function write_rvfi;
@@ -52,8 +54,17 @@ module top
 
     int unsigned order = '0;
     assign quiesced = '1;
-    assign dmi_req_ready = '0;
-    assign dmi_resp_valid = '0;
+    assign ntrace_terminate        = '1;
+    assign terminate_dst_trace_seq = '1;
+    assign dmi_terminate           = '1;
+    assign dmi_poll_timeout_terminate = '0;
+    int unsigned reset_deassert_cycle = 100;
+    assign warm_reset_en = '0;
+    assign num_resets = -1;
+    assign target_num_resets = 0;
+  `ifdef UVM_MACROS_SVH
+    assign uvm_done = '1;
+  `endif 
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;
@@ -66,8 +77,11 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
-        if (!reset[COLD_RESET_IDX]) begin
-          order <= order + 1;
+        order <= order + 1;
+        if (order <= reset_deassert_cycle) begin
+            cold_reset <= '1;
+        end else begin
+            cold_reset <= '0;
         end
         case(HARNESS)
         SW_1C:
@@ -77,6 +91,7 @@ module top
         default:
             $error("No harness specified");
         endcase
+        rvfi <= rvfi_next;
     end
 
 endmodule

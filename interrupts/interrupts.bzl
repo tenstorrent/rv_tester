@@ -19,6 +19,7 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
+            "@rv_tester//sysmod/trickbox:interrupter_cc",
             "@rv_tester//:plusargs",
             "@rv_tester//cosim/whisper_if:whisper_if",
             "@rv_tester//cosim/bridge:bridge_plusargs",
@@ -41,6 +42,7 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
             "@cvm//:topology_sv",
+            "@rv_tester//:rv_tester_tick_generator",
             packet + "_sv",
             topology + "_sv",
             harness,

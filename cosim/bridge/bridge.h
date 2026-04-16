@@ -49,11 +49,12 @@ public:
   //   - AMO
   //   - Table Walks
   //   - Exceptions/interrupt
-  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order);
+  virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, uint64_t vec_cmode_first_tag);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
+  virtual void process_counter_overflow(csr_t& c) override;
   virtual void process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_fp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::bitset<256>, 32>& array);
@@ -74,6 +75,7 @@ public:
   virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_timer(hart_id_t hart, rv_intr_t& i) override;
+  virtual void process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool trap_intr) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
@@ -120,10 +122,10 @@ private:
           }
       }
   template <typename... Args>
-      void error(Args&&... args) {
+      void error(std::string_view format, Args&&... args) {
           std::string prefix = "Error: ";
           if (patch_mode_) { prefix += "PATCH ";}
-          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          std::string out ="\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
           print(cvm::ERROR, out);
       }
   bool flags_bridge_log_;
@@ -136,7 +138,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -150,7 +152,7 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
-  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
+  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data, uint32_t offset = 0);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
   uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
@@ -178,22 +180,22 @@ private:
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
   void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
-  void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void pre_step_nmi_check(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void pre_step_interrupt_process(  hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_csr_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
-  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
+  void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr);
+  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void defer_nmi(hart_id_t hart, uint64_t time, uint64_t nmi);
+  void peek_deferred_interrupts(hart_id_t hart, uint64_t& DeferredInterrupts);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
-  void poke_dut_nmi(hart_id_t hart, uint64_t time, uint64_t dcause);
   void clear_nmi(hart_id_t hart, uint64_t time);
   void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
@@ -248,6 +250,7 @@ private:
     {0x302, "medeleg"},
     {0x303, "mideleg"},
     {0x344, "mip"},
+    {0x309, "mvip"},
     {0x304, "mie"},
     {0x244, "sip"},
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
@@ -257,6 +260,18 @@ private:
     {0x10C, "sstateen0"}
   };
 
+    // Bit masks for fields that are masked by misa.H in each CSR
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
+    {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
+    {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
+    {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+    {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
+    {0x244, 0x0000000000001444}, // sip: same as mip (alias)
+    {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
+    {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
+  };
+  
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
@@ -298,7 +313,9 @@ private:
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
     {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
   };
-
+  std::unordered_set<uint32_t> interrupt_csrs_to_resynch_ = {MIP, SIP, HIP, VSIP, HGEIP, MTOPI, VSTOPI, STOPI};
+  // TODO: Add interrupt CSRs for check
+  // std::unordered_set<uint32_t> interrupt_csrs_for_check_ = {MIP, MVIP, SIP, HIP, VSIP, MIE, SIE, VSIE, HIE, MSTATUS, SSTATUS, HSTATUS, VSSTATUS, MNSTATUS, MIDELEG, MVIEN, HIDELEG, HVIEN};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -313,6 +330,7 @@ private:
   uint64_t order_ = 0;
   uint64_t prev_dut_trap_cause_ = 0;
   uint64_t prev_dut_trap_order_ = 0;
+  uint64_t prev_vec_cmode_first_tag_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
@@ -357,26 +375,28 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
-  uint64_t deferred_interrupt_ = 0;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
-  std::unordered_map<uint64_t, uint64_t> nmis_{};
+  std::unordered_map<uint64_t, uint64_t> nmi_age_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
+  std::bitset<64> last_step_mip_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
+  std::bitset<64> nmip_ = 0;
 
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
+  std::unordered_map<uint32_t, uint32_t> deferred_intr_age_;
 
   std::unordered_map<uint32_t, uint32_t> whisper_mip_age_, whisper_mip_clr_age_, dut_mip_age_, dut_mip_clr_age_;
   std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
@@ -386,10 +406,8 @@ private:
   uint64_t resynch_icause_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
-  uint32_t nmi_age_ = 0;
   uint32_t nmi_taken_count_ = 0;
-  std::unordered_map<uint64_t, bool> hw_intr_set_;
-  std::unordered_map<uint64_t, uint64_t> hw_intr_clear_cycle_;
+  std::unordered_map<uint64_t, uint64_t> sw_intr_clear_cycle_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
@@ -404,7 +422,7 @@ private:
   uint64_t saplic_base_=0, saplic_end_=0;
 
 
-  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<intr, int> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
   int num_exceptions_insn_err_access_fault_ = 0;
   int num_exceptions_ld_err_access_fault_ = 0;
@@ -423,6 +441,11 @@ private:
   bool terminated_=false, end_mcm_=false, metrics_reported_=false;
   bool check_nmi_at_patch_exit_ = false;
   uint64_t check_nmi_at_patch_cause_ = 0;
+  bool check_intr_at_patch_exit_ = false;
+  uint64_t check_intr_at_patch_cause_ = 0;
+  bool check_debug_entry_at_patch_exit_ = false;
+  bool skip_de_until_debug_vector_ = false;
+  rv_debug_t deferred_debug_entry_{};
   enum patch_mode patch_mode_ = NO_PATCH;
 
   // Containers for storing result of parsing plusargs
@@ -435,6 +458,14 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+  std::pair<uint64_t /*pa*/, uint64_t/*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
+  bool custom_vlzero_excp_ = false;
+
+  std::bitset<64> intr_during_trap_ = 0;
+  std::bitset<64> intr_cleared_during_trap_ = 0;
+  bool intr_partially_deferred_ = false;
+  bool intr_undeferred_due_to_xret_intr_csr_ = false;
+  bool nmi_undeferred_due_to_xret_intr_csr_ = false;
 };

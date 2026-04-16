@@ -151,6 +151,8 @@ typedef struct mem_s {
   uint8_t amo_op;
   bool v_ext;
   uint32_t attr;
+  bool page4kX;
+  uint32_t page4kX_attr;
   bool error;
   uint8_t field;
   uint8_t elem_idx;
@@ -158,6 +160,7 @@ typedef struct mem_s {
   uint8_t elem_size;
   bool mtime_valid;
   uint64_t mtime;
+  bool trap_intr;
   
   mem_s() {
     clear();
@@ -209,6 +212,7 @@ typedef struct rv_instr_s {
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
+  uint64_t core_cycle = 0; 
   uint64_t tag = 0;
   uint64_t branch_tag = 0;
   uint32_t opcode = 0;
@@ -306,7 +310,10 @@ typedef struct rv_intr_s {
   bool seip_set;
   bool seip_clr;
   uint64_t mtime;
+  uint32_t size;
   uint8_t buserr_bit;
+  uint64_t timeCsr;
+  bool trap_intr;
 } rv_intr_t;
 
 typedef struct rv_nmi_s {
