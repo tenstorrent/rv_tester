@@ -423,6 +423,10 @@ module rv_tester
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
 
+            /* verilator lint_off BLKSEQ */
+            rv_tester_error_terminate.terminate = '0;
+            /* verilator lint_on BLKSEQ */
+
             if(num_builds < 0) begin
                $display("[RVTESTER]: constructing Full registry");
                rv_tester_build_registry();
@@ -440,7 +444,6 @@ module rv_tester
             _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
             _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
             _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
-            rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
