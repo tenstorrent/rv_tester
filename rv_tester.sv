@@ -423,6 +423,10 @@ module rv_tester
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
 
+            /* verilator lint_off BLKSEQ */
+            rv_tester_error_terminate.terminate = '0;
+            /* verilator lint_on BLKSEQ */
+
             if(num_builds < 0) begin
                $display("[RVTESTER]: constructing Full registry");
                rv_tester_build_registry();
