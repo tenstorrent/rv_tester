@@ -146,6 +146,7 @@ class CsrMap:
         self.csr_property_dict = dict()
         # Load CSR parameter override values from YAML file
         self.cac_check_overrides = {}
+        self.csr_params = {}
         if csr_param_override:
             with open(csr_param_override, "r") as f:
                 override_data = yaml.safe_load(f)
@@ -155,16 +156,8 @@ class CsrMap:
                     if "addtional_csrs" in override_data:
                         for csr_name, csr_data in override_data["addtional_csrs"].items():
                             description[csr_name] = csr_data
-        # Shared parameter dictionary for both reset and performance values
-        self.csr_params = {
-            "CSR_CMCCFG_F_VLPRFSIZE_RESET_VALUE": 64,
-            "CSR_CMCCFG_F_VECPRFSIZE_RESET_VALUE": 160,
-            "CSR_CMCCFG_F_FPPRFSIZE_RESET_VALUE": 184,
-            "CSR_CMCCFG_F_INTPRFSIZE_RESET_VALUE": 224,
-            "CSR_CMCCFG_F_ROBSIZE_RESET_VALUE": 256,
-            "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
-            
-        }
+                    if "resolved_params" in override_data:
+                        self.csr_params = override_data["resolved_params"]
         for csr_name, csr_data in description.items():
             common_data = csr_data.get("common_data", {})
             csr_address = common_data.get("ADDRESS", "0x0")

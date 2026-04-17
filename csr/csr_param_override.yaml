@@ -1,3 +1,7 @@
+# PARAM-resolved values for fields with RESET_VALUE or PERF_VALUE set to "PARAM"
+# Key format: CSR_<CSRNAME>_F_<FIELDNAME>_RESET_VALUE or _PERF_VALUE
+resolved_params:
+
 # Additional CSRs
 addtional_csrs:
   c_fecfg2:
