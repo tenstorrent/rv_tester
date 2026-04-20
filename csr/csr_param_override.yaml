@@ -1,0 +1,252 @@
+# PARAM-resolved values for fields with RESET_VALUE or PERF_VALUE set to "PARAM"
+# Key format: CSR_<CSRNAME>_F_<FIELDNAME>_RESET_VALUE or _PERF_VALUE
+resolved_params:
+
+# Additional CSRs
+addtional_csrs:
+  c_fecfg2:
+    common_data:
+      VISIBILITY: Internal
+      ADDRESS: BC2
+      RESET_PORT: ""
+      CLOCK_PORT: ""
+      HW_READ: FE
+      SW_WRITE: W
+      SW_READ: R
+      SW_TYPE: ""
+      DESCRIPTION: Front End - CFG register 2
+      FUSA_ENCODING: ''
+    rsvd_63_28:
+      FIELDS_WIDTH: "36"
+      FIELDS_RANGE: "63:28"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      DESCRIPTION: Front End - Unused
+    DisMultiTrapFix:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "27:27"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: bringup
+      CONSTRAINTS: "[[[0,0],100], [[1,1],0]]"
+      DESCRIPTION: Front End - Disable fix in place for getting a trap while servicing a trap.
+    DisVLIsZeroNOP:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "26:26"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: bringup
+      CONSTRAINTS: "[[[0,0],100], [[1,1],0]]"
+      DESCRIPTION: Front End - Disables VLIsZero performance fix
+    DisNoIsaEbrkEcall:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "25:25"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: bringup
+      CONSTRAINTS: "[[[0,0],100], [[1,1],0]]"
+      DESCRIPTION: Front End - Disables NOT doing a IdleSerializeAfter for an EBreak or ECall uscode sequence
+    DisDeCsrVxrmOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "24:24"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: bringup
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Disable optimization for Vxrm access.
+    DisDeCsrWrOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "23:23"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - Disable optimization for some CSR Wrs. Optimization is
+        to NOT force serialization for CSR instructions that do a write. Setting this
+        bit will cause CSR Wr to be serialized.
+    DisDeCsrFrmRdOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "22:22"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: stable
+      DESCRIPTION:
+        Front End - Disable optimization of FRM CSR Rds. Optimization is
+        to NOT force serialization for CSR instructions that only do a read. Setting
+        this bit will cause CSR Rds to be serialized.
+    DisDeCsrFcsrRdOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "21:21"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: stable
+      DESCRIPTION:
+        Front End - Disable optimization of FCSR CSR Rds. Optimization is
+        to NOT force serialization for CSR instructions that only do a read. Setting
+        this bit will cause CSR Rds to be serialized.
+    DisDeCsrOtherRdOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "20:20"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      STATUS: stable
+      DESCRIPTION:
+        Front End - Disable optimization of some other CSR Rds. Optimization
+        is to NOT force serialization for CSR instructions that only do a read. Setting
+        this bit will cause CSR Rds to be serialized.
+    DisDeInferredCg:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "19:19"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P0
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - If set, forces the clock enable of any hooked up flops
+        to 1 thereby disabling clock gating.
+    DisStatusCsrPerfOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "18:18"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - Disable Imm type CSR Wr to *STATUS perf opt (to remove
+        NFSR)
+    DisVecIllegalDecode:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "17:17"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      CONSTRAINTS: "[[[0,0],100], [[1,1],0]]"
+      DESCRIPTION: Front End - Disable Vector Illegal Instr Decodeing
+    DeVmvLegalWithVill:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "16:16"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: rtl-done
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Vmv whole reg is legal when Vill is set
+    OvrIBufRdVldEn:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "15:15"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P0
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Valid qualifier for the OvrIBufRdVld field of this struct
+    ForceFullIdleReq:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "14:14"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Force all Idle Req Types to be IDLE_FULL
+    ForceVecSeq0:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "13:13"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P1
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - Force all cracked vector instruction to use Major/Minor
+        Vec_cracker0
+    OvrIBufRdVld:
+      FIELDS_WIDTH: "3"
+      FIELDS_RANGE: "12:10"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P0
+      STATUS: stable
+      CONSTRAINTS: "[[[0,1],20], [[2,4],20], [[5,7],60]]"
+      DESCRIPTION: Front End - Override the number of IBuf Rd Vld Ports
+    DisDeCSRRenaming:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "9:9"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Disable DE CSR renaming and serialize on all CSRs
+    DisDeWfiClkGating:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "8:8"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P0
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Disable DE clock gating in WFI
+    DeZiHintPauseCnt:
+      FIELDS_WIDTH: "4"
+      FIELDS_RANGE: "7:4"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],20],[[1,4],50],[[5,11],20],[[12,14],10]]"
+      DESCRIPTION:
+        Front End - Number of cycles to stall dispatch for "Zihintpause"
+        Pause Hint
+    DisDeIdleSerialization:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "3:3"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - Disable Idle serialization mechanism in DE (used for
+        satp wrte etc)
+    DisDeCsrRdOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "2:2"
+      RESET_VALUE: "0"
+      PERF_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P0
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION:
+        Front End - Disable optimization of CSR Rds. Optimization is to NOT
+        force serialization for CSR instructions that only do a read. Setting this bit
+        will cause CSR Rds to be serialized.
+    DisDeFenceIPerfOpt:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: "1:1"
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: Front End - Disable force serialization for CSR instructions in DE
+    DeForceFenceSerialize:
+      FIELDS_WIDTH: "1"
+      FIELDS_RANGE: 0:0
+      RESET_VALUE: "0"
+      LEGAL_VALUE: ""
+      PRIORITY: P2
+      STATUS: stable
+      CONSTRAINTS: "[[[0,0],0], [[1,1],100]]"
+      DESCRIPTION: "Front End - DE : Optionally enable serialization for Fence instructions"

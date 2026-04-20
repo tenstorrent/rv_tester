@@ -5497,6 +5497,46 @@ tselect:
     LEGAL_VALUE: '[0:8]'
     SW_TYPE: ''
     DESCRIPTION: These are Trigger Registers from Debug Spec, not complete
+tdata1:
+  common_data:
+    ADDRESS: 7A1
+    SW_WRITE: W 
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: 'Trigger Data 1 '
+  tdata1:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Trigger Data 1
+tdata2:
+  common_data:
+    ADDRESS: 7A2
+    SW_WRITE: W 
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Trigger Data 2
+  tdata2:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+tdata3:
+  common_data:
+    ADDRESS: 7A3
+    SW_WRITE: W 
+    SW_READ: R
+    SW_TYPE: WARL
+    DESCRIPTION: Trigger Data 3
+  tdata3:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
 dcsr:
   common_data:
     ADDRESS: 7B0
