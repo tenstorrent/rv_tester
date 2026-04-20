@@ -790,12 +790,8 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
-
-  if (c.csr_addr >= mhpmevent3.address && c.csr_addr <= mhpmevent31.address) process_counter_overflow(hart, c);
-  else {
     uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
     update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
-  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -1132,10 +1128,27 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
+  // Check deferred interrupt at patch exit (mirrors NMI exit check)
+  if (w_.intr && patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
+    if (check_intr_at_patch_cause_ != w_.icause)
+      error("Hart {}: Interrupt cause mismatch at patch exit, whisper:{} dut: {}\n", hart, w_.icause, check_intr_at_patch_cause_);
+    check_intr_at_patch_exit_ = false;
+    return;
+  }
+
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
     // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
     if (d.icause == 0)
       return;
+
+    // If entering patch mode, defer the interrupt check to patch exit
+    // (mirrors NMI handling at patch entry)
+    if (patch_mode_ == ENTER_PATCH) {
+      check_intr_at_patch_exit_ = true;
+      check_intr_at_patch_cause_ = d.icause;
+      bridge_log(cvm::MEDIUM, "<{}> Interrupt detected at patch entry, deferring to exit. dcause:[{}]\n", w.time, d.icause);
+      return;
+    }
 
     error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
     return;
@@ -2682,11 +2695,10 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Thus any CSRRW/CSRRC to MIP needs to be poked to whisper
   std::bitset<64> non_std_intr = 0;
   for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit), uint64_t(C_HWAI)}) {
-    if (i.mip_set[ir] && i.hw)
-    if (i.mip_clr[ir]) {
-      hw_intr_clear_cycle_[ir] = i.cycle;
+    if (i.mip_clr[ir] && !i.hw) {
+      sw_intr_clear_cycle_[ir] = i.cycle;
     }
-    if (i.mip_set[ir] && hw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
+    if (i.mip_set[ir] && sw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
       bridge_log(cvm::HIGH, "<{}> MIP[{}] SW cleared in the last cycle, HW asserted in this cycle. Poking to Whisper.\n", i.cycle, ir);
       non_std_intr |= std::bitset<64>(1ULL << ir);
     }
@@ -2784,16 +2796,16 @@ void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool tr
   check_and_defer_interrupt(hart, cycle, tmp_mip_latest_, trap_intr);
 }
 
-void bridge::process_counter_overflow(hart_id_t hart, csr_t c) {
+void bridge::process_counter_overflow(csr_t& c) {
   bridge_log(cvm::MEDIUM, "<{}> Counter overflow: {:#x}\n", c.cycle, c.csr_addr);
-  peek_mip(hart, c.cycle, tmp_mip_prev_);
+  peek_mip(c.hart, c.cycle, tmp_mip_prev_);
   uint64_t mhpmeventx;
-  peek_resource(hart, 'c', c.csr_addr, mhpmeventx);
+  peek_resource(c.hart, 'c', c.csr_addr, mhpmeventx);
   mhpmeventx |= (1ULL << 63);
-  poke_resource(hart, c.cycle, 'c', c.csr_addr, mhpmeventx);
-  peek_mip(hart, c.cycle, tmp_mip_latest_);
+  poke_resource(c.hart, c.cycle, 'c', c.csr_addr, mhpmeventx);
+  peek_mip(c.hart, c.cycle, tmp_mip_latest_);
   check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  check_and_defer_interrupt(hart, c.cycle, tmp_mip_latest_);
+  check_and_defer_interrupt(c.hart, c.cycle, tmp_mip_latest_);
 }
 
 void bridge::poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr) {

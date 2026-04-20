@@ -70,6 +70,17 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+    m_mhpm_counter_ovf:
+        domain: 1
+        num: ${TOP.PLATFORM.CSRI.NCSRI}
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.CSRLEN}
+            hart:
+                width: 32
+
     m_steps:
         domain: 1
         num: 1 

@@ -51,6 +51,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_fp_regs<>,
     rv_tester_transactions::cosim::m_vc_regs<>,
     rv_tester_transactions::cosim::m_csri<>,
+    rv_tester_transactions::cosim::m_mhpm_counter_ovf<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
@@ -921,7 +922,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
   send_csr(c);
 }
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mhpm_counter_ovf<>& m_mhpm_counter_ovf) {
+  if (terminated_ || in_reset_)
+    return;
 
+  csr_t c {true, m_mhpm_counter_ovf.hart, m_mhpm_counter_ovf.cycle, m_mhpm_counter_ovf.addr, 0, 0};
+  bridge_->process_counter_overflow(c);
+}
 
 bool rvfi::sc_failed(mem_t& write) {
 
