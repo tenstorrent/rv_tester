@@ -1497,7 +1497,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
     uint64_t cause = 0;
     uint64_t ncause = 0;
     for (auto& c : w_.csr) {
-      if (c.csr_addr == mcause.address) {
+      if (c.csr_addr == mncause.address) {
         cause_valid = true;
         ncause = c.csr_wdata;
       }
