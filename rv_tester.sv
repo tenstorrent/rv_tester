@@ -369,6 +369,10 @@ module rv_tester
             end
         end
     end
+    // rv_tester_reset_dut_clk comes in from TB_CLK and is sync-ed to CORE_CLK here
+    // rv_tester_streaming_dpi_init occurs on d2=0 and d1=1 is used by rv_tester_transactions to call init funciton
+    // rv_tester_dpi_init_done occurs on d3=0 and d2=1 (1 clock after init).  
+    // We need this timing to insure init is called before reset is done.
     always @(posedge dut_clk[CORE_CLK_IDX]) begin
        rv_tester_reset_core_clk_d1 <= rv_tester_reset_dut_clk;
        rv_tester_reset_core_clk_d2 <= rv_tester_reset_core_clk_d1;
