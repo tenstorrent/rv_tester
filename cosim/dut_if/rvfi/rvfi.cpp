@@ -445,11 +445,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.csr_renamed = src_renamed || dest_renamed;
   instr.csr_renamed_name = "";
   if (instr.csr_renamed) {
-    auto renamed_addr = src_renamed  ? renamed_csr.at(src) :
-                                       renamed_csr.at(m_rvfi.rd_addr);
-    if (auto it = csrs.find(renamed_addr); it != csrs.end()) {
-        instr.csr_renamed_name = it->second.name;
-    }
+    auto* renamed_entry = src_renamed ? renamed_csr.at(src) : renamed_csr.at(m_rvfi.rd_addr);
+    instr.csr_renamed_name = renamed_entry->name;
   }
 
   if (FLAGS_use_sw_priv == false) {
@@ -608,12 +605,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // CSR renaming
   if (renamed_csr.count(m_rvfi.rd_addr)) {
-    const auto& new_name = renamed_csr.at(m_rvfi.rd_addr);
-    uint32_t addr = 0;
-    if (auto it = csrs.find(new_name); it != csrs.end()) {
-        addr = it->second.addr;
-    }
-    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    auto* csr_entry = renamed_csr.at(m_rvfi.rd_addr);
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, static_cast<uint32_t>(csr_entry->address), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
       // This is for print in the rvfi log
     instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
@@ -1081,8 +1074,8 @@ bool get_csr_name_instr(const std::string& input, std::string& modified_string) 
         // Extract the numeric part and convert to uint64_t
         uint64_t search_addr = std::stoull(match[1].str());
         // Find the entry with the matching address
-        if (auto it = csrs.find(search_addr); it != csrs.end()) {
-            modified_string = std::regex_replace(input, pattern, it->second.name);
+        if (auto* csr = find_csr_by_address(search_addr); csr != nullptr) {
+            modified_string = std::regex_replace(input, pattern, csr->name);
             return true;
         }
       } catch (...) {

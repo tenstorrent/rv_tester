@@ -12,6 +12,11 @@ def _csr_param_gen_impl(ctx):
     args.add("--csr_map_sv", csr_map_sv)
 
     inputs = [ctx.file.csr_spec]
+
+    if ctx.file.csr_param_override:
+        args.add("--csr_param_override", ctx.file.csr_param_override)
+        inputs.append(ctx.file.csr_param_override)
+
     outputs = [csr_map_hpp, csr_map_sv]
 
     ctx.actions.run(
@@ -36,6 +41,11 @@ _csr_param_gen = rule(
             mandatory = True,
             doc = "Path to CSR specification yaml file",
         ),
+        "csr_param_override": attr.label(
+            allow_single_file = True,
+            mandatory = False,
+            doc = "Path to YAML file with CSR parameter overrides",
+        ),
         "csr_map_hpp": attr.output(
             mandatory = True,
             doc = "Output C++ header file",
@@ -55,7 +65,7 @@ _csr_param_gen = rule(
     ],
 )
 
-def csr_param_gen(name, csr_spec, package = "", visibility = None, cc_attrs = {}, **kwargs):
+def csr_param_gen(name, csr_spec, csr_param_override = None, package = "", visibility = None, cc_attrs = {}, **kwargs):
 
     csr_map_hpp = name + ".hpp"
     csr_map_sv = name + ".sv"
@@ -67,6 +77,7 @@ def csr_param_gen(name, csr_spec, package = "", visibility = None, cc_attrs = {}
     _csr_param_gen(
         name = name,
         csr_spec = csr_spec,
+        csr_param_override = csr_param_override,
         csr_map_hpp = csr_map_hpp,
         csr_map_sv = csr_map_sv,
         visibility = visibility,

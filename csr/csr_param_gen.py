@@ -19,7 +19,58 @@ class CSR:
         self.size = size
         self.field = {}
         self.alias_of = alias_of
+        self.reset_val = "0x0"  # Initialize with default value
         self.perf_val = "0x0"  # Initialize with default value
+
+    def concat_reset_val(self, csr_map_instance=None):
+        """Concatenate reset values from all fields in this CSR"""
+        from bitstring import BitArray
+        
+        # Create a BitArray of the CSR size, initialized to 0
+        concat_bitarray = BitArray(length=self.size)
+        
+        for field_name, field_property in self.field.items():
+            resolved_value = 0
+            
+            if hasattr(field_property, 'reset_val') and field_property.reset_val:
+                # Use the resolve_param_reset_value method if csr_map_instance is available
+                if csr_map_instance:
+                    resolved_value = csr_map_instance.resolve_param_reset_value(field_property.reset_val, self.name, field_name)
+                else:
+                    # Fallback to original logic if no csr_map_instance
+                    val_str = str(field_property.reset_val).strip()
+                    try:
+                        if val_str.lower().startswith("0x"):
+                            val_str = val_str[2:]
+                        resolved_value = int(val_str, 16)
+                    except (ValueError, TypeError):
+                        resolved_value = 0
+            
+            if resolved_value:
+                # Calculate start position (MSB position from the right)
+                start_pos = self.size - 1 - field_property.range[0]  # range[0] is MSB
+                
+                try:
+                    # Create BitArray for this field's value
+                    field_bitarray = BitArray(length=field_property.width, uint=resolved_value)
+                    # Overwrite the corresponding bits in the main BitArray
+                    concat_bitarray.overwrite(field_bitarray, start_pos)
+                except (ValueError, TypeError):
+                    # If value is invalid, skip this field
+                    continue
+        
+        # Convert to hex string
+        hex_result = str(concat_bitarray)
+        if hex_result.startswith('0x'):
+            hex_result = hex_result[2:]
+        
+        # Remove leading zeros but keep at least one digit
+        hex_result = hex_result.lstrip('0')
+        if not hex_result:
+            hex_result = '0'
+        
+        self.reset_val = '0x' + hex_result
+        return self.reset_val
 
     def concat_perf_val(self, csr_map_instance=None):
         """Concatenate performance values from all fields in this CSR"""
@@ -89,20 +140,24 @@ class CSR:
         return self.perf_val
 
 class CsrMap:
-    def __init__(self, csr_spec):
+    def __init__(self, csr_spec, csr_param_override=None):
         with open(csr_spec, "r") as c:
             description = yaml.safe_load(c)
         self.csr_property_dict = dict()
-        # Shared parameter dictionary for both reset and performance values
-        self.csr_params = {
-            "CSR_CMCCFG_F_VLPRFSIZE_RESET_VALUE": 64,
-            "CSR_CMCCFG_F_VECPRFSIZE_RESET_VALUE": 160,
-            "CSR_CMCCFG_F_FPPRFSIZE_RESET_VALUE": 184,
-            "CSR_CMCCFG_F_INTPRFSIZE_RESET_VALUE": 224,
-            "CSR_CMCCFG_F_ROBSIZE_RESET_VALUE": 256,
-            "CSR_CMCCFG1_F_DERRINTERRUPTNUMBER_RESET_VALUE": 23
-            
-        }
+        # Load CSR parameter override values from YAML file
+        self.cac_check_overrides = {}
+        self.csr_params = {}
+        if csr_param_override:
+            with open(csr_param_override, "r") as f:
+                override_data = yaml.safe_load(f)
+                if override_data:
+                    if "cac_check_overrides" in override_data:
+                        self.cac_check_overrides = override_data["cac_check_overrides"]
+                    if "addtional_csrs" in override_data:
+                        for csr_name, csr_data in override_data["addtional_csrs"].items():
+                            description[csr_name] = csr_data
+                    if "resolved_params" in override_data:
+                        self.csr_params = override_data["resolved_params"]
         for csr_name, csr_data in description.items():
             common_data = csr_data.get("common_data", {})
             csr_address = common_data.get("ADDRESS", "0x0")
@@ -246,7 +301,7 @@ class CsrMap:
             return sanitized
 
         def parse_hex_address(address):
-            """Convert address to 12-bit hex value (uint16_t)"""
+            """Convert address to 12-bit hex value (uint64_t)"""
             if not address:
                 return 0
             
@@ -325,13 +380,15 @@ class CsrMap:
             
             f.write("struct csr_base {\n")
             f.write("    std::string name;\n")
-            f.write("    std::uint16_t address;  // 12-bit hex address\n")
+            f.write("    std::uint64_t address;  // 12-bit hex address\n")
             f.write("    int size;\n")
             f.write("    csr_base* alias_of;  // Pointer to aliased CSR struct\n")
+            f.write("    std::uint64_t reset_val;  // 64-bit field-based concatenated reset value\n")
             f.write("    std::uint64_t perf_val;\n")
+            f.write("    bool cac_check;  // CAC check enable flag\n")
             f.write("    \n")
-            f.write("    csr_base(const std::string& csr_name, std::uint16_t csr_address, int csr_size)\n")
-            f.write("        : name(csr_name), address(csr_address), size(csr_size), alias_of(nullptr), perf_val(0) {}\n")
+            f.write("    csr_base(const std::string& csr_name, std::uint64_t csr_address, int csr_size, bool csr_cac_check = true)\n")
+            f.write("        : name(csr_name), address(csr_address), size(csr_size), alias_of(nullptr), reset_val(0), perf_val(0), cac_check(csr_cac_check) {}\n")
             f.write("    \n")
             f.write("    csr_base() = default;\n")
             f.write("};\n\n")
@@ -344,6 +401,17 @@ class CsrMap:
                 
                 hex_address = parse_hex_address(csr.address)
                 lowercase_csr_name = csr_name.lower()
+                # Calculate the concatenated reset value for this CSR
+                csr_reset_val = csr.concat_reset_val(self)
+                csr_reset_val_int = 0
+                if csr_reset_val:
+                    reset_str = str(csr_reset_val).strip()
+                    if reset_str.lower().startswith("0x"):
+                        reset_str = reset_str[2:]
+                    try:
+                        csr_reset_val_int = int(reset_str, 16) & 0xFFFFFFFFFFFFFFFF
+                    except ValueError:
+                        csr_reset_val_int = 0
                 # Calculate the concatenated perf value for this CSR
                 csr_perf_val = csr.concat_perf_val(self)
                 csr_perf_val_int = 0
@@ -355,8 +423,17 @@ class CsrMap:
                         csr_perf_val_int = int(perf_str, 16) & 0xFFFFFFFFFFFFFFFF
                     except ValueError:
                         csr_perf_val_int = 0
-                
-                f.write(f"    {struct_name}() : csr_base(\"{lowercase_csr_name}\", 0x{hex_address:03X}, {csr.size}) {{\n")
+
+                # Determine cac_check value:
+                # - Default false for CSRs starting with "c_"
+                # - Default true for all other CSRs
+                # - Override YAML can override any of them
+                default_cac_check = not csr_name.lower().startswith("c_")
+                cac_check_val = self.cac_check_overrides.get(csr_name, default_cac_check)
+                cac_check_str = "true" if cac_check_val else "false"
+
+                f.write(f"    {struct_name}() : csr_base(\"{lowercase_csr_name}\", 0x{hex_address:03X}, {csr.size}, {cac_check_str}) {{\n")
+                f.write(f"        reset_val = 0x{csr_reset_val_int:016X}ULL;\n")
                 f.write(f"        perf_val = 0x{csr_perf_val_int:016X}ULL;\n")
                 f.write(f"    }}\n\n")
                 
@@ -439,7 +516,7 @@ class CsrMap:
             f.write("    return nullptr;\n")
             f.write("}\n\n")
             
-            f.write("inline csr_base* find_csr_by_address(std::uint16_t address) {\n")
+            f.write("inline csr_base* find_csr_by_address(std::uint64_t address) {\n")
             f.write("    for (auto* csr : csr_map) {\n")
             f.write("        if (csr->address == address) {\n")
             f.write("            return csr;\n")
@@ -632,12 +709,13 @@ if __name__ == "__main__":
     parser.add_argument("--csr_spec", type=str, help="Path to CSR specification YAML file")
     parser.add_argument("--csr_map_hpp", type=str, default="csr_map.hpp", help="Output C++ header file")
     parser.add_argument("--csr_map_sv", type=str, default="csr_map_pkg.sv", help="Output SystemVerilog defines file")
+    parser.add_argument("--csr_param_override", type=str, default=None, help="Path to YAML file with CSR parameter overrides")
     args = parser.parse_args()
-    
+
     if not args.csr_spec:
         print("Error: --csr_spec argument is required")
         exit(1)
-    csr_map = CsrMap(args.csr_spec)
+    csr_map = CsrMap(args.csr_spec, args.csr_param_override)
     csr_map.generate_hpp_file(args.csr_map_hpp)
     csr_map.generate_sv_file(args.csr_map_sv)
 
