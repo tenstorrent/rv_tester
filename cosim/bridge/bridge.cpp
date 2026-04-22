@@ -977,7 +977,7 @@ void bridge::pre_step_debug_entry(hart_id_t hart, const rv_instr_t& d) {
   enter_debug_mode(debug);
   // TODO: Remove DPC/DCSR poke when Whisper models icount post-trigger correctly.
   for (const auto& csr : d.csr)
-    if (csr.valid && (csr.csr_addr == DPC || csr.csr_addr == DCSR))
+    if (csr.valid && (csr.csr_addr == dpc.address || csr.csr_addr == dcsr.address))
       poke_resource(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata);
 }
 
