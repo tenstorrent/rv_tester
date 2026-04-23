@@ -2074,7 +2074,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
   // TODO: Revisit when Whisper models icount/step trigger interactions correctly.
   if (FLAGS_debugrom) {
     uint32_t csr_addr;
-    if (debug_mode_ && cosim_util::is_csr_opcode(d.opcode, csr_addr) && csr_addr >= TSELECT && csr_addr <= TINFO) return true;
+    if (debug_mode_ && cosim_util::is_csr_opcode(d.opcode, csr_addr) && csr_addr >= tselect.address && csr_addr <= tinfo.address) return true;
     if (instr == "csr:minstret" || instr == "csr:minstreth") return true;
   }
 
