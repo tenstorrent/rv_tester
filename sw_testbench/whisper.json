@@ -171,6 +171,12 @@
           "mask"            : "0x0"
       },
 
+      "tinfo" : {
+          "Comment"         : "Read-only supported trigger types (Debug Spec); Whisper hardwired",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
       "dcsr" : {
           "Comment"         : "Hardwired to 0",
           "reset"           : "0x0",
