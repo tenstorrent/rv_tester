@@ -99,7 +99,6 @@ REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-  void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
@@ -284,15 +283,7 @@ sysmod::sw_interrupt(clint::sw_t s) {
       });
 }
 
-void
-sysmod::tbox_interrupt(interrupter::interrupt_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] tbox_interrupt [hart={}, intr.sel={:#x}, intr.val={:#x}]\n", i.hart, i.intr_select, i.intr_value);
-        sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
-      });
-}
+
 
 
 //void
@@ -704,9 +695,6 @@ sysmod::compose() {
 
       } else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
-        cvm::registry::messenger.connect<interrupter::interrupt_t>(
-            loc_,
-            [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });

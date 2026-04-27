@@ -81,7 +81,6 @@ class sysmod {
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
-    void tbox_interrupt(interrupter::interrupt_t i);
     void eot_backdoor_write(transactor::write_t& w);
     void tboxtrig_updatemem(uint64_t addr, uint64_t data);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
