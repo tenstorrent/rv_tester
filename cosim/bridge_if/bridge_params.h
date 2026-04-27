@@ -15,6 +15,8 @@ namespace {
     inline uint64_t mmr_hi_addr() { uint32_t cluster_id = 0; return generate_axisw_device_addr(cluster_id) + 0xFFFF; }
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;
+    constexpr uint64_t patch_ram_lo = 0x4214C000;
+    constexpr uint64_t patch_ram_hi = 0x4214DFFF;
     constexpr uint16_t hgatp_valid_modes[] = {0, 8, 9, 10};
     constexpr uint16_t pmm_legal_values[] = {0, 2};
     constexpr uint64_t pmm_hstatus_mask_lo = 48;
