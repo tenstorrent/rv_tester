@@ -23,3 +23,9 @@ filegroup(
     srcs = ["csr_spec.yaml"],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "csr_param_override",
+    srcs = ["csr_param_override.yaml"],
+    visibility = ["//visibility:public"],
+)

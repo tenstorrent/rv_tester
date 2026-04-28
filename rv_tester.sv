@@ -124,7 +124,6 @@ module rv_tester
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
     import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
-    import "DPI-C" function bit pwrmgmt_get_pwrmgmt_en_from_plusargs(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
     import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
     import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
@@ -146,10 +145,6 @@ module rv_tester
     logic warm_reset_pulse;
     int unsigned warm_reset_clocks = 0;
     int unsigned soc_clocks = 0;
-    logic pwrmgmt_force_ref_clk;
-    logic reset_window;
-    logic cold_reset;
-    logic warm_reset;
     //LU clocks = 0;
     LU axi_clocks;
     bit perf_init_done = 1'b0;       // init done
@@ -165,14 +160,10 @@ module rv_tester
     int num_reruns = -1;
     int dm_build_count = 0;
 
-    logic warm_reset_en = 0;
     logic warm_reset_req_d1;
     logic dmi_warm_reset;
 
-    int num_resets = -1;
     int num_builds = -1;
-    int target_num_resets = 0;
-
 
     bit [NHARTS-1:0] poke_event_out;
     bit poke_event_in;
@@ -201,8 +192,6 @@ module rv_tester
     bit print_terminate_message = '1;
     bit dm_registery_terminate_message = '1;
     int ndmreset_ack_delay = 0;
-
-    bit warm_reset_directed_en = 0;
 
     int trace_timeout;
     int freq_switch_ncycles;
@@ -238,7 +227,6 @@ module rv_tester
     
     // Termination condition variables for better readability
     logic sysmod_cosim_dmi_terminate;
-    logic core_terminate_conditions;
 
     reg [49:0] dut_reset_req_shift_reg;
 
@@ -328,15 +316,6 @@ module rv_tester
             if (num_resets < 0) begin
                 clocks <= '0;
             end
-        end
-
-        num_resets <= num_resets + int'(warm_reset_now);
-        if (warm_reset_en && (num_resets < 0)) begin
-            num_resets          <= 0;
-        end
-
-        if (terminate && terminated) begin
-            num_resets      <= -1;
         end
     end
 
@@ -444,6 +423,10 @@ module rv_tester
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
 
+            /* verilator lint_off BLKSEQ */
+            rv_tester_error_terminate.terminate = '0;
+            /* verilator lint_on BLKSEQ */
+
             if(num_builds < 0) begin
                $display("[RVTESTER]: constructing Full registry");
                rv_tester_build_registry();
@@ -461,8 +444,6 @@ module rv_tester
             _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
             _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
             _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
-            warm_reset_en               <= pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
-            rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
@@ -471,7 +452,6 @@ module rv_tester
             eot_status                      <= 1;
             eot_syscall                     <= 0;
             perf                            <= cvm_plusargs::get_bool("perf") != '0;
-            flag_force_ref_clk              <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
             ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
@@ -489,8 +469,6 @@ module rv_tester
             assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
             overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             perf_count                      <= '0;
-            warm_reset_directed_en          <= cvm_plusargs::get_bool("warm_reset_directed_en") != '0;
-            debug_enable                    <= cvm_plusargs::get_int("debug_enable"); // FIXME: this also exists in cluster_rv_tester, to be removed with pwrmgmt refactor
 
             cvm_verbosity        <= _cvm_verbosity;
             curr_cvm_verbosity   <= _cvm_verbosity;
@@ -504,16 +482,6 @@ module rv_tester
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
-
-        if ((warm_reset_en  || warm_reset_directed_en) && (num_resets < 0)) begin
-            target_num_resets   <= cvm_rand::get("warm_reset_count");
-        end
-
-        // Deassert warm_reset_en when any termination condition is met
-        if (core_terminate_conditions) begin
-            warm_reset_en <= 0;
-        end
-
 
     end
 
@@ -909,47 +877,6 @@ module rv_tester
             cosim_eot_addr <= eot_addr;
         /* verilator lint_on ASSIGNIN */
     end
-
-
-    localparam RESET_TB_CLOCKS = 100;
-    localparam RESET_SOC_CLOCKS = 20;
-    assign init_pulse = (clocks < RESET_TB_CLOCKS);
-    assign warm_reset_pulse = (soc_clocks > RESET_SOC_CLOCKS) && (soc_clocks < (warm_reset_clocks + RESET_SOC_CLOCKS));
-    generate
-        if (PWRMGMT_EN) begin : pwrmgmt
-            pwrmgmt #(
-                .NUM(0),
-                `TOPOLOGY_CFG,
-                `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
-            ) pwrmgmt (
-                .clk(dut_clk),
-                .reset(dut_reset),
-                .sys_reset(sys_reset),
-                .reset_count(num_resets),
-                .target_reset_count(target_num_resets),
-                .cold_reset(cold_reset),
-                .warm_reset(warm_reset),
-                .warm_reset_en(warm_reset_en),
-                .warm_reset_req(warm_reset_req),
-                .reset_hold(reset_hold),
-                .force_ref_clk(pwrmgmt_force_ref_clk),
-                .core_no_fetch(&core_no_fetch),
-                .tj_shutdown(tj_shutdown),
-                .tj_max(tj_max),
-                .pll_dfs_done(pll_dfs_done),
-                .pll_shutdown_done(pll_shutdown_done),
-                .terminate(terminate),
-                .warm_reset_release_hang(warm_reset_release_hang),
-                `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
-            );
-            assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
-            assign force_ref_clk = flag_force_ref_clk ? reset_window : '0;
-        end else begin
-            assign cold_reset = (clocks < RESET_TB_CLOCKS);
-            assign warm_reset = '0;
-            assign force_ref_clk = '1;
-        end
-    endgenerate
 
     for (genvar c = 0; c < NHARTS; c++) begin: interrupts
         interrupts #(

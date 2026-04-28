@@ -52,6 +52,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_fp_regs<>,
     rv_tester_transactions::cosim::m_vc_regs<>,
     rv_tester_transactions::cosim::m_csri<>,
+    rv_tester_transactions::cosim::m_mhpm_counter_ovf<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
@@ -449,11 +450,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.csr_renamed = src_renamed || dest_renamed;
   instr.csr_renamed_name = "";
   if (instr.csr_renamed) {
-    auto renamed_addr = src_renamed  ? renamed_csr.at(src) :
-                                       renamed_csr.at(m_rvfi.rd_addr);
-    if (auto it = csrs.find(renamed_addr); it != csrs.end()) {
-        instr.csr_renamed_name = it->second.name;
-    }
+    auto* renamed_entry = src_renamed ? renamed_csr.at(src) : renamed_csr.at(m_rvfi.rd_addr);
+    instr.csr_renamed_name = renamed_entry->name;
   }
 
   if (FLAGS_use_sw_priv == false) {
@@ -612,12 +610,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // CSR renaming
   if (renamed_csr.count(m_rvfi.rd_addr)) {
-    const auto& new_name = renamed_csr.at(m_rvfi.rd_addr);
-    uint32_t addr = 0;
-    if (auto it = csrs.find(new_name); it != csrs.end()) {
-        addr = it->second.addr;
-    }
-    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    auto* csr_entry = renamed_csr.at(m_rvfi.rd_addr);
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, static_cast<uint32_t>(csr_entry->address), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
       // This is for print in the rvfi log
     instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
@@ -934,7 +928,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
   send_csr(c);
 }
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mhpm_counter_ovf<>& m_mhpm_counter_ovf) {
+  if (terminated_ || in_reset_)
+    return;
 
+  csr_t c {true, m_mhpm_counter_ovf.hart, m_mhpm_counter_ovf.cycle, m_mhpm_counter_ovf.addr, 0, 0};
+  bridge_->process_counter_overflow(c);
+}
 
 bool rvfi::sc_failed(mem_t& write) {
 
@@ -1080,8 +1080,8 @@ bool get_csr_name_instr(const std::string& input, std::string& modified_string) 
         // Extract the numeric part and convert to uint64_t
         uint64_t search_addr = std::stoull(match[1].str());
         // Find the entry with the matching address
-        if (auto it = csrs.find(search_addr); it != csrs.end()) {
-            modified_string = std::regex_replace(input, pattern, it->second.name);
+        if (auto* csr = find_csr_by_address(search_addr); csr != nullptr) {
+            modified_string = std::regex_replace(input, pattern, csr->name);
             return true;
         }
       } catch (...) {
