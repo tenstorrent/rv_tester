@@ -5537,6 +5537,20 @@ tdata3:
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
     SW_TYPE: ''
+    DESCRIPTION: Trigger Data 3
+tinfo:
+  common_data:
+    ADDRESS: 7A4
+    SW_READ: R
+    SW_TYPE: Read-Only
+    DESCRIPTION: 'Trigger Info (Sdtrig): bit M set if trigger type M is implemented (RISC-V Debug Spec).'
+  tinfo:
+    FIELDS_WIDTH: '64'
+    FIELDS_RANGE: '63:0'
+    RESET_VALUE: '0'
+    LEGAL_VALUE: ''
+    SW_TYPE: ''
+    DESCRIPTION: Supported trigger types bitmask; read-only CSR.
 dcsr:
   common_data:
     ADDRESS: 7B0

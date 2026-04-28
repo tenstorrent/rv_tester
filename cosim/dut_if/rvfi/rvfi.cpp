@@ -893,7 +893,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && (uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
 

@@ -521,6 +521,7 @@ namespace {
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
         CUSTOM_SINGLE_STEP      = 31,
+        CUSTOM_DBG_ENTRY        = 33,
         CUSTOM_VLZERO_EXCP      = 39,
         CUSTOM_VEC_CMODE        = 55
     } excp;
@@ -544,7 +545,17 @@ namespace {
         {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
-        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
+        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"},
+        {CUSTOM_DBG_ENTRY        , "CUSTOM_DBG_ENTRY"},
+        {CUSTOM_SINGLE_STEP      , "CUSTOM_SINGLE_STEP"},
+    };
+
+    enum priv_mode : uint8_t {
+        PRIV_USER           = 0,
+        PRIV_SUPERVISOR     = 1,
+        PRIV_MACHINE        = 3,
+        PRIV_DEBUG_ROM      = 6,
+        PRIV_DEBUG_PROGBUF  = 7,
     };
 
     typedef enum : size_t {
