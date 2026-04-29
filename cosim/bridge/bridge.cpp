@@ -565,6 +565,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     return;
   }
 
+  uint32_t cluster_id = 0;
+  uint64_t debug_entry_pc = generate_dm_device_addr(cluster_id) + FLAGS_debug_entry_pc_offset;
+
   check_debug_mode_entry_via_ebreak(d);
 
   if (patch_mode_ == EXIT_PATCH && (check_debug_entry_at_patch_exit_ || is_priv_debug_mode_)) {
@@ -582,9 +585,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       step(hart, w);
       step_++;
     } else {
-      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, FLAGS_debug_entry_pc);
+      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, debug_entry_pc);
       bool valid = false;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, FLAGS_debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
         error("Hart {}: Failed to poke whisper PC to debug vector\n", id_);
     }
     debug_mode_ = true;
@@ -593,8 +596,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   if (skip_de_until_debug_vector_) {
     update_dut_state(hart, d);
-    if (d.pc.pc_rdata == FLAGS_debug_entry_pc) {
-      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, FLAGS_debug_entry_pc);
+    if (d.pc.pc_rdata == debug_entry_pc) {
+      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, debug_entry_pc);
       skip_de_until_debug_vector_ = false;
     } else {
       return;
@@ -656,7 +659,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  uint32_t cluster_id = 0;
   if (d.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
