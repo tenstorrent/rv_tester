@@ -899,7 +899,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     return;
 
   uint32_t cluster_id = 0;
-  if ((uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
+  if (!FLAGS_debugrom && (uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
 
     rv_debug_t debug;
 

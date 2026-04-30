@@ -48,6 +48,8 @@ DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. 
 DEFINE_string(load_bin, "", "Binary file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_bool(debugrom, false, "Load debug ROM ELF before test");
+DEFINE_string(debugrom_path, "", "Path to debug ROM ELF");
 DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
@@ -509,6 +511,7 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
+  load_debugrom(FLAGS_debugrom_path);
   load_cplfw(FLAGS_cplfw_path);
   set_secure_region(FLAGS_stee_secure_region);
 }
@@ -895,6 +898,27 @@ sysmod::load_boot(const std::string& boot) {
     if (boot.substr(boot.length() - 3) == "hex") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
         cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined");
+        return;
+      }
+    }
+  }
+}
+
+
+void
+sysmod::load_debugrom(const std::string& debugrom) {
+
+  if (FLAGS_debugrom && debugrom != "") {
+    cvm::log(cvm::MEDIUM, "Loading debug ROM {}\n", debugrom);
+    if (debugrom.substr(debugrom.length() - 3) == "elf") {
+      if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_elf(debugrom)) {
+        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM");
+        return;
+      }
+    }
+    if (debugrom.substr(debugrom.length() - 3) == "hex") {
+      if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_hex(debugrom)) {
+        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM");
         return;
       }
     }

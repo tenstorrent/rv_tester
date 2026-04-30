@@ -218,12 +218,15 @@ module rv_tester
     int unsigned cvm_verbosity, cvm_debug_verbosity, curr_cvm_verbosity;
     LU cvm_debug_cycle_on = '0;
     LU cvm_debug_cycle_off = '0;
-
+    //logic dut_terminate_any;
+    //logic ntrace_terminate;
 
     bit rv_tester_reset_dut_clk;
     bit rv_tester_reset_core_clk_d1;
     bit rv_tester_reset_core_clk_d2;
+    bit rv_tester_reset_core_clk_d3;
     bit rv_tester_streaming_dpi_init;
+    bit rv_tester_dpi_init_done;
     
     // Termination condition variables for better readability
     logic sysmod_cosim_dmi_terminate;
@@ -348,7 +351,7 @@ module rv_tester
 
             // Used for offine DPI
             //rv_tester_streaming_dpi_init();
-            rv_tester_reset_dut_clk <= 1'b1;
+            //rv_tester_reset_dut_clk <= 1'b1;
         end
         if (terminated && !streaming_dpi_shutdowned) begin
             // Used for zebu offline DPI to shutdown the registry
@@ -356,11 +359,27 @@ module rv_tester
             streaming_dpi_shutdowned <= 1;
         end
     end
+    always @(posedge dut_clk[TB_CLK_IDX] or posedge rv_tester_dpi_init_done) begin
+        if (rv_tester_dpi_init_done) begin
+            rv_tester_reset_dut_clk <= 1'b0;
+        end
+        else begin
+            if (rv_tester_reset) begin
+                rv_tester_reset_dut_clk <= 1'b1;
+            end
+        end
+    end
+    // rv_tester_reset_dut_clk comes in from TB_CLK and is sync-ed to CORE_CLK here
+    // rv_tester_streaming_dpi_init occurs on d2=0 and d1=1 is used by rv_tester_transactions to call init funciton
+    // rv_tester_dpi_init_done occurs on d3=0 and d2=1 (1 clock after init).  
+    // We need this timing to insure init is called before reset is done.
     always @(posedge dut_clk[CORE_CLK_IDX]) begin
        rv_tester_reset_core_clk_d1 <= rv_tester_reset_dut_clk;
        rv_tester_reset_core_clk_d2 <= rv_tester_reset_core_clk_d1;
+       rv_tester_reset_core_clk_d3 <= rv_tester_reset_core_clk_d2;
     end
     assign rv_tester_streaming_dpi_init = rv_tester_reset_core_clk_d1 & ~rv_tester_reset_core_clk_d2;
+    assign rv_tester_dpi_init_done      = rv_tester_reset_core_clk_d2 & ~rv_tester_reset_core_clk_d3;
     /*
     * 2-way DPI call used to periodically calculate the model performance
     *   - perf_period: controls how often performance measurement it made.
