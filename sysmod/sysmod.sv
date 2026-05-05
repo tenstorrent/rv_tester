@@ -123,14 +123,6 @@ import rv_tester_params::*;
 
     export "DPI-C" function sysmod_sw_interrupt;
 
-    function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
-      for(int i =0;i<6;i++)begin
-        if(intr_select[i])
-          interrupt_d[hartid][i] = intr_value[i];
-      end
-    endfunction
-    export "DPI-C" function sysmod_tbox_interrupt;
-
     function void sysmod_trace_info (int unsigned trace_info_s);
       trace_quiesced_q = trace_info_s[0];
     endfunction

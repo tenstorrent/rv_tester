@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <vector>
 #include <variant>
 #include "axi.h"
@@ -61,6 +62,10 @@ class axi_sw_mst {
 
         inline void free_id(uint32_t id) {
             ids_[id] = true;
+        }
+
+        unsigned count_free_ids() {
+            return static_cast<unsigned>(std::count(ids_.begin(), ids_.end(), true));
         }
 
         bool next_id(uint32_t& id,  axi::seqid_t seqid) {
@@ -167,4 +172,5 @@ class axi_sw_mst {
         CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool (const axi::a_no_id_t& aw, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_w_rpc, void (const axi::w_t& w));
         CVM_MESSENGER_procedure_call(try_lock_rpc, lock_t ());
+        CVM_MESSENGER_procedure_call(free_aw_ids_rpc, unsigned ());
 };
