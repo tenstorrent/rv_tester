@@ -42,8 +42,8 @@ DEFINE_string(imsic_intr_disable_mask, "0x00", "Set bit in hex string to disable
 DEFINE_int32(max_intr_count, 0, "Maximum interrupts that can be driven per test");
 
 // ---- Backpressure plusarg ----
-DEFINE_int32(msi_backpressure_threshold, 8, "Minimum free AXI IDs required to proceed with MSI write (0 disables backpressure)");
-DEFINE_int32(msi_backpressure_timeout, 10000, "Timeout for MSI backpressure");
+DEFINE_uint32(msi_backpressure_threshold, 8, "Minimum free AXI IDs required to proceed with MSI write (0 disables backpressure)");
+DEFINE_uint32(msi_backpressure_timeout, 10000, "Timeout for MSI backpressure");
 
 // Logging
 DEFINE_bool(enable_external_interrupt_sequence_debug, false, "Enable external_interrupt_sequence debug");
@@ -388,7 +388,7 @@ bool external_interrupt_sequence::check_axi_backpressure() {
     return false;
   msi_wait_timeout_++;
   unsigned free_ids = cvm::registry::messenger.call<axi_mst_t::free_aw_ids_rpc>(axi_mst_loc_l);
-  if (free_ids <= (unsigned)FLAGS_msi_backpressure_threshold) {
+  if (free_ids <= FLAGS_msi_backpressure_threshold) {
     log(cvm::HIGH, "[ExtInterruptSeq] Backpressure: only {} free AXI IDs (threshold={}), deferring MSI\n",
              free_ids, FLAGS_msi_backpressure_threshold);
     msi_wait_timeout_ = 0;
