@@ -32,7 +32,7 @@ public:
 
   /// Define a trickbox device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc );
+  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc );
 
   // Destructor.
   virtual ~trickbox();
@@ -103,7 +103,6 @@ public:
  
 private:
   uint64_t interrupter_base = 0x9000000;
-  cvm::topology::loc_t axi_mst_loc_l;
 
   std::vector<std::unique_ptr<subdevice> > subdevices_;
   pcg32 rng;

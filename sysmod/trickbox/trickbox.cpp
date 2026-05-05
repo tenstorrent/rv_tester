@@ -4,8 +4,8 @@
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
-  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc )
+  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this)
 {
 
   if (FLAGS_load != "") {

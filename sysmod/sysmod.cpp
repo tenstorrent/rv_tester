@@ -697,7 +697,7 @@ sysmod::compose() {
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
 
       } else if (type == "trickbox") {
-        device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
+        device = std::make_unique<trickbox>(tag, base, nharts, loc_);
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
