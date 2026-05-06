@@ -3,6 +3,7 @@
 
 #include "bridge.h"
 #include "util.h"
+#include "common/device_address_map/device_address_map.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
@@ -113,7 +114,8 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
-  : bridge_log_("h" + std::to_string(id) + "_bridge.log"),
+  : sc_slice_base_([]() { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + 0x8; }()),
+    bridge_log_("h" + std::to_string(id) + "_bridge.log"),
     loc_(loc),
     id_(id),
     num_harts_(num_harts),
@@ -568,6 +570,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     return;
   }
 
+  uint32_t cluster_id = 0;
+  uint64_t debug_entry_pc = generate_dm_device_addr(cluster_id) + FLAGS_debug_entry_pc_offset;
+
   check_debug_mode_entry_via_ebreak(d);
 
   if (patch_mode_ == EXIT_PATCH && (check_debug_entry_at_patch_exit_ || is_priv_debug_mode_)) {
@@ -585,9 +590,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       step(hart, w);
       step_++;
     } else {
-      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, FLAGS_debug_entry_pc);
+      bridge_log(cvm::MEDIUM, "<{}> Already in debug mode, poking whisper PC to debug vector {:#x}\n", d.cycle, debug_entry_pc);
       bool valid = false;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, FLAGS_debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart, d.cycle, 'p', 0, debug_entry_pc, false, false, valid) || !valid) && FLAGS_whisper_client_check)
         error("Hart {}: Failed to poke whisper PC to debug vector\n", id_);
     }
     debug_mode_ = true;
@@ -596,8 +601,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   if (skip_de_until_debug_vector_) {
     update_dut_state(hart, d);
-    if (d.pc.pc_rdata == FLAGS_debug_entry_pc) {
-      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, FLAGS_debug_entry_pc);
+    if (d.pc.pc_rdata == debug_entry_pc) {
+      bridge_log(cvm::MEDIUM, "<{}> DUT reached debug vector {:#x}, resuming comparison\n", d.cycle, debug_entry_pc);
       skip_de_until_debug_vector_ = false;
     } else {
       return;
@@ -669,7 +674,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Handle post-step conditions - Debug exit
   // Legacy flow: detect debug exit by PC match against FLAGS_debug_exit_pc.
   // New flow (+debugrom): detect dret opcode (0x7b200073) to exit debug mode.
-  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && d.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
@@ -983,8 +988,9 @@ void bridge::pre_step_debug_entry(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
+  uint32_t cluster_id = 0;
   uint32_t opcode;
-  if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     opcode = opcode_nop;
   }
   else if ((instr.excp && (instr.ecause == 3)) || dtvec_ebreak_) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
@@ -1505,7 +1511,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       w_.mem_write.valid = true;
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
-      if ((w.address<0x64000000) && (w.address>=0x60000000))
+      if ((w.address<device_address_map_sp_base_addr() + device_address_map_sp_size()) && (w.address>=device_address_map_sp_base_addr()))
            num_sp_accesses_++;
     }
   }
@@ -2049,6 +2055,7 @@ bool bridge::is_cracked_csr(const std::string& instr) {
 
 
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
+  uint32_t cluster_id = 0;
 
   if (d.mem_read.valid && resynch_on_pa(d.mem_read.pa, d.cycle)) {
     return true;
@@ -2063,7 +2070,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
     return true;
   }
 
-  if (!FLAGS_debugrom && d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if (!FLAGS_debugrom && d.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
     bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
@@ -2268,13 +2275,14 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
 }
 
 bool bridge::debug_mem_access(const uint64_t& pa){
-  if (debug_mode_ && pa >= FLAGS_debug_mem_base && pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size))
+  uint32_t cluster_id = 0;
+  if (debug_mode_ && pa >= generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset && pa < (generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset + FLAGS_debug_mem_size))
     return true;
   return false;
 }
 
 bool bridge::unsupported_mmr_access(const uint64_t& pa){
-  if ( pa >= mmr_lo_addr && pa < mmr_hi_addr)
+  if ( pa >= mmr_lo_addr() && pa < mmr_hi_addr())
     return true;
   if (pa >= sep_base_ && pa < sep_end_)
     return true;
@@ -3128,11 +3136,12 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 
   debug_mode_ = true;
 
+  uint32_t cluster_id = 0;
   // Legacy flow: poke hardcoded ROM into Whisper memory at debug_entry_pc.
   // New flow (+debugrom): real ROM already loaded via sysmod/whisper_client; skip poke.
   if (!FLAGS_debugrom) {
     for(int i=25; i>=0; i--) {
-      uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
+      uint64_t debugROM_loc = generate_dm_device_addr(cluster_id) + FLAGS_debug_entry_pc_offset + (25-i)*8;
       poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i],false, false);
     }
   }
@@ -3309,11 +3318,11 @@ bool bridge::is_csr_allowlist(const std::string& csr_name) {
 }
 
 bool bridge::is_mtimecmp_mmr(uint64_t addr) {
-  return (addr == (mtimecmp_mmr + (id_ * 8)));
+  return (addr == (mtimecmp_mmr() + (id_ * 8)));
 }
 
 bool bridge::is_mtime_mmr(uint64_t addr) {
-  return (addr == mtime_mmr);
+  return (addr == mtime_mmr());
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {

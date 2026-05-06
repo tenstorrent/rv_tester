@@ -164,8 +164,10 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
 localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
 bit [PA_WIDTH-1:0] debug_entry_pc_const='h0a110800;
 bit [PA_WIDTH-1:0] debug_exit_pc_const='h0a110860;
-bit [PA_WIDTH-1:0] mmr_hi_addr_const='h42a1FFFF;
-bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
+// MMR addresses computed at reset from device_address_map plusargs (same formula as generate_device_addr)
+logic [PA_WIDTH-1:0] mmr_lo_addr;
+logic [PA_WIDTH-1:0] mmr_hi_addr;
+logic [PA_WIDTH-1:0] dm_mmr_base;
 
 genvar gi,gj;
 
@@ -211,12 +213,13 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     //----------------------------------------------------------------------------
     // function memmap_decode: compares address to memory map ranges
+    // MMR range (mmr_lo_addr .. mmr_hi_addr inclusive) is computed at reset from plusargs.
     //----------------------------------------------------------------------------
 
-    function automatic bit memmap_decode(input rule_t [NoAddrRules-1:0] mem_map, input bit [PA_WIDTH-1:0] address );
+    function automatic bit memmap_decode(input rule_t [NoAddrRules-1:0] mem_map, input bit [PA_WIDTH-1:0] address);
         memmap_decode = 1'b0;
-        if ((address < mmr_hi_addr_const) & (address >= mmr_lo_addr_const))
-           return(1'b1);
+        if ((address <= mmr_hi_addr) & (address >= mmr_lo_addr))
+            return(1'b1);
         /* verilator lint_off WIDTH */
         for(int i=0;i<NoAddrRules;i=i+1) begin
             if ((address >= mem_map[i].start_addr) & (address < mem_map[i].end_addr) & (mem_map[i].idx == 1)) begin
@@ -423,8 +426,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     longint unsigned instr_count;
     bit [PA_WIDTH-1:0] debug_entry_pc;
     bit [PA_WIDTH-1:0] debug_exit_pc;
-    longint unsigned debug_entry_pc_arg;
-    longint unsigned debug_exit_pc_arg;
+    longint unsigned debug_entry_pc_offset_arg;
+    longint unsigned debug_exit_pc_offset_arg;
     int hart_enable_mask;
     int nharts;
     longint unsigned hart;
@@ -526,6 +529,59 @@ localparam CAM_IHBIT = CAM_IBITS;
     //        6) Multi-cycle UOPS (where last_uop == 0)
     //
     //---------------------------------------------------------------------------------
+    // Compute MMR addresses from device_address_map plusargs (same arithmetic as generate_device_addr in device_address_map.cpp).
+    // Read plusargs with blocking assigns and compute in same cycle so addresses are correct immediately when reset deasserts.
+    // Defaults match device_address_map_plusargs.cpp for non-PL2; PL2 overrides come from run_args (e.g. BUILD.bazel).
+    logic [PA_WIDTH-1:0] mmr_base;
+    logic [PA_WIDTH-1:0] pl_start_bit;
+    logic [PA_WIDTH-1:0] mmr_dev_start_bit;
+    logic [PA_WIDTH-1:0] mmr_cluster_start_bit;
+    logic [1:0] mmr_m_pl;
+    logic [7:0] dm_dev_id;
+    logic [7:0] axisw_dev_id;
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            mmr_base <= '0;
+            pl_start_bit <= '0;
+            mmr_dev_start_bit <= '0;
+            mmr_cluster_start_bit <= '0;
+            mmr_m_pl <= '0;
+            dm_dev_id <= '0;
+            axisw_dev_id <= '0;
+            mmr_lo_addr <= '0;
+            mmr_hi_addr <= '0;
+            dm_mmr_base <= '0;
+        end
+        else begin
+            longint unsigned mb;
+            int pls, mds, mcs, mm, dm_id, ax_id;
+            mb = cvm_plusargs::get_ulongint("mmr_base_addr");
+            if (mb == 0) mb = 64'h40000000;
+            pls = cvm_plusargs::get_int("priv_level_start_bit");
+            if (pls == 0) pls = 25;
+            mds = cvm_plusargs::get_int("mmr_device_id_start_bit");
+            if (mds == 0) mds = 16;
+            mcs = cvm_plusargs::get_int("mmr_cluster_id_start_bit");
+            if (mcs == 0) mcs = 21;
+            mm = cvm_plusargs::get_int("mmr_m");
+            if (mm == 0) mm = 1;
+            dm_id = cvm_plusargs::get_int("dm_device_id");
+            if (dm_id == 0) dm_id = 32'h19;
+            ax_id = cvm_plusargs::get_int("axisw_device_id");
+            if (ax_id == 0) ax_id = 32'h1B;
+            mmr_base <= PA_WIDTH'(mb);
+            pl_start_bit <= PA_WIDTH'(pls);
+            mmr_dev_start_bit <= PA_WIDTH'(mds);
+            mmr_cluster_start_bit <= PA_WIDTH'(mcs);
+            mmr_m_pl <= mm[1:0];
+            dm_dev_id <= dm_id[7:0];
+            axisw_dev_id <= ax_id[7:0];
+            mmr_lo_addr <= PA_WIDTH'(mb | (64'(mm) << pls));
+            mmr_hi_addr <= PA_WIDTH'(mb | (64'(mm) << pls) | (64'(ax_id) << mds) + 64'hFFFF);
+            dm_mmr_base <= PA_WIDTH'(mb | (64'(dm_id) << mds) | (64'(mm) << pls));
+        end
+    end
     for(genvar n=0;n<NRET;n=n+1) begin
         assign sc_rw[n]        = rvfi[n].valid & ((rvfi[n].insn[6:0] == 7'b0101111) & (rvfi[n].insn[14:13] == 2'b01)  & (rvfi[n].insn[31:27] == 5'b00011));
         assign csr_rw[n]       = rvfi[n].valid & (((rvfi[n].insn[6:0] == 7'b1110011) & (rvfi[n].insn[14:12] != 3'b000)) | |rvfi[n].csr_wmask);
@@ -1515,8 +1571,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
     //--------------------------------------------------------------------
-    assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
-    assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const;
+    assign debug_entry_pc = (debug_entry_pc_offset_arg != '0) ? (dm_mmr_base | PA_WIDTH'(debug_entry_pc_offset_arg)) : debug_entry_pc_const;
+    assign debug_exit_pc  = (debug_exit_pc_offset_arg != '0)  ? (dm_mmr_base | PA_WIDTH'(debug_exit_pc_offset_arg))  : debug_exit_pc_const;
 
 /* verilator lint_off WIDTHEXPAND */
     assign hart = NUM;
@@ -1564,8 +1620,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         max_instructions <= cvm_plusargs::get_ulongint("max_instr");
         nharts <= cvm_plusargs::get_int("num_harts");
         hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
-        debug_entry_pc_arg <= cvm_plusargs::get_ulongint("debug_entry_pc");
-        debug_exit_pc_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc");
+        debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
+        debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");

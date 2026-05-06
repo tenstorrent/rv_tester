@@ -1,0 +1,14 @@
+cc_library(
+    name = "device_address_map",
+    srcs = [
+        "device_address_map.cpp",
+        "device_address_map_plusargs.cpp",
+    ],
+    hdrs = [
+        "device_address_map.h",
+        "device_address_map_plusargs.h",
+    ],
+    deps = ["@cvm//:plusargs"],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)

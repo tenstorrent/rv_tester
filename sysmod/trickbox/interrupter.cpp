@@ -2,6 +2,7 @@
 #include "cvm/logger.hpp"
 #include "interrupter.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "common/device_address_map/device_address_map.h"
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
   : subdevice(tag, addr, 0x50000 /* size */, loc),

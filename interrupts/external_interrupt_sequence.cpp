@@ -3,6 +3,7 @@
 #include "rv_tester/rv_tester_plusargs.h"
 #include "whisper_client.h"
 #include "cosim/bridge/bridge_plusargs.h"
+#include "common/device_address_map/device_address_map.h"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -89,6 +90,11 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   if (FLAGS_interrupt_injection_enable) {
     interrupt_injection_thread();
   }
+
+  uint32_t cluster_id = 0;
+  msi_m_file_addr = generate_imsic_m_addr(cluster_id, 0);
+  msi_s_file_addr = generate_imsic_s_addr(cluster_id, 0);
+  msi_vs_file_addr = msi_s_file_addr;
 
   // Tick-based random MSI init (hart 0 only)
   if (id_ == 0 && FLAGS_random_imsic_intr) {

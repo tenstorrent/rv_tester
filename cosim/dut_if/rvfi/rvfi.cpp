@@ -10,6 +10,7 @@
 #include "cosim/bridge/bridge_plusargs.h"
 #include "rv_tester_plusargs.h"
 #include "transactors/axi_sw/axi.h"
+#include "common/device_address_map/device_address_map.h"
 
 #include <iostream>
 #include <chrono>
@@ -22,9 +23,9 @@ DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
-DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
-DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
+DEFINE_uint64(debug_entry_pc_offset, 0x800, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc_offset, 0x8cc, "Debug Mode exit PC");
+DEFINE_uint64(debug_mem_base_offset, 0x0, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
@@ -106,14 +107,18 @@ void rvfi::init() {
 bool rvfi::patch_access (uint64_t addr) {
   if (!patch_mode_)
       return false;
-
-  if (addr >= patch_ram_lo && addr < patch_ram_hi)
+  
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint32_t cluster_id = 0;
+  uint64_t patch_lo = generate_cpl_sram_device_addr(cluster_id) + device_address_map_patch_ram_start_offset();
+  uint64_t patch_hi = patch_lo + device_address_map_patch_ram_size() - 1;
+  if (addr >= patch_lo && addr < patch_hi)
       return true;
 
-  uint64_t pcontrol0 = 0x42005040; //areddy
-  for (int i=0; i<8; i++) // do this for all cores0-8
-    if (addr == (pcontrol0 + (i*0x10000)))
+  for (uint32_t i = 0; i < ncores; i++) {
+    if (addr == generate_cr_device_addr(cluster_id, i) + 0x5040)
       return true;
+  }
   return false;
 }
 
@@ -893,7 +898,8 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_debugrom && (uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  uint32_t cluster_id = 0;
+  if (!FLAGS_debugrom && (uint64_t)instr.pc.pc_rdata == generate_dm_device_addr(cluster_id) + FLAGS_debug_exit_pc_offset) {
 
     rv_debug_t debug;
 
