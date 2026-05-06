@@ -4,8 +4,8 @@
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
-  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc )
+  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this)
 {
 
   if (FLAGS_load != "") {
@@ -14,7 +14,7 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
 
   subdevice* sub = nullptr;
   interrupter_base = addr;
-  sub = new interrupter("interrupter", interrupter_base, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, loc, axi_mst_loc_l);
+  sub = new interrupter("interrupter", interrupter_base, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, loc);
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
   subdevices_.emplace_back(sub);

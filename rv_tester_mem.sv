@@ -57,9 +57,10 @@ module rv_tester_mem #(
     //to main memory
     output  mst_req_t   axi_req_mst_up [NumMastersMem-1:0]     ,    
     input   mst_resp_t  axi_resp_mst_up [NumMastersMem-1:0]     ,
-    input   rule_t	[NoAddrRules-1:0] addr_map,	   
+    input   rule_t	[NoAddrRules-1:0] addr_map,
     input   logic 	rv_tester_enable_llc	,
     input   int unsigned    rv_tester_mem_delay,
+    input   int unsigned    rv_tester_mem_w_delay,
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
     output  logic       bist_status_done
@@ -194,12 +195,14 @@ module rv_tester_mem #(
                            MaxInFlightReadReq, $clog2(MaxInFlightReadReq), AxiIdWidth);
             end
             for (genvar i = 0; i < NumMasters; i++) begin : gen_rdly
-                rv_tester_delay_resp #(  
-                    .AxiIdWidth       ( AxiIdWidth              ), 
+                rv_tester_delay_resp #(
+                    .AxiIdWidth       ( AxiIdWidth              ),
                     .slv_resp_t       ( slv_resp_t              ),
                     .mst_resp_t       ( mst_resp_rdly_t         ),
                     .r_chan_t         ( mst_r_chan_rdly_t       ),
+                    .b_chan_t         ( mst_b_chan_rdly_t       ),
                     .slv_ar_chan_t    ( slv_ar_chan_rdly_t      ),
+                    .slv_aw_chan_t    ( slv_aw_chan_rdly_t      ),
                     .MaxInFlight      ( MaxInFlightReadReq      ),
                     .MaxBeatsPerBurst ( MaxBeatsPerBurst        ),
                     .CW               ( 32                      )
@@ -207,9 +210,13 @@ module rv_tester_mem #(
                     .clk_i                  ( clk_gated                     ),
                     .rst_ni                 ( rst_n                         ),
                     .delay_cycles           ( rv_tester_mem_delay           ),
+                    .delay_cycles_w         ( rv_tester_mem_w_delay         ),
                     .slv_req_ar_i           ( axi_req_rdly[i].ar            ),
                     .slv_req_ar_valid_i     ( axi_req_rdly[i].ar_valid      ),
                     .slv_req_r_ready_i      ( axi_req_rdly[i].r_ready       ),
+                    .slv_req_aw_i           ( axi_req_rdly[i].aw            ),
+                    .slv_req_aw_valid_i     ( axi_req_rdly[i].aw_valid      ),
+                    .slv_req_b_ready_i      ( axi_req_rdly[i].b_ready       ),
                     .slv_resp_o             ( axi_resp_rdly[i]              ),
                     .mst_req_ar_id_o        ( rdly_ar_id[i]                 ),
                     .mst_resp_i             ( axi_resp_to_rdly[i]           )
