@@ -42,7 +42,7 @@ cosim:
             trap_intr:
                 width: 1
             cause:
-                width: 8
+                width: 3
     
     m_mtip:
         domain: 1
