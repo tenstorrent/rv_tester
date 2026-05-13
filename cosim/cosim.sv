@@ -1531,7 +1531,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[n].data.trap_intr = saw_rvfi_intr_trap;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
       assign m_mtimes[n].data.size = 8;
-      assign m_mtimes[n].data.cause = 8'h3;
+      assign m_mtimes[n].data.cause = 3'h3;
     end
 
       logic xtip_changes;
@@ -1548,9 +1548,9 @@ localparam CAM_IHBIT = CAM_IBITS;
       assign m_mtimes[NRET].data.trap_intr = saw_rvfi_intr_trap;
       assign m_mtimes[NRET].data.mip = mip_timer;
       assign m_mtimes[NRET].data.size = 8;
-      assign m_mtimes[NRET].data.cause = mtime.WriteValid ? 8'h1 :
-                                         (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ? 8'h2 :
-                                         xtip_changes ? 8'h4 : '0;
+      assign m_mtimes[NRET].data.cause = mtime.WriteValid ? 3'h1 :
+                                         (cause_d3 != 0 && get_trap_id(cause_d3) == rv_tester_pkg::INTR) ? 3'h2 :
+                                         xtip_changes ? 3'h4 : '0;
 
     //------------------------------------
     // m_mtip
