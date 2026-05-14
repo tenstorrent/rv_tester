@@ -17,6 +17,7 @@
 #include "clint/clint.h"
 #include "aclint/aclint.h"
 #include "dm/dm.h"
+#include "mmr_txn_router/mmr_txn_router.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -695,6 +696,8 @@ sysmod::compose() {
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
+      } else if (type == "mmr_txn_router") {
+        device = std::make_unique<mmr_txn_router>(tag, base, size, loc_, masters[0]);
 
       } else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_);
