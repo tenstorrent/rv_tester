@@ -17,7 +17,7 @@ def sysmod_gen(name, packet, csr_param, topology, visibility = None, cc_attrs = 
         ],
         visibility = ["//visibility:public"],
     )
-    
+
 
     native.cc_library(
         name = sysmod_dpi,
@@ -42,6 +42,7 @@ def sysmod_gen(name, packet, csr_param, topology, visibility = None, cc_attrs = 
           "@rv_tester//sysmod/mem:mem",
           "@rv_tester//sysmod/dm:dm",
           "@rv_tester//sysmod/io_dev:io_dev",
+          "@rv_tester//sysmod/mmr_txn_router:mmr_txn_router",
           "@rv_tester//sysmod/null_dev:null_dev",
           "@rv_tester//sysmod/heartbeat:heartbeat",
           "@rv_tester//cosim/bridge_if:bridge_if",
