@@ -5,6 +5,7 @@ load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//pmu:pmu_fragment_gen.bzl", "pmu_fragment_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
+load("@rv_tester//memdump:memdump.bzl", "memdump_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
@@ -135,6 +136,12 @@ def rv_tester_gen(
         cc_attrs = cc_attrs,
     )
 
+    memdump_gen(
+        name = name + "_memdump",
+        packet = name + "_transactions",
+        cc_attrs = cc_attrs,
+    )
+
     verilog_library(
         name = rv_tester_sv,
         srcs = [
@@ -182,6 +189,7 @@ def rv_tester_gen(
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
             name + "_interrupts_dpi",
+            name + "_memdump_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
