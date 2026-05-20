@@ -295,11 +295,10 @@ void bridge::csr_init() {
     }
   }
 
-  // CSR rename: TODO: abduv: move custom csr logic out of rv_tester
+  // Peek c_fecfg2 to seed csr_rd_opt_.
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, c_fecfg2.address, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek csr : C_FECFG2\n", id_);
   }
-  csr_rename_en_ = !((data & 0x200) >> 9);
   csr_rd_opt_ = !((data & 0x4) >> 2);
 }
 
@@ -864,7 +863,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -1390,7 +1389,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   step(hart, w);
   bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart,w, d.comp, d.mem_read.page4kX);
+  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1471,7 +1470,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp||dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && (patch_mode_ == NO_PATCH))
+  if (FLAGS_insn_check && !(w_.comp||dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1954,7 +1953,6 @@ void bridge::arch_state(whisper_state_t& w) {
       }
     }
     if (w.address == c_fecfg2.address) {
-      csr_rename_en_ = !((w.value & 0x200) >> 9);
       csr_rd_opt_ = !((w.value & 0x4) >> 2);
     }
   }
@@ -2012,16 +2010,6 @@ bool bridge::is_ucode(const std::string& instr) {
     return true;
   return false;
 }
-
-bool bridge::is_renamed_csr(const std::string& instr) {
-  if (csr_rename_en_ &&
-      ((instr.find("mscratch") != std::string::npos) ||
-       (instr.find("sscratch") != std::string::npos) ||
-       (instr.find("vsscratch") != std::string::npos)))
-    return true;
-  return false;
-}
-
 
 bool bridge::is_cracked_csr(const std::string& instr) {
   for (int i = 3; i <= 10; ++i) {

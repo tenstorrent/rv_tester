@@ -25,16 +25,6 @@
 #include "csr_param.hpp"
 using namespace CSR;
 
-// CSRs that are renamed in the DUT (maps renamed address -> original CSR)
-inline const std::unordered_map<uint64_t, csr_base*> renamed_csr = {
-  {32, &mepc},
-  {33, &sepc},
-  {34, &vsepc},
-  {35, &mscratch},
-  {36, &sscratch},
-  {37, &vsscratch},
-};
-
 class bridge : public bridge_base {
 
 private:
@@ -223,7 +213,6 @@ private:
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
-  bool is_renamed_csr(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
@@ -378,7 +367,6 @@ private:
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
-  bool csr_rename_en_ = false;
   bool csr_rd_opt_ = false;
   bool prev_csr_rd_opt_ = false;
 
