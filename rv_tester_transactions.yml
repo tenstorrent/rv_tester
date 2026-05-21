@@ -225,6 +225,8 @@ cosim:
             mem_error:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 1
+            opcode_rewritten:
+                width: 1
 
     m_gp_regs:
         domain: 1

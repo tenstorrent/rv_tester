@@ -209,6 +209,7 @@ typedef struct rv_instr_s {
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
+  bool opcode_rewritten = false;
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
@@ -260,6 +261,7 @@ typedef struct rv_instr_s {
     last_uop = true;
     comp = false;
     ucode = false;
+    opcode_rewritten = false;
     trap = false;
     trap_valid = false;
     nmi = false;

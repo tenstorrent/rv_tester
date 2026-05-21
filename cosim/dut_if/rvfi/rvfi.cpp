@@ -449,6 +449,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.first_uop = m_rvfi.first_uop;
   instr.last_uop  = m_rvfi.last_uop;
   instr.ucode  = m_rvfi.ucode;
+  instr.opcode_rewritten = m_rvfi.opcode_rewritten;
   instr.priv  = m_rvfi.priv;
   ucode_priv_change_ = m_rvfi.priv_change;
 
@@ -487,6 +488,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.first_uop = false;
   instr.last_uop = m_rvfi.last_uop;
   instr.ucode = ucode_ || !m_rvfi.last_uop;
+  instr.opcode_rewritten = m_rvfi.opcode_rewritten;
   if (!m_rvfi.last_uop) {
     if (!ucode_)
       instr.first_uop = true;
