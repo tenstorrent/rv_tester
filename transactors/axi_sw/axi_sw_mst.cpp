@@ -42,10 +42,6 @@ DEFINE_uint32(axi_resp_timeout, 10000, "Cycles to wait after Transactor-id pool 
 
 
 extern "C" {
-    void axi_sw_mst_ar_reset();
-    void axi_sw_mst_aw_reset();
-    void axi_sw_mst_w_reset();
-
     void axi_sw_mst_ar(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock, uint8_t cache, uint8_t prot, uint8_t qos, uint8_t region, uint8_t user);
     void axi_sw_mst_aw(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock, uint8_t cache, uint8_t prot, uint8_t qos, uint8_t region, uint8_t atop, uint8_t user);
     void axi_sw_mst_w_8(const uint8_t* data, const uint8_t* strb, uint8_t last);
@@ -54,7 +50,7 @@ extern "C" {
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id)
-    : scope_(nullptr), loc_(loc), id_(id),
+    : loc_(loc), id_(id),
       id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
       data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
       strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
@@ -81,12 +77,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
     for (uint32_t i = 1; i <= max_size; i*=2)
       sizes_.push_back(i);
 
-    cvm::registry::messenger.connect<svScope>(
+    cvm::registry::messenger.connect<axi_sw_mst_reset_t>(
         loc_,
-        [&](svScope s) {
-            this->set_scope(s);
-            return this->reset_ptrs();
-        });
+        [this](const auto&) { return this->reset_ptrs(); });
 
     connect<B, R, ARQ, AWQ, WQ>();
 
@@ -303,7 +296,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
                   ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                   cvm::registry::callbacks.push(
-                    scope_,
+                    loc_,
                     [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.user); });
               }
               else {
@@ -318,7 +311,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
                   aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                   cvm::registry::callbacks.push(
-                    scope_,
+                    loc_,
                     [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.atop.transaction, arg.user); });
               }
               else {
@@ -343,7 +336,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               }
 
               cvm::registry::callbacks.push(
-                  scope_,
+                  loc_,
                   [=, this]() {
                       std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
                       for (size_t i = 0; i < arg.strb.size(); i++) {
@@ -436,12 +429,6 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) 
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
-axi_sw_mst<B, R, ARQ, AWQ, WQ>::set_scope(svScope scope) {
-    scope_ = scope;
-}
-
-template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
-void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
     cvm::log(cvm::HIGH, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
@@ -453,18 +440,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
 extern "C" {
 
-  std::uint8_t axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
-    svScope scope = svGetScope();
-
-    axi_sw_mst_ar_reset();
-    axi_sw_mst_aw_reset();
-    axi_sw_mst_w_reset();
-
-    cvm::registry::messenger.signal<svScope>(
-        loc,
-        scope);
-
-    return 0;
+  void axi_sw_mst_reset_ptrs(cvm::topology::loc_t loc) {
+    cvm::registry::messenger.signal<axi_sw_mst_reset_t>(loc, {});
   }
 
 }

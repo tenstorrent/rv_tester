@@ -17,14 +17,12 @@ import rv_tester_params::*;
   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
 );
 
-  import "DPI-C" context function void interrupts_set_scope(int unsigned location);
-
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.INTERRUPTS.ID, NUM);
   always @(posedge clk) begin
     if (sys_reset) begin
       nmi <= '0;
       if (location != cvm_topology::nil) begin
-        interrupts_set_scope(location);
+        cvm_registry::set_scope(location);
       end
     end
   end

@@ -16,6 +16,8 @@
 
 DECLARE_bool(cb_async);
 
+struct axi_sw_reset_t {};
+
 struct axi_sw_defs {
 
     typedef std::uint32_t r_q_ptr_t   ;
@@ -90,10 +92,8 @@ class axi_sw {
           r_resp();
           b_resp();
         };
-        void set_scope(svScope scope);
         void reset_ptrs();
 
-        svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
         std::string name_;

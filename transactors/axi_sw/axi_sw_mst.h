@@ -10,6 +10,8 @@
 DECLARE_bool(axi_rand_id_alloc);
 DECLARE_bool(axi_disable_seqid_alloc);
 
+struct axi_sw_mst_reset_t {};
+
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
@@ -112,7 +114,6 @@ class axi_sw_mst {
         void push_w(const axi::w_t& w);
         void push_transactions();
         void reset_ptrs();
-        void set_scope(svScope scope);
 
         // If an id is available, claim it and return the value.
         // Otherwise, indicate no ID's are available.
@@ -134,7 +135,6 @@ class axi_sw_mst {
         std::optional<unsigned> read(transactor::read_request_t r);
 
         std::string name_;
-        svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
         size_t id_width_;
