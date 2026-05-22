@@ -83,8 +83,6 @@ static std::string to_lower(const std::string& s) {
 
 extern "C" {
 
-  void axi_sw_r_reset();
-  void axi_sw_b_reset();
   void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
   void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
   void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
@@ -93,7 +91,7 @@ extern "C" {
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 axi_sw<W,AW,AR,RQ,BQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc), id_(id), name_(to_lower(cvm::topology::name(loc_)) + std::to_string(id)),
+  : loc_(loc), id_(id), name_(to_lower(cvm::topology::name(loc_)) + std::to_string(id)),
     id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
     data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
     strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
@@ -107,12 +105,9 @@ axi_sw<W,AW,AR,RQ,BQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, name_);
-    cvm::registry::messenger.connect<svScope>(
+    cvm::registry::messenger.connect<axi_sw_reset_t>(
         loc_,
-        [this](svScope s) {
-        this->set_scope(s);
-        return reset_ptrs();
-    });
+        [this](const auto&) { return this->reset_ptrs(); });
 
 
     std::tie(std::ignore, add_latency_min_, add_latency_max_) = get_uint64_pair(FLAGS_axi_sw_add_response_latency_range);
@@ -288,7 +283,6 @@ void axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t
     std::unique_lock<std::mutex> l{r_dpi_mutex_, std::defer_lock};
     if (!l.try_lock()) return;
     int sent = 0;
-    svSetScope(scope_);
     while(r_dpi()) sent++;
     if (sent) {
         r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
@@ -346,13 +340,16 @@ bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
     uint16_t latency =  cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
+    auto dw = data_width_;
 
-    switch (data_width_) {
-      case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
-      case 256: axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency); break;
-      case 512: axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency); break;
-      default:  cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
-    }
+    cvm::registry::callbacks.push(loc_, [r, latency, dw]() {
+      switch (dw) {
+        case  64: axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency); break;
+        case 256: axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency); break;
+        case 512: axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency); break;
+        default:  cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+      }
+    });
 
     return true;
 }
@@ -372,17 +369,13 @@ void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        if (!scope_) {
-          cvm::log(cvm::ERROR, "Error: scope_ not set before pushing r_dpi callback\n");
-        } else {
-          cvm::registry::callbacks.push(
-              scope_,
-                [this]() {
-                    std::lock_guard<std::mutex> l(r_dpi_mutex_);
-                    r_dpi();
-                }
-          );
-        }
+        cvm::registry::callbacks.push(
+            loc_,
+            [this]() {
+                std::lock_guard<std::mutex> l(r_dpi_mutex_);
+                r_dpi();
+            }
+        );
       }
     }
 }
@@ -400,7 +393,9 @@ bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
     uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
-    axi_sw_b(b.id, b.resp, latency);
+    cvm::registry::callbacks.push(loc_, [b, latency]() {
+      axi_sw_b(b.id, b.resp, latency);
+    });
     return true;
 }
 
@@ -423,7 +418,7 @@ void axi_sw<W,AW,AR,RQ,BQ>::b_resp() {
       }
 
       cvm::registry::callbacks.push(
-          scope_,
+          loc_,
             [this]() {
                 std::lock_guard<std::mutex> l(b_dpi_mutex_);
                 b_dpi();
@@ -448,24 +443,10 @@ void axi_sw<W,AW,AR,RQ,BQ>::reset_ptrs() {
     }
 }
 
-template <typename W, typename AW, typename AR, typename RQ, typename BQ>
-void axi_sw<W,AW,AR,RQ,BQ>::set_scope(svScope scope) {
-    scope_ = scope;
-}
-
 extern "C" {
 
-  std::uint8_t axi_sw_set_scope(cvm::topology::loc_t loc) {
-    svScope scope = svGetScope();
-
-    axi_sw_r_reset();
-    axi_sw_b_reset();
-
-    cvm::registry::messenger.signal<svScope>(
-        loc,
-        scope);
-
-    return 0;
+  void axi_sw_reset_ptrs(cvm::topology::loc_t loc) {
+    cvm::registry::messenger.signal<axi_sw_reset_t>(loc, {});
   }
 
   std::uint8_t axi_sw_flush(cvm::topology::loc_t loc, std::uint64_t clock, axi_sw_defs::r_q_ptr_t ptr) {
