@@ -37,6 +37,9 @@
         automatic logic rptr_updated_nxt = (reset_n) ? (update_rptr): '0;            \
         rptr_updated <=  rptr_updated_nxt | sys_reset;                               \
         rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(rptr_updated_nxt) : '0; \
+        /* verilator lint_off BLKSEQ */                                              \
+        if (sys_reset) name``_wptr_nxt = '0;                                         \
+        /* verilator lint_on BLKSEQ */                                               \
         name``_wptr   <= name``_wptr_nxt;                                            \
     end                                                                              \
                                                                                      \
@@ -167,8 +170,9 @@ module axi_sw #(
 
             /* verilator lint_off BLKSEQ */
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_r_reset();
-                axi_sw_b_reset();
+                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
+                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
+                // exported axi_sw_*_reset() functions cannot be invoked here).
                 axi_sw_reset_ptrs(LOCATION);
                 cvm_registry::set_scope(LOCATION);
             end
@@ -657,9 +661,9 @@ module axi_sw_mst #(
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_mst_ar_reset();
-                axi_sw_mst_aw_reset();
-                axi_sw_mst_w_reset();
+                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
+                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
+                // exported axi_sw_mst_*_reset() functions cannot be invoked here).
                 axi_sw_mst_reset_ptrs(LOCATION);
                 cvm_registry::set_scope(LOCATION);
             end
