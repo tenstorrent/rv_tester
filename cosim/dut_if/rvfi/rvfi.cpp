@@ -557,17 +557,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       instr.gpr.emplace_back(true, m_rvfi.rd_addr, m_rvfi.rd_wdata);
     } else {
       if (!m_rvfi.trap) {
-        // Skip dummy mhpmevent uops (mhpmevent3-10, CSR addr 0x323-0x32A).
-        // RTL writes the source register value back to rd to prevent corruption
-        // when rs1==rd; this is not an architectural write.
-        uint32_t csr_addr = 0;
-        bool is_dummy_mhpmevent = cosim_util::is_csr_opcode(m_rvfi.insn, csr_addr)
-                                  && (csr_addr >= 0x323) && (csr_addr <= 0x32A);
-        if (!is_dummy_mhpmevent) {
-          cracked_gpr_.valid = true;
-          cracked_gpr_.rd_addr = m_rvfi.rd_addr;
-          cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
-        }
+        // Collect gpr write from a cracked uop
+        cracked_gpr_.valid = true;
+        cracked_gpr_.rd_addr = m_rvfi.rd_addr;
+        cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
       }
       // This is for print in the rvfi log
       instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
@@ -747,11 +740,6 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format("{}", resource_str);
 
-  uint32_t csr_addr_check = 0;
-  bool is_dummy_mhpmevent_log = cosim_util::is_csr_opcode(instr.opcode, csr_addr_check) &&
-                                (csr_addr_check >= 0x323) && (csr_addr_check <= 0x32A) &&
-                                instr.ucode && !instr.last_uop;
-
   if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
     std::string csr_replaced_instr = instr_dis;
@@ -763,15 +751,8 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     else
       dut_log += fmt::format(" {}", instr_dis);
   }
-  else{
-    if (is_dummy_mhpmevent_log) {
-      std::string csr_replaced_instr, dummy_mhpmevent_instr = whisper::disassemble(instr.opcode);
-      get_csr_name_instr(dummy_mhpmevent_instr, csr_replaced_instr);
-      dut_log += fmt::format(" {} (microcode)", csr_replaced_instr);
-    } else {
-      dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
-    }
-  }
+  else
+    dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.csr_renamed)
     dut_log += fmt::format(" (csr_rename:{})", instr.csr_renamed_name);
