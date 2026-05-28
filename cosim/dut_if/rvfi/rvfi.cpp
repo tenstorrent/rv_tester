@@ -560,8 +560,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
         // Skip dummy mhpmevent uops (mhpmevent3-10, CSR addr 0x323-0x32A).
         // RTL writes the source register value back to rd to prevent corruption
         // when rs1==rd; this is not an architectural write.
-        uint32_t csr_addr = 0;
-        bool is_dummy_mhpmevent = cosim_util::is_csr_opcode(m_rvfi.insn, csr_addr)
+        uint32_t csr_addr = (m_rvfi.insn >> 20) & 0xFFF;
+        bool is_dummy_mhpmevent = ((m_rvfi.insn & 0x7F) == 0x73)
+                                  && (((m_rvfi.insn >> 12) & 0x7) != 0)
                                   && (csr_addr >= 0x323) && (csr_addr <= 0x32A);
         if (!is_dummy_mhpmevent) {
           cracked_gpr_.valid = true;
@@ -747,10 +748,12 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format("{}", resource_str);
 
-  uint32_t csr_addr_check = 0;
-  bool is_dummy_mhpmevent_log = cosim_util::is_csr_opcode(instr.opcode, csr_addr_check) &&
-                                (csr_addr_check >= 0x323) && (csr_addr_check <= 0x32A) &&
-                                instr.ucode && !instr.last_uop;
+  uint32_t opcode_check = instr.opcode & 0x7F;
+  uint32_t funct3_check = (instr.opcode >> 12) & 0x7;
+  uint32_t csr_addr_check = (instr.opcode >> 20) & 0xFFF;
+  bool is_dummy_mhpmevent_log = (opcode_check == 0x73) && (funct3_check != 0)
+                                && (csr_addr_check >= 0x323) && (csr_addr_check <= 0x32A)
+                                && instr.ucode && !instr.last_uop;
 
   if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
