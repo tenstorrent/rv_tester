@@ -3,7 +3,7 @@ load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//:defs.bzl", "rv_tester_gen")
 load("@cvm//:defs.bzl", "packet_gen")
-load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
+load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen", "generate_axi_interfaces")
 
 name = "axi_sw_tb"
 topology = name + "_topology"
@@ -29,9 +29,17 @@ packet_gen(
     cc_attrs = cc_attrs,
 )
 
+generate_axi_interfaces(
+    name = name + "_axi_interfaces",
+    transactions = name + "_transactions",
+    topology = topology,
+    package = "axi_defines",
+)
+
 axi_sw_gen(
     name = name + "_axi_sw",
     packet = name + "_transactions",
+    topology = topology,
     cc_attrs = cc_attrs,
 )
 
@@ -49,6 +57,7 @@ verilog_dpi_library(
     srcs = ["tb.cpp"],
     deps = [
         name + "_axi_sw_dpi",
+        name + "_axi_interfaces_cc",
         topology + "_cc",
     ],
 )

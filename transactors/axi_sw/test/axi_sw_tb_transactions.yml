@@ -4,135 +4,139 @@ def clog2(n):
         return math.ceil(math.log2(n))
 %>\
 
-axi_sw:
-    num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL}]
+% for axi_sw in TOP.PLATFORM.AXI_SW:
+<%
+    name = axi_sw.NAME.lower()
+    domain = axi_sw.DOMAIN
+%>
+${name}:
+    num: ${axi_sw.SHARD}
     w:
-        domain: [2,2]
+        domain: ${domain}
         num: 1
         fields:
             data:
-                widths: [${TOP.PLATFORM.AXI.DATA_WIDTH},${TOP.PLATFORM.NCIO_AXI.DATA_WIDTH}]
+                width: ${axi_sw.DATA_WIDTH}
             strb:
-                widths: [${TOP.PLATFORM.AXI.STRB_WIDTH},${TOP.PLATFORM.NCIO_AXI.STRB_WIDTH}]
+                width: ${axi_sw.STRB_WIDTH}
             last:
-                widths: [1,1]
+                width: 1
     aw:
-        domain: [2,2]
+        domain: ${domain}
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
+                width: ${axi_sw.ID_WIDTH}
             addr:
-                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH}]
+                width: ${axi_sw.ADDR_WIDTH}
             len:
-                widths: [8,8]
+                width: 8
             size:
-                widths: [3,3]
+                width: 3
             burst:
-                widths: [2,2]
+                width: 2
             lock:
-                widths: [1,1]
+                width: 1
             cache:
-                widths: [4,4]
+                width: 4
             prot:
-                widths: [3,3]
+                width: 3
             qos:
-                widths: [4,4]
+                width: 4
             region:
-                widths: [4,4]
+                width: 4
             atop:
-                widths: [6,6]
+                width: 6
             user:
-                widths: [1,1]
+                width: 1
     ar:
-        domain: [2,2]
+        domain: ${domain}
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
+                width: ${axi_sw.ID_WIDTH}
             addr:
-                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH}]
+                width: ${axi_sw.ADDR_WIDTH}
             len:
-                widths: [8,8]
+                width: 8
             size:
-                widths: [3,3]
+                width: 3
             burst:
-                widths: [2,2]
+                width: 2
             lock:
-                widths: [1,1]
+                width: 1
             cache:
-                widths: [4,4]
+                width: 4
             prot:
-                widths: [3,3]
+                width: 3
             qos:
-                widths: [4,4]
+                width: 4
             region:
-                widths: [4,4]
+                width: 4
             user:
-                widths: [1,1]
-
-
+                width: 1
     r_q_ptr:
-        domain: [2,2]
+        domain: ${domain}
         num: 1
         fields:
             r_ptr:
-                widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2}]
+                width: ${axi_sw.R_Q_PTR_MAX_LOG2}
             clock:
-                widths: [64, 64]
-
+                width: 64
     b_q_ptr:
-        domain: [2,2]
+        domain: ${domain}
         num: 1
         fields:
             r_ptr:
-                widths: [${TOP.PLATFORM.AXI.B_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.B_Q_PTR_MAX_LOG2}]
+                width: ${axi_sw.B_Q_PTR_MAX_LOG2}
             clock:
-                widths: [64, 64]
+                width: 64
+% endfor
 
 
-axi_sw_mst:
-    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL}]
-
+% for axi_sw_mst in TOP.PLATFORM.AXI_SW_MST:
+<%
+    name = axi_sw_mst.NAME.lower()
+    domain = axi_sw_mst.DOMAIN
+%>
+${name}:
+    num: ${axi_sw_mst.SHARD}
     b:
-        domain: [2,2,2]
+        domain: ${domain}
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH}]
+                width: ${axi_sw_mst.ID_WIDTH}
             resp:
-                widths: [2, 2, 2]
-
+                width: 2
     r:
-        domain: [2,2,2]
+        domain: ${domain}
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH}]
+                width: ${axi_sw_mst.ID_WIDTH}
             data:
-                widths: [${TOP.PLATFORM.AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH}]
+                width: ${axi_sw_mst.DATA_WIDTH}
             resp:
-                widths: [2, 2, 2]
+                width: 2
             last:
-                widths: [1, 1, 1]
-
+                width: 1
     ar_q_ptr:
-        domain: [2,2,2]
+        domain: ${domain}
         num: 1
         fields:
             ar_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AR_Q_PTR_MAX_LOG2}]
-
+                width: ${axi_sw_mst.AR_Q_PTR_MAX_LOG2}
     aw_q_ptr:
-        domain: [2,2,2]
+        domain: ${domain}
         num: 1
         fields:
             aw_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.AW_Q_PTR_MAX_LOG2}]
-
+                width: ${axi_sw_mst.AW_Q_PTR_MAX_LOG2}
     w_q_ptr:
-        domain: [2,2,2]
+        domain: ${domain}
         num: 1
         fields:
             w_ptr:
-                widths: [${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.W_Q_PTR_MAX_LOG2}]
+                width: ${axi_sw_mst.W_Q_PTR_MAX_LOG2}
+% endfor

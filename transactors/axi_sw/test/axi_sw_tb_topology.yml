@@ -1,63 +1,53 @@
+# Default AXI attributes
+axi_attrs: &axi_attrs
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 512
+    STRB_WIDTH: 64
+    ID_WIDTH: 4
+    USER_WIDTH: 8
+    NAME: ""
+    DOMAIN: 2
+
+# AXI slave interfaces
+axi_sw_0: &axi_sw_0
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw
+  NAME: AXI
+  count: 1
+
+
+# AXI master interfaces
+axi_sw_mst_0: &axi_sw_mst_0
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: AXI_SW_MST
+  USER_WIDTH: 8
+
+axi_sw_mst_2: &axi_sw_mst_2
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: SMC_AXI_MST
+  USER_WIDTH: 4
+  DOMAIN: 3
+
+
+platform_axi_sw_attrs: &platform_axi_sw_attrs [*axi_sw_0]
+platform_axi_sw_mst_attrs: &platform_axi_sw_mst_attrs [*axi_sw_mst_0, *axi_sw_mst_2]
+
+# Top level structure
 top:
   platform:
     count: 1
     type:
       - platform
-    axi:
-      count: 1
+    axi_sw:
       type:
-        - axi
-        - platform_transactor
-      attrs:
-        <<: *rv_tester_axi_sw
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-    ncio_axi:
-      count: 1
+        - axi_sw
+        - PLATFORM_TRANSACTOR
+      attrs: *platform_axi_sw_attrs
+    axi_sw_mst:
       type:
-        - ncio_axi
-        - platform_transactor
-      attrs:
-        <<: *rv_tester_axi_sw
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-    axi_mst:
-      count: 1
-      type:
-        - axi_mst
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-        USER_WIDTH: 8
-    smc_axi_mst:
-      count: 1
-      type:
-        - smc_axi_mst
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-        USER_WIDTH: 4
-    iommu_axi_tr_req_mst:
-      count: 1
-      type:
-        - iommu_axi_tr_req_mst
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-        USER_WIDTH: 4
+        - axi_sw_mst
+        - PLATFORM_TRANSACTOR_MST
+      attrs: *platform_axi_sw_mst_attrs
+

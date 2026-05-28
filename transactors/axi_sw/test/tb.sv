@@ -6,10 +6,10 @@ module tb(
 
     localparam cvm_topology_gen::topology_t topology = cvm_topology_gen::mods;
 
-    localparam int unsigned ADDR_WIDTH = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
-    localparam int unsigned DATA_WIDTH = topology.TOP.PLATFORM.AXI.DATA_WIDTH;
-    localparam int unsigned ID_WIDTH   = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
-    localparam int unsigned STRB_WIDTH = topology.TOP.PLATFORM.AXI.STRB_WIDTH;
+    localparam int unsigned ADDR_WIDTH = topology.TOP.PLATFORM.AXI_SW[0].ADDR_WIDTH;
+    localparam int unsigned DATA_WIDTH = topology.TOP.PLATFORM.AXI_SW[0].DATA_WIDTH;
+    localparam int unsigned ID_WIDTH   = topology.TOP.PLATFORM.AXI_SW[0].ID_WIDTH;
+    localparam int unsigned STRB_WIDTH = topology.TOP.PLATFORM.AXI_SW[0].STRB_WIDTH;
 
     typedef logic [ADDR_WIDTH-1:0] addr_t;
     typedef logic [DATA_WIDTH-1:0] data_t;
@@ -126,58 +126,53 @@ module tb(
         end
     end
 
-    if (topology.TOP.PLATFORM.AXI.TOTAL != 1) $error("Only 1 axi supported");
-    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
-        axi_sw #(
-            .ADDR_WIDTH(ADDR_WIDTH),
-            .DATA_WIDTH(DATA_WIDTH),
-            .ID_WIDTH(ID_WIDTH),
-            .STRB_WIDTH(STRB_WIDTH),
-            .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .B_Q_MAX(topology.TOP.PLATFORM.AXI.B_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
-        ) mem (
-            .*,
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
-        );
-    end
+    if (topology.TOP.PLATFORM.AXI_SW[0].TOTAL != 1) $error("Only 1 axi supported");
+    axi_sw #(
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .ID_WIDTH(ID_WIDTH),
+        .STRB_WIDTH(STRB_WIDTH),
+        .R_Q_MAX(topology.TOP.PLATFORM.AXI_SW[0].R_Q_MAX),
+        .B_Q_MAX(topology.TOP.PLATFORM.AXI_SW[0].B_Q_MAX),
+        .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_SW[0].ID, 0)),
+        `RV_TESTER_TRANSACTIONS_AXI_SOURCE_PARAMS(0)
+    ) mem (
+        .*,
+        `RV_TESTER_TRANSACTIONS_AXI_SOURCE_PORTS(2, 0, 0)
+    );
 
-    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts1
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
-            .USER_WIDTH(topology.TOP.PLATFORM.AXI_MST.USER_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) mst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
+    if (topology.TOP.PLATFORM.AXI_SW_MST[0].TOTAL != 2) $error("Only 2 axi supported");
+    axi_sw_mst #(
+        .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[0].ADDR_WIDTH),
+        .DATA_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[0].DATA_WIDTH),
+        .ID_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[0].ID_WIDTH  ),
+        .STRB_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[0].STRB_WIDTH),
+        .USER_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[0].USER_WIDTH),
+        .AR_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[0].AR_Q_MAX),
+        .AW_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[0].AW_Q_MAX),
+        .W_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[0].W_Q_MAX),
+        .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_SW_MST[0].ID, 0)),
+        `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
+    ) mst0 (
+        .reset_n('0),
+        .sys_reset(sys_reset)
+    );
 
-    for (genvar p = 0; p < topology.TOP.PLATFORM.SMC_AXI_MST.TOTAL; p++) begin : axi_sw_msts3
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH),
-            .USER_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) smc_mst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
+    axi_sw_mst #(
+        .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[1].ADDR_WIDTH),
+        .DATA_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[1].DATA_WIDTH),
+        .ID_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[1].ID_WIDTH  ),
+        .STRB_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[1].STRB_WIDTH),
+        .USER_WIDTH(topology.TOP.PLATFORM.AXI_SW_MST[1].USER_WIDTH),
+        .AR_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[1].AR_Q_MAX),
+        .AW_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[1].AW_Q_MAX),
+        .W_Q_MAX(topology.TOP.PLATFORM.AXI_SW_MST[1].W_Q_MAX),
+        .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_SW_MST[1].ID, 0)),
+        `RV_TESTER_TRANSACTIONS_SMC_AXI_MST_SOURCE_PARAMS(0)
+    ) smc_mst (
+        .reset_n('0),
+        .sys_reset(sys_reset)
+    );
 
     import "DPI-C" function void get_stim(
         input  int unsigned clock,

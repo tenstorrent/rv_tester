@@ -70,12 +70,6 @@ module top
       assign debug_mode[i] = '0;
     end
 
-    for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
-      assign axi_req[i].ar_valid = '0;
-      assign axi_req[i].aw_valid = '0;
-      assign axi_req[i].w_valid = '0;
-    end
-
     always @(posedge clk[CORE_CLK_IDX]) begin
         order <= order + 1;
         if (order <= reset_deassert_cycle) begin

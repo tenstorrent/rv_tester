@@ -7,7 +7,7 @@ load("@rv_tester//pmu:pmu_fragment_gen.bzl", "pmu_fragment_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
 load("@rv_tester//memdump:memdump.bzl", "memdump_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
-load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
+load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen", "generate_axi_interfaces")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
 def rv_tester_gen(
@@ -61,21 +61,6 @@ def rv_tester_gen(
         cc_attrs = cc_attrs,
     )
 
-    verilog_library(
-        name = name + "_harness",
-        srcs = [
-            "@rv_tester//:rv_tester_pkg.sv",
-            "@rv_tester//:rv_tester_defines.sv",
-            "@rv_tester//:rv_tester_stall_checker.sv",
-        ],
-        deps = [
-            topology + "_sv",
-	    "@opensrc-axi//:axi",
-            name + "_pmu_fragments_pmu_defines_sv",
-        ],
-        visibility = visibility,
-    )
-
     packet_gen(
         name = name + "_transactions",
         srcs = [
@@ -86,6 +71,28 @@ def rv_tester_gen(
         package = "rv_tester_transactions",
         topology = topology,
         cc_attrs = cc_attrs,
+    )
+
+    generate_axi_interfaces(
+        name = name + "_axi_interfaces",
+        transactions = name + "_transactions",
+        topology = topology,
+        package = "axi_defines",
+        visibility = visibility,
+    )
+
+    verilog_library(
+        name = name + "_harness",
+        srcs = [
+            "@rv_tester//:rv_tester_pkg.sv",
+            "@rv_tester//:rv_tester_defines.sv",
+        ],
+        deps = [
+            topology + "_sv",
+            name + "_pmu_fragments_pmu_defines_sv",
+            name + "_axi_interfaces_sv",
+        ],
+        visibility = visibility,
     )
 
     cosim_gen(
@@ -162,6 +169,7 @@ def rv_tester_gen(
             name + "_interrupts_sv",
             name + "_triggers_sv",
             name + "_axi_sw_sv",
+            name + "_axi_interfaces_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
             "@opensrc-tech_cells_generic//:tech_cells_generic"
@@ -192,6 +200,7 @@ def rv_tester_gen(
             name + "_memdump_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",
+            name + "_axi_interfaces_cc",
             topology + "_cc",
         ] + select({
           "@rv_tester//:cosim_off": [],
