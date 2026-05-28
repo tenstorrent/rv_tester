@@ -42,58 +42,19 @@ rv_tester: &rv_tester
             - smc_xtor
           attrs:
               clock_divisor: 100
-    axi:
-      count: *rv_tester_axi_count
+    axi_sw:
       type:
+        - axi_sw
         - axi
         - platform_transactor
-      attrs:
-        <<: *rv_tester_axi_attrs
-        <<: *rv_tester_axi_sw
+      attrs: *platform_axi_sw_attrs
 
-    ncio_axi:
-      count: *rv_tester_ncio_axi_count
+    axi_sw_mst:
       type:
-        - ncio_axi
-        - platform_transactor
-      attrs:
-        <<: *rv_tester_ncio_axi_attrs
-        <<: *rv_tester_axi_sw
-
-    axi_mst:
-      count: *rv_tester_axi_mst_count
-      type:
+        - axi_sw_mst
         - axi_mst
         - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-
-    smc_axi_mst:
-      count: *rv_tester_smc_axi_mst_count
-      type:
-        - smc_axi_mst
-        - platform_transactor_smc_mst
-      attrs:
-        <<: *rv_tester_smc_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-    
-    iommu_axi_tr_req_mst:
-      count: *rv_tester_iommu_axi_tr_req_mst_count
-      type:
-        - iommu_axi_tr_req_mst
-        - platform_transactor_iommu_tr_req_mst
-      attrs:
-        <<: *rv_tester_iommu_axi_tr_req_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-
-    dm_axi:
-      count: *rv_tester_dm_axi_count
-      type:
-        - dm_axi
-        - dm_axi_transactor
-      attrs:
-        <<: *rv_tester_dm_axi_attrs
+      attrs: *platform_axi_sw_mst_attrs
 
     dm_model:
       count: 1

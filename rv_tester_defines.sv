@@ -1,12 +1,18 @@
 ///////////////includes///////////////////////////////
 
 `include "axi/typedef.svh"
-
 /////////////////////////////////////////////////////
 
 package rv_tester_params;
 
     import cvm_topology_gen::mods;
+
+    `RV_TESTER_AXI_ENUMS
+    `RV_TESTER_AXI_TYPEDEFS
+    // AXI_TOTAL = the AXI (mem) group's per-parent instance count, i.e. the
+    // size of axi_req[]. Use SHARD (group count), not TOTAL (sum across
+    // all groups, which would also include NCIO etc).
+    parameter AXI_TOTAL = mods.TOP.PLATFORM.AXI_SW[AXI_IDX].SHARD;
 
     // --------------------------------------
     // Platform RISCV Arch
@@ -56,254 +62,6 @@ package rv_tester_params;
     parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
     parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
     parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
-
-    // --------------------------------------
-    // AXI interface
-    // --------------------------------------
-    parameter AXI_TOTAL = mods.TOP.PLATFORM.AXI.TOTAL;
-    parameter AXI_ADDR_WIDTH = mods.TOP.PLATFORM.AXI.ADDR_WIDTH;
-    parameter AXI_DATA_WIDTH = mods.TOP.PLATFORM.AXI.DATA_WIDTH;
-    parameter AXI_STRB_WIDTH = mods.TOP.PLATFORM.AXI.STRB_WIDTH;
-    parameter AXI_ID_WIDTH = mods.TOP.PLATFORM.AXI.ID_WIDTH;
-
-    parameter NCIO_AXI_TOTAL = mods.TOP.PLATFORM.NCIO_AXI.TOTAL;
-    parameter NCIO_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH;
-    parameter NCIO_AXI_DATA_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH;
-    parameter NCIO_AXI_STRB_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH;
-    parameter NCIO_AXI_ID_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ID_WIDTH;
-
-    parameter AXI_MST_TOTAL = mods.TOP.PLATFORM.AXI_MST.TOTAL;
-    parameter AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.AXI_MST.ADDR_WIDTH;
-    parameter AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.AXI_MST.DATA_WIDTH;
-    parameter AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.AXI_MST.STRB_WIDTH;
-    parameter AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.AXI_MST.ID_WIDTH;
-    parameter AXI_MST_USER_WIDTH = mods.TOP.PLATFORM.AXI_MST.USER_WIDTH;
-
-    parameter SMC_AXI_MST_TOTAL = mods.TOP.PLATFORM.SMC_AXI_MST.TOTAL;
-    parameter SMC_AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH;
-    parameter SMC_AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH;
-    parameter SMC_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH;
-    parameter SMC_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH;
-    parameter SMC_AXI_MST_USER_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH;
-
-    parameter IOMMU_AXI_TR_REQ_MST_TOTAL = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.TOTAL;
-    parameter IOMMU_AXI_TR_REQ_MST_ADDR_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ADDR_WIDTH;
-    parameter IOMMU_AXI_TR_REQ_MST_DATA_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.DATA_WIDTH;
-    parameter IOMMU_AXI_TR_REQ_MST_STRB_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.STRB_WIDTH;
-    parameter IOMMU_AXI_TR_REQ_MST_ID_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.ID_WIDTH;
-    parameter IOMMU_AXI_TR_REQ_MST_USER_WIDTH = mods.TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST.USER_WIDTH;
-
-    parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
-    parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
-    parameter DM_AXI_DATA_WIDTH = mods.TOP.PLATFORM.DM_AXI.DATA_WIDTH;
-    parameter DM_AXI_STRB_WIDTH = mods.TOP.PLATFORM.DM_AXI.STRB_WIDTH;
-    parameter DM_AXI_ID_WIDTH = mods.TOP.PLATFORM.DM_AXI.ID_WIDTH;
-
-    typedef logic [AXI_ADDR_WIDTH-1:0] axi_addr_t;
-    typedef logic [AXI_DATA_WIDTH-1:0] axi_data_t;
-    typedef logic [AXI_STRB_WIDTH-1:0] axi_strb_t;
-    typedef logic [AXI_ID_WIDTH  -1:0] axi_id_t;
-
-    typedef logic [NCIO_AXI_ADDR_WIDTH-1:0] ncio_axi_addr_t;
-    typedef logic [NCIO_AXI_DATA_WIDTH-1:0] ncio_axi_data_t;
-    typedef logic [NCIO_AXI_STRB_WIDTH-1:0] ncio_axi_strb_t;
-    typedef logic [NCIO_AXI_ID_WIDTH  -1:0] ncio_axi_id_t;
-
-    typedef logic [AXI_MST_ADDR_WIDTH-1:0] axi_mst_addr_t;
-    typedef logic [AXI_MST_DATA_WIDTH-1:0] axi_mst_data_t;
-    typedef logic [AXI_MST_STRB_WIDTH-1:0] axi_mst_strb_t;
-    typedef logic [AXI_MST_ID_WIDTH  -1:0] axi_mst_id_t;
-    typedef logic [AXI_MST_USER_WIDTH-1:0] axi_mst_user_t;
-
-    typedef logic [SMC_AXI_MST_ADDR_WIDTH-1:0] smc_addr_t;
-    typedef logic [SMC_AXI_MST_DATA_WIDTH-1:0] smc_data_t;
-    typedef logic [SMC_AXI_MST_STRB_WIDTH-1:0] smc_strb_t;
-    typedef logic [SMC_AXI_MST_ID_WIDTH  -1:0] smc_id_t;
-    typedef logic [SMC_AXI_MST_USER_WIDTH-1:0] smc_user_t;
-
-    typedef logic [IOMMU_AXI_TR_REQ_MST_ADDR_WIDTH-1:0] iommu_axi_tr_req_addr_t;
-    typedef logic [IOMMU_AXI_TR_REQ_MST_DATA_WIDTH-1:0] iommu_axi_tr_req_data_t;
-    typedef logic [IOMMU_AXI_TR_REQ_MST_STRB_WIDTH-1:0] iommu_axi_tr_req_strb_t;
-    typedef logic [IOMMU_AXI_TR_REQ_MST_ID_WIDTH  -1:0] iommu_axi_tr_req_id_t;
-    typedef logic [IOMMU_AXI_TR_REQ_MST_USER_WIDTH-1:0] iommu_axi_tr_req_user_t;
-
-    typedef logic [5:0] axi_atop_t;
-    typedef logic [1:0] axi_burst_t;
-    typedef logic [1:0] axi_resp_t;
-    typedef logic [7:0] axi_len_t;
-    typedef logic [2:0] axi_size_t;
-
-    typedef struct packed {
-        logic                   ar_valid ;
-        axi_id_t                ar_id    ;
-        axi_addr_t              ar_addr  ;
-        axi_len_t               ar_len   ;
-        axi_size_t              ar_size  ;
-        axi_burst_t             ar_burst ;
-        logic                   ar_lock  ;
-
-        logic                   aw_valid ;
-        axi_id_t                aw_id    ;
-        axi_addr_t              aw_addr  ;
-        axi_len_t               aw_len   ;
-        axi_size_t              aw_size  ;
-        axi_burst_t             aw_burst ;
-        logic                   aw_lock  ;
-        axi_atop_t              aw_atop  ;
-
-        logic                   w_valid  ;
-        axi_data_t              w_data   ;
-        axi_strb_t              w_strb   ;
-        logic                   w_last   ;
-
-        logic                   b_ready  ;
-        logic                   r_ready  ;
-    } axi_req_t;
-
-    typedef struct packed {
-        logic                   b_valid  ;
-        axi_id_t                b_id     ;
-        axi_resp_t              b_resp   ;
-
-        logic                   r_valid  ;
-        axi_id_t                r_id     ;
-        axi_data_t              r_data   ;
-        axi_resp_t              r_resp   ;
-        logic                   r_last   ;
-
-        logic                   aw_ready ;
-        logic                   ar_ready ;
-        logic                   w_ready  ;
-    } axi_rsp_t;
-
-    typedef struct packed {
-        logic                       ar_valid ;
-        axi_mst_id_t                ar_id    ;
-        axi_mst_addr_t              ar_addr  ;
-        axi_len_t                   ar_len   ;
-        axi_size_t                  ar_size  ;
-        axi_burst_t                 ar_burst ;
-        logic                       ar_lock  ;
-
-        logic                       aw_valid ;
-        axi_mst_id_t                aw_id    ;
-        axi_mst_addr_t              aw_addr  ;
-        axi_len_t                   aw_len   ;
-        axi_size_t                  aw_size  ;
-        axi_burst_t                 aw_burst ;
-        logic                       aw_lock  ;
-        axi_atop_t                  aw_atop  ;
-
-        logic                       w_valid  ;
-        axi_mst_data_t              w_data   ;
-        axi_mst_strb_t              w_strb   ;
-        logic                       w_last   ;
-
-        logic                       b_ready  ;
-        logic                       r_ready  ;
-    } axi_req_mst_t;
-
-    typedef struct packed {
-        logic                       b_valid  ;
-        axi_mst_id_t                b_id     ;
-        axi_resp_t                  b_resp   ;
-
-        logic                       r_valid  ;
-        axi_mst_id_t                r_id     ;
-        axi_mst_data_t              r_data   ;
-        axi_resp_t                  r_resp   ;
-        logic                       r_last   ;
-
-        logic                       aw_ready ;
-        logic                       ar_ready ;
-        logic                       w_ready  ;
-    } axi_rsp_mst_t;
-
-    typedef struct packed {
-        logic                       ar_valid ;
-        smc_id_t                    ar_id    ;
-        smc_addr_t                  ar_addr  ;
-        axi_len_t                   ar_len   ;
-        axi_size_t                  ar_size  ;
-        axi_burst_t                 ar_burst ;
-        logic                       ar_lock  ;
-
-        logic                       aw_valid ;
-        smc_id_t                    aw_id    ;
-        smc_addr_t                  aw_addr  ;
-        axi_len_t                   aw_len   ;
-        axi_size_t                  aw_size  ;
-        axi_burst_t                 aw_burst ;
-        logic                       aw_lock  ;
-        axi_atop_t                  aw_atop  ;
-
-        logic                       w_valid  ;
-        smc_data_t                  w_data   ;
-        smc_strb_t                  w_strb   ;
-        logic                       w_last   ;
-
-        logic                       b_ready  ;
-        logic                       r_ready  ;
-    } smc_axi_req_t;
-
-    typedef struct packed {
-        logic                       b_valid  ;
-        smc_id_t                    b_id     ;
-        axi_resp_t                  b_resp   ;
-
-        logic                       r_valid  ;
-        smc_id_t                    r_id     ;
-        smc_data_t                  r_data   ;
-        axi_resp_t                  r_resp   ;
-        logic                       r_last   ;
-
-        logic                       aw_ready ;
-        logic                       ar_ready ;
-        logic                       w_ready  ;
-    } smc_axi_rsp_t;
-
-    typedef struct packed {
-        logic                       ar_valid ;
-        iommu_axi_tr_req_id_t       ar_id    ;
-        iommu_axi_tr_req_addr_t     ar_addr  ;
-        axi_len_t                   ar_len   ;
-        axi_size_t                  ar_size  ;
-        axi_burst_t                 ar_burst ;
-        logic                       ar_lock  ;
-        
-        logic                       aw_valid ;
-        iommu_axi_tr_req_id_t       aw_id    ;
-        iommu_axi_tr_req_addr_t     aw_addr  ;
-        axi_len_t                   aw_len   ;
-        axi_size_t                  aw_size  ;
-        axi_burst_t                 aw_burst ;
-        logic                       aw_lock  ;
-
-        logic                       w_valid  ;
-        iommu_axi_tr_req_data_t     w_data   ;
-        iommu_axi_tr_req_strb_t     w_strb   ;
-        logic                       w_last   ;
-
-        logic                       b_ready  ;
-        logic                       r_ready  ;
-    } iommu_axi_tr_req_req_t;
-
-    typedef struct packed {
-        logic                       b_valid  ;
-        iommu_axi_tr_req_id_t       b_id     ;
-        axi_resp_t                  b_resp   ;
-
-        logic                       r_valid  ;
-        iommu_axi_tr_req_id_t       r_id     ;
-        iommu_axi_tr_req_data_t     r_data   ;
-        axi_resp_t                  r_resp   ;
-        logic                       r_last   ;
-
-        logic                       aw_ready ;
-        logic                       ar_ready ;
-        logic                       w_ready  ;
-    } iommu_axi_tr_req_rsp_t;
-
 
     // --------------------------------------
     // Bootstrap
@@ -496,46 +254,6 @@ package rv_tester_params;
     parameter AXI_USER_ID_WIDTH = 1;
     typedef logic [AXI_USER_ID_WIDTH-1:0] user_t;
 
-    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_top, axi_addr_t, axi_id_t, user_t)
-    `AXI_TYPEDEF_W_CHAN_T(slv_w_chan_top, axi_data_t, axi_strb_t, user_t)
-    `AXI_TYPEDEF_B_CHAN_T(slv_b_chan_top, axi_id_t, user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_top, axi_addr_t, axi_id_t, user_t)
-    `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_top, axi_data_t, axi_id_t, user_t)
-    `AXI_TYPEDEF_REQ_T(slv_req_top, slv_aw_chan_top, slv_w_chan_top, slv_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(slv_resp_top, slv_b_chan_top, slv_r_chan_top)
-
-    `AXI_TYPEDEF_AW_CHAN_T(ncio_slv_aw_chan_top, ncio_axi_addr_t, ncio_axi_id_t, user_t)
-    `AXI_TYPEDEF_W_CHAN_T(ncio_slv_w_chan_top, ncio_axi_data_t, ncio_axi_strb_t, user_t)
-    `AXI_TYPEDEF_B_CHAN_T(ncio_slv_b_chan_top, ncio_axi_id_t, user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(ncio_slv_ar_chan_top, ncio_axi_addr_t, ncio_axi_id_t, user_t)
-    `AXI_TYPEDEF_R_CHAN_T(ncio_slv_r_chan_top, ncio_axi_data_t, ncio_axi_id_t, user_t)
-    `AXI_TYPEDEF_REQ_T(ncio_slv_req_top, ncio_slv_aw_chan_top, ncio_slv_w_chan_top, ncio_slv_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(ncio_slv_resp_top, ncio_slv_b_chan_top, ncio_slv_r_chan_top)
-
-    `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_top, axi_mst_addr_t, axi_mst_id_t, axi_mst_user_t)
-    `AXI_TYPEDEF_W_CHAN_T(mst_w_chan_top, axi_mst_data_t, axi_mst_strb_t, axi_mst_user_t)
-    `AXI_TYPEDEF_B_CHAN_T(mst_b_chan_top, axi_mst_id_t, axi_mst_user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_top, axi_mst_addr_t, axi_mst_id_t, axi_mst_user_t)
-    `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_top, axi_mst_data_t, axi_mst_id_t, axi_mst_user_t)
-    `AXI_TYPEDEF_REQ_T(mst_req_top, mst_aw_chan_top, mst_w_chan_top, mst_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(mst_resp_top, mst_b_chan_top, mst_r_chan_top)
-
-    `AXI_TYPEDEF_AW_CHAN_T(smc_aw_chan_top, smc_addr_t, smc_id_t, smc_user_t)
-    `AXI_TYPEDEF_W_CHAN_T(smc_w_chan_top, smc_data_t, smc_strb_t, smc_user_t)
-    `AXI_TYPEDEF_B_CHAN_T(smc_b_chan_top, smc_id_t, smc_user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(smc_ar_chan_top, smc_addr_t, smc_id_t, smc_user_t)
-    `AXI_TYPEDEF_R_CHAN_T(smc_r_chan_top, smc_data_t, smc_id_t, smc_user_t)
-    `AXI_TYPEDEF_REQ_T(smc_req_top, smc_aw_chan_top, smc_w_chan_top, smc_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(smc_resp_top, smc_b_chan_top, smc_r_chan_top)
-
-    `AXI_TYPEDEF_AW_CHAN_T(iommu_axi_tr_req_aw_chan_top, iommu_axi_tr_req_addr_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
-    `AXI_TYPEDEF_W_CHAN_T(iommu_axi_tr_req_w_chan_top, iommu_axi_tr_req_data_t, iommu_axi_tr_req_strb_t, iommu_axi_tr_req_user_t)
-    `AXI_TYPEDEF_B_CHAN_T(iommu_axi_tr_req_b_chan_top, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(iommu_axi_tr_req_ar_chan_top, iommu_axi_tr_req_addr_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
-    `AXI_TYPEDEF_R_CHAN_T(iommu_axi_tr_req_r_chan_top, iommu_axi_tr_req_data_t, iommu_axi_tr_req_id_t, iommu_axi_tr_req_user_t)
-    `AXI_TYPEDEF_REQ_T(iommu_axi_tr_req_req_top, iommu_axi_tr_req_aw_chan_top, iommu_axi_tr_req_w_chan_top, iommu_axi_tr_req_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(iommu_axi_tr_req_rsp_top, iommu_axi_tr_req_b_chan_top, iommu_axi_tr_req_r_chan_top)
-
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
@@ -609,27 +327,13 @@ package rv_tester_params;
     output pmu_core_pkg::pmci_t              pmci         [rv_tester_params::NHARTS-1:0],           \
     output pmu_core_pkg::hpmi_t              hpmi         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
-    input  logic                             rv_tester_reset_,                                       \
-    output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
-    input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
-    output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
-    input  rv_tester_params::ncio_slv_resp_top    ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
-    input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
-    output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
-    input  rv_tester_params::smc_req_top    smc_axi_req_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
-    output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
-    input  rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
-    output rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0], \
+    input  logic                             rv_tester_reset_,                                      \
+    `RV_TESTER_AXI_PORTS(input, output, rv_tester_params),                                          \
     input  logic warm_reset_now,                                                   \
     input  logic sys_reset [rv_tester_params::NCLKS-1:0],                          \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0], \
     input logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire
 
-`define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
-    input clk,                                                                                      \
-    input reset_n,                                                                                  \
-    input rv_tester_params::slv_req_top     axi_req,                                                \
-    input rv_tester_params::slv_resp_top    axi_rsp
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic [63:0]                             clocks;                                                \
@@ -698,19 +402,7 @@ package rv_tester_params;
     pmu_core_pkg::pmci_t                     pmci          [rv_tester_params::NHARTS-1:0];          \
     pmu_core_pkg::hpmi_t                     hpmi          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
-    rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
-    rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
-    rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];   \
-    rv_tester_params::ncio_slv_resp_top      ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0];   \
-    rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
-    rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
-    rv_tester_params::mst_req_top            axi_msi;                                               \
-    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_msi_packets  ;      \
-    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;      \
-    rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::iommu_axi_tr_req_req_top iommu_axi_tr_req_req_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
-    rv_tester_params::iommu_axi_tr_req_rsp_top iommu_axi_tr_req_rsp_mst [rv_tester_params::IOMMU_AXI_TR_REQ_MST_TOTAL-1:0]; \
+    `RV_TESTER_AXI_VARS(rv_tester_params)                                                           \
     logic warm_reset_now;                                                                           \
     logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];           \

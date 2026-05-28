@@ -1,50 +1,69 @@
-rv_tester_axi_count: &rv_tester_axi_count 2
+axi_attrs: &axi_attrs
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 512
+    STRB_WIDTH: 64
+    ID_WIDTH:   4
+    DOMAIN: 2
+    NAME:       ""
 
-rv_tester_axi_attrs: &rv_tester_axi_attrs
-  ADDR_WIDTH: 64
-  DATA_WIDTH: 512
-  STRB_WIDTH: 64
-  ID_WIDTH: 4
+# AXI slave interface groups. AXI and AXI1 used to be separate entries with
+# identical attrs; collapse into one group with count:2. NCIO_AXI is a
+# separate group because it has different widths and a different DUT-side
+# connection.
+axi_mem: &axi_mem
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw
+  NAME:  AXI
+  count: 2
 
-rv_tester_ncio_axi_count: &rv_tester_ncio_axi_count 1
-
-rv_tester_ncio_axi_attrs: &rv_tester_ncio_axi_attrs
+axi_ncio: &axi_ncio
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw
+  NAME: NCIO_AXI
   ADDR_WIDTH: 27
   DATA_WIDTH: 512
   STRB_WIDTH: 64
   ID_WIDTH: 15
 
-rv_tester_axi_mst_count: &rv_tester_axi_mst_count 2
-
-rv_tester_axi_mst_attrs: &rv_tester_axi_mst_attrs
-  ADDR_WIDTH: 52
+# AXI master interface groups. Each master goes to a different physical
+# DUT port; each is its own group with count:1.
+axi_mst_0: &axi_mst_0
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME:  AXI_SW_MST
   DATA_WIDTH: 512
   STRB_WIDTH: 64
-  ID_WIDTH: 15
   USER_WIDTH: 8
 
-rv_tester_smc_axi_mst_count: &rv_tester_smc_axi_mst_count 1
+axi_mst_1: &axi_mst_1
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: AXI_SW_MST_1
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH:   9
+  USER_WIDTH: 8
 
-rv_tester_smc_axi_mst_attrs: &rv_tester_smc_axi_mst_attrs
+axi_mst_2: &axi_mst_2
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: SMC_AXI_MST
   ADDR_WIDTH: 52
   DATA_WIDTH: 512
   STRB_WIDTH: 64
-  ID_WIDTH: 15
+  ID_WIDTH:   15
   USER_WIDTH: 4
+  DOMAIN: 3
 
-rv_tester_iommu_axi_tr_req_mst_count: &rv_tester_iommu_axi_tr_req_mst_count 1
-
-rv_tester_iommu_axi_tr_req_mst_attrs: &rv_tester_iommu_axi_tr_req_mst_attrs
+axi_mst_3: &axi_mst_3
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: IOMMU_AXI_TR_REQ_MST
   ADDR_WIDTH: 56
   DATA_WIDTH: 512
   STRB_WIDTH: 64
   ID_WIDTH: 10
   USER_WIDTH: 1
 
-rv_tester_dm_axi_count: &rv_tester_dm_axi_count 1
-
-rv_tester_dm_axi_attrs: &rv_tester_dm_axi_attrs
-  ADDR_WIDTH: 27
-  DATA_WIDTH: 64
-  STRB_WIDTH: 8
-  ID_WIDTH: 17
+platform_axi_sw_attrs:     &platform_axi_sw_attrs     [*axi_mem, *axi_ncio]
+platform_axi_sw_mst_attrs: &platform_axi_sw_mst_attrs [*axi_mst_0, *axi_mst_1, *axi_mst_2, *axi_mst_3]
