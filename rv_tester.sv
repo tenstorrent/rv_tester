@@ -174,7 +174,6 @@ module rv_tester
     bit [NHARTS-1:0] poke_event_out;
     bit poke_event_in;
     bit overlay_mmr_en = 0;
-    logic trace_quiesced;
 
     logic terminate_1T = '0;
     localparam int unsigned CVM_DONE_DELAY_CYCLES = 500;
@@ -215,7 +214,6 @@ module rv_tester
     LU cvm_debug_cycle_on = '0;
     LU cvm_debug_cycle_off = '0;
     //logic dut_terminate_any;
-    //logic ntrace_terminate;
 
     bit rv_tester_reset_dut_clk;
     bit rv_tester_reset_core_clk_d1;
@@ -247,11 +245,11 @@ module rv_tester
     assign sysmod_cosim_dmi_terminate = (sysmod_terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any;
     assign core_terminate_conditions = dut_terminate || rv_tester_error_terminate.terminate || sysmod_cosim_dmi_terminate;
 `ifdef UVM_MACROS_SVH
-    assign terminate           = uvm_done && (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+    assign terminate           = uvm_done && (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset;
 `else    
-     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+     assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset;
 `endif   
-    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset && (dmi_terminate && (trace_quiesced || terminate_dst_trace_seq))) || dut_terminate || warm_reset_now;
+    assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset) || dut_terminate || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -780,7 +778,6 @@ module rv_tester
         .reset(sys_reset[AXI_CLK_IDX]),
         .dut_reset_req,
         .dut_core_reset(dut_reset[CORE_CLK_IDX]),
-        .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(dmi_write),
         .event_triggers(event_triggers),

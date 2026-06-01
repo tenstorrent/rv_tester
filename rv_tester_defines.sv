@@ -297,9 +297,6 @@ package rv_tester_params;
     input                                    sysmod_terminate,                                      \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                         \
-    output logic                             ntrace_terminate,                                      \
-    output logic                             terminate_dst_trace_seq,                               \
-    output logic                             dmi_terminate,                                         \
     output logic                             dmi_poll_timeout_terminate,                            \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     output                                   quiesced,                                              \
@@ -372,9 +369,6 @@ package rv_tester_params;
     logic                                    sysmod_terminate;                                      \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                         \
-    logic                                    terminate_dst_trace_seq;                               \
-    logic                                    ntrace_terminate;                                      \
-    logic                                    dmi_terminate;                                         \
     logic                                    dmi_poll_timeout_terminate;                            \
     logic                                    quiesced;                                              \
     logic                                    unconditional_terminate;                               \
