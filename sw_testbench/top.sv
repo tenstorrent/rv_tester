@@ -54,9 +54,6 @@ module top
 
     int unsigned order = '0;
     assign quiesced = '1;
-    assign ntrace_terminate        = '1;
-    assign terminate_dst_trace_seq = '1;
-    assign dmi_terminate           = '1;
     assign dmi_poll_timeout_terminate = '0;
     int unsigned reset_deassert_cycle = 100;
     assign warm_reset_en = '0;

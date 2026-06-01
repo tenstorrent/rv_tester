@@ -102,7 +102,6 @@ REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-  void sysmod_trace_info(unsigned trace_info_s);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
