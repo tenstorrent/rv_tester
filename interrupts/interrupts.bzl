@@ -45,7 +45,6 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
             "@cvm//:topology_sv",
-            "@cvm//:registry_sv",
             "@rv_tester//:rv_tester_tick_generator",
             packet + "_sv",
             topology + "_sv",

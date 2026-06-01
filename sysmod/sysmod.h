@@ -41,6 +41,7 @@ class sysmod {
     ~sysmod();
 
     void configure();
+    void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
     void is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor);
     void jtag_tick(uint64_t advance);
@@ -99,6 +100,9 @@ class sysmod {
 
     std::string hostname = "localhost";
     int port = 50001;
+    svScope scope_;
+    svScope scope() { return scope_; }
+
     cvm::topology::loc_t loc_, wc_loc_;
     unsigned id_;
     unsigned id()   { return id_; }

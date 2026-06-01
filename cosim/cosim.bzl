@@ -110,7 +110,6 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
-            "@cvm//:registry_sv",
             packet + "_sv",
             topology + "_sv",
             harness,

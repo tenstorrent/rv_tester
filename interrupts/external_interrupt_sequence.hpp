@@ -32,6 +32,8 @@ class external_interrupt_sequence {
     external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id);
     ~external_interrupt_sequence();
 
+    void set_scope(svScope s) { scope_ = s; }
+
   private:
 
     void interrupt_injection_thread();
@@ -69,6 +71,7 @@ class external_interrupt_sequence {
     cvm::topology::loc_t axi_mst_loc_l;
     cvm::topology::loc_t triggers_loc;
     unsigned id_;
+    svScope scope_;
 
 
 

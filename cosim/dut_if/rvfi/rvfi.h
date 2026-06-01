@@ -41,6 +41,7 @@ class rvfi {
   private:
 
     void init();
+    void set_scope(svScope s) { scope_ = s; }
     void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
     void process(const rv_tester_transactions::cosim::m_disable_checks<>& m_disable_checks);
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
@@ -147,6 +148,8 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
+
+    svScope scope_;
 
     bool terminated_ = false;
     bool in_debug_mode_ = false;

@@ -16,6 +16,8 @@ class nmi_sequence {
     nmi_sequence(cvm::topology::loc_t loc, unsigned id);
     ~nmi_sequence();
 
+    void set_scope(svScope s) { scope_ = s; }
+
   private:
 
     void random_mode_thread();
@@ -39,6 +41,7 @@ class nmi_sequence {
     cvm::topology::loc_t loc_;
     cvm::topology::loc_t triggers_loc;
     unsigned id_;
+    svScope scope_;
 
     uint32_t nmi_count_ = 0;
 };
