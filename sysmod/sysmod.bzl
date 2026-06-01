@@ -12,7 +12,6 @@ def sysmod_gen(name, packet, csr_param, topology, visibility = None, cc_attrs = 
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
-            "@cvm//:registry_sv",
             packet + "_sv",
             topology + "_sv",
         ],

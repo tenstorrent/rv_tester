@@ -39,6 +39,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
   whisper::initialize();
 
+  cvm::registry::messenger.connect<svScope>(
+    loc_,
+    [&](svScope s) { return this->set_scope(s); });
+
   connect<
     rv_tester_transactions::cosim::m_reset<>,
     rv_tester_transactions::cosim::m_disable_checks<>,
@@ -1048,6 +1052,13 @@ void rvfi::process(const bridge::error_loc&) {
 void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
   cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
+}
+
+extern "C" {
+  void cosim_set_scope(cvm::topology::loc_t loc) {
+    svScope scope = svGetScope();
+    cvm::registry::messenger.signal<svScope>(loc, scope);
+  }
 }
 
 extern "C" long long get_max_cycle() {

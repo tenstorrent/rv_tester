@@ -34,7 +34,6 @@ def triggers_gen(name, packet, topology, harness, visibility = None, cc_attrs = 
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
             "@cvm//:topology_sv",
-            "@cvm//:registry_sv",
             packet + "_sv",
             topology + "_sv",
             harness,

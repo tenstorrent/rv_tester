@@ -53,7 +53,10 @@ DEFINE_bool(enable_external_interrupt_sequence_debug, false, "Enable external_in
 // Constructor
 // ---------------------------------------------------------------------------
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id)
-  : sequence_log_file_("h" + std::to_string(id) + "_external_interrupt_sequence.log"), loc_(loc), id_(id), msi_wait_timeout_(0) {
+  : sequence_log_file_("h" + std::to_string(id) + "_external_interrupt_sequence.log"), loc_(loc), id_(id), scope_(nullptr), msi_wait_timeout_(0) {
+
+  // Scope
+  cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
   sysmod_loc_ = cvm::topology::get_from_type("SYSMOD", 0);
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);

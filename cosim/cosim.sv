@@ -231,6 +231,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     import "DPI-C" function longint get_max_cycle();
     import "DPI-C" function longint get_max_stall_cycle();
+    import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
     //import "DPI-C" context function void call_check_max_instr(longint unsigned cycles, longint unsigned instr_count);
@@ -820,7 +821,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
             poke_mip_timer = (cvm_plusargs::get_bool("poke_mip_timer") != '0);
             if (rvfi_enabled) begin
-              cvm_registry::set_scope(location);
+              cosim_set_scope(location);
             end
             terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */

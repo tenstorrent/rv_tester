@@ -24,8 +24,6 @@ namespace _axi_sw_mst {
   }
 }
 
-struct axi_sw_mst_reset_t {};
-
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
@@ -132,6 +130,7 @@ class axi_sw_mst {
         std::optional<unsigned> read(transactor::read_request_t r);
 
         std::string name_;
+        svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
         size_t id_width_;
@@ -162,7 +161,7 @@ class axi_sw_mst {
 
     public:
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id)
-        : loc_(loc), id_(id),
+        : scope_(nullptr), loc_(loc), id_(id),
           id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
           data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
           strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
@@ -189,9 +188,12 @@ class axi_sw_mst {
         for (uint32_t i = 1; i <= max_size; i*=2)
           sizes_.push_back(i);
 
-        cvm::registry::messenger.connect<axi_sw_mst_reset_t>(
-            loc_,
-            [this](const auto&) { return this->reset_ptrs(); });
+        cvm::registry::messenger.connect<svScope>(
+        loc_,
+        [&](svScope s) {
+            this->set_scope(s);
+            return this->reset_ptrs();
+        });
 
         connect<B, R, ARQ, AWQ, WQ>();
 
@@ -215,6 +217,10 @@ class axi_sw_mst {
     ~axi_sw_mst() {
         cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name_, id_, read_bytes_);
         cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name_, id_, write_bytes_);
+    }
+
+    void set_scope(svScope scope) {
+        scope_ = scope;
     }
 
     void process(const B& b) {
@@ -384,7 +390,7 @@ class axi_sw_mst {
                   if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
                       ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                       cvm::registry::callbacks.push(
-                        loc_,
+                        scope_,
                         [=]() { _axi_sw_mst::axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.user); });
                   }
                   else {
@@ -399,7 +405,7 @@ class axi_sw_mst {
                   if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
                       aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                       cvm::registry::callbacks.push(
-                        loc_,
+                        scope_,
                         [=]() { _axi_sw_mst::axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.atop.transaction, arg.user); });
                   }
                   else {
@@ -424,7 +430,7 @@ class axi_sw_mst {
                   }
 
                   cvm::registry::callbacks.push(
-                      loc_,
+                      scope_,
                       [=, this]() {
                           std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
                           for (size_t i = 0; i < arg.strb.size(); i++) {

@@ -16,8 +16,10 @@ extern "C" {
   void drive_nmi(uint8_t val);
 }
 
-nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id) {
+nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
+  // Scope
+  cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
 
   // Deassert signal comes from trickbox
@@ -92,7 +94,7 @@ cvm::messenger::task<void> nmi_sequence::trigger_mode() {
 
 void nmi_sequence::nmi(uint8_t assert) {
   cvm::registry::callbacks.push(
-    loc_,
+    scope_,
     [assert, this]() {
       cvm::log(cvm::HIGH, "[interrupts][h{}] {} nmi\n", id_, assert ? "assert" : "deassert");
       drive_nmi(assert);
