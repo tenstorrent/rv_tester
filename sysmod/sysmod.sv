@@ -123,11 +123,6 @@ import rv_tester_params::*;
 
     export "DPI-C" function sysmod_sw_interrupt;
 
-    function void sysmod_trace_info (int unsigned trace_info_s);
-      trace_quiesced_q = trace_info_s[0];
-    endfunction
-    export "DPI-C" function sysmod_trace_info;
-
     function void sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
