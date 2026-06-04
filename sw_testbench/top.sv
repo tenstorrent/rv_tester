@@ -54,9 +54,6 @@ module top
 
     int unsigned order = '0;
     assign quiesced = '1;
-    assign ntrace_terminate        = '1;
-    assign terminate_dst_trace_seq = '1;
-    assign dmi_terminate           = '1;
     assign dmi_poll_timeout_terminate = '0;
     int unsigned reset_deassert_cycle = 100;
     assign warm_reset_en = '0;
@@ -68,12 +65,6 @@ module top
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;
-    end
-
-    for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
-      assign axi_req[i].ar_valid = '0;
-      assign axi_req[i].aw_valid = '0;
-      assign axi_req[i].w_valid = '0;
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin

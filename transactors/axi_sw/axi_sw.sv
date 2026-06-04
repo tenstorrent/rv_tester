@@ -37,6 +37,9 @@
         automatic logic rptr_updated_nxt = (reset_n) ? (update_rptr): '0;            \
         rptr_updated <=  rptr_updated_nxt | sys_reset;                               \
         rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(rptr_updated_nxt) : '0; \
+        /* verilator lint_off BLKSEQ */                                              \
+        if (sys_reset) name``_wptr_nxt = '0;                                         \
+        /* verilator lint_on BLKSEQ */                                               \
         name``_wptr   <= name``_wptr_nxt;                                            \
     end                                                                              \
                                                                                      \
@@ -70,7 +73,11 @@ module axi_sw #(
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
     parameter type user_t   = logic [0:0],
-    `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PARAMS
+    parameter type W_TYPE = int,
+    parameter type AW_TYPE = int,
+    parameter type AR_TYPE = int,
+    parameter type R_Q_PTR_TYPE = int,
+    parameter type B_Q_PTR_TYPE = int
 
 )(
 
@@ -129,8 +136,11 @@ module axi_sw #(
     /* verilator lint_off UNOPTFLAT */
     output logic             axi_slv_w_ready,
     /* verilator lint_on UNOPTFLAT */
-    `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PORTS
-
+    output W_TYPE ws, 
+    output AW_TYPE aws,
+    output AR_TYPE ars,
+    output R_Q_PTR_TYPE r_q_ptrs,
+    output B_Q_PTR_TYPE b_q_ptrs
 );
 
     localparam RESP_OKAY   = 2'b00;
@@ -170,6 +180,9 @@ module axi_sw #(
             automatic byte unsigned _unused;
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
+                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
+                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
+                // exported axi_sw_*_reset() functions cannot be invoked here).
                 _unused = axi_sw_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
@@ -553,8 +566,11 @@ module axi_sw_mst #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
-
+    parameter type B_TYPE = int,
+    parameter type R_TYPE = int,
+    parameter type AR_Q_PTR_TYPE = int,
+    parameter type AW_Q_PTR_TYPE = int,
+    parameter type W_Q_PTR_TYPE = int
 )(
 
     input  clk,
@@ -609,8 +625,11 @@ module axi_sw_mst #(
     input  logic             axi_slv_aw_ready,
     input  logic             axi_slv_ar_ready,
     input  logic             axi_slv_w_ready,
-    `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PORTS
-
+    output B_TYPE bs,
+    output R_TYPE rs,
+    output AR_Q_PTR_TYPE ar_q_ptrs,
+    output AW_Q_PTR_TYPE aw_q_ptrs,
+    output W_Q_PTR_TYPE w_q_ptrs
 );
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];
     typedef byte unsigned dpi_strb[STRB_WIDTH/$bits(byte)];
@@ -660,6 +679,9 @@ module axi_sw_mst #(
                 // FIXME add a reset for the axi xtor
             automatic byte unsigned _unused;
             if (LOCATION != cvm_topology::nil) begin
+                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
+                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
+                // exported axi_sw_mst_*_reset() functions cannot be invoked here).
                 _unused = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */

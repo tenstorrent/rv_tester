@@ -47,6 +47,7 @@ filegroup(
     topology_gen(
         name = name + "_topology",
         srcs = [
+            "@rv_tester//transactors/axi_sw:axi_sw_attrs.yml",
             name + "_rv_tester_platform.yml",
             name + "_rv_tester_hart.yml",
             "rv_tester_axi.yml",

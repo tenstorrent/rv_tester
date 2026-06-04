@@ -178,17 +178,34 @@ int main(int argc, char** argv) {
         });
     }
 
+    // Evaluate model at given time slot
+    const auto evaluate = [&](uint64_t time) -> void {
+        context.time(time);
+        // Evaluate the model
+        top.eval();
+        // Schedule next time slot of internal event queue
+        if (top.eventsPending()) {
+            const uint64_t nextTimeSlot = top.nextTimeSlot();
+            if (nextTimeSlot <= time) {
+                cvm::log(cvm::ERROR, "Error: Event pending for same or earlier time slot\n");
+                exit(1);
+            }
+            event_queue.emplace(nextTimeSlot, [&](uint64_t) {
+                input_changed = true;
+                return 0; // Do not reschedule
+            });
+        }
+    };
 
     //------------------------------------------------------------
     // Simulation loop
 
     // Initial eval at time 0
-    top.eval();
+    evaluate(0);
 
     while (!context.gotFinish()) {
         // Process next time step in the event queue
         const uint64_t time = event_queue.begin()->first;
-        context.time(time);
         while (true) {
             auto it = event_queue.begin();
             // Stop when no more event at current time
@@ -212,7 +229,7 @@ int main(int argc, char** argv) {
                 exit(1);
             }
             // Evaluate model
-            top.eval();
+            evaluate(time);
 #ifdef VERILATOR_WAVES
             // Dump waveforms if dumping in progress
             if (tfp && tfp->isOpen()) tfp->dump(time);

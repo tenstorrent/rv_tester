@@ -144,7 +144,7 @@ cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
     co_await delayed_trigger();
     log(cvm::HIGH, "[ExtInterruptSeq] drive_msi_in_curr_hart = {}\n", drive_msi_in_curr_hart);
     if (drive_msi_in_curr_hart) {
-      while (!check_axi_backpressure()) co_await delayed_trigger();
+      while (check_axi_backpressure()) co_await delayed_trigger();
       log(cvm::HIGH, "[ExtInterruptSeq] driving external interrupt due to trigger\n");
 
       // Randomize MSI parameters

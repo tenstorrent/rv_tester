@@ -7,7 +7,7 @@ genrule(
     outs  = ["axi_sw_attrs.yml"],
     tools = [":axi_sw_attrs"],
     cmd   = "$(location :axi_sw_attrs) > $@",
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -26,16 +26,32 @@ cc_library(
         "@cvm//:random",
         "@fmt//:fmt"
     ],
-    #alwayslink = True,
-    #linkstatic = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "axi_sw",
+    hdrs = [ "axi_sw.h", "axi_sw_plusargs.h", "axi.h", "safe_queue.h" ],
+    deps = [
+        "@rv_tester//common:common",
+        "@rv_tester//:plusargs",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:registry",
+        "@cvm//:logger",
+        "@cvm//:bitmanip",
+        "@cvm//:messenger",
+        "@cvm//:random",
+        "@fmt//:fmt",
+    ],
     strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
 
 cc_library(
     name = "axi_sw_mst",
-    #srcs = [ "axi_sw_mst.cpp" ],
-    hdrs = [ "axi_sw_mst.h", "axi.h", "safe_queue.h" ],
+    hdrs = [ "axi_sw_mst.h", "axi_sw_mst_plusargs.h", "axi.h", "safe_queue.h" ],
     deps = [
         "@rv_tester//common:transactor",
         "@rv_tester//:plusargs",
@@ -45,12 +61,20 @@ cc_library(
         "@cvm//:registry",
         "@cvm//:bitmanip",
         "@cvm//:messenger",
+        "@cvm//:random",
         "@fmt//:fmt"
     ],
-    #alwayslink = True,
-    #linkstatic = True,
     strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
 
-exports_files(["safe_queue.h"] + glob(["axi_sw.*", "axi.*", "axi_sw_mst.*"]))
+py_binary(
+    name = "gen_axi_interfaces",
+    srcs = ["gen_axi_interfaces.py"],
+    deps = [
+        "@rules_python//python/runfiles",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(["safe_queue.h", "axi_sw.h"] + glob(["axi_sw*", "axi.*", "gen_axi_interfaces.py"]))
