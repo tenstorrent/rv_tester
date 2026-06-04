@@ -26,11 +26,13 @@ import rv_tester_params::*;
     output logic terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
-    import "DPI-C" context function void sysmod_set_scope(int unsigned location);
 
     typedef longint unsigned LU;
     LU clocks = 0;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.SYSMOD.ID, NUM);
+
+    `CVM_REGISTRY_SET_SCOPE(location)
+
     bit sysmod_tick_async = '1;
 
     /* verilator lint_off UNOPTFLAT */
@@ -72,9 +74,6 @@ import rv_tester_params::*;
             /* verilator lint_off BLKSEQ */
             //jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
-            if (location != cvm_topology::nil) begin
-              sysmod_set_scope(location);
-            end
             terminate = '0;
             /* verilator lint_on BLKSEQ */
         end

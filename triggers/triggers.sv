@@ -14,7 +14,6 @@ import rv_tester_params::*;
   `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PORTS
 );
 
-  import "DPI-C" context function void triggers_set_scope(int unsigned location);
   import "DPI-C" function int unsigned get_random_in_range(int unsigned min, int unsigned max);
 
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
@@ -37,7 +36,9 @@ import rv_tester_params::*;
     end
   end
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
-  
+
+  `CVM_REGISTRY_SET_SCOPE(location)
+
   // -------------------------
   // SV->C++ Messages/Packets
   // -------------------------
@@ -55,9 +56,6 @@ import rv_tester_params::*;
       interrupt_injection_initial_delay <= cvm_rand::get("interrupt_injection_initial_delay");
       interrupt_injection_rand_delay_min <= cvm_plusargs::get_int("interrupt_injection_rand_delay_min");
       interrupt_injection_rand_delay_max <= cvm_plusargs::get_int("interrupt_injection_rand_delay_max");
-      if (location != cvm_topology::nil) begin
-        triggers_set_scope(location);
-      end
     end
   end
 

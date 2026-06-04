@@ -231,7 +231,6 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     import "DPI-C" function longint get_max_cycle();
     import "DPI-C" function longint get_max_stall_cycle();
-    import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
     //import "DPI-C" context function void call_check_max_instr(longint unsigned cycles, longint unsigned instr_count);
@@ -240,6 +239,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
+
+    `CVM_REGISTRY_SET_SCOPE(location)
+
     bit rvfi_enabled,mcm_enabled,offline_dpi;
     bit cache_model_enabled;
     bit offline_dpi_test;                          // this disables the sending of mcmi_bypass and mcmi_insert even when to_host == 1
@@ -820,9 +822,6 @@ localparam CAM_IHBIT = CAM_IBITS;
             offline_dpi_test = (cvm_plusargs::get_bool("offline_dpi_test") != '0);
             to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
             poke_mip_timer = (cvm_plusargs::get_bool("poke_mip_timer") != '0);
-            if (rvfi_enabled) begin
-              cosim_set_scope(location);
-            end
             terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
