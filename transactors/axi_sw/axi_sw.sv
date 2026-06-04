@@ -170,20 +170,19 @@ module axi_sw #(
     logic b_queue_empty     ;
     logic r_queue_empty     ;
 
-    // dummy return value to make sure it's not zDPI
-    import "DPI-C" context function byte unsigned axi_sw_set_scope(int unsigned location);
+    import "DPI-C" context function void axi_sw_reset_ptrs(int unsigned location);
+
+    `CVM_REGISTRY_SET_SCOPE(LOCATION)
 
     always @(posedge clk) begin
         if (sys_reset) begin
 
             /* verilator lint_off BLKSEQ */
-            automatic byte unsigned _unused;
-                // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
                 // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
                 // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
                 // exported axi_sw_*_reset() functions cannot be invoked here).
-                _unused = axi_sw_set_scope(LOCATION);
+                axi_sw_reset_ptrs(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end
@@ -670,19 +669,18 @@ module axi_sw_mst #(
     } w_t;
 
 
-    // dummy return value to make sure it's not zDPI
-    import "DPI-C" context function byte unsigned axi_sw_mst_set_scope(int unsigned location);
+    import "DPI-C" context function void axi_sw_mst_reset_ptrs(int unsigned location);
+
+    `CVM_REGISTRY_SET_SCOPE(LOCATION)
 
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
-                // FIXME add a reset for the axi xtor
-            automatic byte unsigned _unused;
             if (LOCATION != cvm_topology::nil) begin
                 // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
                 // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
                 // exported axi_sw_mst_*_reset() functions cannot be invoked here).
-                _unused = axi_sw_mst_set_scope(LOCATION);
+                axi_sw_mst_reset_ptrs(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end

@@ -108,14 +108,11 @@ extern "C" {
 }
 
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc), id_(id)
+  : loc_(loc), id_(id)
 {
   // Whisper client location
   wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
 
-  cvm::registry::messenger.connect<svScope>(
-      loc_,
-      [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester::whisper_connected>(
       wc_loc_,
       [this](const auto&) {
@@ -270,7 +267,7 @@ sysmod::~sysmod()
 void
 sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
-        scope(),
+        loc_,
         [t]() {
           cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={} mtime={:#x}]\n", t.hart, t.flag, t.mtime);
           sysmod_timer_interrupt(t.hart, t.flag, t.mtime);
@@ -280,7 +277,7 @@ sysmod::timer_interrupt(clint::timer_t t) {
 void
 sysmod::sw_interrupt(clint::sw_t s) {
   cvm::registry::callbacks.push(
-      scope(),
+      loc_,
       [s]() {
         cvm::log(cvm::FULL, "[SYSMOD] sw_interrupt [hart={}, msi={}]\n", s.hart, s.flag);
         sysmod_sw_interrupt(s.hart, s.flag);
@@ -464,7 +461,7 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
 void
 sysmod::dmi_write(debugger::dmi_data_t i) {
   cvm::registry::callbacks.push(
-      scope(),
+      loc_,
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox::dmi.(upper,lower) = {:#x}, {:#x}\n", i.upper_dmi_data, i.lower_dmi_data);
         sysmod_dmi_write(i.hart,i.upper_dmi_data,i.lower_dmi_data);
@@ -512,8 +509,9 @@ sysmod::unblock_terminate() {
 
 void
 sysmod::finalize_terminate() {
+  cvm::log(cvm::HIGH, "[SYSMOD] rminated -> {} blockers\n", terminate_blockers_);
   cvm::registry::callbacks.push(
-      scope(),
+      loc_,
       sysmod_terminate
   );
 }
@@ -1139,12 +1137,6 @@ void sysmod::configure_uninit_read_callbacks()
 }
 
 extern "C" {
-  void sysmod_set_scope(cvm::topology::loc_t loc) {
-    svScope scope = svGetScope();
-    cvm::registry::messenger.signal<svScope>(
-        loc,
-        scope);
-  }
 
   uint64_t backdoor_read(uint64_t address) {
     uint64_t out_data;
