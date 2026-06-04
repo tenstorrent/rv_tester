@@ -367,8 +367,6 @@ private:
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
-  bool csr_rd_opt_ = false;
-  bool prev_csr_rd_opt_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;

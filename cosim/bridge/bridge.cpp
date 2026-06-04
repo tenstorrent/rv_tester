@@ -294,12 +294,6 @@ void bridge::csr_init() {
       csr_cac_.Step(id_, false);
     }
   }
-
-  // Peek c_fecfg2 to seed csr_rd_opt_.
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, c_fecfg2.address, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to peek csr : C_FECFG2\n", id_);
-  }
-  csr_rd_opt_ = !((data & 0x4) >> 2);
 }
 
 void bridge::process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array) {
@@ -1952,15 +1946,7 @@ void bridge::arch_state(whisper_state_t& w) {
         mprv_ = 0;
       }
     }
-    if (w.address == c_fecfg2.address) {
-      csr_rd_opt_ = !((w.value & 0x4) >> 2);
-    }
   }
-
-  if (!prev_csr_rd_opt_ && csr_rd_opt_) {
-    FLAGS_mip_resynch_threshold = FLAGS_mip_resynch_threshold * 4;
-  }
-  prev_csr_rd_opt_ = csr_rd_opt_;
 }
 
 
