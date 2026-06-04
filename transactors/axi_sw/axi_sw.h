@@ -25,7 +25,7 @@
 #include "rv_tester/rv_tester_plusargs.h"
 #include "rv_tester_transactions.hpp"
 
-DECLARE_bool(cb_async);
+DECLARE_bool(cb_async); // defined by CVM, Controls sync vs async DPI callback execution. Default sync (polls each cycle); async spawns a thread to drain callbacks independently.
 
 #include "axi_sw_plusargs.h"
 

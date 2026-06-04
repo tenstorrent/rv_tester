@@ -3098,6 +3098,7 @@ void bridge::process_debug_haltreq(bool haltreq) {
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
+  // Default debug rom from riscv-dbg open source: https://github.com/pulp-platform/riscv-dbg/blob/master/debug_rom/debug_rom.S
   uint64_t debugROM[26] = {
     0x7b2000737b202473,
     0x7b30257310852823,
