@@ -151,6 +151,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
             "@cvm//:random_sv",
+            "@cvm//:registry_sv",
             packet + "_sv",
         ],
         visibility = ["//visibility:public"],

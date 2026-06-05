@@ -17,11 +17,11 @@ def rv_tester_repositories(bzlmod = False):
 
 
     if not bzlmod:
-        cvm_hash="63436b9f82efd4c5b939a031faa19117a699cd1c"
+        cvm_hash="b90f82eca62ddf8c47b05770e3a6223492c762d4"
         maybe(
             http_archive,
             name = "cvm",
-            sha256 = "26ec97b1f86c1a8b2cb6c6866f0b22ba56c6bcf4106a096317b9e11d4b70c16d",
+            sha256 = "2d494a9104ddb3ca7fc693792bbabc34aa63b6b794f0daf0a4185e189d152cb5",
             strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
             url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
         )
