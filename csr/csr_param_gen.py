@@ -156,8 +156,8 @@ class CsrMap:
                     if "addtional_csrs" in override_data:
                         for csr_name, csr_data in override_data["addtional_csrs"].items():
                             description[csr_name] = csr_data
-                    if "resolved_params" in override_data:
-                        self.csr_params = override_data["resolved_params"]
+                    if "params" in override_data:
+                        self.csr_params = override_data["params"]
         for csr_name, csr_data in description.items():
             common_data = csr_data.get("common_data", {})
             csr_address = common_data.get("ADDRESS", "0x0")
@@ -709,13 +709,13 @@ if __name__ == "__main__":
     parser.add_argument("--csr_spec", type=str, help="Path to CSR specification YAML file")
     parser.add_argument("--csr_map_hpp", type=str, default="csr_map.hpp", help="Output C++ header file")
     parser.add_argument("--csr_map_sv", type=str, default="csr_map_pkg.sv", help="Output SystemVerilog defines file")
-    parser.add_argument("--csr_param_override", type=str, default=None, help="Path to YAML file with CSR parameter overrides")
+    parser.add_argument("--project_override", type=str, default=None, help="Path to YAML file with project parameter overrides")
     args = parser.parse_args()
 
     if not args.csr_spec:
         print("Error: --csr_spec argument is required")
         exit(1)
-    csr_map = CsrMap(args.csr_spec, args.csr_param_override)
+    csr_map = CsrMap(args.csr_spec, args.project_override)
     csr_map.generate_hpp_file(args.csr_map_hpp)
     csr_map.generate_sv_file(args.csr_map_sv)
 

@@ -1,1 +1,18 @@
 exports_files(["cosim.sv"])
+
+config_setting(
+    name = "use_bzlmod",
+    define_values = {"use_bzlmod": "1"},
+)
+
+py_binary(
+    name = "project_overrides_gen",
+    srcs = ["project_overrides_gen.py"],
+    deps = select({
+        ":use_bzlmod": [
+            "@rv_tester_pypi//pyyaml",
+        ],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

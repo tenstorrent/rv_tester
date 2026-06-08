@@ -60,7 +60,7 @@ filegroup(
         name = name + "_rv_tester",
         topology = name + "_topology",
         csr_spec = "@rv_tester//csr:csr_spec",
-        csr_param_override = "@rv_tester//csr:csr_param_override",
+        project_overrides = "@rv_tester//overrides:project_overrides",
         pmu_spec = "@rv_tester//pmu:pmu_spec",
         cc_attrs = {
             'alwayslink': True,

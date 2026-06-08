@@ -1,8 +1,10 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include "common/device_address_map/device_address_map.h"
+#include "project_overrides.h"  // generated from project_overrides.yaml
 
 namespace {
 
@@ -101,10 +103,6 @@ namespace {
         LD_GUEST_PAGE_FAULT     = 21,
         VIRT_INST_FAULT         = 22,
         ST_AMO_GUEST_PAGE_FAULT = 23,
-        CUSTOM_SINGLE_STEP      = 31,
-        CUSTOM_DBG_ENTRY        = 33,
-        CUSTOM_VLZERO_EXCP      = 39,
-        CUSTOM_VEC_CMODE        = 55
     } excp;
 
     const std::unordered_map<excp, std::string_view> excp_to_string = {
@@ -127,8 +125,6 @@ namespace {
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
         {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"},
-        {CUSTOM_DBG_ENTRY        , "CUSTOM_DBG_ENTRY"},
-        {CUSTOM_SINGLE_STEP      , "CUSTOM_SINGLE_STEP"},
     };
 
     enum priv_mode : uint8_t {
@@ -152,11 +148,6 @@ namespace {
         MEI         = 11,
         SGEI        = 12,
         LCOFI       = 13,
-        BUS_ERRI    = 23, // NOTE: This is now configurable - use dynamic value from interrupt_pend_t.buserr_bit
-        C_HWAI      = 24,
-        C_ENTROPY   = 25,
-        LO_PRI_RASI = 35,
-        HI_PRI_RASI = 43
     } intr;
 
     const std::unordered_map<intr, std::string_view> intr_to_string = {
@@ -172,11 +163,6 @@ namespace {
         {MEI            , "MEI"}  ,
         {SGEI           , "SGEI"} ,
         {LCOFI          , "LCOFI"},
-        {C_ENTROPY      , "ENTROPY_SEED"},
-        {BUS_ERRI       , "BUS_ERRI"},
-        {C_HWAI         , "C_HWAI"} ,
-        {LO_PRI_RASI    , "LO_PRI_RASI"},
-        {HI_PRI_RASI    , "HI_PRI_RASI"}
     };
 
     typedef enum : size_t {
@@ -232,5 +218,21 @@ namespace {
         {M_ITF, "M"},
         {S_ITF, "S"},
     };
+
+    inline std::string excp_name(size_t cause) {
+      if (excp_to_string.count(static_cast<excp>(cause)))
+        return std::string(excp_to_string.at(static_cast<excp>(cause)));
+      if (custom_excp_to_string.count(cause))
+        return std::string(custom_excp_to_string.at(cause));
+      return std::to_string(cause);
+    }
+
+    inline std::string intr_name(size_t cause) {
+      if (intr_to_string.count(static_cast<intr>(cause)))
+        return std::string(intr_to_string.at(static_cast<intr>(cause)));
+      if (custom_intr_to_string.count(cause))
+        return std::string(custom_intr_to_string.at(cause));
+      return std::to_string(cause);
+    }
 
 }

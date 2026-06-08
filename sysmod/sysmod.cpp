@@ -28,7 +28,7 @@
 #include "trickbox/trickbox.h"
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
 #include "rv_tester/rv_tester_plusargs.h"
-#include "cosim/bridge_if/bridge_params.h"
+#include "cosim/bridge/bridge_params.h"
 #include "cosim/whisper_if/whisper_client_plusargs.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "pmu/pmu_plusargs.h"
