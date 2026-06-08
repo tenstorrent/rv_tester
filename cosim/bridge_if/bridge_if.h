@@ -209,6 +209,7 @@ typedef struct rv_instr_s {
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
+  bool opcode_rewritten = false;
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
@@ -219,8 +220,6 @@ typedef struct rv_instr_s {
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;
   bool cracked = false;
-  bool csr_renamed = false;
-  std::string csr_renamed_name = "";
   bool trap = false;
   bool trap_valid = false;
   uint32_t trap_opcode = 0;
@@ -262,6 +261,7 @@ typedef struct rv_instr_s {
     last_uop = true;
     comp = false;
     ucode = false;
+    opcode_rewritten = false;
     trap = false;
     trap_valid = false;
     nmi = false;

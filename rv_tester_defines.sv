@@ -141,6 +141,7 @@ package rv_tester_params;
         logic [64-1:0]              uop      ;
         logic                       last_uop ;
         logic                       last_insn;
+        logic                       opcode_rewritten;
     } rvfi_t;
 
     // --------------------------------------

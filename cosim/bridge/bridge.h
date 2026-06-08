@@ -25,16 +25,6 @@
 #include "csr_param.hpp"
 using namespace CSR;
 
-// CSRs that are renamed in the DUT (maps renamed address -> original CSR)
-inline const std::unordered_map<uint64_t, csr_base*> renamed_csr = {
-  {32, &mepc},
-  {33, &sepc},
-  {34, &vsepc},
-  {35, &mscratch},
-  {36, &sscratch},
-  {37, &vsscratch},
-};
-
 class bridge : public bridge_base {
 
 private:
@@ -149,7 +139,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false, bool dut_opcode_rewritten=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -223,7 +213,6 @@ private:
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
-  bool is_renamed_csr(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
@@ -378,9 +367,6 @@ private:
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
-  bool csr_rename_en_ = false;
-  bool csr_rd_opt_ = false;
-  bool prev_csr_rd_opt_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;

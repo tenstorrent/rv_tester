@@ -439,23 +439,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     ncio_mem_transition_ = false;
   }
 
-  // Renamed csr sequence
-  uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
-  bool src_renamed = (src >= 35) && (src <= 37);
-  bool dest_renamed = (m_rvfi.rd_addr >= 35) && (m_rvfi.rd_addr <= 37);
-  instr.csr_renamed = src_renamed || dest_renamed;
-  instr.csr_renamed_name = "";
-  if (instr.csr_renamed) {
-    auto* renamed_entry = src_renamed ? renamed_csr.at(src) : renamed_csr.at(m_rvfi.rd_addr);
-    instr.csr_renamed_name = renamed_entry->name;
-  }
-
   if (FLAGS_use_sw_priv == false) {
   // First/last uops for ucode sequences
 
   instr.first_uop = m_rvfi.first_uop;
   instr.last_uop  = m_rvfi.last_uop;
   instr.ucode  = m_rvfi.ucode;
+  instr.opcode_rewritten = m_rvfi.opcode_rewritten;
   instr.priv  = m_rvfi.priv;
   ucode_priv_change_ = m_rvfi.priv_change;
 
@@ -494,6 +484,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.first_uop = false;
   instr.last_uop = m_rvfi.last_uop;
   instr.ucode = ucode_ || !m_rvfi.last_uop;
+  instr.opcode_rewritten = m_rvfi.opcode_rewritten;
   if (!m_rvfi.last_uop) {
     if (!ucode_)
       instr.first_uop = true;
@@ -602,15 +593,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (!m_rvfi.last_uop && !m_rvfi.trap) {
       ucode_csrs_.push_back(c);
     }
-  }
-
-  // CSR renaming
-  if (renamed_csr.count(m_rvfi.rd_addr)) {
-    auto* csr_entry = renamed_csr.at(m_rvfi.rd_addr);
-    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, static_cast<uint32_t>(csr_entry->address), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
-    instr.csr.push_back(c);
-      // This is for print in the rvfi log
-    instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
   }
 
   // tlb
@@ -722,7 +704,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
   if (instr.mem_write.valid)
     print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
 
-  if ((!instr.ucode || !instr.last_uop) && !instr.csr_renamed)
+  if (!instr.ucode || !instr.last_uop)
     for (auto& c : instr.csr)
       print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
@@ -740,7 +722,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format("{}", resource_str);
 
-  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
+  if (!instr.ucode || cracked_gpr_.valid) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
     std::string csr_replaced_instr = instr_dis;
     uint32_t csr_opcode = instr.opcode & 0x7F;
@@ -753,9 +735,6 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   }
   else
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
-
-  if (instr.csr_renamed)
-    dut_log += fmt::format(" (csr_rename:{})", instr.csr_renamed_name);
 
   if (instr.flags)
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);
