@@ -152,20 +152,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
   m.opcode  = m_mcmi_read.opcode;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_read.order))
-      m.tag = patch_mode_tags_[m_mcmi_read.order];
-  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_read.order >= patch_mode_first_tag_)) {
-      patch_mode_tags_.emplace(m_mcmi_read.order, patch_mode_first_tag_);
-      m.tag = patch_mode_first_tag_;
-  }
-  else if (vec_cmode_tags_.contains(m_mcmi_read.order))
-      m.tag = vec_cmode_tags_[m_mcmi_read.order];
-  else if (m_mcmi_read.v_ext && vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  } else
-      m.tag = m_mcmi_read.order;
+  m.tag = m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
   m.size   = std::popcount(m_mcmi_read.mask);
   m.data   = m_mcmi_read.data;
@@ -304,20 +291,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 
   mem_t m;
   m.valid = true;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_insert.order))
-      m.tag = patch_mode_tags_[m_mcmi_insert.order];
-  else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_insert.order >= patch_mode_first_tag_)) {
-      patch_mode_tags_.emplace(m_mcmi_insert.order, patch_mode_first_tag_);
-      m.tag = patch_mode_first_tag_;
-  }
-  else if (vec_cmode_tags_.contains(m_mcmi_insert.order))
-      m.tag = vec_cmode_tags_[m_mcmi_insert.order];
-  else if (m_mcmi_insert.v_ext && vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-  } else
-      m.tag = m_mcmi_insert.order;
+  m.tag = m_mcmi_insert.order;
   m.cycle = m_mcmi_insert.cycle;
   m.v_ext = m_mcmi_insert.v_ext;
   m.elem_idx = m_mcmi_insert.elem_idx;
@@ -353,25 +327,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
 
   mem_t m;
   m.valid = true;
-  // Handle tags
-  if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
-    m.tag = patch_mode_tags_[m_mcmi_bypass.order];
-
-  } else if (patch_mode_ && patch_mode_first_tag_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
-    patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
-    m.tag = patch_mode_first_tag_;
-
-  } else if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
-    m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
-
-  } else if (m_mcmi_bypass.v_ext & vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
-    vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
-    m.tag = vec_cmode_first_tag_;
-
-  } else {
-    m.tag = m_mcmi_bypass.order;
-  }
-
+  m.tag = m_mcmi_bypass.order;
   m.hart   = m_mcmi_bypass.hart;
   m.cycle  = m_mcmi_bypass.cycle;
   m.v_ext  = m_mcmi_bypass.v_ext;
