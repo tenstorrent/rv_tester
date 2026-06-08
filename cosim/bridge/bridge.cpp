@@ -1330,7 +1330,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   if (d.excp && parser::find(cosim_error_excp_, d.ecause)) {
     error("Hart {}: Unexpected exception: +cosim_error_excp {} ({})\n", hart, d.ecause,
-      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
+      excp_name(d.ecause));
     return;
   }
 
@@ -1359,22 +1359,22 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   if (d.excp && !w_.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     error("Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart,
-      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
+      excp_name(d.ecause));
     return;
   }
 
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     error("Hart {}: Whisper took exception, DUT did not. Cause: {}\n", hart,
-      excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
+      excp_name(w_.ecause));
     return;
   }
 
   if (d.excp && w_.excp && (d.ecause != w_.ecause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     error("Hart {}: DUT vs Whisper exception cause mismatch. Dut: {}, Whisper: {}\n", hart,
-      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause),
-      excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
+      excp_name(d.ecause),
+      excp_name(w_.ecause));
     return;
   }
 
@@ -2711,16 +2711,20 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
 std::string bridge::to_string(rv_intr_t& i) {
   std::string mip_str;
-  for (const auto& [k,v] : intr_to_string) {
+  auto append = [&](size_t k, std::string_view v) {
     if (k == DEBUG)
-      continue;
+      return;
     if (i.mip_set[k])
       mip_str += fmt::format("{}+,", v);
     else if (i.mip_clr[k])
       mip_str += fmt::format("{}-,", v);
     else if (i.mip[k])
       mip_str += fmt::format("{},", v);
-  }
+  };
+  for (const auto& [k,v] : intr_to_string)
+    append(static_cast<size_t>(k), v);
+  for (const auto& [k,v] : custom_intr_to_string)
+    append(k, v);
   return mip_str;
 }
 
@@ -3016,7 +3020,7 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
   // Hence need to increment the cause by 1 if it is a virtual interrupt and current mode is virtual.
   if ((cause == SEI || cause == STI || cause == SSI) && (virt_mode)) cause++;
 
-  bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_to_string.count(static_cast<intr>(cause))? intr_to_string.at(static_cast<intr>(cause)) : std::to_string(cause), virt_mode);
+  bridge_log(cvm::MEDIUM, "<{}> Whisper check_interrupt: taken={} cause={} next_virt_mode?{}\n", cycle, taken, intr_name(cause), virt_mode);
 }
 
 void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
@@ -3589,11 +3593,15 @@ void bridge::report_metrics() {
   }
 
   // Exceptions and interrupts
-  for (const auto& [e,es] : excp_to_string) {
+  auto print_excp_metric = [&](excp e, std::string_view es) {
     std::string es_lower = std::string(es);
     std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
-  }
+  };
+  for (const auto& [e,es] : excp_to_string)
+    print_excp_metric(e, es);
+  for (const auto& [e,es] : custom_excp_to_string)
+    print_excp_metric(static_cast<excp>(e), es);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_err_access_fault\": {}}}\n", id_, num_exceptions_insn_err_access_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_err_access_fault\": {}}}\n", id_, num_exceptions_ld_err_access_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_err_access_fault\": {}}}\n", id_, num_exceptions_late_st_err_access_fault_);
@@ -3601,13 +3609,17 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_hwerr_fault\": {}}}\n", id_, num_exceptions_ld_hwerr_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_hwerr_fault\": {}}}\n", id_, num_exceptions_late_st_hwerr_fault_);
 
-  for (const auto& [i,is] : intr_to_string) {
-    if (num_taken_interrupts_[i] != 0) {
+  auto print_intr_metric = [&](intr ii, std::string_view is) {
+    if (num_taken_interrupts_[ii] != 0) {
       std::string is_lower = std::string(is);
       std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}\": {}}}\n", id_, is_lower, num_taken_interrupts_[i]);
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}\": {}}}\n", id_, is_lower, num_taken_interrupts_[ii]);
     }
-  }
+  };
+  for (const auto& [i,is] : intr_to_string)
+    print_intr_metric(i, is);
+  for (const auto& [i,is] : custom_intr_to_string)
+    print_intr_metric(static_cast<intr>(i), is);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
   // Step one final time to collect metrics for next instruction

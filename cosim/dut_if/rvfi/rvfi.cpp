@@ -281,16 +281,20 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} {} ({} : mip={:#x} : ", intr.cycle, m_interrupt_pend.core_cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
-  for (const auto& [k,v] : intr_to_string) {
+  auto append_mip = [&](size_t k, std::string_view v) {
     if (k == DEBUG)
-      continue;
+      return;
     if (intr.mip_set[k])
       dut_log += fmt::format("{}+,", v);
     else if (intr.mip_clr[k])
       dut_log += fmt::format("{}-,", v);
     else if (intr.mip[k])
       dut_log += fmt::format("{},", v);
-  }
+  };
+  for (const auto& [k,v] : intr_to_string)
+    append_mip(static_cast<size_t>(k), v);
+  for (const auto& [k,v] : custom_intr_to_string)
+    append_mip(k, v);
   dut_log += fmt::format(" : seip={}{}", intr.seip ? 1 : 0, intr.seip_set ? " : SEIpin+" : intr.seip_clr ? " : SEIpin-" : "");
   dut_log += fmt::format(")\n");
 
@@ -773,10 +777,10 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt: {})", (intr_to_string.count(static_cast<intr>(instr.icause)) && (instr.icause != 0 || !intr_virt_mode_)) ? intr_to_string.at(static_cast<intr>(instr.icause)) : std::to_string(instr.icause));
+    dut_log += fmt::format(" (interrupt: {})", (instr.icause != 0 || !intr_virt_mode_) ? intr_name(instr.icause) : std::to_string(instr.icause));
 
   if (instr.excp)
-    dut_log += fmt::format(" (exception: {})", excp_to_string.count(static_cast<excp>(instr.ecause)) ? excp_to_string.at(static_cast<excp>(instr.ecause)) : std::to_string(instr.ecause));
+    dut_log += fmt::format(" (exception: {})", excp_name(instr.ecause));
 
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");

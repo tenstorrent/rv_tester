@@ -1,4 +1,4 @@
-exports_files(["bridge.cpp", "bridge.h", "bridge_base.h"])
+exports_files(["bridge.cpp", "bridge.h", "bridge_base.h", "bridge_if.h", "bridge_params.h"])
 
 cc_library(
         name    = "bridge_plusargs",
@@ -7,3 +7,18 @@ cc_library(
 
         visibility = ["//visibility:public"],
     )
+
+cc_library(
+    name     = "bridge_if",
+    hdrs     = [
+                "bridge_if.h",
+                "bridge_params.h",
+               ],
+    deps = [
+        "@CoreArchChecker//src:cac_lib",
+        "//common/device_address_map:device_address_map",
+    ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)

@@ -9,12 +9,13 @@ load("@rv_tester//memdump:memdump.bzl", "memdump_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen", "generate_axi_interfaces")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
+load("@rv_tester//cosim:project_overrides_gen.bzl", "project_overrides_gen")
 
 def rv_tester_gen(
     name, 
     topology, 
     csr_spec = "@rv_tester//csr:csr_spec",
-    csr_param_override = "@rv_tester//csr:csr_param_override",
+    project_overrides = "@rv_tester//overrides:project_overrides",
     pmu_spec = "@rv_tester//pmu:pmu_spec",
     visibility = None, 
     cc_attrs = {}, 
@@ -49,8 +50,15 @@ def rv_tester_gen(
     csr_param_gen(
         name = name + "_csr_param",
         csr_spec = csr_spec,
-        csr_param_override = csr_param_override,
+        project_override = project_overrides,
         package = "csr_param",
+        cc_attrs = cc_attrs,
+    )
+
+    project_overrides_gen(
+        name = name + "_project_overrides",
+        project_overrides = project_overrides,
+        visibility = visibility,
         cc_attrs = cc_attrs,
     )
 
@@ -101,6 +109,7 @@ def rv_tester_gen(
         csr_param = name + "_csr_param",
         topology = topology,
         harness = name + "_harness",
+        project_overrides_cc = name + "_project_overrides",
         cc_attrs = cc_attrs,
     )
 
@@ -109,6 +118,7 @@ def rv_tester_gen(
         packet = name + "_transactions",
         csr_param = name + "_csr_param",
         topology = topology,
+        project_overrides_cc = name + "_project_overrides",
         cc_attrs = cc_attrs,
     )
 

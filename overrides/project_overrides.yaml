@@ -1,6 +1,19 @@
 # PARAM-resolved values for fields with RESET_VALUE or PERF_VALUE set to "PARAM"
 # Key format: CSR_<CSRNAME>_F_<FIELDNAME>_RESET_VALUE or _PERF_VALUE
-resolved_params:
+params: # currently empty since there are no fields with RESET_VALUE or PERF_VALUE set to "PARAM"
+
+exceptions:
+  CUSTOM_SINGLE_STEP: 43 # junk values but need to be defined by user
+  CUSTOM_DBG_ENTRY:   44
+  CUSTOM_VLZERO_EXCP: 45
+  CUSTOM_VEC_CMODE:   46
+
+interrupts:
+  BUS_ERRI:    23
+  C_HWAI:      24
+  C_ENTROPY:   25
+  LO_PRI_RASI: 26
+  HI_PRI_RASI: 27
 
 # Additional CSRs
 addtional_csrs:

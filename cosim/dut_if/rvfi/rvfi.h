@@ -9,7 +9,7 @@
 #include "rv_tester_transactions.hpp"
 
 #include "svdpi.h"
-#include "bridge_if.h"
+#include "cosim/bridge/bridge_if.h"
 #include "cosim/bridge/bridge.h"
 #include "cosim/utils/eot/eot.h"
 #include "cosim/dut_if/mcmi/mcmi.h"

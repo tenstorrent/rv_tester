@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, visibility = None, cc_attrs = {}, **kwargs):
 
     cosim_dpi = name + "_dpi"
     cosim_sv = name + "_sv"
@@ -71,6 +71,8 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
     ],
     srcs     = [
                 "@rv_tester//cosim/bridge:bridge.cpp",
+                "@rv_tester//cosim/bridge:bridge_if.h",
+                "@rv_tester//cosim/bridge:bridge_params.h",
     ],
      deps    = [
                 csr_param + "_cc",
@@ -80,7 +82,8 @@ def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_
                 "@rv_tester//cosim/utils/general:util",
                 "@rv_tester//cosim/whisper_if:whisper_if",
                 "@rv_tester//cosim/whisper_if:whisper_decoder",
-                "@rv_tester//cosim/bridge_if:bridge_if",
+                "@rv_tester//cosim/bridge:bridge_if",
+                project_overrides_cc,
                 "@rv_tester//common:common",
                 "@CoreArchChecker//src:cac_core",
                 "@CoreArchChecker//src:cac_lib",
