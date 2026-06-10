@@ -2628,7 +2628,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
 
   if (d.mem_va == 0)
-  return;
+    return;
 
   uint64_t pa;
   uint64_t va = d.mem_va;

@@ -1,0 +1,10 @@
+# Vendored / external C++ sources — excluded from clang-format.
+# Patterns are gitignore-style, matched against paths relative to this file.
+# Keep in sync with the exclusion list documented in LINTING.md.
+common/remote_bitbang.*
+common/SimDTM.*
+common/SimJTAG.*
+common/sim_spike.*
+common/pcg_*.hpp
+common/parser.hpp
+common/svdpi.h
