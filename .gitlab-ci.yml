@@ -15,8 +15,10 @@ lint:
         - .smoke-rules-all-branches-template
     stage: build
     script:
+        - ${BZSIM} build sw_2c_tb:slang_lint --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_BUILD_OPTS}
         - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
         - python3 plusarg_lint.py
+        # - git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format  --Werror --dry-run --verbose   # clang-format uncomment later
         - ${BZSIM} build sw_2c_tb:dpi  --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_BUILD_OPTS} --config=clang-tidy
     timeout: 1h
 

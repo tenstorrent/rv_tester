@@ -259,7 +259,7 @@ package rv_tester_params;
     // rv_tester ports
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
-    input  longint unsigned                  clocks,                                                \
+    input  logic [63:0]                      clocks,                                                \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
     input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \

@@ -1,2 +1,40 @@
-Checks: '-clang-analyzer-*, -clang-diagnostic-macro-redefined, bugprone-terminating-continue'
-WarningsAsErrors: '*'
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  misc-misplaced-const,
+  misc-redundant-expression,
+  misc-unused-using-decls,
+  misc-unused-alias-decls,
+  misc-static-assert,
+  modernize-use-override,
+  modernize-use-nullptr,
+  modernize-use-emplace,
+  modernize-make-unique,
+  modernize-make-shared,
+  readability-misleading-indentation,
+  readability-redundant-control-flow,
+  readability-redundant-smartptr-get,
+  readability-simplify-boolean-expr,
+  readability-container-size-empty,
+  -clang-analyzer-*,
+  -clang-diagnostic-macro-redefined,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-signed-char-misuse,
+  -bugprone-reserved-identifier,
+  -bugprone-branch-clone,
+  -bugprone-exception-escape
+
+WarningsAsErrors: >
+  bugprone-terminating-continue,
+  bugprone-use-after-move,
+  bugprone-string-constructor,
+  bugprone-suspicious-memory-comparison,
+  bugprone-unused-raii,
+  bugprone-macro-repeated-side-effects,
+  modernize-use-override,
+  readability-misleading-indentation
+
+HeaderFilterRegex: ''

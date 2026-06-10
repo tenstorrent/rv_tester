@@ -219,7 +219,7 @@ module rv_tester
     bit rv_tester_reset_core_clk_d1;
     bit rv_tester_reset_core_clk_d2;
     bit rv_tester_reset_core_clk_d3;
-    bit rv_tester_streaming_dpi_init;
+    logic rv_tester_streaming_dpi_init;
     bit rv_tester_dpi_init_done;
     
     // Termination condition variables for better readability

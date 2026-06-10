@@ -92,6 +92,9 @@ filegroup(
         verilator_configs = [":pulp_platform_verilator_waiver.vlt"],
         vcs_message_configs = [":vcs_waiver"],
         user_verilator_opts = verilator_defines,
+        slang_opts = {
+            "opts": ["--std=1800-2017"],
+        },
     )
   ] for name in harnesses
 ]
