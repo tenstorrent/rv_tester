@@ -110,7 +110,7 @@ def generate_axi_interfaces(name, transactions, topology, package, visibility = 
         name = name + "_sv",
         srcs = [":" + name],
         deps = [
-            "@opensrc-axi//:axi",
+            "//third_party/axi:typedef",
         ],
         visibility = visibility,
     )

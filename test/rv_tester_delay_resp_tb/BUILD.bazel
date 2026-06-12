@@ -11,10 +11,8 @@ verilog_library(
     deps = [
         "//src:rv_tester_delay_resp",
         "//src:rv_tester_lib",
-        # TODO(open-source): swap @opensrc-axi (aus-gitlab pulp-platform mirror)
-        # for the public pulp-platform/axi github once MODULE.bazel adds the
-        # mirror.
-        "@opensrc-axi//:axi",
+        # Vendored axi/typedef.svh subset in lieu of @opensrc-axi.
+        "//third_party/axi:typedef",
     ],
     top_module = "rv_tester_delay_resp_tb_top",
     visibility = ["//visibility:public"],

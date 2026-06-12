@@ -164,7 +164,6 @@ def rv_tester_gen(
         srcs = [
             "@rv_tester//src:rv_tester.sv",
             "@rv_tester//src:rv_tester_clkgen.sv",
-            "@rv_tester//src:rv_tester_mem.sv",
             "@rv_tester//src:rv_tester_lib.sv",
             "@rv_tester//src:rv_tester_delay_resp.sv",
             "@rv_tester//src:rv_tester_keeper.sv",
@@ -180,15 +179,12 @@ def rv_tester_gen(
             name + "_triggers_sv",
             name + "_axi_sw_sv",
             name + "_axi_interfaces_sv",
-            "@opensrc-axi_llc//:axi_llc",
-            "@opensrc-axi//:axi",
-            "@opensrc-tech_cells_generic//:tech_cells_generic"
-        ] 
-        + select({
-          "@rv_tester//src:cosim_off": ["@rv_tester//src:no_cosim"],
-          "//conditions:default":   [name + "_cosim_sv"],
-        })
-        ,
+            # Vendored axi/typedef.svh in lieu of @opensrc-axi*/tech_cells.
+            "//third_party/axi:typedef",
+        ] + select({
+            "@rv_tester//src:cosim_off": ["@rv_tester//src:no_cosim"],
+            "//conditions:default": [name + "_cosim_sv"],
+        }),
         visibility = visibility,
     )
 

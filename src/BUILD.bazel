@@ -39,7 +39,11 @@ verilog_library(
 
 bool_flag(
     name = "cosim",
-    build_setting_default = True,
+    # TODO(open-source): default flipped to False so cosim_gen doesn't pull
+    # @whisper (RISC-V ISS) which transitively requires @pybind11_bazel and
+    # other deps we haven't wired up yet. Re-enable via --//src:cosim=True once
+    # whisper has a usable public mirror.
+    build_setting_default = False,
     visibility = ["//visibility:public"],
 )
 
@@ -53,6 +57,7 @@ config_setting(
 verilog_library(
     name = "no_cosim",
     srcs = ["define_no_cosim.sv"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -88,18 +93,6 @@ cc_library(
 )
 
 verilog_library(
-    name = "rv_tester_mem",
-    srcs = [
-        "@rv_tester//src:rv_tester_mem.sv",
-    ],
-    deps = [
-        "@opensrc-axi_llc//:axi_llc",
-        ":rv_tester_delay_resp",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-verilog_library(
     name = "rv_tester_keeper",
     srcs = [
         "@rv_tester//src:rv_tester_keeper.sv",
@@ -117,10 +110,10 @@ verilog_library(
     name = "rv_tester_delay_resp",
     srcs = ["rv_tester_delay_resp.sv"],
     deps = [
-        "@opensrc-axi//:axi",
+        "//third_party/axi:typedef",
         ":rv_tester_lib",
     ],
     visibility = ["//visibility:public"],
 )
 
-exports_files(["rv_tester.cpp", "rv_tester_assert_handler.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "dmi_driver.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_mem.sv", "rv_tester_delay_resp.sv", "rv_tester_transactions.yml", "rv_tester_axi_typedef.svh", "rv_tester_axi_assign.svh", "rv_tester_plusargs.cpp", "rv_tester_plusargs.h", "rv_tester_structs.h", "rv_tester_lib.sv", "rv_tester_tick_generator.sv", "rv_tester_keeper.sv" ])
+exports_files(["rv_tester.cpp", "rv_tester_assert_handler.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "dmi_driver.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_delay_resp.sv", "rv_tester_transactions.yml", "rv_tester_axi_typedef.svh", "rv_tester_axi_assign.svh", "rv_tester_plusargs.cpp", "rv_tester_plusargs.h", "rv_tester_structs.h", "rv_tester_lib.sv", "rv_tester_tick_generator.sv", "rv_tester_keeper.sv" ])

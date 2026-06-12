@@ -1,0 +1,14 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+# Vendored from @opensrc-axi at commit 7387de678e025b809341fa8a2893ef5e931e6d4d
+# (pulp-platform/axi mirror on aus-gitlab). Only typedef.svh is needed by
+# rv_tester_defines.sv and the delay-resp wrapper, so we ship just that file
+# instead of fetching the whole @opensrc-axi tree.
+# Solderpad Hardware License 0.51 — see file header for full text.
+# TODO(open-source): swap for the upstream pulp-platform/axi github mirror
+# (or BCR if it lands there) and drop this vendored copy.
+verilog_library(
+    name = "typedef",
+    hdrs = ["typedef.svh"],
+    visibility = ["//visibility:public"],
+)
