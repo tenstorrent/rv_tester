@@ -1,5 +1,5 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@bzsim//:verilog_unit.bzl", "verilog_unit")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 
 verilog_library(
     name = "rv_tester_delay_resp_tb",
@@ -11,16 +11,27 @@ verilog_library(
     deps = [
         "//src:rv_tester_delay_resp",
         "//src:rv_tester_lib",
-        "@opensrc-axi//:axi"
+        # TODO(open-source): swap @opensrc-axi (aus-gitlab pulp-platform mirror)
+        # for the public pulp-platform/axi github once MODULE.bazel adds the
+        # mirror.
+        "@opensrc-axi//:axi",
     ],
+    top_module = "rv_tester_delay_resp_tb_top",
     visibility = ["//visibility:public"],
 )
 
-verilog_unit(
-    name          = "rv_tester_delay_resp_tb",
-    top           = "rv_tester_delay_resp_tb_top",
-    lib           = "rv_tester_delay_resp_tb",
-    verilator_top = "rv_tester_delay_resp_tb_top.cpp",
-    verilator_configs = [":rv_tester_delay_resp_tb.vlt"],
-    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
+# Replaces bzsim's verilog_unit (multi-simulator builder) with the cvm-style
+# native verilator binary. Same pattern as //sw_testbench:sw_1c_tb_verilator.
+verilator_cc_library(
+    name = "rv_tester_delay_resp_tb_veri_lib",
+    module = ":rv_tester_delay_resp_tb",
+)
+
+cc_binary(
+    name = "rv_tester_delay_resp_tb_verilator",
+    srcs = ["rv_tester_delay_resp_tb_top.cpp"],
+    deps = [
+        ":rv_tester_delay_resp_tb_veri_lib",
+        "@rules_verilator//verilator:verilated_runtime",
+    ],
 )

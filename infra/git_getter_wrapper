@@ -1,9 +1,0 @@
-#! /usr/bin/env python3
-
-from pathlib import Path
-from git_getter import GitGetter
-
-script_path = Path(__file__).resolve()
-# Get git repos, import container
-getter = GitGetter(script_path)
-getter.get_repos()

@@ -1,0 +1,23 @@
+# Hand-written replacement for the testgen-generated rules that bzsim's
+# `risc_p_cores_test_executor` macro emitted from smoke.py. The delay-resp
+# testbench has no per-test elf — it's a pure timing check.
+
+sh_test(
+    name = "rv_tester_delay_resp_tb_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_verilator)",
+        # No per-test elf for this testbench (timing-only check); sim.sh ignores
+        # the placeholder elf path.
+        "",
+    ],
+    data = [
+        "//test/rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_verilator",
+    ],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [":rv_tester_delay_resp_tb_verilator"],
+    visibility = ["//visibility:public"],
+)

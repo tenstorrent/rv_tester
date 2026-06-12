@@ -2,10 +2,9 @@
 /bazel-*
 /bazel_output_base
 /bazel_output_user_root
+/bazel_output_user_root_*
+/MODULE.bazel.lock
 __pycache__
-infra/bzsim_clone
-infra/podman-scripts
-infra/singularity-scripts
 
 /regressions
 /build

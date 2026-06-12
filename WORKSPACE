@@ -1,45 +1,31 @@
 workspace(name = "rv_tester")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+# cvm is the parent directory (on-disk layout: cvm/rv_tester/).
 local_repository(
-    name = "bzsim",
-    path = "infra/bzsim_clone",
+    name = "cvm",
+    path = "..",
 )
 
-load("@bzsim//:repositories.bzl", "bzsim_dependencies")
-bzsim_dependencies()
+# Re-use cvm's dual-emitting rules_hdl compatibility shim so downstream
+# Bazel-6 consumers see the same @rules_hdl//verilog:providers.bzl%VerilogInfo
+# that cvm exports.
+local_repository(
+    name = "rules_hdl",
+    path = "../bazel/rules_hdl_compat",
+)
 
-load("//bazel:repositories.bzl", "rv_tester_repositories")
-rv_tester_repositories()
+# rules_verilog is loaded by the rules_hdl_compat shim to grab the upstream
+# VerilogInfo symbol. Same pin cvm uses.
+http_archive(
+    name = "rules_verilog",
+    url = "https://github.com/hw-bzl/bazel_rules_verilog/releases/download/v1.1.0/bazel_rules_verilog-1.1.0.tar.gz",
+    sha256 = "043196310d1ba692ec217c3778663da0d232a3746ba6291d3a12d6461de24021",
+    strip_prefix = "bazel_rules_verilog-1.1.0",
+)
 
-load("//infra/bazel:opensrc_repositories.bzl", "opensrc_repositories")
-opensrc_repositories()
-
-load("@whisper//:deps.bzl", "whisper_dependencies")
-whisper_dependencies()
-
-load("//bazel:repositories2.bzl", "rv_tester_repositories2")
-rv_tester_repositories2()
-
-load("//infra/bazel:dependencies.bzl", "rv_tester_dependencies")
-rv_tester_dependencies()
-
-load("//infra/bazel:dependencies2.bzl", "rv_tester_dependencies2")
-rv_tester_dependencies2()
-
-load("//infra/bazel:dependencies3.bzl", "rv_tester_dependencies3")
-rv_tester_dependencies3()
-
-load("//infra/bazel:internal_repositories.bzl", "internal_repositories")
-internal_repositories()
-load("@testgen//:repositories.bzl", "testgen_dependencies")
-testgen_dependencies()
-
-load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
-bazel_skylib_workspace()
-
+# Chain into cvm's own WORKSPACE-mode deps wiring (googletest, fmt, gflags, etc.).
 load("@cvm//deps:repositories.bzl", "cvm_dependencies")
 cvm_dependencies()
 
@@ -49,29 +35,10 @@ cvm_toolchains1()
 load("@cvm//deps:toolchains2.bzl", "cvm_toolchains2")
 cvm_toolchains2()
 
-
-load(
-    "@rules_vcs//vcs:repositories.bzl",
-    "rules_vcs_dependencies",
-)
-rules_vcs_dependencies()
-
-load(
-    "@rules_verilator//verilator:repositories.bzl",
-    "rules_verilator_dependencies",
-    "rules_verilator_toolchains"
-)
-rules_verilator_dependencies()
-rules_verilator_toolchains()
-
-load("@rules_m4//m4:m4.bzl", "m4_register_toolchains")
-m4_register_toolchains(extra_copts=["-Wno-error=sign-compare", "-Wno-error=unused-parameter"])
-
-load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
-flex_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=pointer-sign"])
-
-load("@rules_bison//bison:bison.bzl", "bison_register_toolchains")
-bison_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=sign-compare" , "-Wno-error=unused-parameter", "-Wno-error=unused-but-set-variable"])
-
-load("//infra/bazel:testlist.bzl", "load_testlists")
-load_testlists()
+# TODO(open-source): the rest of rv_tester's transitive deps (whisper,
+# mem_manager, CoreArchChecker, opensrc-axi, opensrc-axi_llc,
+# opensrc-tech_cells_generic, opensrc-nlohmann-json, testgen) used to come
+# from repositories.bzl / repositories2.bzl / infra/bazel/*. Until they're
+# re-pointed at public mirrors, Bazel-6 WORKSPACE-mode builds of any target
+# below the smoke path (rv_tester_gen, cosim, sysmod, pmu, ...) will fail to
+# load.

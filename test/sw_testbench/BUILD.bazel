@@ -101,9 +101,8 @@ test_suite(
     name = "all_smoke",
     tests = [
         "//test/sw_testbench/testlists:all_smoke",
-        # TODO(open-source): add once converted:
-        #   "//src/transactors/axi_sw/test/testlists:all_smoke",
-        #   "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
+        "//src/transactors/axi_sw/test/testlists:all_smoke",
+        "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
     ],
     visibility = ["//visibility:public"],
 )

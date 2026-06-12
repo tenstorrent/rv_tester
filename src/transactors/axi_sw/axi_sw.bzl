@@ -1,5 +1,7 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@rules_hdl//verilog:build_defs.bzl", "verilog_flist")
+# verilog_flist was a Tenstorrent-fork addition to rules_hdl that cvm's
+# rules_hdl_compat shim doesn't ship. The _f filelist below isn't consumed by
+# our verilator-only path, so the call site is gone too.
 
 def _generate_axi_interfaces_impl(ctx):
     """Implementation of the generate_axi_interfaces rule."""
@@ -155,13 +157,6 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             packet + "_sv",
         ],
         visibility = ["//visibility:public"],
-    )
-
-    verilog_flist(
-        name = name + "_f",
-        srcs = [
-            axi_sw_sv
-        ],
     )
 
     native.cc_library(

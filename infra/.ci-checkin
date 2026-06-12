@@ -1,9 +1,0 @@
-#! /usr/bin/env bash
-
-set -e
-set -o pipefail
-
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
-$SCRIPT_DIR/git_getter_wrapper
-exec $SCRIPT_DIR/bazel-wrap --output_base $(realpath $SCRIPT_DIR/..)/bazel_output_base run --extra_toolchains @checkin-script//:python-310-toolchain @checkin-script//:checkin -- "$@"
