@@ -17,6 +17,11 @@ DEFINE_bool(mcm, true, "Enable mcm");
 mcmi::mcmi(cvm::topology::loc_t loc, unsigned id, std::shared_ptr<bridge> bridge)
   : log("h" + std::to_string(id) + "_dut_mcmi.log"), loc_(loc), id_(id), bridge_(bridge) {
 
+  cvm::log(cvm::MEDIUM, "[MCMI loc {} id{}] Constructing mcm...\n", loc_, id_);
+}
+
+void mcmi::configure() {
+
   connect<
     rv_tester_transactions::cosim::m_reset<>,
     rv_tester_transactions::cosim::m_trap<>,
@@ -33,21 +38,12 @@ mcmi::mcmi(cvm::topology::loc_t loc, unsigned id, std::shared_ptr<bridge> bridge
     rv_tester_transactions::cosim::m_mcmi_writeback<>,
     rv_tester_transactions::cosim::m_mcmi_dfetch<>,
     bridge::error_loc
-  >(loc);
+  >(loc_);
 
   connect<
     rv_tester::terminate_called,
     rv_tester::terminate_called_mem_checks
   >(cvm::topology::get_from_type("PLATFORM", 0));
-
-  cvm::log(cvm::MEDIUM, "[MCMI loc {} id{}] Constructing mcm...\n", loc_, id_);
-
-  // Reset/init configuration
-  init();
-}
-
-void mcmi::init() {
-  // Initialization if needed
 }
 
 mcmi::~mcmi() {

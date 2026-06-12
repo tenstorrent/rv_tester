@@ -210,7 +210,7 @@ extern "C" {
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
 
         std::map<std::string, memmap_entry_t> m;
-        if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+        if (!memmap::instance().get(m))
             return;
         if (m.size() > no_addr_rules) {
             cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);

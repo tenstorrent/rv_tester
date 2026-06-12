@@ -14,6 +14,10 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
+}
+
+void dm::configure() {
+  device::configure();
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 

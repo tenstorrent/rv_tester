@@ -33,11 +33,11 @@ class mcmi {
 
     mcmi(cvm::topology::loc_t loc, unsigned id, std::shared_ptr<bridge> bridge);
     ~mcmi();
+    void configure();
     void check();
 
   private:
 
-    void init();
     void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);

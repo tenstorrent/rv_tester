@@ -15,6 +15,8 @@ public:
   cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
 
   mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
+
+  void configure();
 private:
 
   cvm::topology::loc_t axi_mst_loc_l;

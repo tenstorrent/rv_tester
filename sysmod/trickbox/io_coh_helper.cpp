@@ -14,9 +14,14 @@ io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cv
   rng.seed(FLAGS_seed);
   io_coh_helper_base = addr;
   axi_mst_loc_l  = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  wresp_channel = cvm::registry::messenger.channel<axi::b_t>(axi_mst_loc_l);
   reset();
   checkUsage();
+}
+
+void io_coh_helper::configure()
+{
+  subdevice::configure();
+  wresp_channel = cvm::registry::messenger.channel<axi::b_t>(axi_mst_loc_l);
 }
 
 

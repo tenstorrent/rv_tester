@@ -24,10 +24,15 @@ DEFINE_bool(hw_eot_enable,  false, "Enable hardware termination of the EOT (usef
 DEFINE_bool(eot_mem_check,  false, "Do End of Test memory checks");
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
-eot::eot(cvm::topology::loc_t loc, unsigned id) {
-  id_ = id;
+eot::eot(cvm::topology::loc_t loc, unsigned id)  : loc_(loc), id_(id) {
+
   for (uint32_t i = 0; i < num_harts_; i++) {
     instr_count_.push_back(0);
+  }
+}
+
+void eot::configure() {
+  for (uint32_t i = 0; i < num_harts_; i++) {
     connect<
       rv_tester_transactions::cosim::m_rvfi<>,
       rv_tester_transactions::cosim::m_steps<>,
@@ -35,13 +40,13 @@ eot::eot(cvm::topology::loc_t loc, unsigned id) {
       rv_tester_transactions::cosim::offline_eoti<>
     >(cvm::topology::get_from_type("COSIM", i));
   }
-  loc_ = loc;
-  cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
+  cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc_, [this] () {return this->get_tohost_addr();});
   cvm::registry::messenger.connect<rv_tester::snoop_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), [this] (rv_tester::snoop_mem) {
     bool passed = this->mem_checks();
     eot_mem_checks_done_ = true;
     this->eot_terminate(passed);
   });
+  init_tohost_addr();
 }
 
 void eot::init_tohost_addr() {
@@ -79,7 +84,7 @@ void eot::init_tohost_addr() {
 
   // 3. htif address from memmap
   std::map<std::string, memmap_entry_t> m;
-  if(!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+  if(!memmap::instance().get(m))
       cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
 
   if (m.count("htif") > 0) {
@@ -217,7 +222,7 @@ void eot::eot_terminate(bool passed) {
 
 void eot::mem_checks_snoop() {
   std::map<std::string, memmap_entry_t> m;
-  if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+  if (!memmap::instance().get(m))
     cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;

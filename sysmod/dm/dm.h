@@ -30,6 +30,8 @@ class dm : public device {
         // add max mem size
         dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
+        void configure();
+
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);

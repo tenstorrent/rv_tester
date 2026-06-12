@@ -29,6 +29,7 @@ class device {
     const uint64_t addr_;
     const size_t size_;
     const cvm::topology::loc_t loc_;
+    std::function<void()> configure_ = nullptr;
 
     template <typename U, typename V>
     requires std::invocable<U, V, transactor::write_t>
@@ -109,11 +110,17 @@ class device {
     device(std::string tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, W write, R read, V* dev)
       : tag_(tag), addr_(addr), size_(size), loc_(loc)
     {
-      spawn_write_thread(write, dev);
-      spawn_read_thread(read, dev);
+      configure_ = [this, write, read, dev] () {
+        spawn_write_thread(write, dev);
+        spawn_read_thread(read, dev);
+      };
     };
 
     virtual ~device() { };
+
+    void configure() {
+      if (configure_) configure_();
+    }
 
     std::string tag()             const { return tag_          ; }
     uint64_t addr()               const { return addr_         ; }

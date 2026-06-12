@@ -3,8 +3,12 @@
 mmr_txn_router::mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &mmr_txn_router::write, &mmr_txn_router::read, this), axi_mst_loc_l(axi_mst_loc)
 {
-  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   cvm::log(cvm::HIGH, " [mmr_txn_router] Constructor \n");
+}
+
+void mmr_txn_router::configure() {
+  device::configure();
+  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 
 

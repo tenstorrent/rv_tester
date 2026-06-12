@@ -104,53 +104,58 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
 
   traceFile_ = traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w");
   commandLog_ = commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w");
-  cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc, [this] (uint32_t hart=0) { return this->get_iss_select(hart);});
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] () {return this->whisperConnect();});
-  cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
-  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid);});
-  cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
-  cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
-  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
-  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});    
-  cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-  cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-  cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
-  cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
-  cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, error, valid);});
-  cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
-  cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
-  cvm::registry::messenger.procedure<whisperMcmDEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDEvict(hart, time, addr, valid);});
-  cvm::registry::messenger.procedure<whisperMcmDWritebackRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDWriteback(hart, time, addr, valid);});
-  // Add MCM Dfetch RPC
-  cvm::registry::messenger.procedure<whisperMcmDFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDFetch(hart, time, addr, valid);});
-  cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc, [this] (int hart, uint64_t time, bool& valid) {return this->whisperMcmEnd(hart, time, valid);});
-  cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
-  cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, cache, skipmem, valid);});
-  cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
-  cvm::registry::messenger.procedure<whisperPokeMemBatchRPC>(loc, [this](int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid) { return this->whisperPokeMemBatch(hart, time, resource, addr, data, valid); });
-  cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
-  cvm::registry::messenger.procedure<whisperPeekExtendedRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, uint64_t& reply_addr, bool& valid) {return this->whisperPeek(hart, resource, addr, value, reply_addr, valid);});
-  cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
-  cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
-  cvm::registry::messenger.procedure<whisperResetRPC>(loc, [this] (int hart, uint64_t addr, bool& valid) {return this->whisperReset(hart, addr, valid);});
-  cvm::registry::messenger.procedure<whisperQuitRPC>(loc, [this] () {return this->whisperQuit();});
-  cvm::registry::messenger.procedure<whisperPageTableWalkRPC>(loc, [this] (int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid) {return this->whisperPageTableWalk(hart, isInstr, isAddr, items, itemCount, valid);});
-  cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
-  cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
-  cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
-  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause, bool& virt_mode) {return this->whisperCheckInterrupt(hart, interrupt, cause, virt_mode);});
-  cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
-  cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
-  cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
-  cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
-  cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
-  cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
-  cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
-  cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
-  cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
+}
 
-  cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
-  cvm::registry::messenger.procedure<secureRegionRPC> (loc, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
+template <typename URV>
+void
+whisperClient<URV>::configure() {
+  cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc_, [this] (uint32_t hart=0) { return this->get_iss_select(hart);});
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this] () {return this->whisperConnect();});
+  cvm::registry::messenger.procedure<whisperConnectedRPC>(loc_, [this] () {return this->whisperConnected();});
+  cvm::registry::messenger.procedure<whisperStepRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid);});
+  cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc_, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
+  cvm::registry::messenger.procedure<whisperChangeRPC>(loc_, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});    
+  cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
+  cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
+  cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc_, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid);});
+  cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, error, valid);});
+  cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmDEvictRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDEvict(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmDWritebackRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDWriteback(hart, time, addr, valid);});
+  // Add MCM Dfetch RPC
+  cvm::registry::messenger.procedure<whisperMcmDFetchRPC>(loc_, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDFetch(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc_, [this] (int hart, uint64_t time, bool& valid) {return this->whisperMcmEnd(hart, time, valid);});
+  cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc_, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
+  cvm::registry::messenger.procedure<whisperPokeRPC>(loc_, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, cache, skipmem, valid);});
+  cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc_, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
+  cvm::registry::messenger.procedure<whisperPokeMemBatchRPC>(loc_, [this](int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid) { return this->whisperPokeMemBatch(hart, time, resource, addr, data, valid); });
+  cvm::registry::messenger.procedure<whisperPeekRPC>(loc_, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperPeekExtendedRPC>(loc_, [this] (int hart, char resource, uint64_t addr, uint64_t& value, uint64_t& reply_addr, bool& valid) {return this->whisperPeek(hart, resource, addr, value, reply_addr, valid);});
+  cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc_, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
+  cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc_, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
+  cvm::registry::messenger.procedure<whisperResetRPC>(loc_, [this] (int hart, uint64_t addr, bool& valid) {return this->whisperReset(hart, addr, valid);});
+  cvm::registry::messenger.procedure<whisperQuitRPC>(loc_, [this] () {return this->whisperQuit();});
+  cvm::registry::messenger.procedure<whisperPageTableWalkRPC>(loc_, [this] (int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid) {return this->whisperPageTableWalk(hart, isInstr, isAddr, items, itemCount, valid);});
+  cvm::registry::messenger.procedure<whisperTranslateRPC>(loc_, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
+  cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc_, [this] (int hart) {return this->whisperEnterDebug(hart);});
+  cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc_, [this] (int hart) {return this->whisperExitDebug(hart);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc_, [this] (int hart, bool& interrupt, uint64_t& cause, bool& virt_mode) {return this->whisperCheckInterrupt(hart, interrupt, cause, virt_mode);});
+  cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc_, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
+  cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc_, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
+  cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc_, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc_, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc_, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc_, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
+  cvm::registry::messenger.procedure<whisperNmiRPC>(loc_, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
+  cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc_, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
+  cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
+
+  cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
+  cvm::registry::messenger.procedure<secureRegionRPC> (loc_, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
 
 }
 

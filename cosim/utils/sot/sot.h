@@ -21,13 +21,18 @@ class sot {
     if (execution_labels_.size() == 0) return;
     for (uint32_t i=0; i <num_harts_; i++) {
       actual_test_started_.push_back(0);
+    }
+  }
+  sot(cvm::topology::loc_t loc): sot(loc, 1) {}
+  ~sot() {}
+  void configure() {
+    if (execution_labels_.size() == 0) return;
+    for (uint32_t i=0; i <num_harts_; i++) {
       connect<
         rv_tester_transactions::cosim::m_rvfi<>
       >(cvm::topology::get_from_type("COSIM", i));
     }
   }
-  sot(cvm::topology::loc_t loc): sot(loc, 1) {}
-  ~sot() {}
   void init_label();
   private:
   cvm::topology::loc_t loc_;

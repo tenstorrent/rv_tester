@@ -35,6 +35,8 @@ public:
   // Destructor.
   virtual ~io_coh_helper();
 
+  void configure() override;
+
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

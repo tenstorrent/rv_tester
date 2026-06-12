@@ -42,6 +42,7 @@
 using namespace CSR;
 
 // internal flags
+DEFINE_string(memmap_json_path, "", "Path to memory map json");
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
@@ -112,7 +113,24 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
 {
   // Whisper client location
   wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+}
+sysmod::~sysmod()
+{
+}
+void sysmod::eot_backdoor_write(transactor::write_t& w) {
+  device::strb_t strb(8);
+  device::data_t data(8);
+  for(size_t i=0; i<64; i+=8) {
+    for (size_t j=0; j<8; j++) {
+      data[j] = w.data[i+j];
+      strb[j] = true;
+    }
+    this->dev("memory")->backdoor_write(((w.addr + i)& ~FLAGS_pa_mask), 8, data, strb);
+  }
+}
 
+void sysmod::configure()
+{
   cvm::registry::messenger.connect<rv_tester::whisper_connected>(
       wc_loc_,
       [this](const auto&) {
@@ -120,22 +138,22 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       cosim_init_ = true;
       return;
       });
-  cvm::registry::messenger.procedure<sysmod_eot>(loc, [this] (uint64_t addr, size_t length, device::data_t& data){ return this->dev("memory")->backdoor_read(addr, length, data);});
-  cvm::registry::messenger.procedure<sysmod_secure_mem>(loc, [this] (uint64_t& start, uint64_t& end) {
+  cvm::registry::messenger.procedure<sysmod_eot>(loc_, [this] (uint64_t addr, size_t length, device::data_t& data){ return this->dev("memory")->backdoor_read(addr, length, data);});
+  cvm::registry::messenger.procedure<sysmod_secure_mem>(loc_, [this] (uint64_t& start, uint64_t& end) {
     start = secure_region_start_;
     end = secure_region_end_;
   });
-  cvm::registry::messenger.procedure<sysmod_backdoor_write_boot>(loc, [this] (uint64_t addr, uint32_t size, const device::data_t& data, const device::strb_t& strb) {
+  cvm::registry::messenger.procedure<sysmod_backdoor_write_boot>(loc_, [this] (uint64_t addr, uint32_t size, const device::data_t& data, const device::strb_t& strb) {
     device::data_t data_copy = data;
     device::strb_t strb_copy = strb;
     cvm::log(cvm::NONE, "[sysmod] Writing boot memory: addr={:#x}, size={}, data={}\n", addr, size, fmt::join(data_copy, ", "));
     this->dev("boot")->backdoor_write(addr, size, data_copy, strb_copy);
   });
-  cvm::registry::messenger.procedure<sysmod_get_boot_addr>(loc, [this] () -> uint64_t {
+  cvm::registry::messenger.procedure<sysmod_get_boot_addr>(loc_, [this] () -> uint64_t {
     return this->dev("boot")->addr();
   });
-  cvm::registry::messenger.procedure<sysmod_block_terminate>(loc, [this] () { this->block_terminate(); });
-  cvm::registry::messenger.procedure<sysmod_unblock_terminate>(loc, [this] () { this->unblock_terminate(); });
+  cvm::registry::messenger.procedure<sysmod_block_terminate>(loc_, [this] () { this->block_terminate(); });
+  cvm::registry::messenger.procedure<sysmod_unblock_terminate>(loc_, [this] () { this->unblock_terminate(); });
 
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
@@ -231,36 +249,10 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
  cvm::registry::messenger.connect<transactor::write_t>(snoop_gen_loc, [this] (transactor::write_t w)  { return this->eot_backdoor_write(w);});
  cvm::registry::messenger.connect<htif::terminate_t>(  platform_loc,  [this] (htif::terminate_t t)    { return this->terminate(t);});
  cvm::registry::messenger.connect<rv_tester::test_started>(platform_loc, [this] (rv_tester::test_started t) { return this->actual_test_started(t);});
-}
-
-void sysmod::eot_backdoor_write(transactor::write_t& w) {
-  device::strb_t strb(8);
-  device::data_t data(8);
-  for(size_t i=0; i<64; i+=8) {
-    for (size_t j=0; j<8; j++) {
-      data[j] = w.data[i+j];
-      strb[j] = true;
-    }
-    this->dev("memory")->backdoor_write(((w.addr + i)& ~FLAGS_pa_mask), 8, data, strb);
-  }
-}
-
-void sysmod::configure()
-{
-  if (FLAGS_cosim)
-    cosim_init_ = false; // this will be set once bridge is init
-  else
-    cosim_init_ = true;
+ cosim_init_ = FLAGS_cosim ? false : true;  // this will be set once bridge is init
   // Harvesting plusargs now handled by harvesting module
   // Reset configuration
   reset();
-}
-
-// Harvesting methods removed - now handled by harvesting module
-
-
-sysmod::~sysmod()
-{
 }
 
 // forwarding functions for devices
@@ -287,23 +279,6 @@ sysmod::sw_interrupt(clint::sw_t s) {
 
 
 
-//void
-// sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
-
-//     transactor::read_t rd;
-//     rd.addr = r.addr;
-//     rd.length = r.length;
-//     rd.id =  r.id;
-//     cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
-
-//     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-//     if (this->dev(r.addr)){
-//     cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
-//         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-//     }
-
-// }
 void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
@@ -614,7 +589,7 @@ sysmod::compose() {
 
   devices_.clear();
   // Load memmap
-  if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_))
+  if (!memmap::instance().get(memmap_))
     return;
 
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
@@ -695,17 +670,6 @@ sysmod::compose() {
             // We only enable input when using a socket; When using stdio, we only output
             FLAGS_uart8250_sock);
       } else if (type == "dm") {
-        // TODO: cvm::ERROR
-       // assert(masters.size() > 0);
-       // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
-
-      // } else if (type == "scratchpad_xtor") {
-      //   // TODO: cvm::ERROR
-      //   assert(masters.size() > 0);
-      //   device = std::make_unique<scratchpad_xtor>(tag, base, size, loc_, masters[0]);
-      //   cvm::registry::messenger.connect<scratchpad_xtor::scratchpad_xtor_read_t>(
-      //       loc_,
-      //       [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
 
       } else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
@@ -745,14 +709,26 @@ sysmod::compose() {
         cvm::log(cvm::ERROR, "Error: [sysmod] unknown sysmod type {} \n", type);
       }
 
-      if (device)
+      if (device) {
+        if (auto* r = dynamic_cast<mmr_txn_router*>(device.get()))
+          r->configure();
+        else if (auto* d = dynamic_cast<dm*>(device.get()))
+          d->configure();
+        else if (auto* t = dynamic_cast<trickbox*>(device.get()))
+          t->configure();
+        else
+          device->configure();
         devices_.emplace_back(std::move(device));
+      }
     }
 
-    devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
+    auto hb = std::make_unique<heartbeat>("heartbeat", 0, 0, loc_);
+    hb->configure();
+    devices_.emplace_back(std::move(hb));
 
     // Create fallback null_dev for unmapped addresses
     fallback_null_dev_ = std::make_unique<null_dev>("fallback_null_dev", 0, 0, loc_);
+    fallback_null_dev_->configure();
 
     assert(masters.size() > 0);
 
@@ -875,9 +851,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       std::stringstream ss;
 
       cvm::log(cvm::MEDIUM, "Parsing {}\n", flag);
-      // split string by colon into file path and offset
-      // if no colon is found, assume offset is 0
-
       ss << flag;
       while (ss.good())
       {
@@ -893,7 +866,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (lz4 != "") parse_bin(lz4, true);
     if (bin != "") parse_bin(bin, false);
 
-    // all memories share the same backing mem manaager
     return;
   }
 

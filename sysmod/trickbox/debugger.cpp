@@ -33,11 +33,6 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   dmi_driver_warm_reset_addr = addr + 0x700;
   reset();
 
-  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  cvm::registry::messenger.connect<debugger::dmi_status_t>(
-            tbox_loc,
-            [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
-
   std::ifstream myfile;
   cvm::log(cvm::HIGH, "[Debugger]:Constructor: read  reset state in Debugger at clocks {} divisor {}\n", clocks,divisor);
   myfile.open ("reset_state.txt");
@@ -56,6 +51,15 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   }
   myfile.close();
     cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
+}
+
+void debugger::configure()
+{
+  subdevice::configure();
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+  cvm::registry::messenger.connect<debugger::dmi_status_t>(
+            tbox_loc,
+            [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
 }
 
 debugger::~debugger()

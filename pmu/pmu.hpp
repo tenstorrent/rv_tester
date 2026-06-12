@@ -16,6 +16,8 @@ public:
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();
 
+  void configure();
+
   void report();
   void ipc_check();
   void l1d_read_miss_check();

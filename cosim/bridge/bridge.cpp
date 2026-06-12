@@ -173,18 +173,11 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     }
     previous_cycle_ = 0;
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this] (const auto& v) { return this->process(v); });
     if(FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
     uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
-
-    for(uint64_t i = 0 ; i < nharts ; i++) {
-      int unsigned location = cvm::topology::get_from_type("CORE", i);
-      cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
-    }
 
     if((FLAGS_max_stall_cycle < (FLAGS_max_stall_cycle_base + (nharts-1)*FLAGS_max_stall_cycle_per_core_increment)) && (FLAGS_max_stall_cycle != 0)){
         FLAGS_max_stall_cycle = (FLAGS_max_stall_cycle_base + (nharts-1)*FLAGS_max_stall_cycle_per_core_increment);
@@ -203,13 +196,25 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
 }
 
+void bridge::configure() {
+    auto platform = cvm::topology::get_from_type("PLATFORM", 0);
+    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this] (const auto& v) { return this->process(v); });
+
+    uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+    for(uint64_t i = 0 ; i < nharts ; i++) {
+      int unsigned location = cvm::topology::get_from_type("CORE", i);
+      cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
+    }
+}
+
 // Destructor
 bridge::~bridge() {}
 
   void bridge::reset() {
 
   // Get memmap instance
-  if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
+  if (!memmap::instance().get(memmap_)) {
     error("Getting Memmap failed");
     return;
   }

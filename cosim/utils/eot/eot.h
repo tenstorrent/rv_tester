@@ -29,9 +29,7 @@ class eot {
     // End-of-test (eot) options:
     // eot=tohost -- Look for mem store to 'tohost' address = success/fail
 
-    void configure() {
-      init_tohost_addr();
-    }
+    void configure();
     eot(cvm::topology::loc_t loc, unsigned id=1);
     ~eot();
 

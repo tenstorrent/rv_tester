@@ -60,6 +60,30 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", id_);
   ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
+  log(cvm::MEDIUM, "EXTERNAL_INTERRUPT_SEQUENCE constructed for hart {}\n", id_);
+
+  uint32_t cluster_id = 0;
+  msi_m_file_addr = generate_imsic_m_addr(cluster_id, 0);
+  msi_s_file_addr = generate_imsic_s_addr(cluster_id, 0);
+  msi_vs_file_addr = msi_s_file_addr;
+
+  // Tick-based random MSI init (hart 0 only)
+  if (id_ == 0 && FLAGS_random_imsic_intr) {
+    log(cvm::MEDIUM, "[ExtInterruptSeq] Enable random IMSIC MSIs\n");
+    uint32_t rand_num = (rng1() % 2) + 1;
+    if (FLAGS_imsic_intr_delay_min) {
+      rand_num = (rng1() % (FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
+    }
+    timer_ = 0;
+    timer_rand_intr_ = timer_ + FLAGS_imsic_intr_start_delay + (rand_num * timer_advance_);
+    if (FLAGS_max_intr_count > 0) {
+      limit_interrupts_ = 1;
+    }
+  }
+}
+
+void external_interrupt_sequence::configure() {
+
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       triggers_loc,
       [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) {
@@ -82,29 +106,8 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
         });
   }
 
-  log(cvm::MEDIUM, "EXTERNAL_INTERRUPT_SEQUENCE constructed for hart {}\n", id_);
-
   if (FLAGS_interrupt_injection_enable) {
     interrupt_injection_thread();
-  }
-
-  uint32_t cluster_id = 0;
-  msi_m_file_addr = generate_imsic_m_addr(cluster_id, 0);
-  msi_s_file_addr = generate_imsic_s_addr(cluster_id, 0);
-  msi_vs_file_addr = msi_s_file_addr;
-
-  // Tick-based random MSI init (hart 0 only)
-  if (id_ == 0 && FLAGS_random_imsic_intr) {
-    log(cvm::MEDIUM, "[ExtInterruptSeq] Enable random IMSIC MSIs\n");
-    uint32_t rand_num = (rng1() % 2) + 1;
-    if (FLAGS_imsic_intr_delay_min) {
-      rand_num = (rng1() % (FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
-    }
-    timer_ = 0;
-    timer_rand_intr_ = timer_ + FLAGS_imsic_intr_start_delay + (rand_num * timer_advance_);
-    if (FLAGS_max_intr_count > 0) {
-      limit_interrupts_ = 1;
-    }
   }
 }
 

@@ -14,6 +14,11 @@ uc_helper::uc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topol
   uc_helper_base = addr;
   reset();
   checkUsage();
+}
+
+void uc_helper::configure()
+{
+  subdevice::configure();
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   cvm::registry::messenger.connect<uc_helper::trickbox_mem_req_t>(
             tbox_loc,

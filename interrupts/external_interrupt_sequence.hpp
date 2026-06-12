@@ -32,6 +32,8 @@ class external_interrupt_sequence {
     external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id);
     ~external_interrupt_sequence();
 
+    void configure();
+
   private:
 
     void interrupt_injection_thread();

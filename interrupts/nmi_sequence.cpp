@@ -19,6 +19,9 @@ extern "C" {
 nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id) {
 
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
+}
+
+void nmi_sequence::configure() {
 
   // Deassert signal comes from trickbox
   cvm::registry::messenger.connect<uint8_t>(loc_, [this](uint8_t assert) { return this->nmi(assert); });
