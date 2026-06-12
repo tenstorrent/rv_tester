@@ -1,14 +1,17 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 # Vendored from @opensrc-axi at commit 7387de678e025b809341fa8a2893ef5e931e6d4d
-# (pulp-platform/axi mirror on aus-gitlab). Only typedef.svh is needed by
-# rv_tester_defines.sv and the delay-resp wrapper, so we ship just that file
-# instead of fetching the whole @opensrc-axi tree.
-# Solderpad Hardware License 0.51 — see file header for full text.
+# (pulp-platform/axi mirror on aus-gitlab). We ship typedef.svh (the macro
+# header used by `\`include "axi/typedef.svh"`) plus axi_pkg.sv (the small
+# package that defines axi_pkg::len_t and friends referenced by
+# rv_tester_defines.sv after macro expansion) instead of fetching the whole
+# @opensrc-axi tree.
+# Solderpad Hardware License 0.51 — see each file's header for the full text.
 # TODO(open-source): swap for the upstream pulp-platform/axi github mirror
 # (or BCR if it lands there) and drop this vendored copy.
 verilog_library(
     name = "typedef",
+    srcs = ["axi_pkg.sv"],
     hdrs = ["typedef.svh"],
     # `\`include "axi/typedef.svh"` callers expect the include search path to
     # be one level up (i.e. third_party/), with the "axi/" segment supplied by
