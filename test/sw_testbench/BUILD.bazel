@@ -1,26 +1,16 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
-load("@bzsim//runtime:runtime.bzl", "runtime_library")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
-load("@bzsim//:sim.bzl", "sim_test_suite")
 
 exports_files(["pulp_platform_verilator_waiver.vlt"])
 
-verilator_defines = {
-    "debug": {
-        "dbg": [
-            '+define+DMI_TB_WRITES_UNSUPPORTED',
-            '+define+TRACE_CHECKS_UNSUPPORTED',
-        ],
-        "opt": [
-            '+define+DMI_TB_WRITES_UNSUPPORTED',
-            '+define+TRACE_CHECKS_UNSUPPORTED',
-        ]
-    }
-}
+verilator_defines = [
+    "+define+DMI_TB_WRITES_UNSUPPORTED",
+    "+define+TRACE_CHECKS_UNSUPPORTED",
+]
 
-harnesses = [ "sw_1c", "sw_2c"]
+harnesses = ["sw_1c", "sw_2c"]
 
 filegroup(
     name = "vcs_waiver",
@@ -28,85 +18,93 @@ filegroup(
 )
 
 [
-  [
-    genrule(
-        name = name + "_harness_define",
-        outs = [name + "_harness_defines.sv"],
-        cmd = "echo '`define HARNESS {}' > $@".format(name.upper()),
-    ),
+    [
+        genrule(
+            name = name + "_harness_define",
+            outs = [name + "_harness_defines.sv"],
+            cmd = "echo '`define HARNESS {}' > $@".format(name.upper()),
+        ),
 
-    verilog_dpi_library(
-        name = name + "_dpi",
-        srcs = ["dpi.cpp", "gflags.cpp"],
-        deps = [
-          name + "_rv_tester_dpi",
-          "@cvm//:plusargs",
-        ],
-    ),
-    
-    topology_gen(
-        name = name + "_topology",
-        srcs = [
-            "@rv_tester//src/transactors/axi_sw:axi_sw_attrs.yml",
-            name + "_rv_tester_platform.yml",
-            name + "_rv_tester_hart.yml",
-            "rv_tester_axi.yml",
-            "@rv_tester//src:rv_tester_topology",
-            name + "_topology.yml",
-        ]
-    ),
-    
-    rv_tester_gen(
-        name = name + "_rv_tester",
-        topology = name + "_topology",
-        csr_spec = "@rv_tester//scripts/csr:csr_spec",
-        project_overrides = "@rv_tester//scripts:project_overrides",
-        pmu_spec = "@rv_tester//src/pmu:pmu_spec",
-        cc_attrs = {
-            'alwayslink': True,
-            'linkstatic': True,
-        }
-    ),
-    
-    verilog_library(
-        name = name + "_top",
-        srcs = [
-            name + "_harness_define",
-            "top.sv",
-            "harness_undefines.sv"
-        ],
-        deps = [
-            name + "_rv_tester_sv",
-        ]
-    ),
-    
-    verilog_unit(
-        name = name + "_tb",
-        top  = "top",
-        lib  = name + "_top",
-        dpi  = name + "_dpi",
-        runtime_library = ["//infra/bzsim-config:runtime"],
-        run_args   = ["+nowhisper_client_check"],
-        verilator_top = "sw_tb.cpp",
-        bzsimconfig = "//infra/bzsim-config:bzsimconfig",
-        verilator_configs = [":pulp_platform_verilator_waiver.vlt"],
-        vcs_message_configs = [":vcs_waiver"],
-        user_verilator_opts = verilator_defines,
-        slang_opts = {
-            "opts": ["--std=1800-2017"],
-        },
-    )
-  ] for name in harnesses
+        # Replaces bzsim's verilog_dpi_library macro (which was just cc_library
+        # + alwayslink + svdpi). svdpi comes via @rules_verilator's runtime.
+        cc_library(
+            name = name + "_dpi",
+            srcs = ["dpi.cpp", "gflags.cpp"],
+            deps = [
+                name + "_rv_tester_dpi",
+                "@cvm//:plusargs",
+                "@rules_verilator//verilator:verilated_runtime",
+            ],
+            alwayslink = True,
+            linkstatic = True,
+        ),
+
+        topology_gen(
+            name = name + "_topology",
+            srcs = [
+                "@rv_tester//src/transactors/axi_sw:axi_sw_attrs.yml",
+                name + "_rv_tester_platform.yml",
+                name + "_rv_tester_hart.yml",
+                "rv_tester_axi.yml",
+                "@rv_tester//src:rv_tester_topology",
+                name + "_topology.yml",
+            ],
+        ),
+
+        rv_tester_gen(
+            name = name + "_rv_tester",
+            topology = name + "_topology",
+            csr_spec = "@rv_tester//scripts/csr:csr_spec",
+            project_overrides = "@rv_tester//scripts:project_overrides",
+            pmu_spec = "@rv_tester//src/pmu:pmu_spec",
+            cc_attrs = {
+                "alwayslink": True,
+                "linkstatic": True,
+            },
+        ),
+
+        verilog_library(
+            name = name + "_top",
+            srcs = [
+                name + "_harness_define",
+                "top.sv",
+                "harness_undefines.sv",
+            ],
+            deps = [name + "_rv_tester_sv"],
+            top_module = "top",
+        ),
+
+        # Replaces bzsim's verilog_unit macro (which produced verilator views,
+        # lint targets, multi-simulator binaries). Verilator-only flat shape.
+        verilator_cc_library(
+            name = name + "_tb_veri_lib",
+            module = ":" + name + "_top",
+            vopts = verilator_defines,
+        ),
+
+        cc_binary(
+            name = name + "_tb_verilator",
+            srcs = ["sw_tb.cpp"],
+            deps = [
+                ":" + name + "_tb_veri_lib",
+                ":" + name + "_dpi",
+                "@cvm//:logger",
+                "@cvm//:topology",
+            ],
+        ),
+    ]
+    for name in harnesses
 ]
 
-sim_test_suite(
-    name  = "all_smoke",
-    testlists  = [
-        "@smoke",
-        "@axi_sw_tb_smoke",
-        "@rv_tester_delay_resp_tb_smoke"
+# Composite smoke target that drives the per-testlist test_suites.
+test_suite(
+    name = "all_smoke",
+    tests = [
+        "//test/sw_testbench/testlists:all_smoke",
+        # TODO(open-source): add once converted:
+        #   "//src/transactors/axi_sw/test/testlists:all_smoke",
+        #   "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
     ],
-    sim = None,
     visibility = ["//visibility:public"],
 )
 

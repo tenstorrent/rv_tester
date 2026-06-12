@@ -1,7 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@bzsim//:verilog_unit.bzl", "verilog_unit")
-load("@bzsim//:sim.bzl", "sim_test_suite")
 
 config_setting(
     name = "use_bzlmod",

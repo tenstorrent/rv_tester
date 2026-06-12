@@ -1,1 +1,53 @@
-exports_files(["infinite.S", "nop.S"])
+# Hand-written replacement for the testgen-generated rules that bzsim's
+# `risc_p_cores_test_executor` macro used to emit from smoke.py. Each smoke
+# entry collapses to one sh_test that runs the pre-built sw_<N>c_tb verilator
+# simulator binary against infinite.elf with the configured plusargs.
+#
+# infinite.elf was captured from `bzsim test smoke --no-lsf` and is checked in
+# as-is for now. TODO(open-source): replace with a real riscv32 toolchain
+# cross-compile step once a public-friendly riscv toolchain is in the CI
+# container.
+
+exports_files(["infinite.S", "nop.S", "infinite.elf"])
+
+sh_test(
+    name = "infinite_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench:sw_1c_tb_verilator)",
+        "$(location :infinite.elf)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+    ],
+    data = [
+        "//test/sw_testbench:sw_1c_tb_verilator",
+        ":infinite.elf",
+    ],
+)
+
+sh_test(
+    name = "infinite_2c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench:sw_2c_tb_verilator)",
+        "$(location :infinite.elf)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=2",
+        "+num_harts=2",
+    ],
+    data = [
+        "//test/sw_testbench:sw_2c_tb_verilator",
+        ":infinite.elf",
+    ],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [
+        ":infinite_1c_verilator",
+        ":infinite_2c_verilator",
+    ],
+    visibility = ["//visibility:public"],
+)
