@@ -36,11 +36,11 @@ class rvfi {
   public:
     rvfi(cvm::topology::loc_t loc, unsigned id);
     ~rvfi();
+    void configure();
     void check();
 
   private:
 
-    void init();
     void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
     void process(const rv_tester_transactions::cosim::m_disable_checks<>& m_disable_checks);
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);

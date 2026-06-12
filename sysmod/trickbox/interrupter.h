@@ -35,6 +35,8 @@ public:
 
   virtual ~interrupter();
 
+  void configure() override;
+
   template <typename INT>
   void serializeInt(INT x, size_t n, data_t& data)
   {

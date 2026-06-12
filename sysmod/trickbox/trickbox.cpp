@@ -37,6 +37,14 @@ trickbox::~trickbox()
 {
 }
 
+void trickbox::configure()
+{
+  device::configure();
+  for (auto& d : subdevices_) {
+    d->configure();
+  }
+}
+
 bool trickbox::init_elf(const std::string& path) {
     try {
         m_.load_ELF(path);

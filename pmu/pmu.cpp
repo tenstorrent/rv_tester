@@ -79,13 +79,19 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
         log_sc(cvm::NONE, fmt::to_string(log_str_sc));
       }
     }
+  }
+}
 
+void
+pmu::configure()
+{
+  if (FLAGS_perf) {
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmcounters_core<>>(loc, [this] (const auto& v) { return this->process_core(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_sc::pmcounters_sc<>>(loc, [this] (const auto& v) { return this->process_sc(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::hpmcounters_core<>>(loc, [this] (const auto& v) { return this->process_core(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmc_checker<>>(loc, [this] (const auto& v) { return this->process_core(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmcounters_core<>>(loc_, [this] (const auto& v) { return this->process_core(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_sc::pmcounters_sc<>>(loc_, [this] (const auto& v) { return this->process_sc(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::hpmcounters_core<>>(loc_, [this] (const auto& v) { return this->process_core(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmc_checker<>>(loc_, [this] (const auto& v) { return this->process_core(v); });
     cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }

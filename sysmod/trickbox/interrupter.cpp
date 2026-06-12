@@ -11,8 +11,12 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   cvm::log(cvm::HIGH, "[Trickbox] Constructor: hart_count = {} interrupter_base = {:#x}\n", hart_count_, interrupter_base);
 
   checkUsage();
+}
 
-  cvm::registry::messenger.procedure<intr_enable_read_RPC>(loc, [this] (bool& enabled) {
+void interrupter::configure()
+{
+  subdevice::configure();
+  cvm::registry::messenger.procedure<intr_enable_read_RPC>(loc_, [this] (bool& enabled) {
     enabled = intr_enable_flag_;
     return true;
   });

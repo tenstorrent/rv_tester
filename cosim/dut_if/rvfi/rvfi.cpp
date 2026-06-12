@@ -39,47 +39,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
   whisper::initialize();
 
-  connect<
-    rv_tester_transactions::cosim::m_reset<>,
-    rv_tester_transactions::cosim::m_disable_checks<>,
-    rv_tester_transactions::cosim::m_rvfi<>,
-    rv_tester_transactions::cosim::m_steps<>,
-    rv_tester_transactions::cosim::m_gp_regs<>,
-    rv_tester_transactions::cosim::m_fp_regs<>,
-    rv_tester_transactions::cosim::m_vc_regs<>,
-    rv_tester_transactions::cosim::m_csri<>,
-    rv_tester_transactions::cosim::m_mhpm_counter_ovf<>,
-    rv_tester_transactions::cosim::m_trap<>,
-    rv_tester_transactions::cosim::m_core_nmi<>,
-    rv_tester_transactions::cosim::m_interrupt_pend<>,
-    rv_tester_transactions::cosim::m_mtip<>,
-    rv_tester_transactions::cosim::m_mtime<>,
-    rv_tester_transactions::cosim::m_imsic_msi<>,
-    rv_tester_transactions::cosim::m_debug<>,
-    bridge::error_loc
-  >(loc);
-
-  connect<
-    rv_tester::terminate_called,
-    rv_tester::terminate_called_mem_checks
-  >(cvm::topology::get_from_type("PLATFORM", 0));
-
-  // Reset/init configuration
-  init();
-}
-
-rvfi::~rvfi() {
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_dpi == false))
-    cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
-}
-
-void rvfi::check() {
-  // bridge_->report_metrics();
-}
-
-void rvfi::init() {
-
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
     auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
@@ -99,6 +58,48 @@ void rvfi::init() {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
 }
+
+void rvfi::configure() {
+
+  connect<
+    rv_tester_transactions::cosim::m_reset<>,
+    rv_tester_transactions::cosim::m_disable_checks<>,
+    rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_steps<>,
+    rv_tester_transactions::cosim::m_gp_regs<>,
+    rv_tester_transactions::cosim::m_fp_regs<>,
+    rv_tester_transactions::cosim::m_vc_regs<>,
+    rv_tester_transactions::cosim::m_csri<>,
+    rv_tester_transactions::cosim::m_mhpm_counter_ovf<>,
+    rv_tester_transactions::cosim::m_trap<>,
+    rv_tester_transactions::cosim::m_core_nmi<>,
+    rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtip<>,
+    rv_tester_transactions::cosim::m_mtime<>,
+    rv_tester_transactions::cosim::m_imsic_msi<>,
+    rv_tester_transactions::cosim::m_debug<>,
+    bridge::error_loc
+  >(loc_);
+
+  connect<
+    rv_tester::terminate_called,
+    rv_tester::terminate_called_mem_checks
+  >(cvm::topology::get_from_type("PLATFORM", 0));
+
+  if (bridge_) bridge_->configure();
+  if (mcmi_) mcmi_->configure();
+}
+
+rvfi::~rvfi() {
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_dpi == false))
+    cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
+}
+
+void rvfi::check() {
+  // bridge_->report_metrics();
+}
+
 
 bool rvfi::patch_access (uint64_t addr) {
   if (!patch_mode_)

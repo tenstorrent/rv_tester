@@ -13,11 +13,13 @@ ras_helper::ras_helper(const std::string& tag, uint64_t addr, unsigned, cvm::top
   ras_helper_base = addr;
   reset();
   checkUsage();
+}
 
-  cvm::registry::messenger.procedure<ras_helper_backdoor_read_RPC>(loc, [this] (std::uint64_t addr, std::uint64_t& data) {return this->ras_helper_backdoor_read(addr,data);});
-  cvm::registry::messenger.procedure<ras_helper_backdoor_write_RPC>(loc, [this] (std::uint64_t addr, std::uint64_t data) {return this->ras_helper_backdoor_write(addr,data);});
-
-
+void ras_helper::configure()
+{
+  subdevice::configure();
+  cvm::registry::messenger.procedure<ras_helper_backdoor_read_RPC>(loc(), [this] (std::uint64_t addr, std::uint64_t& data) {return this->ras_helper_backdoor_read(addr,data);});
+  cvm::registry::messenger.procedure<ras_helper_backdoor_write_RPC>(loc(), [this] (std::uint64_t addr, std::uint64_t data) {return this->ras_helper_backdoor_write(addr,data);});
 }
 
 ras_helper::~ras_helper()

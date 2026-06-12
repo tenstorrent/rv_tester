@@ -71,6 +71,8 @@ class whisperClient {
 
     whisperClient(cvm::topology::loc_t loc, unsigned);
 
+    void configure();
+
     ~whisperClient() {
       if (traceFile_ != nullptr) {
         fclose(traceFile_);

@@ -16,6 +16,8 @@ class nmi_sequence {
     nmi_sequence(cvm::topology::loc_t loc, unsigned id);
     ~nmi_sequence();
 
+    void configure();
+
   private:
 
     void random_mode_thread();

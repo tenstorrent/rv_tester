@@ -10,9 +10,14 @@ dma::dma(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t l
   : subdevice(tag, addr, 0x2000, loc),io_coh_helper_ptr_(io_coh_helper_ptr), m_(m_)
 {
   iommu_tr_req_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.IOMMU_AXI_TR_REQ_MST", 0);
+  cvm::log(cvm::HIGH, "[dma] iommu_tr_req_loc_ : {} \n",iommu_tr_req_loc_);
+}
+
+void dma::configure()
+{
+  subdevice::configure();
   wresp_channel = cvm::registry::messenger.channel<axi::b_t>(iommu_tr_req_loc_);
   rresp_channel = cvm::registry::messenger.channel<axi::r_t>(iommu_tr_req_loc_);
-  cvm::log(cvm::HIGH, "[dma] iommu_tr_req_loc_ : {} \n",iommu_tr_req_loc_);
 }
 
 dma::~dma()
