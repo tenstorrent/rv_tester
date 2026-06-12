@@ -106,9 +106,13 @@ def generate_axi_interfaces(name, transactions, topology, package, visibility = 
         **kwargs,
     )
 
+    # The .svh output (axi_defines.svh) is a macro-define header. Plumb it
+    # through verilog_library.hdrs (not srcs) so the rules_hdl_compat shim
+    # adds its directory to the include search path while keeping it off the
+    # Verilator command line as a top-level compile unit.
     verilog_library(
         name = name + "_sv",
-        srcs = [":" + name],
+        hdrs = [sv_output],
         deps = [
             "//third_party/axi:typedef",
         ],

@@ -10,5 +10,10 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 verilog_library(
     name = "typedef",
     hdrs = ["typedef.svh"],
+    # `\`include "axi/typedef.svh"` callers expect the include search path to
+    # be one level up (i.e. third_party/), with the "axi/" segment supplied by
+    # the include directive itself. strip_include_prefix tells the
+    # rules_hdl_compat shim to set up the `-I` flag accordingly.
+    strip_include_prefix = "axi",
     visibility = ["//visibility:public"],
 )

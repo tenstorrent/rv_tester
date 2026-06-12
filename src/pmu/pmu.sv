@@ -200,8 +200,8 @@ import pmu_core_pkg::*;
 
     `include "gen_core_defines.sv"
     `include "gen_sc_defines.sv"
-    `include "gen_core_events.sv"
-    `include "gen_sc_events.sv"
+    `include "gen_core_events.svh"
+    `include "gen_sc_events.svh"
 
 
     assign hpmcounters_cores[0].valid            = !reset  && ((|mhpm_write) || (terminate^terminate_1T)) && perf_enabled;
