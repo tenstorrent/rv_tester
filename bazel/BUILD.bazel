@@ -1,1 +1,3 @@
 # Marks bazel/ as a package so //bazel:*.bzl files can be loaded.
+
+exports_files(["requirements.txt"])
