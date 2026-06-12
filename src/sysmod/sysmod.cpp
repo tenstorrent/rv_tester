@@ -500,7 +500,6 @@ sysmod::actual_test_started(rv_tester::test_started) {
 void
 sysmod::reset() {
   compose();
-  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   load_debugrom(FLAGS_debugrom_path);
@@ -708,6 +707,10 @@ sysmod::compose() {
         cvm::log(cvm::ERROR, "Error: [sysmod] unknown sysmod type {} \n", type);
       }
 
+      cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(
+          loc_,
+          [&](rv_tester_transactions::cosim::m_rvfi<> i) { return this->load_prog_easy(i); });
+
       if (device) {
         if (auto* r = dynamic_cast<mmr_txn_router*>(device.get()))
           r->configure();
@@ -869,6 +872,15 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
   }
 
   cvm::log(cvm::ERROR, "Error: [sysmod] No memory found\n");
+}
+
+void
+sysmod::load_prog_easy(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
+  if (m_rvfi.init_jalr_seen && !prog_loaded) {
+    cvm::log(cvm::MEDIUM, "Exec load_prog_easy {}\n", m_rvfi.cycle);
+    load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
+    prog_loaded = true;
+  }
 }
 
 void

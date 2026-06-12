@@ -20,6 +20,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(cosim, true, "Enable cosim checking");
+DEFINE_bool(r, false, "Reset Bridge on magic instruction, aligns with VCS -r switch");
 DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_uint64(debug_entry_pc_offset, 0x800, "Debug Mode entry PC");
@@ -206,6 +207,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   trap_addr_ = 0;
   pc_error_ = false;
   mem_error_ = false;
+
+  // Save/Restore signalling
+  // TODO: Save PC, call bridge::reset() with PC value to pass to the new Whisper run?
+  if (FLAGS_cosim && FLAGS_r && m_rvfi.init_jalr_seen && !whisper_reloaded) {
+    cvm::log(cvm::MEDIUM, "Restore Bridge Reset\n");
+    cvm::log(cvm::MEDIUM, "Paddr = {:#x}, Raddr = {:#x}, Waddr = {:#x}\n", m_rvfi.pc_paddr, m_rvfi.pc_rdata, m_rvfi.pc_wdata);
+    bridge_->reset(m_rvfi.pc_rdata + 4);
+    whisper_reloaded = true;
+  }
+  auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+  cvm::registry::messenger.signal(sysmod_loc, m_rvfi);
 
   // RVDE-24355: Clean up conservative mode memory errors when vec_cmode_ is cleared
   if (!vec_cmode_ && !vec_cmode_mem_errors_.empty()) {

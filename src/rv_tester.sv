@@ -414,7 +414,8 @@ module rv_tester
 
         automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
-        if (rv_tester_reset) begin
+        // rvt_reload causes error
+        if (rv_tester_reset || rvt_reload) begin
 
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
@@ -426,14 +427,16 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
-            if(num_builds < 0) begin
-               $display("[RVTESTER]: constructing Full registry");
-               rv_tester_build_registry();
-               num_builds <= 0;
-            end
-            else begin
-               $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
-               rv_tester_domain0_build_registry();
+            if (rv_tester_reset) begin
+               if(num_builds < 0) begin
+                  $display("[RVTESTER]: constructing Full registry");
+                  rv_tester_build_registry();
+                  num_builds <= 0;
+               end
+               else begin
+                  $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
+                  rv_tester_domain0_build_registry();
+               end
             end
             rv_tester_parse_memmap(NoAddrRules, 0, 0, 0, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ADDR_WIDTH, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].DATA_WIDTH);
 

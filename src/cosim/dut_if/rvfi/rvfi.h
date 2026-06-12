@@ -150,4 +150,5 @@ class rvfi {
 
     bool terminated_ = false;
     bool in_debug_mode_ = false;
+    bool whisper_reloaded = false;
 };
