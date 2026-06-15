@@ -24,6 +24,10 @@ sh_test(
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=1",
+        # The verilator main loop reads +max_cycles= directly (cvm's gflags
+        # parser would reject the unknown flag without an undefok regex).
+        "+max_cycles=200000",
+        "+undefok_regexp=max_cycles",
     ],
     data = [
         "//test/sw_testbench:sw_1c_tb_verilator",
@@ -45,6 +49,8 @@ sh_test(
         "+eot=max_instr",
         "+max_instr=2",
         "+num_harts=2",
+        "+max_cycles=200000",
+        "+undefok_regexp=max_cycles",
     ],
     data = [
         "//test/sw_testbench:sw_2c_tb_verilator",
