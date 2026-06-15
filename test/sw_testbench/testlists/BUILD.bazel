@@ -17,7 +17,7 @@ sh_test(
     name = "infinite_1c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
-        "$(location //test/sw_testbench:sw_1c_tb_verilator)",
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
         "$(location :infinite.elf)",
         "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
         "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
@@ -30,7 +30,7 @@ sh_test(
         "+undefok_regexp=max_cycles",
     ],
     data = [
-        "//test/sw_testbench:sw_1c_tb_verilator",
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
         "//test/sw_testbench:memmap.json",
         "//test/sw_testbench:whisper.json",
         ":infinite.elf",
@@ -41,7 +41,7 @@ sh_test(
     name = "infinite_2c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
-        "$(location //test/sw_testbench:sw_2c_tb_verilator)",
+        "$(location //test/sw_testbench/verilator:sw_2c_tb_verilator)",
         "$(location :infinite.elf)",
         "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
         "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
@@ -53,7 +53,7 @@ sh_test(
         "+undefok_regexp=max_cycles",
     ],
     data = [
-        "//test/sw_testbench:sw_2c_tb_verilator",
+        "//test/sw_testbench/verilator:sw_2c_tb_verilator",
         "//test/sw_testbench:memmap.json",
         "//test/sw_testbench:whisper.json",
         ":infinite.elf",

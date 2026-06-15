@@ -1,0 +1,65 @@
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+
+# Verilator-side of the sw_testbench. Split out so the parent
+# //test/sw_testbench package (which exercises rv_tester_gen + topology_gen)
+# doesn't load @rules_verilator and stays buildable under Bazel-6 WORKSPACE
+# mode. Source files (dpi.cpp, gflags.cpp, sw_tb.cpp, top.sv,
+# harness_undefines.sv) stay in the parent dir and are referenced here via
+# the parent's exports_files block.
+
+verilator_defines = [
+    "+define+DMI_TB_WRITES_UNSUPPORTED",
+    "+define+TRACE_CHECKS_UNSUPPORTED",
+    # Required for the verilator path — top.sv / delay-resp testbench gate
+    # their clkgen instantiation on this. Verilator can't simulate the `#(...)`
+    # delay-driven oscillator in rv_tester_clkgen.sv without --timing.
+    "+define+TB_EXTERNAL_CLOCK",
+    "--default-language",
+    "1800-2017",
+]
+
+harnesses = ["sw_1c", "sw_2c"]
+
+[
+    [
+        # Replaces bzsim's verilog_dpi_library macro (which was just cc_library
+        # + alwayslink + svdpi). svdpi comes via @rules_verilator's runtime.
+        cc_library(
+            name = name + "_dpi",
+            srcs = [
+                "//test/sw_testbench:dpi.cpp",
+                "//test/sw_testbench:gflags.cpp",
+            ],
+            deps = [
+                "//test/sw_testbench:" + name + "_rv_tester_dpi",
+                "@cvm//:plusargs",
+                "@rules_verilator//verilator:verilated_runtime",
+            ],
+            alwayslink = True,
+            linkstatic = True,
+        ),
+
+        # Replaces bzsim's verilog_unit macro (which produced verilator views,
+        # lint targets, multi-simulator binaries). Verilator-only flat shape.
+        # No `timing = True` — verilator_defines passes +define+TB_EXTERNAL_CLOCK
+        # which gates out the `forever #(...)` oscillator in rv_tester_clkgen.sv.
+        verilator_cc_library(
+            name = name + "_tb_veri_lib",
+            module = "//test/sw_testbench:" + name + "_top",
+            vopts = verilator_defines,
+        ),
+
+        cc_binary(
+            name = name + "_tb_verilator",
+            srcs = ["//test/sw_testbench:sw_tb.cpp"],
+            deps = [
+                ":" + name + "_tb_veri_lib",
+                ":" + name + "_dpi",
+                "@cvm//:logger",
+                "@cvm//:topology",
+            ],
+            visibility = ["//visibility:public"],
+        ),
+    ]
+    for name in harnesses
+]

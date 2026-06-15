@@ -1,23 +1,22 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
-load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
+load("@cvm//:defs.bzl", "topology_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 
+# Files referenced from the verilator sub-package and from testlists/.
 exports_files(
-    ["pulp_platform_verilator_waiver.vlt", "memmap.json", "whisper.json"],
+    [
+        "dpi.cpp",
+        "gflags.cpp",
+        "harness_undefines.sv",
+        "memmap.json",
+        "pulp_platform_verilator_waiver.vlt",
+        "sw_tb.cpp",
+        "sw_testbench_vcs_waiver.config",
+        "top.sv",
+        "whisper.json",
+    ],
     visibility = ["//visibility:public"],
 )
-
-verilator_defines = [
-    "+define+DMI_TB_WRITES_UNSUPPORTED",
-    "+define+TRACE_CHECKS_UNSUPPORTED",
-    # Required for the verilator path — top.sv / delay-resp testbench gate
-    # their clkgen instantiation on this. Verilator can't simulate the `#(...)`
-    # delay-driven oscillator in rv_tester_clkgen.sv without --timing.
-    "+define+TB_EXTERNAL_CLOCK",
-    "--default-language",
-    "1800-2017",
-]
 
 harnesses = ["sw_1c", "sw_2c"]
 
@@ -32,20 +31,6 @@ filegroup(
             name = name + "_harness_define",
             outs = [name + "_harness_defines.sv"],
             cmd = "echo '`define HARNESS {}' > $@".format(name.upper()),
-        ),
-
-        # Replaces bzsim's verilog_dpi_library macro (which was just cc_library
-        # + alwayslink + svdpi). svdpi comes via @rules_verilator's runtime.
-        cc_library(
-            name = name + "_dpi",
-            srcs = ["dpi.cpp", "gflags.cpp"],
-            deps = [
-                name + "_rv_tester_dpi",
-                "@cvm//:plusargs",
-                "@rules_verilator//verilator:verilated_runtime",
-            ],
-            alwayslink = True,
-            linkstatic = True,
         ),
 
         topology_gen(
@@ -70,6 +55,7 @@ filegroup(
                 "alwayslink": True,
                 "linkstatic": True,
             },
+            visibility = ["//test/sw_testbench/verilator:__pkg__"],
         ),
 
         verilog_library(
@@ -81,48 +67,11 @@ filegroup(
             ],
             deps = [name + "_rv_tester_sv"],
             top_module = "top",
-        ),
-
-        # Replaces bzsim's verilog_unit macro (which produced verilator views,
-        # lint targets, multi-simulator binaries). Verilator-only flat shape.
-        # No `timing = True` — verilator_defines passes +define+TB_EXTERNAL_CLOCK
-        # which gates out the `forever #(...)` oscillator in rv_tester_clkgen.sv.
-        verilator_cc_library(
-            name = name + "_tb_veri_lib",
-            module = ":" + name + "_top",
-            vopts = verilator_defines,
-        ),
-
-        cc_binary(
-            name = name + "_tb_verilator",
-            srcs = ["sw_tb.cpp"],
-            deps = [
-                ":" + name + "_tb_veri_lib",
-                ":" + name + "_dpi",
-                "@cvm//:logger",
-                "@cvm//:topology",
-            ],
-            visibility = ["//visibility:public"],
+            visibility = ["//test/sw_testbench/verilator:__pkg__"],
         ),
     ]
     for name in harnesses
 ]
-
-# Composite smoke target that drives the per-testlist test_suites.
-test_suite(
-    name = "all_smoke",
-    tests = [
-        "//test/sw_testbench/testlists:all_smoke",
-        "//src/transactors/axi_sw/test/testlists:all_smoke",
-        # TODO(open-source): rv_tester_delay_resp_tb_top.sv uses bare `#100`
-        # delays which Verilator only honours under --timing. Either enable
-        # `timing = True` on the delay-resp verilog_unit (and accept the
-        # runtime cost) or rewrite the testbench to drive its delays via the
-        # clk_int_div helper used elsewhere in rv_tester.
-        # "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
-    ],
-    visibility = ["//visibility:public"],
-)
 
 filegroup(
     name = "whisper_json",
@@ -135,5 +84,3 @@ filegroup(
     srcs = ["memmap.json"],
     visibility = ["//visibility:public"],
 )
-
-exports_files(["sw_tb.cpp"])

@@ -4,11 +4,11 @@ sh_test(
     name = "axi_sw_tb_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
-        "$(location //src/transactors/axi_sw/test:axi_sw_tb_verilator)",
+        "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
         "",  # No per-test elf for the axi_sw transactor smoke.
     ],
     data = [
-        "//src/transactors/axi_sw/test:axi_sw_tb_verilator",
+        "//test/transactors/axi_sw:axi_sw_tb_verilator",
     ],
     tags = ["no-valgrind"],
 )
