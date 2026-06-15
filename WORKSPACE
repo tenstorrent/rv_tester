@@ -11,7 +11,7 @@ local_repository(
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()
 
-load("//:repositories.bzl", "rv_tester_repositories")
+load("//bazel:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
 load("//infra/bazel:opensrc_repositories.bzl", "opensrc_repositories")
@@ -20,7 +20,7 @@ opensrc_repositories()
 load("@whisper//:deps.bzl", "whisper_dependencies")
 whisper_dependencies()
 
-load("//:repositories2.bzl", "rv_tester_repositories2")
+load("//bazel:repositories2.bzl", "rv_tester_repositories2")
 rv_tester_repositories2()
 
 load("//infra/bazel:dependencies.bzl", "rv_tester_dependencies")

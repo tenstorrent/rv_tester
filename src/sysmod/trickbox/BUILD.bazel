@@ -1,0 +1,112 @@
+cc_library(
+    name = "interrupter_cc",
+    hdrs = [
+        "subdevice.h",
+        "interrupter.h",
+    ],
+    deps = [
+        "//src/sysmod:device",
+        "@rv_tester//src/sysmod:sysmod_plusargs",
+        "@rv_tester//src/cosim/bridge:bridge_plusargs",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:registry",
+        "@cvm//:logger",
+    ],
+    strip_include_prefix = ".",
+    include_prefix = "trickbox",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "ras_helper_cc",
+    srcs = [
+      "ras_helper.h",
+    ],
+    hdrs = [
+      "subdevice.h",
+      "interrupter.h",
+      "debugger.h",
+      "evt_trigger.h",
+      "uc_helper.h",
+      "io_coh_helper.h",
+      "ras_helper.h",
+      "post_si_pcietc_helper.h",
+      "trickbox.h",
+    ],
+    deps = [
+             "//src/common:common",
+             "//src/sysmod:device",
+             "//src/cosim/whisper_if:whisper_if",
+             "@rv_tester//src/sysmod:sysmod_plusargs",
+             "@rv_tester//src/cosim/bridge:bridge_plusargs",
+             "@rv_tester//src/cosim/dut_if/rvfi:rvfi_plusargs",
+             "@rv_tester//src/common:transactor",
+             "@rv_tester//src:structs",
+             "@rv_tester//src:plusargs",
+             "@rv_tester//src:device_handler",
+             "@cvm//:plusargs",
+             "@cvm//:random",
+             "@cvm//:logger",
+             "@cvm//:registry",
+             "@mem_manager//:mem_manager",
+             "@cvm//:bitmanip",
+             "@cvm//:topology",
+           ],
+    strip_include_prefix = ".",
+    include_prefix = "trickbox",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "trickbox",
+    srcs = [
+      "interrupter.cpp",
+      "debugger.cpp",
+      "evt_trigger.cpp",
+      "uc_helper.cpp",
+      "io_coh_helper.cpp",
+      "ras_helper.cpp",
+      "dma.cpp",
+      "post_si_pcietc_helper.cpp",
+      "trickbox.cpp"
+    ],
+    hdrs = [
+      "subdevice.h",
+      "interrupter.h",
+      "debugger.h",
+      "evt_trigger.h",
+      "uc_helper.h",
+      "io_coh_helper.h",
+      "ras_helper.h",
+      "dma.h",
+      "post_si_pcietc_helper.h",
+      "trickbox.h"
+    ],
+    deps = [
+             "//src/transactors/axi_sw:axi_sw_h",
+             "//src/common:common",
+             "//src/sysmod:device",
+             "//src/cosim/whisper_if:whisper_if",
+             "@rv_tester//src/sysmod:sysmod_plusargs",
+             "@rv_tester//src/cosim/bridge:bridge_plusargs",
+             "@rv_tester//src/common:transactor",
+             "@rv_tester//src:structs",
+             "@rv_tester//src:plusargs",
+             "@rv_tester//src:device_handler",
+             "@cvm//:plusargs",
+             "@cvm//:random",
+             "@cvm//:logger",
+             "@cvm//:registry",
+             "@mem_manager//:mem_manager",
+             "@cvm//:bitmanip",
+             "@cvm//:topology",
+           ],
+    strip_include_prefix = ".",
+    include_prefix = "trickbox",
+    visibility = ["//visibility:public"],
+)
+
+ 
+exports_files(["ras_helper.h", "trickbox/interrupter.h"])
+

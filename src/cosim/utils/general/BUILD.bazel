@@ -1,0 +1,10 @@
+exports_files(["util.cc", "util.h"])
+cc_library(
+    name     = "util",
+    hdrs     = glob(["*.h"]),
+    srcs     = glob(["*.cc", "*.cpp", "*.h"]),
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+    include_prefix = "cosim/utils",
+)
+

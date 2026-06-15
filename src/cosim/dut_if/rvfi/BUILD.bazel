@@ -1,0 +1,12 @@
+exports_files(["rvfi.cpp", "rvfi.h"])
+
+cc_library(
+    name = "rvfi_plusargs",
+    strip_include_prefix = ".",
+    hdrs = ["rvfi_plusargs.h"],
+    deps = ["@cvm//:plusargs",
+            "@rv_tester//src/cosim/bridge:bridge_plusargs",
+            ],
+
+    visibility = ["//visibility:public"],
+)

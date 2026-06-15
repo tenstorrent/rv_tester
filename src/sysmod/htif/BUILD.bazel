@@ -1,0 +1,17 @@
+cc_library(
+  name = "htif",
+  strip_include_prefix = ".",
+  include_prefix = "htif",
+  srcs = ["htif.cpp"],
+  hdrs = ["htif.h"],
+  deps = [
+      "//src/sysmod:device",
+      "//src/cosim/utils/eot:eot_plusargs",
+      "@cvm//:plusargs",
+      "@cvm//:topology",
+      "@cvm//:registry",
+      "@cvm//:logger",
+    ],
+  visibility = ["//visibility:public"],
+  linkopts = ["-lutil"],
+)

@@ -1,0 +1,14 @@
+cc_library(
+    name = "io_dev",
+    strip_include_prefix = ".",
+    include_prefix = "io_dev",
+    srcs = ["io_dev.cpp"],
+    hdrs = ["io_dev.h"],
+    deps = [
+        "//src/sysmod:device",
+        "@mem_manager//:mem_manager",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

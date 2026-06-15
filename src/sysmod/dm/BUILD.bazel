@@ -1,0 +1,18 @@
+cc_library(
+    name = "dm",
+    strip_include_prefix = ".",
+    include_prefix = "dm",
+    srcs = ["dm.cpp"],
+    hdrs = [ "dm.h", ],
+    deps = [
+        "//src/transactors/axi_sw:axi_sw_h",
+        "//src/sysmod:device",
+        "@mem_manager//:mem_manager",
+        "@rv_tester//src/common:common",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

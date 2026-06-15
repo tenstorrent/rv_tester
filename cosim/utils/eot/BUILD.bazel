@@ -1,9 +1,0 @@
-exports_files(["eot.cpp", "eot.h"])
-
-cc_library(
-    name = "eot_plusargs",
-    hdrs = ["eot_plusargs.h"],
-    deps = ["@cvm//:plusargs"],
-
-    visibility = ["//visibility:public"],
-)

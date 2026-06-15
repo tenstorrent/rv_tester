@@ -1,0 +1,22 @@
+exports_files(["eot.cpp", "eot.h"])
+
+cc_library(
+    name = "eot_plusargs",
+    strip_include_prefix = ".",
+    hdrs = ["eot_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+
+    visibility = ["//visibility:public"],
+)
+cc_library(
+    name = "eot",
+    strip_include_prefix = ".",
+    srcs = ["eot.cpp"],
+    hdrs = ["eot.h"],
+    deps = [
+        "@CoreArchChecker//src:cac_lib",
+        "//src/common/device_address_map:device_address_map",
+    ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,13 @@
+cc_library(
+    name = "null_dev",
+    strip_include_prefix = ".",
+    include_prefix = "null_dev",
+    srcs = ["null_dev.cpp"],
+    hdrs = ["null_dev.h"],
+    deps = [
+        "//src/sysmod:device",
+        "//src/transactors/axi_sw:axi_sw_h",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

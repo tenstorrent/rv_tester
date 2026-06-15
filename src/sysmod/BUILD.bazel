@@ -1,0 +1,39 @@
+cc_library(
+    name = "device",
+    strip_include_prefix = ".",
+    include_prefix = "sysmod",
+    srcs = ["@rv_tester//src/sysmod:device.cpp"],
+    hdrs = ["@rv_tester//src/sysmod:device.h",
+            "@rv_tester//src/sysmod:io_device.h",
+            "@rv_tester//src/sysmod:pm_common.h"],
+    deps = [
+        "@cvm//:topology",
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+        "@cvm//:messenger",
+        "@rv_tester//src/common:common",
+        "@rv_tester//src/common:transactor",
+        "//src/sysmod:sysmod_plusargs"
+    ],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "sysmod_plusargs",
+    hdrs = ["sysmod_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+
+exports_files(glob(["sysmod.*", "device.*", "pm_common.*","sysmod_params.hpp", "sysmod_rpc.h"]))
+
+cc_library(
+    name       = "sysmod_params",
+    hdrs       = [ "sysmod_params.hpp", "sysmod_rpc.h", "device.h" ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
