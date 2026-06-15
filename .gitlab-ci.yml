@@ -31,14 +31,15 @@ lint:
 
 build-bazel6-top:
     # Downstream consumers still run Bazel 6 + WORKSPACE; verify the top
-    # //:all targets they import still build. The testbench BUILDs under
-    # sw_testbench/ etc. load @rules_verilator (bzlmod-only) and aren't part
-    # of this surface.
+    # //src:all targets they import still build. Sub-packages like
+    # //src/transactors/axi_sw/test load @rules_verilator (bzlmod-only) and
+    # aren't part of this surface — keep the build pattern narrowed to the
+    # top-level //src package only (cvm's downstream-facing pattern).
     stage: test
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel --output_user_root=./bazel_output_user_root_b6 build //:all
+        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all
     after_script:
         - chmod +w -R ./bazel_output_user_root_b6
 
