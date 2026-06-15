@@ -2,13 +2,13 @@ load("@testgen//:defs.bzl", rr_testlist = "testlist")
 
 TESTLISTS = {
     "smoke": {
-        "testlist" : "//sw_testbench/testlists:smoke.py",
+        "testlist" : "//test/sw_testbench/testlists:smoke.py",
     },
     "axi_sw_tb_smoke": {
-        "testlist" : "//transactors/axi_sw/test/testlists:smoke.py",
+        "testlist" : "//src/transactors/axi_sw/test/testlists:smoke.py",
     },
     "rv_tester_delay_resp_tb_smoke": {
-        "testlist" : "//rv_tester_delay_resp_tb/testlists:smoke.py",
+        "testlist" : "//test/rv_tester_delay_resp_tb/testlists:smoke.py",
     },
 }
 

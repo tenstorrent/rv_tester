@@ -1,0 +1,20 @@
+cc_library(
+    name = "mmr_txn_router",
+    strip_include_prefix = ".", 
+    include_prefix = "mmr_txn_router",
+    hdrs = [
+        "mmr_txn_router.h",
+    ],
+    srcs = glob(["mmr_txn_router.cpp"]),
+    deps = [
+        "//src/transactors/axi_sw:axi_sw_h",
+        "//src/sysmod:device",
+        "@mem_manager//:mem_manager",
+        "//src/common:common",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

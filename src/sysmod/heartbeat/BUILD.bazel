@@ -1,0 +1,12 @@
+cc_library(
+    name = "heartbeat",
+    strip_include_prefix = ".", 
+    include_prefix = "heartbeat",
+    srcs = ["heartbeat.cpp"],
+    hdrs = ["heartbeat.h"],
+    deps = [
+        "//src/sysmod:device",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

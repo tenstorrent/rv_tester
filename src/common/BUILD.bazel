@@ -1,0 +1,65 @@
+cc_library(
+    name = "common",
+    srcs = ["remote_bitbang.cc",
+            "SimJTAG.cc"
+    ],
+    hdrs = [
+        "svdpi.h",
+        "axi_seqids.hpp",
+        "transactor.h",
+        "pcg_random.hpp",
+        "pcg_extras.hpp",
+        "pcg_uint128.hpp",
+        "remote_bitbang.h",
+        "memmap.h",
+        "bus_error_list.h",
+    ],
+    deps = [
+        "@opensrc-nlohmann-json//:json",
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@fmt//:fmt",
+        "//src/common:transactor",
+    ],
+    alwayslink = True,
+    linkstatic = True,
+    strip_include_prefix = ".",
+    include_prefix = "common",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "transactor",
+    hdrs = [ "transactor.h", "bus_error_list.h", "axi_seqids.hpp" ],
+    deps = [
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@fmt//:fmt"
+    ],
+    alwayslink = True,
+    linkstatic = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "svdpi",
+    hdrs = ["svdpi.h"],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "parser",
+    hdrs = ["parser.hpp"],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "parser_test",
+    srcs = ["parser_test.cpp"],
+    deps = [":parser"],
+)

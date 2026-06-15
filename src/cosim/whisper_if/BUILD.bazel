@@ -1,0 +1,62 @@
+cc_library(
+    name     = "whisper_if",
+    hdrs     = [
+        "whisper_client.h",
+        "iss_utils.h",
+    ],
+    srcs     = [
+        "whisper_client.cpp",
+    ],
+    deps     = [
+        "//src/common:common",
+        "@whisper//:rvcore",
+        "//src/sysmod:sysmod_plusargs",
+        "//src/cosim/dut_if/rvfi:rvfi_plusargs",
+        "//src/cosim/bridge:bridge_plusargs",
+        "//src/cosim/utils/eot:eot_plusargs",
+        "//src/cosim/utils/general:util",
+        "@rv_tester//src/cosim/whisper_if:whisper_decoder",
+        "//src:plusargs",
+        "//src:structs",
+        "@cvm//:registry",
+        "@cvm//:messenger",
+       "@opensrc-nlohmann-json//:json",
+    ] + select({
+        "//src:use_bzlmod": ["@boost.program_options"],
+        "//conditions:default": [],
+    }),
+    alwayslink = True,
+    linkopts = ["-lrt"] + select({
+        "//src:use_bzlmod": [],
+        "//conditions:default": ["-lboost_program_options"],
+    }),
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+    local_defines = ["LZ4_COMPRESS"],
+)
+
+cc_library(
+    name     = "whisper_decoder",
+    hdrs     = [
+        "whisper_decoder.h",
+    ],
+    srcs     = [
+        "whisper_decoder.cpp",
+    ],
+    deps     = [
+        "//src/common:common",
+        "@whisper//:rvcore",
+    ],
+    alwayslink = True,
+    linkopts = ["-lrt"],
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+
+cc_library(
+    name    = "whisper_client_plusargs",
+    hdrs    = ["whisper_client_plusargs.h"],
+    deps    = ["@cvm//:plusargs"],
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)

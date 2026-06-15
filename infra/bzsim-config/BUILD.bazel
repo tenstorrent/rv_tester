@@ -7,13 +7,13 @@ runtime_library(
     name = "runtime",
     simtest_data = [
         "@whisper//:whisper",
-        "//sw_testbench:whisper_json",
-        "//sw_testbench:memmap_json"
+        "//test/sw_testbench:whisper_json",
+        "//test/sw_testbench:memmap_json"
     ],
     plusargs_paths = {
         "whisper_path"      : "whisper/whisper",
-        "whisper_json_path" : "rv_tester/sw_testbench/whisper.json",
-        "memmap_json_path"  : "rv_tester/sw_testbench/memmap.json"
+        "whisper_json_path" : "rv_tester/test/sw_testbench/whisper.json",
+        "memmap_json_path"  : "rv_tester/test/sw_testbench/memmap.json"
     },
     visibility = ["//visibility:public"],
 )

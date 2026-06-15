@@ -1,0 +1,17 @@
+cc_library(
+    name = "clint",
+    strip_include_prefix = ".",
+    include_prefix = "clint",
+    srcs = ["clint.cpp"],
+    hdrs = ["clint.h"],
+    deps = [
+      "//src/sysmod:device",
+      "@cvm//:registry",
+      "@cvm//:plusargs",
+      "@cvm//:logger",
+    ] + select({
+        "//src:use_bzlmod": ["@boost.algorithm"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,24 @@
+exports_files(["pmu.cpp", "pmu.hpp", "pmu.sv"])
+
+py_binary(
+    name = "pmu_gen",
+    srcs = ["pmu_gen.py"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "pmu_spec",
+    srcs = [
+        "core_pmc_spec.csv",
+        "sharedcache_pmc_spec.csv",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "pmu_plusargs",
+    strip_include_prefix = "/src",
+    hdrs = ["pmu_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+    visibility = ["//visibility:public"],
+)

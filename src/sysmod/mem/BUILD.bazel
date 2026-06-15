@@ -1,0 +1,12 @@
+cc_library(
+    name = "mem",
+    strip_include_prefix = ".",
+    include_prefix = "mem",
+    srcs = ["sysmod_mem.cpp"],
+    hdrs = ["sysmod_mem.h"],
+    deps = [
+        "//src/sysmod:device",
+        "@mem_manager//:mem_manager",
+    ],
+    visibility = ["//visibility:public"],
+)
