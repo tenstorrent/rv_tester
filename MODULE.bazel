@@ -37,12 +37,6 @@ local_path_override(module_name = "cvm", path = "..")
 bazel_dep(name = "rules_hdl", version = "0.0.0")
 local_path_override(module_name = "rules_hdl", path = "../bazel/rules_hdl_compat")
 
-# Fail-on-call stub so @whisper's BUILD `load("@pybind11_bazel//:build_defs.bzl", ...)`
-# resolves. The pybind targets aren't reached on the smoke path. TODO(open-source):
-# drop once whisper has a public bzlmod-friendly fork.
-bazel_dep(name = "pybind11_bazel", version = "0.0.0")
-local_path_override(module_name = "pybind11_bazel", path = "third_party/pybind11_bazel_stub")
-
 # Python toolchain - use Python 3.9 to match deps requirements
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -59,16 +53,27 @@ pip.parse(
 )
 use_repo(pip, "rv_tester_pypi")
 
-# Remaining externals still come from aus-gitlab. The declarations live in
-# //bazel:external_deps.bzl so they're shared with WORKSPACE-mode (Bazel-6).
-# TODO(open-source): mirror each to a public source (tenstorrent/whisper for
-# the RISC-V ISS; nlohmann/json from BCR for the JSON parser) and re-publish
-# the rest of the Tenstorrent-owned forks before this repo can build offline.
+# @whisper has its own MODULE.bazel (declares pybind11_bazel / boost / lz4 /
+# zlib transitive deps via BCR). Use bazel_dep + git_override so bzlmod
+# processes those declarations — that's how @whisper'\''s BUILD load of
+# @pybind11_bazel//:build_defs.bzl resolves without a top-level shim.
+bazel_dep(name = "whisper", version = "0.0.0")
+git_override(
+    module_name = "whisper",
+    commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
+    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
+)
+
+# Remaining externals don't have their own MODULE.bazel. Declarations live
+# in //bazel:external_deps.bzl so they're shared with WORKSPACE-mode
+# (Bazel-6). TODO(open-source): mirror each to a public source
+# (tenstorrent/whisper for the RISC-V ISS; nlohmann/json from BCR for the
+# JSON parser) and re-publish the rest of the Tenstorrent-owned forks
+# before this repo can build offline.
 rv_tester_external = use_extension("//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
 use_repo(
     rv_tester_external,
     "CoreArchChecker",
     "mem_manager",
-    "whisper",
     "opensrc-nlohmann-json",
 )

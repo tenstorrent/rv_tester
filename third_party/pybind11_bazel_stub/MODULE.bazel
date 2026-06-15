@@ -1,1 +1,0 @@
-module(name = "pybind11_bazel", version = "0.0.0")

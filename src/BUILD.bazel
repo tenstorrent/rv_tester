@@ -40,9 +40,8 @@ verilog_library(
 bool_flag(
     name = "cosim",
     # TODO(open-source): default flipped to False so cosim_gen doesn't pull
-    # @whisper (RISC-V ISS) which transitively requires @pybind11_bazel and
-    # other deps we haven't wired up yet. Re-enable via --//src:cosim=True once
-    # whisper has a usable public mirror.
+    # @whisper (RISC-V ISS) on the smoke path. Re-enable via --//src:cosim=True
+    # once whisper has a usable public mirror.
     build_setting_default = False,
     visibility = ["//visibility:public"],
 )

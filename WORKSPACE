@@ -1,6 +1,7 @@
 workspace(name = "rv_tester")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 # cvm is the parent directory (on-disk layout: cvm/rv_tester/).
 local_repository(
@@ -25,19 +26,25 @@ http_archive(
     strip_prefix = "bazel_rules_verilog-1.1.0",
 )
 
-# Fail-on-call pybind11_bazel stub so @whisper's BUILD load resolves under
-# WORKSPACE-mode (mirrors the bzlmod local_path_override in MODULE.bazel).
-local_repository(
-    name = "pybind11_bazel",
-    path = "third_party/pybind11_bazel_stub",
-)
-
 # Shared with bzlmod via //bazel:external_deps_ext.bzl. Declares the
-# aus-gitlab repos (CoreArchChecker, mem_manager, whisper,
-# opensrc-nlohmann-json) so Bazel-6 WORKSPACE-mode resolves the same set
-# bzlmod does.
+# aus-gitlab repos (CoreArchChecker, mem_manager, opensrc-nlohmann-json)
+# so Bazel-6 WORKSPACE-mode resolves the same set bzlmod does.
 load("//bazel:external_deps.bzl", "rv_tester_external_deps")
 rv_tester_external_deps()
+
+# @whisper has its own MODULE.bazel + deps.bzl. Bzlmod takes it via
+# bazel_dep + git_override in MODULE.bazel (which processes the
+# MODULE.bazel and pulls @pybind11_bazel + boost.* from BCR); WORKSPACE
+# declares it here directly and chains whisper_dependencies() to pull
+# @pybind11_bazel + @pybind11 from github via http_archive.
+git_repository(
+    name = "whisper",
+    commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
+    shallow_since = "1656867071 -0400",
+    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
+)
+load("@whisper//:deps.bzl", "whisper_dependencies")
+whisper_dependencies()
 
 # Chain into cvm's own WORKSPACE-mode deps wiring (googletest, fmt, gflags, etc.).
 load("@cvm//deps:repositories.bzl", "cvm_dependencies")
