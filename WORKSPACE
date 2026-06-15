@@ -25,6 +25,20 @@ http_archive(
     strip_prefix = "bazel_rules_verilog-1.1.0",
 )
 
+# Fail-on-call pybind11_bazel stub so @whisper's BUILD load resolves under
+# WORKSPACE-mode (mirrors the bzlmod local_path_override in MODULE.bazel).
+local_repository(
+    name = "pybind11_bazel",
+    path = "third_party/pybind11_bazel_stub",
+)
+
+# Shared with bzlmod via //bazel:external_deps_ext.bzl. Declares the
+# aus-gitlab repos (CoreArchChecker, mem_manager, whisper,
+# opensrc-nlohmann-json) so Bazel-6 WORKSPACE-mode resolves the same set
+# bzlmod does.
+load("//bazel:external_deps.bzl", "rv_tester_external_deps")
+rv_tester_external_deps()
+
 # Chain into cvm's own WORKSPACE-mode deps wiring (googletest, fmt, gflags, etc.).
 load("@cvm//deps:repositories.bzl", "cvm_dependencies")
 cvm_dependencies()
@@ -35,10 +49,13 @@ cvm_toolchains1()
 load("@cvm//deps:toolchains2.bzl", "cvm_toolchains2")
 cvm_toolchains2()
 
-# TODO(open-source): the rest of rv_tester's transitive deps (whisper,
-# mem_manager, CoreArchChecker, opensrc-axi, opensrc-axi_llc,
-# opensrc-tech_cells_generic, opensrc-nlohmann-json, testgen) used to come
-# from repositories.bzl / repositories2.bzl / infra/bazel/*. Until they're
-# re-pointed at public mirrors, Bazel-6 WORKSPACE-mode builds of any target
-# below the smoke path (rv_tester_gen, cosim, sysmod, pmu, ...) will fail to
-# load.
+# Wire up @rv_tester_pypi via pip_parse so axi_sw's gen_axi_interfaces
+# py_binary (and any other py_binary that uses pyyaml) resolves the same
+# package set the bzlmod pip.parse declares in MODULE.bazel.
+load("@rules_python//python:pip.bzl", "pip_parse")
+pip_parse(
+    name = "rv_tester_pypi",
+    requirements_lock = "//bazel:requirements.txt",
+)
+load("@rv_tester_pypi//:requirements.bzl", "install_deps")
+install_deps()

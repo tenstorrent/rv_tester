@@ -1,3 +1,5 @@
+load("@rv_tester_pypi//:requirements.bzl", "requirement")
+
 py_binary(
     name = "axi_sw_attrs",
     srcs = ["axi_sw_attrs.py"],
@@ -74,7 +76,7 @@ py_binary(
     srcs = ["gen_axi_interfaces.py"],
     deps = [
         "@rules_python//python/runfiles",
-        "@rv_tester_pypi//pyyaml",
+        requirement("pyyaml"),
     ],
     visibility = ["//visibility:public"],
 )

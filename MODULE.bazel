@@ -59,36 +59,16 @@ pip.parse(
 )
 use_repo(pip, "rv_tester_pypi")
 
-# Remaining externals still come from aus-gitlab. TODO(open-source): mirror
-# each to a public source (tenstorrent/whisper for the RISC-V ISS;
-# nlohmann/json from BCR for the JSON parser) and re-publish the rest of the
-# Tenstorrent-owned forks before this repo can build offline.
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-
-http_archive(
-    name = "CoreArchChecker",
-    sha256 = "cf897b3945d6aafe3a00831bf33adf004f3e1821020aab806ccc27c601ebf311",
-    strip_prefix = "CoreArchChecker-d1d38af45ebddf8aa54a510b2b62196f19555109",
-    url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/d1d38af45ebddf8aa54a510b2b62196f19555109/CoreArchChecker-d1d38af45ebddf8aa54a510b2b62196f19555109.tar.bz2",
-)
-
-http_archive(
-    name = "mem_manager",
-    sha256 = "fc1d138f26405bac05f039a945fb004fc081ea49c16aa7553d9e1b0b49a4d338",
-    strip_prefix = "mem-manager-585efffd1a79f43388339c193cdae420f32acad4",
-    url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/585efffd1a79f43388339c193cdae420f32acad4/mem-manager-585efffd1a79f43388339c193cdae420f32acad4.tar.bz2",
-)
-
-git_repository(
-    name = "whisper",
-    commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
-    shallow_since = "1656867071 -0400",
-    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
-)
-
-git_repository(
-    name = "opensrc-nlohmann-json",
-    commit = "ece38f1883dd1e59c498c63b8f53c3b4bcbc593c",
-    remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-nlohmann-json.git",
+# Remaining externals still come from aus-gitlab. The declarations live in
+# //bazel:external_deps.bzl so they're shared with WORKSPACE-mode (Bazel-6).
+# TODO(open-source): mirror each to a public source (tenstorrent/whisper for
+# the RISC-V ISS; nlohmann/json from BCR for the JSON parser) and re-publish
+# the rest of the Tenstorrent-owned forks before this repo can build offline.
+rv_tester_external = use_extension("//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
+use_repo(
+    rv_tester_external,
+    "CoreArchChecker",
+    "mem_manager",
+    "whisper",
+    "opensrc-nlohmann-json",
 )
