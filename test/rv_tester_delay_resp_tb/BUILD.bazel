@@ -32,4 +32,5 @@ cc_binary(
         ":rv_tester_delay_resp_tb_veri_lib",
         "@rules_verilator//verilator:verilated_runtime",
     ],
+    visibility = ["//test/rv_tester_delay_resp_tb/testlists:__pkg__"],
 )

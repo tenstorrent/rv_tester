@@ -30,16 +30,22 @@ lint:
     timeout: 1h
 
 build-bazel6-top:
-    # Downstream consumers still run Bazel 6 + WORKSPACE; verify the top
-    # //src:all targets they import still build. Sub-packages like
-    # //src/transactors/axi_sw/test load @rules_verilator (bzlmod-only) and
-    # aren't part of this surface — keep the build pattern narrowed to the
-    # top-level //src package only (cvm's downstream-facing pattern).
+    # Downstream consumers still run Bazel 6 + WORKSPACE. Build:
+    #  - //src:all                          — leaf verilog_library/cc_library exports
+    #  - //test/sw_testbench:sw_<N>c_rv_tester_sv — verilog side of rv_tester_gen,
+    #    drives every sub-gen (csr/project_overrides/pmu_fragment/packet/
+    #    generate_axi_interfaces/sysmod_sv/pmu_sv/interrupts_sv/triggers_sv/
+    #    memdump_sv/axi_sw_sv).
+    # The cc side (rv_tester_dpi) transitively pulls @boost.* which is BCR-only
+    # and not wired into WORKSPACE; verilator-bound packages
+    # (//test/sw_testbench/verilator, //test/transactors/axi_sw,
+    # //test/rv_tester_delay_resp_tb) load @rules_verilator (bzlmod-only).
+    # Both stay out of this surface.
     stage: test
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all
+        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv
     after_script:
         - chmod +w -R ./bazel_output_user_root_b6
 
@@ -49,7 +55,7 @@ smoke:
         # TODO(open-source): remove with the gitlab-definitions include.
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/sw_testbench:all_smoke --enable_bzlmod --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
@@ -58,7 +64,7 @@ asan+ubsan:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/sw_testbench:all_smoke --enable_bzlmod --features=asan --features=ubsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --features=asan --features=ubsan --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
@@ -67,7 +73,7 @@ tsan:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/sw_testbench:all_smoke --enable_bzlmod --features=tsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --features=tsan --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
