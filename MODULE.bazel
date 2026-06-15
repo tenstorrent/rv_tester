@@ -75,5 +75,7 @@ use_repo(
     rv_tester_external,
     "CoreArchChecker",
     "mem_manager",
+    "opensrc-axi",
+    "opensrc-common_cells",
     "opensrc-nlohmann-json",
 )

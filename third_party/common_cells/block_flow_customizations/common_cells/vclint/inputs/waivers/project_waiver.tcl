@@ -1,1 +1,0 @@
-waive_violation -add {STARC05-2_10_6_1_3}  -comment {Created by nxu on 12-Sep-2025; third party package.}  -filter {(FileName =~ "*common_cells/src/cf_math_pkg.sv") AND (LHS_Size == "64") AND (LHSExpr == "remainder") AND (RHS_Size == "64") AND (RHSExpr == "(remainder - divisor)")}  -app { lint } -tag { STARC05-2.10.6.1 } -user { nxu } -timestamp { 12-09-2025 14:40:50 }

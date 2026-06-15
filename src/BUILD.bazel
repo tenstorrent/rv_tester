@@ -109,7 +109,7 @@ verilog_library(
     name = "rv_tester_delay_resp",
     srcs = ["rv_tester_delay_resp.sv"],
     deps = [
-        "//third_party/axi:typedef",
+        "@opensrc-axi//:axi",
         ":rv_tester_lib",
     ],
     visibility = ["//visibility:public"],

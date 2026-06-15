@@ -179,10 +179,8 @@ def rv_tester_gen(
             name + "_triggers_sv",
             name + "_axi_sw_sv",
             name + "_axi_interfaces_sv",
-            # Vendored axi/typedef.svh in lieu of @opensrc-axi*.
-            "//third_party/axi:typedef",
-            # Vendored clk_mux_glitch_free in lieu of @opensrc-tech_cells_generic.
-            "//third_party/tech_cells_generic:clk_mux_glitch_free",
+            "@opensrc-axi//:axi",
+            "@opensrc-common_cells//:clk_mux_glitch_free",
         ] + select({
             "@rv_tester//src:cosim_off": ["@rv_tester//src:no_cosim"],
             "//conditions:default": [name + "_cosim_sv"],

@@ -3,8 +3,7 @@
 Holds repos that DON'T have their own MODULE.bazel (no bzlmod-native
 dep wiring). Called from two places:
 - `MODULE.bazel` via the module extension in `:external_deps_ext.bzl` so
-  bzlmod resolves @CoreArchChecker / @mem_manager / @opensrc-nlohmann-json
-  (and `use_repo(...)` exposes each name).
+  bzlmod resolves the repos below (and `use_repo(...)` exposes each name).
 - `WORKSPACE` via `load("//bazel:external_deps.bzl",
   "rv_tester_external_deps") + rv_tester_external_deps()` so Bazel-6
   WORKSPACE-mode resolves the same set.
@@ -14,13 +13,48 @@ dep wiring). Called from two places:
 including @pybind11_bazel, cascade through BCR). WORKSPACE declares it
 directly in WORKSPACE and chains `whisper_dependencies()`.
 
-TODO(open-source): mirror each of these onto a public source
-(nlohmann/json from BCR for the JSON parser; re-publish the
-Tenstorrent-owned forks).
+For @opensrc-axi and @opensrc-common_cells we override the upstream
+BUILD.bazel with a minimal `build_file_content` rather than fetch the
+full BUILD graph — the originals reach @tensix-tt_tech / @bzsim which we
+no longer ship, and we only need a thin verilog_library slice anyway.
+
+TODO(open-source): swap the pulp-platform forks (axi, common_cells,
+nlohmann-json) for the public github upstreams; re-publish the
+Tenstorrent-owned forks (CoreArchChecker, mem_manager).
 """
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
+_OPENSRC_AXI_BUILD = """
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+verilog_library(
+    name = "axi",
+    srcs = ["src/axi_pkg.sv"],
+    hdrs = [
+        "include/axi/assign.svh",
+        "include/axi/port.svh",
+        "include/axi/typedef.svh",
+    ],
+    # rules_hdl_compat treats strip_include_prefix as the "namespace prefix"
+    # the include directive prepends — here `\\\\`include "axi/typedef.svh"`
+    # adds "axi/", so we strip "axi" off the file's parent dir to leave
+    # `external/opensrc-axi/include/` as the include search path.
+    strip_include_prefix = "axi",
+    visibility = ["//visibility:public"],
+)
+"""
+
+_OPENSRC_COMMON_CELLS_BUILD = """
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+verilog_library(
+    name = "clk_mux_glitch_free",
+    srcs = ["src/clk_mux_glitch_free.sv"],
+    visibility = ["//visibility:public"],
+)
+"""
 
 def rv_tester_external_deps():
     http_archive(
@@ -41,4 +75,26 @@ def rv_tester_external_deps():
         name = "opensrc-nlohmann-json",
         commit = "ece38f1883dd1e59c498c63b8f53c3b4bcbc593c",
         remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-nlohmann-json.git",
+    )
+
+    # pulp-platform/axi fork. BUILD overridden — see _OPENSRC_AXI_BUILD.
+    # We pull typedef.svh + axi_pkg.sv only; the upstream BUILD pulls in
+    # @opensrc-common_cells/@tensix-tt_tech/@bzsim which we don't ship.
+    git_repository(
+        name = "opensrc-axi",
+        commit = "7387de678e025b809341fa8a2893ef5e931e6d4d",
+        shallow_since = "1669784673 -0600",
+        remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-axi.git",
+        build_file_content = _OPENSRC_AXI_BUILD,
+    )
+
+    # pulp-platform/common_cells fork. BUILD overridden — see
+    # _OPENSRC_COMMON_CELLS_BUILD. We only need clk_mux_glitch_free.sv on
+    # the smoke path (referenced from rv_tester_clkgen).
+    git_repository(
+        name = "opensrc-common_cells",
+        commit = "8c522859dd3b996c9b6d5fca4906b9fe6987006c",
+        shallow_since = "1658763133 -0500",
+        remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-common_cells.git",
+        build_file_content = _OPENSRC_COMMON_CELLS_BUILD,
     )
