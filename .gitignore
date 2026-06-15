@@ -8,3 +8,11 @@ __pycache__
 
 /regressions
 /build
+
+# Stray run-time artifacts from local simulator invocations
+/heartbeat.log
+/iss_cmd.log
+/iss_cosim.log
+/reset_state.txt
+/stdout.txt
+/stderr.txt

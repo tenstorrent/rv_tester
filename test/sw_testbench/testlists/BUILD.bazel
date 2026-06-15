@@ -8,7 +8,10 @@
 # cross-compile step once a public-friendly riscv toolchain is in the CI
 # container.
 
-exports_files(["infinite.S", "nop.S", "infinite.elf"])
+exports_files(
+    ["infinite.S", "nop.S", "infinite.elf", "sim.sh"],
+    visibility = ["//visibility:public"],
+)
 
 sh_test(
     name = "infinite_1c_verilator",
@@ -16,12 +19,16 @@ sh_test(
     args = [
         "$(location //test/sw_testbench:sw_1c_tb_verilator)",
         "$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=1",
     ],
     data = [
         "//test/sw_testbench:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
         ":infinite.elf",
     ],
 )
@@ -32,6 +39,8 @@ sh_test(
     args = [
         "$(location //test/sw_testbench:sw_2c_tb_verilator)",
         "$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=2",
@@ -39,6 +48,8 @@ sh_test(
     ],
     data = [
         "//test/sw_testbench:sw_2c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
         ":infinite.elf",
     ],
 )

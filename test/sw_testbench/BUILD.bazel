@@ -3,11 +3,18 @@ load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 
-exports_files(["pulp_platform_verilator_waiver.vlt"])
+exports_files(
+    ["pulp_platform_verilator_waiver.vlt", "memmap.json", "whisper.json"],
+    visibility = ["//visibility:public"],
+)
 
 verilator_defines = [
     "+define+DMI_TB_WRITES_UNSUPPORTED",
     "+define+TRACE_CHECKS_UNSUPPORTED",
+    # Required for the verilator path — top.sv / delay-resp testbench gate
+    # their clkgen instantiation on this. Verilator can't simulate the `#(...)`
+    # delay-driven oscillator in rv_tester_clkgen.sv without --timing.
+    "+define+TB_EXTERNAL_CLOCK",
     "--default-language",
     "1800-2017",
 ]
@@ -78,6 +85,8 @@ filegroup(
 
         # Replaces bzsim's verilog_unit macro (which produced verilator views,
         # lint targets, multi-simulator binaries). Verilator-only flat shape.
+        # No `timing = True` — verilator_defines passes +define+TB_EXTERNAL_CLOCK
+        # which gates out the `forever #(...)` oscillator in rv_tester_clkgen.sv.
         verilator_cc_library(
             name = name + "_tb_veri_lib",
             module = ":" + name + "_top",
@@ -93,6 +102,7 @@ filegroup(
                 "@cvm//:logger",
                 "@cvm//:topology",
             ],
+            visibility = ["//visibility:public"],
         ),
     ]
     for name in harnesses
@@ -104,7 +114,12 @@ test_suite(
     tests = [
         "//test/sw_testbench/testlists:all_smoke",
         "//src/transactors/axi_sw/test/testlists:all_smoke",
-        "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
+        # TODO(open-source): rv_tester_delay_resp_tb_top.sv uses bare `#100`
+        # delays which Verilator only honours under --timing. Either enable
+        # `timing = True` on the delay-resp verilog_unit (and accept the
+        # runtime cost) or rewrite the testbench to drive its delays via the
+        # clk_int_div helper used elsewhere in rv_tester.
+        # "//test/rv_tester_delay_resp_tb/testlists:all_smoke",
     ],
     visibility = ["//visibility:public"],
 )

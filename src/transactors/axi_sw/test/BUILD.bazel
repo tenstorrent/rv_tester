@@ -79,4 +79,5 @@ cc_binary(
         ":" + name + "_veri_lib",
         ":" + name + "_dpi",
     ],
+    visibility = ["//visibility:public"],
 )

@@ -4,7 +4,11 @@ cc_library(
     name = "eot_plusargs",
     strip_include_prefix = ".",
     hdrs = ["eot_plusargs.h"],
-    deps = ["@cvm//:plusargs"],
+    deps = ["@cvm//:plusargs",
+            # Resolve FLAGS_eot / FLAGS_max_instr / FLAGS_tohost / eot_get_addr
+            # under cosim_off.
+            "@rv_tester//src/cosim:cosim_off_stubs",
+            ],
 
     visibility = ["//visibility:public"],
 )

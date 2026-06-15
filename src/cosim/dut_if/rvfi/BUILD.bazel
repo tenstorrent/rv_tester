@@ -6,6 +6,9 @@ cc_library(
     hdrs = ["rvfi_plusargs.h"],
     deps = ["@cvm//:plusargs",
             "@rv_tester//src/cosim/bridge:bridge_plusargs",
+            # Resolve FLAGS_rvfi/FLAGS_cosim/etc. under cosim_off without
+            # pulling the full cosim object tree.
+            "@rv_tester//src/cosim:cosim_off_stubs",
             ],
 
     visibility = ["//visibility:public"],
