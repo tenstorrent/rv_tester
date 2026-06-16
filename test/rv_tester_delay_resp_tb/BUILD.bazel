@@ -1,5 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("//test:verilator_opts.bzl", "COMMON_VOPTS")
 
 verilog_library(
     name = "rv_tester_delay_resp_tb",
@@ -26,11 +27,7 @@ verilog_library(
 verilator_cc_library(
     name = "rv_tester_delay_resp_tb_veri_lib",
     module = ":rv_tester_delay_resp_tb",
-    vopts = [
-        "+define+TB_EXTERNAL_CLOCK",
-        "--default-language",
-        "1800-2017",
-    ],
+    vopts = COMMON_VOPTS,
 )
 
 cc_binary(

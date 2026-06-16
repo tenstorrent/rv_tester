@@ -23,9 +23,18 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2", repo_name = "com_google
 # BUILD.bazel files that reference @com_github_gflags_gflags resolve.
 bazel_dep(name = "gflags", version = "2.2.2", repo_name = "com_github_gflags_gflags")
 
-# Upstream Verilator + verilog_library rules (same as cvm)
+# Upstream Verilator + verilog_library rules (same as cvm). Patch
+# rules_verilator's process wrapper to propagate verilator's exit code
+# correctly — without it, the wrapper masks verilator failures and bazel
+# treats `%Error: Exiting due to N warning(s)` as success.
 bazel_dep(name = "rules_verilator", version = "1.1.0")
 bazel_dep(name = "rules_verilog", version = "1.1.0")
+single_version_override(
+    module_name = "rules_verilator",
+    version = "1.1.0",
+    patches = ["//bazel:rules_verilator_propagate_exit.patch"],
+    patch_strip = 1,
+)
 # Reuse cvm's verilator pin (Python 3.9 toolchain blocks rules_venv 5.046.bcr.3).
 single_version_override(
     module_name = "verilator",

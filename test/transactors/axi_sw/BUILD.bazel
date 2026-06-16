@@ -2,6 +2,7 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//src/transactors/axi_sw:axi_sw.bzl", "axi_sw_gen", "generate_axi_interfaces")
+load("//test:verilator_opts.bzl", "COMMON_VOPTS")
 
 name = "axi_sw_tb"
 topology = name + "_topology"
@@ -70,6 +71,7 @@ cc_library(
 verilator_cc_library(
     name = name + "_veri_lib",
     module = ":" + name + "_top",
+    vopts = COMMON_VOPTS,
 )
 
 cc_binary(

@@ -1,4 +1,5 @@
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("//test:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
 
 # Verilator-side of the sw_testbench. Split out so the parent
 # //test/sw_testbench package (which exercises rv_tester_gen + topology_gen)
@@ -6,17 +7,6 @@ load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 # mode. Source files (dpi.cpp, gflags.cpp, sw_tb.cpp, top.sv,
 # harness_undefines.sv) stay in the parent dir and are referenced here via
 # the parent's exports_files block.
-
-verilator_defines = [
-    "+define+DMI_TB_WRITES_UNSUPPORTED",
-    "+define+TRACE_CHECKS_UNSUPPORTED",
-    # Required for the verilator path — top.sv / delay-resp testbench gate
-    # their clkgen instantiation on this. Verilator can't simulate the `#(...)`
-    # delay-driven oscillator in rv_tester_clkgen.sv without --timing.
-    "+define+TB_EXTERNAL_CLOCK",
-    "--default-language",
-    "1800-2017",
-]
 
 harnesses = ["sw_1c", "sw_2c"]
 
@@ -46,7 +36,7 @@ harnesses = ["sw_1c", "sw_2c"]
         verilator_cc_library(
             name = name + "_tb_veri_lib",
             module = "//test/sw_testbench:" + name + "_top",
-            vopts = verilator_defines,
+            vopts = SW_TESTBENCH_VOPTS,
         ),
 
         cc_binary(
