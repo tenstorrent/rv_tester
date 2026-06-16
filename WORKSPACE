@@ -3,27 +3,11 @@ workspace(name = "rv_tester")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-# cvm + its bundled rules_hdl_compat shim come from aus-gitlab as a single
-# pinned tarball (no git protocol). Fetched twice — once for @cvm (full
-# tree), once for @rules_hdl (strip_prefix into bazel/rules_hdl_compat/).
-# Lets rv_tester check out anywhere on disk without an adjacent cvm/.
-_CVM_COMMIT = "438b90fdfa6c8449e124e756f0ddc392cf2fe93e"
-_CVM_URL = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/" + _CVM_COMMIT + "/cvm-" + _CVM_COMMIT + ".tar.bz2"
-_CVM_SHA256 = "7e1a0f6e137936634e68b3fc5327b58e0c0823295275c2ba97ee9f65aefcc3d4"
-
-http_archive(
-    name = "cvm",
-    urls = [_CVM_URL],
-    strip_prefix = "cvm-" + _CVM_COMMIT,
-    sha256 = _CVM_SHA256,
-)
-
-http_archive(
-    name = "rules_hdl",
-    urls = [_CVM_URL],
-    strip_prefix = "cvm-" + _CVM_COMMIT + "/bazel/rules_hdl_compat",
-    sha256 = _CVM_SHA256,
-)
+# Shared with bzlmod via //bazel:external_deps_ext.bzl. Declares @cvm and
+# @rules_hdl (from one pinned cvm tarball) along with the aus-gitlab repos
+# (CoreArchChecker, mem_manager, opensrc-*).
+load("//bazel:external_deps.bzl", "rv_tester_external_deps")
+rv_tester_external_deps()
 
 # rules_verilog is loaded by the rules_hdl_compat shim to grab the upstream
 # VerilogInfo symbol. Same pin cvm uses.
@@ -33,12 +17,6 @@ http_archive(
     sha256 = "043196310d1ba692ec217c3778663da0d232a3746ba6291d3a12d6461de24021",
     strip_prefix = "bazel_rules_verilog-1.1.0",
 )
-
-# Shared with bzlmod via //bazel:external_deps_ext.bzl. Declares the
-# aus-gitlab repos (CoreArchChecker, mem_manager, opensrc-nlohmann-json)
-# so Bazel-6 WORKSPACE-mode resolves the same set bzlmod does.
-load("//bazel:external_deps.bzl", "rv_tester_external_deps")
-rv_tester_external_deps()
 
 # @whisper has its own MODULE.bazel + deps.bzl. Bzlmod takes it via
 # bazel_dep + git_override in MODULE.bazel (which processes the
