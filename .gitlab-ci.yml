@@ -85,7 +85,7 @@ asan+ubsan:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --features=asan --features=ubsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 

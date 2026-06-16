@@ -21,6 +21,17 @@ build --copt=-Wno-error=implicit-function-declaration --host_copt=-Wno-error=imp
 # json, etc.).
 build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarations,-Wno-error=deprecated-literal-operator,-Wno-error=macro-redefined
 
+# UBSan: --features=ubsan only flips -fsanitize=undefined on the compile
+# side. Linking still needs -fsanitize=undefined so clang's driver pulls
+# libclang_rt.ubsan_standalone_cxx — the C++ runtime that provides
+# __ubsan_vptr_type_cache + __ubsan_handle_dynamic_type_cache_miss_abort.
+build:ubsan --features=ubsan
+build:ubsan --linkopt=-fsanitize=undefined
+
+# ASan: bazel's features=asan handles both compile and link by default,
+# but bundle it as a config so the CI script is symmetric with ubsan.
+build:asan --features=asan
+
 # clang-tidy via erenon/bazel_clang_tidy. Run with `--config=clang-tidy`.
 build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
 build:clang-tidy --output_groups=report
