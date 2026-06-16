@@ -155,7 +155,6 @@ whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperClearNmiCause(hart, time, cause);});
 
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
-  cvm::registry::messenger.procedure<secureRegionRPC> (loc_, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
 
 }
 

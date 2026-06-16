@@ -515,7 +515,6 @@ sysmod::set_secure_region(std::string region) {
   std::vector<std::string> secure_region = cosim_util::split_string(region, ":");
   secure_region_start_ = std::stoull(secure_region.at(0), nullptr, 0);
   secure_region_end_   = std::stoull(secure_region.at(1), nullptr, 0);
-  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(wc_loc_, secure_region_start_, secure_region_end_);
 }
 
 std::shared_ptr<TT_APLIC::Aplic>
