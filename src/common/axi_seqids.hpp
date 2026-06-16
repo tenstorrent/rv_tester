@@ -1,3 +1,7 @@
+#pragma once
+
+#include <cstdint>
+
 namespace {
     constexpr uint32_t seqid_width_           =  0x3;
 

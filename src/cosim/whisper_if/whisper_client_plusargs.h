@@ -1,3 +1,5 @@
+#include "cvm/plusargs.hpp"
+
 DECLARE_string(whisper_data_lines);
 DECLARE_bool(whisper_vmvr_ignore_vill);
 DECLARE_uint32(derr_interrupt_num_override);

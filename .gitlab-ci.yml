@@ -17,10 +17,10 @@ stages:
     - notify
 
 lint:
-    # Verilog-side slang_lint + the bzsim-driven clang-tidy build are gone with
-    # bzsim. The standalone checks (DECLARE_ grep, plusarg_lint.py) stay.
-    # TODO(open-source): restore slang/verible lint via BCR rules_verible;
-    # restore clang-tidy via a native bazel aspect once a public rule set lands.
+    # Verilog-side slang_lint is gone with bzsim. Standalone checks
+    # (DECLARE_ grep, plusarg_lint.py) stay; clang-tidy moved to its own
+    # job below.
+    # TODO(open-source): restore slang/verible lint via BCR rules_verible.
     stage: test
     extends:
         - .smoke-rules-all-branches-template
@@ -28,6 +28,23 @@ lint:
         - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
         - python3 scripts/plusarg_lint.py
     timeout: 1h
+
+clang-tidy:
+    # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in
+    # `.bazelrc`. The aspect runs as a build-time action across //src/...
+    # and //test/...; report output_group surfaces findings.
+    #
+    # allow_failure: true initially while we work down the backlog of
+    # missing-include / missing-BUILD-dep findings the aspect exposes.
+    # Drop the allow_failure once //src/... //test/... lints clean.
+    stage: test
+    extends:
+        - .smoke-rules-all-branches-template
+    allow_failure: true
+    script:
+        - bazel-7 --output_user_root=./bazel_output_user_root build //src/... //test/... --enable_bzlmod --config=clang-tidy --keep_going
+    after_script:
+        - chmod +w -R ./bazel_output_user_root
 
 build-bazel6-top:
     # Downstream consumers still run Bazel 6 + WORKSPACE. Build:

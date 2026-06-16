@@ -33,6 +33,13 @@ exports_files(glob(["sysmod.*", "device.*", "pm_common.*","sysmod_params.hpp", "
 cc_library(
     name       = "sysmod_params",
     hdrs       = [ "sysmod_params.hpp", "sysmod_rpc.h", "device.h" ],
+    deps       = [
+        "@cvm//:messenger",
+        "@cvm//:registry",
+        "@cvm//:topology",
+        "@cvm//:logger",
+        "@rv_tester//src/common:transactor",
+    ],
     alwayslink = True,
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",

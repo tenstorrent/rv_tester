@@ -1,4 +1,7 @@
 #pragma once
+
+#include <cstdint>
+
 namespace{
 
     typedef struct cbo_inval_req_s{

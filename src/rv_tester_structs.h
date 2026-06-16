@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <queue>
+
 namespace rv_tester{
 
     // used to signal termination for any monitors and checkers to shut off
