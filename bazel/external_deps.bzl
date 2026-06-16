@@ -26,31 +26,15 @@ Tenstorrent-owned forks (CoreArchChecker, mem_manager).
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-# cvm + its bundled rules_hdl_compat shim. One pinned tarball, fetched
-# twice — once for @cvm (full tree), once for @rules_hdl (strip_prefix
-# into bazel/rules_hdl_compat/). MODULE.bazel reads these constants via
-# load(); WORKSPACE calls rv_tester_internal_deps() to declare the two
-# http_archives.
-CVM_COMMIT = "438b90fdfa6c8449e124e756f0ddc392cf2fe93e"
-CVM_URL = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/" + CVM_COMMIT + "/cvm-" + CVM_COMMIT + ".tar.bz2"
-CVM_SHA256 = "7e1a0f6e137936634e68b3fc5327b58e0c0823295275c2ba97ee9f65aefcc3d4"
-CVM_INTEGRITY = "sha256-fhoPbhN5NmNOaLP8Uye1jgwIIylSdcK6l+6fZa78w9Q="
-CVM_STRIP_PREFIX = "cvm-" + CVM_COMMIT
-RULES_HDL_STRIP_PREFIX = CVM_STRIP_PREFIX + "/bazel/rules_hdl_compat"
-
 def _declare_cvm_and_rules_hdl():
-    http_archive(
-        name = "cvm",
-        urls = [CVM_URL],
-        strip_prefix = CVM_STRIP_PREFIX,
-        sha256 = CVM_SHA256,
-    )
-    http_archive(
-        name = "rules_hdl",
-        urls = [CVM_URL],
-        strip_prefix = RULES_HDL_STRIP_PREFIX,
-        sha256 = CVM_SHA256,
-    )
+    # One pinned cvm tarball, fetched twice — once for @cvm (full tree),
+    # once for @rules_hdl (the rules_hdl_compat shim sub-dir).
+    commit = "438b90fdfa6c8449e124e756f0ddc392cf2fe93e"
+    url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{c}/cvm-{c}.tar.bz2".format(c = commit)
+    sha256 = "7e1a0f6e137936634e68b3fc5327b58e0c0823295275c2ba97ee9f65aefcc3d4"
+    strip_prefix = "cvm-" + commit
+    http_archive(name = "cvm", urls = [url], strip_prefix = strip_prefix, sha256 = sha256)
+    http_archive(name = "rules_hdl", urls = [url], strip_prefix = strip_prefix + "/bazel/rules_hdl_compat", sha256 = sha256)
 
 _OPENSRC_AXI_BUILD = """
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
