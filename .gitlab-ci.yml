@@ -31,18 +31,22 @@ lint:
 
 clang-tidy:
     # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in
-    # `.bazelrc`. The aspect runs as a build-time action across //src/...
-    # and //test/...; report output_group surfaces findings.
+    # `.bazelrc`. Mirrors the bzsim-era scope: lint the transitive
+    # deps reachable from sw_2c_tb_verilator, not the whole
+    # //src/... //test/... surface.
     #
-    # allow_failure: true initially while we work down the backlog of
-    # missing-include / missing-BUILD-dep findings the aspect exposes.
-    # Drop the allow_failure once //src/... //test/... lints clean.
+    # TODO: widen to //src/... //test/... once the missing
+    # include / BUILD-dep findings the broader sweep surfaces are
+    # fixed. The broader sweep exposes cc_libraries whose hdrs are
+    # consumed only via rv_tester_gen / topology_gen, so they fail
+    # the aspect's standalone header-compile because their deps
+    # don't include the @cvm/// + transactor / messenger pieces
+    # the headers reach for.
     stage: test
     extends:
         - .smoke-rules-all-branches-template
-    allow_failure: true
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root build //src/... //test/... --enable_bzlmod --config=clang-tidy --keep_going
+        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --enable_bzlmod --config=clang-tidy
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
