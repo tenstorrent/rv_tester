@@ -21,7 +21,7 @@ build --copt=-Wno-error=implicit-function-declaration --host_copt=-Wno-error=imp
 # json, etc.).
 build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarations,-Wno-error=deprecated-literal-operator,-Wno-error=macro-redefined
 
-# TODO(open-source): bring back the clang-tidy config once a public clang-tidy
-# aspect lands.
-# build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy_config
-# build:clang-tidy --aspects_parameters=clang_tidy_repository=rv_tester
+# clang-tidy via erenon/bazel_clang_tidy. Run with `--config=clang-tidy`.
+build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
+build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy_config

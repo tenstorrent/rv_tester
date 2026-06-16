@@ -29,6 +29,16 @@ bazel_dep(name = "gflags", version = "2.2.2", repo_name = "com_github_gflags_gfl
 # treats `%Error: Exiting due to N warning(s)` as success.
 bazel_dep(name = "rules_verilator", version = "1.1.0")
 bazel_dep(name = "rules_verilog", version = "1.1.0")
+
+# erenon/bazel_clang_tidy — drives the clang-tidy aspect that
+# `.bazelrc`'s `build:clang-tidy` config attaches to each cc target.
+bazel_dep(name = "bazel_clang_tidy", version = "0.0.0")
+archive_override(
+    module_name = "bazel_clang_tidy",
+    urls = ["https://github.com/erenon/bazel_clang_tidy/archive/db677011c7363509a288a9fb3bf0a50830bbf791.tar.gz"],
+    strip_prefix = "bazel_clang_tidy-db677011c7363509a288a9fb3bf0a50830bbf791",
+    integrity = "sha256-cjoiSKMv0j33LPlj9Kf0BEBYy9wJoa1+jvZ/0WwHM0Y=",
+)
 single_version_override(
     module_name = "rules_verilator",
     version = "1.1.0",
