@@ -3,18 +3,20 @@ workspace(name = "rv_tester")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-# cvm is the parent directory (on-disk layout: cvm/rv_tester/).
-local_repository(
+# cvm + its bundled rules_hdl_compat shim come from aus-gitlab. Pinned to
+# the same commit MODULE.bazel uses. Lets rv_tester check out anywhere on
+# disk without an adjacent cvm/.
+git_repository(
     name = "cvm",
-    path = "..",
+    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm.git",
+    commit = "438b90fdfa6c8449e124e756f0ddc392cf2fe93e",
 )
 
-# Re-use cvm's dual-emitting rules_hdl compatibility shim so downstream
-# Bazel-6 consumers see the same @rules_hdl//verilog:providers.bzl%VerilogInfo
-# that cvm exports.
-local_repository(
+http_archive(
     name = "rules_hdl",
-    path = "../bazel/rules_hdl_compat",
+    urls = ["https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/438b90fdfa6c8449e124e756f0ddc392cf2fe93e/cvm-438b90fdfa6c8449e124e756f0ddc392cf2fe93e.tar.bz2"],
+    strip_prefix = "cvm-438b90fdfa6c8449e124e756f0ddc392cf2fe93e/bazel/rules_hdl_compat",
+    sha256 = "7e1a0f6e137936634e68b3fc5327b58e0c0823295275c2ba97ee9f65aefcc3d4",
 )
 
 # rules_verilog is loaded by the rules_hdl_compat shim to grab the upstream
