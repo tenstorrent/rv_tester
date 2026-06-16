@@ -3,12 +3,7 @@ exports_files(["bridge.cpp", "bridge.h", "bridge_base.h", "bridge_if.h", "bridge
 cc_library(
         name    = "bridge_plusargs",
         hdrs    = ["bridge_plusargs.h"],
-        deps    = ["@cvm//:plusargs",
-                   # FLAGS_metrics/standalone/cov/preload/whisper_client_check/
-                   # archsample_lib_path are DEFINEd in bridge.cpp; with cosim
-                   # off, get them from the stub library.
-                   "@rv_tester//src/cosim:cosim_off_stubs",
-                  ],
+        deps    = ["@cvm//:plusargs"],
         strip_include_prefix = ".",
 
         visibility = ["//visibility:public"],

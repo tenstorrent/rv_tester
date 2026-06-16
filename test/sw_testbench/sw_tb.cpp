@@ -109,10 +109,10 @@ int main(int argc, char** argv) {
         dump_off = std::stoull(valp) * tb_clk_period;
     }
 
-    // Hard cycle budget: with cosim_off the normal +eot=max_instr handshake
-    // (cosim catches the rvfi-driven instruction-retirement signal and calls
-    // $finish) is dead. Without something to terminate the loop, smoke tests
-    // run forever. Treat +max_cycles=N as a top-level limit; default 200000
+    // Hard cycle-budget safety net. Cosim normally terminates the loop via
+    // rvfi's instruction-retirement callback (`$finish` after max_instr
+    // retires), but a stuck-DPI test would run forever without an upper
+    // bound. Treat +max_cycles=N as a top-level limit; default 200000
     // (~enough to clear reset + a few hundred posedges).
     uint64_t max_cycles = 200000;
     if (const char* const valp = vl_mc_scan_plusargs("max_cycles=")) {

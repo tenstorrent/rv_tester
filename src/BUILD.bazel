@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 config_setting(
@@ -34,28 +33,6 @@ verilog_library(
         "@cvm//:random_sv",
         "@cvm//:topology_sv",
     ],
-    visibility = ["//visibility:public"],
-)
-
-bool_flag(
-    name = "cosim",
-    # TODO(open-source): default flipped to False so cosim_gen doesn't pull
-    # @whisper (RISC-V ISS) on the smoke path. Re-enable via --//src:cosim=True
-    # once whisper has a usable public mirror.
-    build_setting_default = False,
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "cosim_off",
-    flag_values = {
-      ":cosim" : "False",
-    }
-)
-
-verilog_library(
-    name = "no_cosim",
-    srcs = ["define_no_cosim.sv"],
     visibility = ["//visibility:public"],
 )
 

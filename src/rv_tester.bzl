@@ -181,10 +181,8 @@ def rv_tester_gen(
             name + "_axi_interfaces_sv",
             "@opensrc-axi//:axi",
             "@opensrc-common_cells//:clk_mux_glitch_free",
-        ] + select({
-            "@rv_tester//src:cosim_off": ["@rv_tester//src:no_cosim"],
-            "//conditions:default": [name + "_cosim_sv"],
-        }),
+            name + "_cosim_sv",
+        ],
         visibility = visibility,
     )
 
@@ -208,10 +206,8 @@ def rv_tester_gen(
             name + "_axi_sw_dpi",
             name + "_axi_interfaces_cc",
             topology + "_cc",
-        ] + select({
-          "@rv_tester//src:cosim_off": [],
-          "//conditions:default":   [name + "_cosim_dpi"],
-        }),
+            name + "_cosim_dpi",
+        ],
         alwayslink = True,
         visibility = visibility,
     )

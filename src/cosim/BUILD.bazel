@@ -1,22 +1,6 @@
-exports_files(["cosim.sv"])
-
-# Resolves the gflags variables (FLAGS_rvfi, FLAGS_cosim, FLAGS_eot, ...) and
-# the eot_get_addr helper that sysmod/trickbox/htif reference unconditionally
-# but which normally come from cosim/*/{rvfi,bridge,mcmi,eot}.cpp. Those real
-# DEFINE_* statements pull in whisper / CoreArchChecker through their
-# enclosing libraries; with cosim_off we link this small stub library
-# instead. Anywhere a _plusargs cc_library is referenced, this one comes
-# along via alwayslink.
-cc_library(
-    name = "cosim_off_stubs",
-    srcs = ["cosim_off_stubs.cpp"],
-    deps = ["@cvm//:plusargs"],
-    alwayslink = True,
-    linkstatic = True,
-    visibility = ["//visibility:public"],
-)
-
 load("@rv_tester_pypi//:requirements.bzl", "requirement")
+
+exports_files(["cosim.sv"])
 
 py_binary(
     name = "project_overrides_gen",
