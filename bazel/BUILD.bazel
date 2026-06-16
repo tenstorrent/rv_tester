@@ -1,3 +1,7 @@
 # Marks bazel/ as a package so //bazel:*.bzl files can be loaded.
 
-exports_files(["requirements.txt"])
+exports_files([
+    "mem_manager_use_bcr_lz4.patch",
+    "requirements.txt",
+    "rules_verilator_propagate_exit.patch",
+])

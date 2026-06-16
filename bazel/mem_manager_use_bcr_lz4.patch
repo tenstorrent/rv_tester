@@ -1,0 +1,28 @@
+Make mem_manager depend on BCR's @lz4 instead of the system liblz4.
+
+Upstream's BUILD relies on `linkopts = ["-llz4"]` + finding `lz4frame.h`
+through clang's default `-isystem /usr/include`. Bazel's hermetic sandbox
+doesn't necessarily expose `/usr/include` for non-toolchain headers, so
+CI fails on `'lz4frame.h' file not found` even though `liblz4-dev` is
+installed in the container. Switch to the BCR `@lz4` module's targets so
+the include path + library come through the Bazel dep graph.
+
+--- a/src/BUILD.bazel
++++ b/src/BUILD.bazel
+@@ -3,12 +3,15 @@
+ cc_library(
+     name = "mem_manager",
+     hdrs = ["mem_manager.h"],
+     srcs = glob(include = ["*.cc", "*.h"], exclude = ["mem_manager.h"]),
+     includes = ["."],
+     alwayslink = True,
+     linkstatic = True,
+     visibility = ["//:__pkg__"],
+-    linkopts = ["-llz4"],
++    deps = [
++        "@lz4//:lz4",
++        "@lz4//:lz4_frame",
++    ],
+ )
+
+ cc_library(

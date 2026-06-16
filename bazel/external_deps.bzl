@@ -81,6 +81,8 @@ def rv_tester_external_deps():
         sha256 = "fc1d138f26405bac05f039a945fb004fc081ea49c16aa7553d9e1b0b49a4d338",
         strip_prefix = "mem-manager-585efffd1a79f43388339c193cdae420f32acad4",
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/585efffd1a79f43388339c193cdae420f32acad4/mem-manager-585efffd1a79f43388339c193cdae420f32acad4.tar.bz2",
+        patches = ["@rv_tester//bazel:mem_manager_use_bcr_lz4.patch"],
+        patch_args = ["-p1"],
     )
 
     git_repository(
