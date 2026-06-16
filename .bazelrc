@@ -1,10 +1,14 @@
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 build --action_env=CC=clang --action_env=CXX=clang++ --host_action_env=CC=clang --host_action_env=CXX=clang++
 
-# whisper + cosim/whisper_if use //:use_bzlmod config_setting to flip between
-# bazel_dep boost (bzlmod) and -lboost_program_options (legacy). We're on
-# bzlmod.
-build --define=use_bzlmod=1
+# Bazel-7 / bzlmod invocations opt in via --config=bzlmod. Sets both the
+# --enable_bzlmod toggle and the //src:use_bzlmod config_setting (which
+# whisper + cosim/whisper_if select() on to flip between bazel_dep boost
+# (bzlmod) and -lboost_program_options legacy linking). Bazel-6 WORKSPACE
+# jobs don't pass --config=bzlmod, so the use_bzlmod=1 define stays off
+# and the WORKSPACE branch of the select wins.
+build:bzlmod --enable_bzlmod
+build:bzlmod --define=use_bzlmod=1
 
 # mem_manager's sparse_mem.cc uses std::has_single_bit / std::countr_zero
 # without including <bit>; force-include it so the C++20 names resolve under

@@ -46,7 +46,7 @@ clang-tidy:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --enable_bzlmod --config=clang-tidy
+        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
@@ -76,7 +76,7 @@ smoke:
         # TODO(open-source): remove with the gitlab-definitions include.
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
@@ -85,7 +85,7 @@ asan+ubsan:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
@@ -94,7 +94,7 @@ tsan:
     extends:
         - .smoke-rules-all-branches-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --enable_bzlmod --build_tests_only --features=tsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --features=tsan --test_output=errors
     after_script:
         - chmod +w -R ./bazel_output_user_root
 
