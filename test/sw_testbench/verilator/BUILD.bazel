@@ -1,38 +1,14 @@
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("//test:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
 
-# Verilator-side of the sw_testbench. Split out so the parent
-# //test/sw_testbench package (which exercises rv_tester_gen + topology_gen)
-# doesn't load @rules_verilator and stays buildable under Bazel-6 WORKSPACE
-# mode. Source files (dpi.cpp, gflags.cpp, sw_tb.cpp, top.sv,
-# harness_undefines.sv) stay in the parent dir and are referenced here via
-# the parent's exports_files block.
+# Verilator-side of the sw_testbench, split out so the parent
+# //test/sw_testbench package stays buildable under Bazel-6 WORKSPACE mode
+# (it doesn't load @rules_verilator).
 
 harnesses = ["sw_1c", "sw_2c"]
 
 [
     [
-        # Replaces bzsim's verilog_dpi_library macro (which was just cc_library
-        # + alwayslink + svdpi). svdpi comes via @rules_verilator's runtime.
-        cc_library(
-            name = name + "_dpi",
-            srcs = [
-                "//test/sw_testbench:dpi.cpp",
-                "//test/sw_testbench:gflags.cpp",
-            ],
-            deps = [
-                "//test/sw_testbench:" + name + "_rv_tester_dpi",
-                "@cvm//:plusargs",
-                "@rules_verilator//verilator:verilated_runtime",
-            ],
-            alwayslink = True,
-            linkstatic = True,
-        ),
-
-        # Replaces bzsim's verilog_unit macro (which produced verilator views,
-        # lint targets, multi-simulator binaries). Verilator-only flat shape.
-        # No `timing = True` — verilator_defines passes +define+TB_EXTERNAL_CLOCK
-        # which gates out the `forever #(...)` oscillator in rv_tester_clkgen.sv.
         verilator_cc_library(
             name = name + "_tb_veri_lib",
             module = "//test/sw_testbench:" + name + "_top",
@@ -44,9 +20,14 @@ harnesses = ["sw_1c", "sw_2c"]
             srcs = ["//test/sw_testbench:sw_tb.cpp"],
             deps = [
                 ":" + name + "_tb_veri_lib",
-                ":" + name + "_dpi",
+                "//test/sw_testbench:dpi_glue",
+                "//test/sw_testbench:" + name + "_rv_tester_dpi",
                 "@cvm//:logger",
                 "@cvm//:topology",
+                # Pulls verilator's runtime, which dedups lz4 symbols that
+                # verilator's verilated_fst_c statically defines (the @lz4
+                # dep from cvm/logger duplicates them otherwise).
+                "@rules_verilator//verilator:verilated_runtime",
             ],
             visibility = ["//visibility:public"],
         ),

@@ -2,28 +2,26 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@cvm//:defs.bzl", "topology_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 
-# Files referenced from the verilator sub-package and from testlists/.
+# memmap.json + whisper.json are passed via plusargs to the smoke binaries
+# (testlists need them by file label). sw_tb.cpp goes through exports_files
+# rather than a cc_library because it `#include "Vtop.h"` — the
+# verilator-generated header is per-harness, so each sw_<N>c_tb_verilator
+# cc_binary needs its own compile against its own veri_lib output.
 exports_files(
-    [
-        "dpi.cpp",
-        "gflags.cpp",
-        "harness_undefines.sv",
-        "memmap.json",
-        "pulp_platform_verilator_waiver.vlt",
-        "sw_tb.cpp",
-        "sw_testbench_vcs_waiver.config",
-        "top.sv",
-        "whisper.json",
-    ],
+    ["memmap.json", "sw_tb.cpp", "whisper.json"],
     visibility = ["//visibility:public"],
 )
 
-harnesses = ["sw_1c", "sw_2c"]
-
-filegroup(
-    name = "vcs_waiver",
-    srcs = ["sw_testbench_vcs_waiver.config"],
+cc_library(
+    name = "dpi_glue",
+    srcs = ["dpi.cpp", "gflags.cpp"],
+    deps = ["@cvm//:plusargs"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//test/sw_testbench/verilator:__pkg__"],
 )
+
+harnesses = ["sw_1c", "sw_2c"]
 
 [
     [
@@ -72,15 +70,3 @@ filegroup(
     ]
     for name in harnesses
 ]
-
-filegroup(
-    name = "whisper_json",
-    srcs = ["whisper.json"],
-    visibility = ["//visibility:public"],
-)
-
-filegroup(
-    name = "memmap_json",
-    srcs = ["memmap.json"],
-    visibility = ["//visibility:public"],
-)

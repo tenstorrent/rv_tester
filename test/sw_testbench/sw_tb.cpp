@@ -109,16 +109,6 @@ int main(int argc, char** argv) {
         dump_off = std::stoull(valp) * tb_clk_period;
     }
 
-    // Hard cycle-budget safety net. Cosim normally terminates the loop via
-    // rvfi's instruction-retirement callback (`$finish` after max_instr
-    // retires), but a stuck-DPI test would run forever without an upper
-    // bound. Treat +max_cycles=N as a top-level limit; default 200000
-    // (~enough to clear reset + a few hundred posedges).
-    uint64_t max_cycles = 200000;
-    if (const char* const valp = vl_mc_scan_plusargs("max_cycles=")) {
-        max_cycles = std::stoull(valp);
-    }
-
     // Make sure we are not doing something stupid, the time queue assumes this
     if (dump_on >= dump_off) {
         cvm::log(cvm::ERROR, "Error: dump on time ({}) must be before dump off time ({})\n", dump_on, dump_off);
@@ -214,11 +204,6 @@ int main(int argc, char** argv) {
     evaluate(0);
 
     while (!context.gotFinish()) {
-        // Hard cycle-budget cutoff (see max_cycles plusarg comment above).
-        if (toggles[core_clk_idx]/2 >= max_cycles) {
-            printf("[main] +max_cycles=%lu reached, terminating\n", max_cycles);
-            break;
-        }
         // Process next time step in the event queue
         const uint64_t time = event_queue.begin()->first;
         while (true) {

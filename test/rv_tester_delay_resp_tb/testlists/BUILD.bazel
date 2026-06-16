@@ -7,9 +7,6 @@ sh_test(
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
         "$(location //test/rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_verilator)",
-        # No per-test elf for this testbench (timing-only check); sim.sh ignores
-        # the placeholder elf path.
-        "",
     ],
     data = [
         "//test/rv_tester_delay_resp_tb:rv_tester_delay_resp_tb_verilator",

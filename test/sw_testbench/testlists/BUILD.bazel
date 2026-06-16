@@ -1,12 +1,10 @@
-# Hand-written replacement for the testgen-generated rules that bzsim's
-# `risc_p_cores_test_executor` macro used to emit from smoke.py. Each smoke
-# entry collapses to one sh_test that runs the pre-built sw_<N>c_tb verilator
-# simulator binary against infinite.elf with the configured plusargs.
+# Each smoke entry collapses to one sh_test that runs the pre-built
+# sw_<N>c_tb_verilator binary against infinite.elf with the configured
+# plusargs.
 #
-# infinite.elf was captured from `bzsim test smoke --no-lsf` and is checked in
-# as-is for now. TODO(open-source): replace with a real riscv32 toolchain
-# cross-compile step once a public-friendly riscv toolchain is in the CI
-# container.
+# infinite.elf is checked in as-is for now. TODO(open-source): replace with
+# a real riscv32 toolchain cross-compile step once a public-friendly riscv
+# toolchain is in the CI container.
 
 exports_files(
     ["infinite.S", "nop.S", "infinite.elf", "sim.sh"],
@@ -18,16 +16,12 @@ sh_test(
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
         "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
-        "$(location :infinite.elf)",
+        "+load=$(location :infinite.elf)",
         "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
         "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=1",
-        # The verilator main loop reads +max_cycles= directly (cvm's gflags
-        # parser would reject the unknown flag without an undefok regex).
-        "+max_cycles=200000",
-        "+undefok_regexp=max_cycles",
     ],
     data = [
         "//test/sw_testbench/verilator:sw_1c_tb_verilator",
@@ -42,15 +36,13 @@ sh_test(
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
         "$(location //test/sw_testbench/verilator:sw_2c_tb_verilator)",
-        "$(location :infinite.elf)",
+        "+load=$(location :infinite.elf)",
         "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
         "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=2",
         "+num_harts=2",
-        "+max_cycles=200000",
-        "+undefok_regexp=max_cycles",
     ],
     data = [
         "//test/sw_testbench/verilator:sw_2c_tb_verilator",

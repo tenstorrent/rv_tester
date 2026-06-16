@@ -5,7 +5,6 @@ sh_test(
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
     args = [
         "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
-        "",  # No per-test elf for the axi_sw transactor smoke.
     ],
     data = [
         "//test/transactors/axi_sw:axi_sw_tb_verilator",
