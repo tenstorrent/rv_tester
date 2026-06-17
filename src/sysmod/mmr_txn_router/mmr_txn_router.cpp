@@ -17,14 +17,12 @@ cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, dat
   auto& length = r.length;
   uint32_t value = 0;
 
-  //aplic_->read(addr, size, value);
-  //reroute mmr tead
+  //reroute mmr read
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
   data = resp.data;
-  serializeInt(value, length, data);
-  //cvm::log(cvm::HIGH, " [mmr_txn_router] routing mmr read back to overlay: Addr = {:#x}, Data = {:#x}\n", addr, data);
+  cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr read back to overlay: Addr = {:#x}\n", addr);
   co_return;
 }
 
@@ -38,8 +36,8 @@ mmr_txn_router::write(const transactor::write_t& w)
   auto& data = w.data;
   auto& strb = w.strb;
   deserializeInt(w.data, value);
-  cvm::log(cvm::HIGH, " [mmr_txn_router] routing mmr write back to overlay: Addr = {:#x}\n", addr);
+  cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr write back to overlay: Addr = {:#x}\n", addr);
   //re route mmr write
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
-  
+
 }
