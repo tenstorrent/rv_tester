@@ -1,16 +1,10 @@
 ///////////////includes///////////////////////////////
 
 `include "axi/typedef.svh"
-// AXI_DEFINES_SVH gets `define'd at the top of the generated axi_defines.svh.
-// Under verilator, each .sv compiles as a separate unit, so the guard is
-// always undefined and the include fires (cvm rules_hdl_compat propagates
-// the gen output's dirname through `-I`). Under downstream's
-// aus-gitlab bazel_rules_hdl fork the .svh is already in VCS's file list
-// — the guard is set globally and the include is correctly skipped here,
-// sidestepping the fact that the fork doesn't emit a matching `+incdir+`.
-`ifndef AXI_DEFINES_SVH
-`include "axi_defines.svh"
-`endif
+// The `RV_TESTER_AXI_ENUMS / TYPEDEFS / PORTS macros come from the
+// generated axi_defines.sv, which is in `:_axi_interfaces_sv`'s srcs.
+// Both Verilator and VCS process all srcs as one compilation unit, so
+// the `define`s become globally visible — no explicit `include needed.
 /////////////////////////////////////////////////////
 
 package rv_tester_params;
