@@ -272,7 +272,7 @@ private:
     {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
     {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
   };
-  
+
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
@@ -304,15 +304,15 @@ private:
         {0x24D, "vstimecmp"},
         {0x244, "vsip"}, // -
         {0x280, "vsatp"}, // -
-        {0x25C, "vstopei"},         // Virtual Supervisor Top External Interrupt 
-        {0xEB0, "vstopi"},          // Virtual Supervisor Top Interrupt 
+        {0x25C, "vstopei"},         // Virtual Supervisor Top External Interrupt
+        {0xEB0, "vstopi"},          // Virtual Supervisor Top Interrupt
     };
 
   // MCM order map needed for periodic cosim
   std::unordered_map<uint64_t , int> mcm_orders_;
 
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
-    {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
+    {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt
   };
 
   std::unordered_set<csr_base*> interrupt_csrs_to_resynch_ = {&mip, &sip, &hip, &vsip, &hgeip, &mtopi, &vstopi, &stopi};
@@ -416,8 +416,6 @@ private:
   bool cvm_debug_ = false;
   uint64_t previous_cycle_;
 
-  // Memmap
-  std::map<std::string, memmap_entry_t> memmap_;
   uint64_t sep_base_=0, sep_end_=0;
   uint64_t maplic_base_=0, maplic_end_=0;
   uint64_t saplic_base_=0, saplic_end_=0;
