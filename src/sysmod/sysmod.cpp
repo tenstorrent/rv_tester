@@ -900,7 +900,8 @@ sysmod::load_boot(const std::string& boot) {
         return;
       }
     }
-  }
+  } else // Ariane workaround
+    load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
 }
 
 

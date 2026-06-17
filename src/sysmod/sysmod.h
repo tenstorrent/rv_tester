@@ -118,7 +118,7 @@ class sysmod {
     inval_load_s inval_load_;
     inval_crsp_s inval_crsp_;
 
-    bool prog_loaded;
+    bool prog_loaded = false;
 
     void reset();
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
