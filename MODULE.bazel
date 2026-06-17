@@ -106,7 +106,6 @@ use_repo(
     "cvm",
     "mem_manager",
     "opensrc-axi",
-    "opensrc-common_cells",
     "opensrc-nlohmann-json",
     "rules_hdl",
 )

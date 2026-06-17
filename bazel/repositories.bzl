@@ -25,6 +25,7 @@ after the `pip_parse()` call in stage 1's body.
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 load("//bazel:external_deps.bzl", "rv_tester_external_deps")
 
 def rv_tester_repositories(_unused_bzlmod = False):
@@ -34,12 +35,17 @@ def rv_tester_repositories(_unused_bzlmod = False):
     that historically called `rv_tester_repositories(bzlmod=False)`. Under
     bzlmod the macro is not used at all (MODULE.bazel handles everything),
     so the flag has no effect.
+
+    All declarations below are `maybe()`-wrapped so a downstream consumer
+    that pre-declares the same repo (with their own pin) wins; ours
+    becomes a no-op. Historical first-declaration-wins pattern.
     """
     rv_tester_external_deps()
 
     # rules_verilog supplies the upstream VerilogInfo symbol rules_hdl_compat
     # re-exports. Same pin cvm uses.
-    http_archive(
+    maybe(
+        http_archive,
         name = "rules_verilog",
         url = "https://github.com/hw-bzl/bazel_rules_verilog/releases/download/v1.1.0/bazel_rules_verilog-1.1.0.tar.gz",
         sha256 = "043196310d1ba692ec217c3778663da0d232a3746ba6291d3a12d6461de24021",
@@ -49,7 +55,8 @@ def rv_tester_repositories(_unused_bzlmod = False):
     # @whisper has its own MODULE.bazel + deps.bzl; under WORKSPACE we
     # declare it directly and chain whisper_dependencies() in
     # `rv_tester_dependencies()` below.
-    git_repository(
+    maybe(
+        git_repository,
         name = "whisper",
         commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
         shallow_since = "1656867071 -0400",
@@ -62,7 +69,8 @@ def rv_tester_repositories(_unused_bzlmod = False):
     # bridge into pip_parse. Same pin cvm uses (cvm_dependencies()'s
     # `maybe(http_archive, name = "rules_python", ...)` is a no-op once
     # this declaration wins).
-    http_archive(
+    maybe(
+        http_archive,
         name = "rules_python",
         sha256 = "c03246c11efd49266e8e41e12931090b613e12a59e6f55ba2efd29a7cb8b4258",
         strip_prefix = "rules_python-0.11.0",
