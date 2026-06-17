@@ -212,26 +212,22 @@ void bridge::configure() {
 bridge::~bridge() {}
 
 void bridge::reset(uint64_t restart_pc) {
-
-  // Get memmap instance
-  if (!memmap::instance().get(memmap_)) {
+  auto& memmap_ = memmap::instance();
+  if (!memmap::instance().parsed()) {
     error("Getting Memmap failed");
     return;
   }
-  auto it = memmap_.find("sep_entropy_fifo");
-  if (it != memmap_.end()) {
-    sep_base_ = it->second.base;
-    sep_end_ = it->second.end;
+  if (auto* entry = memmap_.find("sep_entropy_fifo")) {
+    sep_base_ = entry->base;
+    sep_end_ = entry->end;
   }
-  it = memmap_.find("maplic");
-  if (it != memmap_.end()) {
-    maplic_base_ = it->second.base;
-    maplic_end_  = it->second.end;
+  if (auto* entry = memmap_.find("maplic")) {
+    maplic_base_ = entry->base;
+    maplic_end_  = entry->end;
   }
-  it = memmap_.find("saplic");
-  if (it != memmap_.end()) {
-    saplic_base_ = it->second.base;
-    saplic_end_  = it->second.end;
+  if (auto* entry = memmap_.find("saplic")) {
+    saplic_base_ = entry->base;
+    saplic_end_  = entry->end;
   }
 
   // Construct whisper for cosim API calls
@@ -1126,13 +1122,13 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   // If Whisper takes interrupt, then increase age of the interrupt
   if (w_intr) deferred_intr_age_[w_cause]++;
 
-  // If DUT takes interrupt, then undefer all interrupts 
+  // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
   if (d.intr) {
     defer_interrupt(hart, d.cycle, 0 | intr_during_trap_.to_ullong());
     if (intr_during_trap_.to_ullong() != 0) intr_partially_deferred_ = true;
     for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end(); ) {
-      if (!intr_during_trap_.test(it->first)) deferred_intr_age_.erase(it++); 
+      if (!intr_during_trap_.test(it->first)) deferred_intr_age_.erase(it++);
       else it++;
     }
     return;
@@ -1159,7 +1155,7 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
     peek_deferred_interrupts(hart, w_defer_mip);
     if (w_defer_mip != 0) {
       for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end(); ) {
-        if (!(w_defer_mip & (1ULL << it->first))) it = deferred_intr_age_.erase(it); 
+        if (!(w_defer_mip & (1ULL << it->first))) it = deferred_intr_age_.erase(it);
         else ++it;
       }
     }
@@ -1212,7 +1208,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
     return;
   }
-  
+
   if(d.intr) {
     num_taken_interrupts_[static_cast<intr>(d.icause)]++;
   }
@@ -2169,25 +2165,15 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
 }
 
 bool bridge::clint_read(const uint64_t& pa) {
-  for (const auto& s : {"clint", "aclint"}) {
-    auto it = memmap_.find(s);
-    if (it != memmap_.end() && pa >= it->second.base && pa < it->second.end)
-      return true;
-  }
-  return false;
+  return memmap::instance().in_range({"clint", "aclint"}, pa);
 }
 
 bool bridge::tbox_read(const uint64_t& pa) {
-  auto it = memmap_.find("trickbox");
-  if (it != memmap_.end() && pa >= it->second.base && pa < it->second.end)
-    return true;
-  return false;
+  return memmap::instance().in_range({"trickbox"}, pa);
 }
 
 bool bridge::boot_read(const uint64_t& pa) {
-  if (pa >= memmap_.at("boot").base && pa < memmap_.at("boot").end)
-    return true;
-  return false;
+  return memmap::instance().in_range({"boot"}, pa);
 }
 
 bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr, std::string& , std::string& dut, std::string& iss, const uint64_t cycle, const rv_instr_t& d, const whisper_state_t& ) {
@@ -2297,9 +2283,7 @@ bool bridge::unsupported_mmr_access(const uint64_t& pa){
 }
 
 bool bridge::htif_read(const uint64_t& pa) {
-  if ( pa >= (memmap_.at("htif").base) && pa < (memmap_.at("htif").end))
-    return true;
-  return false;
+  return memmap::instance().in_range({"htif"}, pa);
 }
 
 bool bridge::hpm_counter_read(const std::string& instr) {
@@ -2328,9 +2312,7 @@ bool bridge::cbo_inv_access(const uint64_t& pa) {
 }
 
 bool bridge::uart_access(const uint64_t& pa) {
-  if (memmap_.find("uart0") != memmap_.end() && pa >= (memmap_.at("uart0").base) && pa < (memmap_.at("uart0").end))
-    return true;
-  return false;
+  return memmap::instance().in_range({"uart0"}, pa);
 }
 
 bool bridge::sc_slice_status(const uint64_t& pa) {
@@ -2712,7 +2694,7 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
   }
   else clear_nmi(hart, n.cycle, n.cause);
 
-  bridge_log(cvm::MEDIUM, "<{}> Hart {} NMI state: {:#x}\n", n.cycle, hart, n.valid, nmip_.to_ullong());  
+  bridge_log(cvm::MEDIUM, "<{}> Hart {} NMI state: {:#x}\n", n.cycle, hart, n.valid, nmip_.to_ullong());
 }
 
 std::string bridge::to_string(rv_intr_t& i) {
@@ -3022,7 +3004,7 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64
     return;
   }
 
-  // Since check_interrupt returns the cause based on interrupt id and current mode. 
+  // Since check_interrupt returns the cause based on interrupt id and current mode.
   // Hence need to increment the cause by 1 if it is a virtual interrupt and current mode is virtual.
   if ((cause == SEI || cause == STI || cause == SSI) && (virt_mode)) cause++;
 
@@ -3223,7 +3205,7 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pmpaddr0.address + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_mask()\n", hart, (pmpaddr0.address + pmp_cfg_reg)); 
+      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_mask()\n", hart, (pmpaddr0.address + pmp_cfg_reg));
     }
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;

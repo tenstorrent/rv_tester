@@ -40,6 +40,10 @@ class memmap {
       return parse_status_;
     }
 
+    bool parsed() {
+      return parse_status_;
+    }
+
     bool parse() {
       if (parsed_)
         return parse_status_;
@@ -123,6 +127,28 @@ class memmap {
       uint64_t end = base + size - 1;
       memmap_entry_t memory(base_str, base, size, type, tag, end, attributes);
       memmap_[tag] = memory;
+    }
+
+    const memmap_entry_t* find(const std::string& tag) {
+        auto it = memmap_.find(tag);
+        return it != memmap_.end() ? &it->second : nullptr;
+    }
+
+    // check if pa is in range
+    bool in_range(const std::string& tag, const uint64_t& pa) {
+      auto it = memmap_.find(tag);
+      if (it == memmap_.end()) {
+        cvm::log(cvm::MEDIUM, "\tResynch: No entry found for {} in memmap\n", tag);
+        return false;
+      }
+      return pa >= it->second.base && pa < it->second.end;
+    }
+    bool in_range(std::initializer_list<std::string> tags, const uint64_t& pa) {
+      for (const auto& tag : tags) {
+        if (in_range(tag, pa))
+          return true;
+      }
+      return false;
     }
 
   private:
