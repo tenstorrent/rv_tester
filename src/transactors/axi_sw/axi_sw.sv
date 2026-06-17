@@ -37,9 +37,6 @@
         automatic logic rptr_updated_nxt = (reset_n) ? (update_rptr): '0;            \
         rptr_updated <=  rptr_updated_nxt | sys_reset;                               \
         rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(rptr_updated_nxt) : '0; \
-        /* verilator lint_off BLKSEQ */                                              \
-        if (sys_reset) name``_wptr_nxt = '0;                                         \
-        /* verilator lint_on BLKSEQ */                                               \
         name``_wptr   <= name``_wptr_nxt;                                            \
     end                                                                              \
                                                                                      \
@@ -179,9 +176,12 @@ module axi_sw #(
 
             /* verilator lint_off BLKSEQ */
             if (LOCATION != cvm_topology::nil) begin
-                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
-                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
-                // exported axi_sw_*_reset() functions cannot be invoked here).
+                // FIFO wptr_nxt is C-domain owned (written only by the DPI push/
+                // reset). Reset goes through the axi_sw_reset_ptrs DPI *import*,
+                // whose C body calls the exported axi_sw_*_reset() functions to
+                // zero wptr_nxt. Do NOT reset wptr_nxt from RTL (e.g. in the
+                // AXI_SW_DPI_FIFO macro) -- on ZeBu that creates a dual-driver and
+                // the DPI push increment is silently dropped.
                 axi_sw_reset_ptrs(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
@@ -677,9 +677,12 @@ module axi_sw_mst #(
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
             if (LOCATION != cvm_topology::nil) begin
-                // FIFO wptr_nxt reset is handled inside AXI_SW_DPI_FIFO macro on
-                // sys_reset; ZeBu/ISC disallows DUT calls to TB_EXPORT (so the
-                // exported axi_sw_mst_*_reset() functions cannot be invoked here).
+                // FIFO wptr_nxt is C-domain owned (written only by the DPI push/
+                // reset). Reset goes through the axi_sw_mst_reset_ptrs DPI *import*,
+                // whose C body calls the exported axi_sw_mst_*_reset() functions to
+                // zero wptr_nxt. Do NOT reset wptr_nxt from RTL (e.g. in the
+                // AXI_SW_DPI_FIFO macro) -- on ZeBu that creates a dual-driver and
+                // the DPI push increment is silently dropped.
                 axi_sw_mst_reset_ptrs(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
