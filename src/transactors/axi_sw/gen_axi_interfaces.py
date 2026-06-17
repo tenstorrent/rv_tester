@@ -49,6 +49,11 @@ class AXIInterfaceGenerator:
     def generate_sv(self):
         lines = []
         lines.append("")
+        # rv_tester_defines.sv conditionally includes this file. Under
+        # downstream's bazel_rules_hdl fork the file ships in VCS's flist
+        # directly (no -I support for hdrs), so set this guard up front
+        # to make the conditional include in rv_tester_defines.sv a no-op.
+        lines.append("`define AXI_DEFINES_SVH")
         lines.append('`include "axi/typedef.svh"')
         lines.append("")
 
