@@ -234,7 +234,7 @@ module rv_tester
 `endif   
     assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset) || dut_terminate || warm_reset_now;
 
-    assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
+    assign rerun_now           = terminated && !terminated_1T && num_reruns != -1 && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
     // Assert `cvm_done` CVM_DONE_DELAY_CYCLES TB clk cycles after `terminate_1T` (uvm/CVM handshake).
     assign cvm_done = cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1];
