@@ -12,13 +12,12 @@ struct post_si_pcietc_helper_rpc_data_t {
   size_t length;
   data_t data;
 };
-    // CVM procedure call declaration
-CVM_MESSENGER_procedure_call(post_si_pcietc_helper_write_rpc, void (const post_si_pcietc_helper_rpc_data_t &));
-CVM_MESSENGER_procedure_call(post_si_pcietc_helper_read_rpc, void (post_si_pcietc_helper_rpc_data_t &));
+// CVM procedure call declaration
+CVM_MESSENGER_procedure_call(post_si_pcietc_helper_write_rpc, void(const post_si_pcietc_helper_rpc_data_t&));
+CVM_MESSENGER_procedure_call(post_si_pcietc_helper_read_rpc, void(post_si_pcietc_helper_rpc_data_t&));
 
 post_si_pcietc_helper::post_si_pcietc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
-  : subdevice(tag, addr, 0xc00000, loc)
-{
+    : subdevice(tag, addr, 0xc00000, loc) {
   rng.seed(FLAGS_seed);
   post_si_pcietc_helper_base = addr;
 
@@ -32,15 +31,13 @@ post_si_pcietc_helper::post_si_pcietc_helper(const std::string& tag, uint64_t ad
 post_si_pcietc_helper::~post_si_pcietc_helper() {
 }
 
-void
-post_si_pcietc_helper::checkUsage() {
- //For Future FLAG usage
+void post_si_pcietc_helper::checkUsage() {
+  //For Future FLAG usage
 }
 
-void
-post_si_pcietc_helper::read_dev(uint64_t addr, size_t length, data_t& data) {
-  if (not has_addr(addr)){
-   return;
+void post_si_pcietc_helper::read_dev(uint64_t addr, size_t length, data_t& data) {
+  if (not has_addr(addr)) {
+    return;
   }
   cvm::log(cvm::HIGH, "[post_si_pcietc_helper] read addr: {:#x} length: {}\n", addr, length);
   post_si_pcietc_helper_rpc_data_t signal_data;
@@ -53,9 +50,7 @@ post_si_pcietc_helper::read_dev(uint64_t addr, size_t length, data_t& data) {
   data = signal_data.data;
 }
 
-
-void
- post_si_pcietc_helper::write(uint64_t addr, size_t length, const data_t& data, const strb_t &) {
+void post_si_pcietc_helper::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) {
   if (not has_addr(addr))
     return;
   cvm::log(cvm::HIGH, "[post_si_pcietc_helper] write addr: {:#x} length: {}\n", addr, length);

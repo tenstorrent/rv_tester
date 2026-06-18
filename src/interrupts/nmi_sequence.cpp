@@ -13,7 +13,7 @@ DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequence
 DEFINE_string(nmi_width, "1:1", "Pulse width from tick generator when random mode is enabled");
 
 extern "C" {
-  void drive_nmi(uint8_t val);
+void drive_nmi(uint8_t val);
 }
 
 nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id) {
@@ -42,7 +42,7 @@ nmi_sequence::~nmi_sequence() {
 }
 
 void nmi_sequence::random_mode_thread() {
-  auto *task = +[] (nmi_sequence* m) -> cvm::messenger::task<void> {
+  auto* task = +[](nmi_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
     co_return;
   };
@@ -50,7 +50,7 @@ void nmi_sequence::random_mode_thread() {
 };
 
 void nmi_sequence::trigger_mode_thread() {
-  auto *task = +[] (nmi_sequence* m) -> cvm::messenger::task<void> {
+  auto* task = +[](nmi_sequence* m) -> cvm::messenger::task<void> {
     co_await m->trigger_mode();
     co_return;
   };
@@ -72,7 +72,7 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
       }
       if (!intr_enabled) {
         cvm::log(cvm::MEDIUM, "[interrupts][h{}] NMI injection disabled, waiting for trickbox enable write\n", id_);
-        continue;  // Skip NMI injection if not enabled
+        continue; // Skip NMI injection if not enabled
       }
     }
 
@@ -85,21 +85,21 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger_mode() {
-  while(1){
-     // Wait for next selected trigger
-     co_await trigger();
+  while (1) {
+    // Wait for next selected trigger
+    co_await trigger();
 
-     nmi(ASSERT);
+    nmi(ASSERT);
   }
 }
 
 void nmi_sequence::nmi(uint8_t assert) {
   cvm::registry::callbacks.push(
-    loc_,
-    [assert, this]() {
-      cvm::log(cvm::HIGH, "[interrupts][h{}] {} nmi\n", id_, assert ? "assert" : "deassert");
-      drive_nmi(assert);
-    });
+      loc_,
+      [assert, this]() {
+        cvm::log(cvm::HIGH, "[interrupts][h{}] {} nmi\n", id_, assert ? "assert" : "deassert");
+        drive_nmi(assert);
+      });
 }
 
 cvm::messenger::task<void> nmi_sequence::assert_tick() {
@@ -111,5 +111,3 @@ cvm::messenger::task<void> nmi_sequence::trigger() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
   co_return;
 }
-
-

@@ -6,13 +6,12 @@
 #include "cvm/logger.hpp"
 
 aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
-             cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc000 /* size */, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
-{
+               cvm::topology::loc_t loc)
+    : device(tag, addr, 0xc000 /* size */, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
+      timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0) {
   auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
   tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
-  
+
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
     std::string line;
@@ -31,8 +30,7 @@ aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
         iss >> val;
         // TODO: error check number < hartCount
         timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
-      }
-      else {
+      } else {
         cvm::log(cvm::NONE, "Error: unrecognized line " + type + " for " + tag + "\n");
       }
     }
@@ -41,9 +39,7 @@ aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
   }
 }
 
-
-aclint::~aclint()
-{
+aclint::~aclint() {
   std::stringstream ss;
   // no point in saving interrupt status
   ss << "timer " << std::dec << timer_ << '\n';
@@ -54,10 +50,7 @@ aclint::~aclint()
   save_snapshot(ss);
 }
 
-
-void
-aclint::read(const transactor::read_t& r, data_t& data)
-{
+void aclint::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
 
@@ -78,19 +71,16 @@ aclint::read(const transactor::read_t& r, data_t& data)
   return;
 }
 
-
-void
-aclint::write(const transactor::write_t& w)
-{
+void aclint::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;
 
-// MMR_BASE_ADDR, 2'b01, ClusterID, 5'b10011,16'hFFFF
-// 1010 0001 0011 0000 0000 0000 0000
-// 1010 0001 0011 1111 1111 1111 1111
-//.equ mtime, 0xa130000 
-//.equ mtimecmp, 0xa138000
+  // MMR_BASE_ADDR, 2'b01, ClusterID, 5'b10011,16'hFFFF
+  // 1010 0001 0011 0000 0000 0000 0000
+  // 1010 0001 0011 1111 1111 1111 1111
+  //.equ mtime, 0xa130000
+  //.equ mtimecmp, 0xa138000
 
   uint64_t offset = addr - device::addr();
 
@@ -98,7 +88,7 @@ aclint::write(const transactor::write_t& w)
 
     if (offset == 0)
       deserializeInt(data, timer_);
-    else if (offset == 0x8000){
+    else if (offset == 0x8000) {
       offset -= 0x8000;
       unsigned hartIx = offset / 8;
       if (hartIx < 0 && hartIx >= hartCount_)
@@ -114,11 +104,10 @@ aclint::write(const transactor::write_t& w)
   }
 }
 
-void aclint::tick(uint64_t advance)
-{
+void aclint::tick(uint64_t advance) {
   if ((advance % tickDivisor_) != 0) {
     cvm::log(cvm::ERROR, "Error: Clock advancing by {}, not a multiple of configured divisor {}\n", advance, tickDivisor_);
   }
-  timer_ += (advance / tickDivisor_)*10;
+  timer_ += (advance / tickDivisor_) * 10;
   processTimerInterrupts();
 }

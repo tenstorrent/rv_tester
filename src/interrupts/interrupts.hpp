@@ -4,14 +4,13 @@
 #include "cvm/logger.hpp"
 
 namespace {
-  typedef enum : uint8_t { ASSERT = 1, DEASSERT = 0 } signal_t;
+typedef enum : uint8_t { ASSERT = 1,
+                         DEASSERT = 0 } signal_t;
 }
 
 class interrupts {
 
-  public:
-
-    interrupts(cvm::topology::loc_t, unsigned) {}
-    ~interrupts() {}
-
+public:
+  interrupts(cvm::topology::loc_t, unsigned) {}
+  ~interrupts() {}
 };

@@ -25,7 +25,8 @@ Checks: >
   -bugprone-signed-char-misuse,
   -bugprone-reserved-identifier,
   -bugprone-branch-clone,
-  -bugprone-exception-escape
+  -bugprone-exception-escape,
+  -bugprone-unchecked-optional-access
 
 WarningsAsErrors: >
   bugprone-terminating-continue,

@@ -11,36 +11,33 @@
 
 class nmi_sequence {
 
-  public:
+public:
+  nmi_sequence(cvm::topology::loc_t loc, unsigned id);
+  ~nmi_sequence();
 
-    nmi_sequence(cvm::topology::loc_t loc, unsigned id);
-    ~nmi_sequence();
+  void configure();
 
-    void configure();
+private:
+  void random_mode_thread();
+  void trigger_mode_thread();
 
-  private:
+  cvm::messenger::task<void> random_mode();
+  cvm::messenger::task<void> trigger_mode();
 
-    void random_mode_thread();
-    void trigger_mode_thread();
+  cvm::messenger::task<void> assert_tick();
+  cvm::messenger::task<void> trigger();
+  cvm::messenger::task<void> reset();
 
-    cvm::messenger::task<void> random_mode();
-    cvm::messenger::task<void> trigger_mode();
+  void init();
+  void nmi(uint8_t assert);
+  void nmi_triggered(unsigned hart);
 
-    cvm::messenger::task<void> assert_tick();
-    cvm::messenger::task<void> trigger();
-    cvm::messenger::task<void> reset();
+  cvm::rand::uniform_dist<int64_t> rng1;
 
-    void init();
-    void nmi(uint8_t assert);
-    void nmi_triggered(unsigned hart);
-    
-    cvm::rand::uniform_dist<int64_t> rng1;
+private:
+  cvm::topology::loc_t loc_;
+  cvm::topology::loc_t triggers_loc;
+  unsigned id_;
 
-  private:
-
-    cvm::topology::loc_t loc_;
-    cvm::topology::loc_t triggers_loc;
-    unsigned id_;
-
-    uint32_t nmi_count_ = 0;
+  uint32_t nmi_count_ = 0;
 };

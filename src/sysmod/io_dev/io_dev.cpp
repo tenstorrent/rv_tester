@@ -4,10 +4,8 @@
 #include "src/sysmod/io_dev/io_dev.h"
 #include "sysmod_plusargs.h"
 
-
 io_dev::io_dev(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)
-  : device(tag, addr, size, loc, &io_dev::write, &io_dev::read, this)
-{
+    : device(tag, addr, size, loc, &io_dev::write, &io_dev::read, this) {
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
@@ -35,13 +33,12 @@ void io_dev::read(const transactor::read_t& r, data_t& data) {
   return;
 }
 
-
 bool io_dev::init_elf(const std::string& path) {
-    try {
-        m_.load_ELF(path);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_.load_ELF(path);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }

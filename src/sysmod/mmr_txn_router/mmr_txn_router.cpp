@@ -1,8 +1,7 @@
 #include "src/sysmod/mmr_txn_router/mmr_txn_router.h"
 
 mmr_txn_router::mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
-  : device(tag, addr, size, loc, &mmr_txn_router::write, &mmr_txn_router::read, this), axi_mst_loc_l(axi_mst_loc)
-{
+    : device(tag, addr, size, loc, &mmr_txn_router::write, &mmr_txn_router::read, this), axi_mst_loc_l(axi_mst_loc) {
   cvm::log(cvm::HIGH, " [mmr_txn_router] Constructor \n");
 }
 
@@ -10,7 +9,6 @@ void mmr_txn_router::configure() {
   device::configure();
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
-
 
 cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
@@ -25,10 +23,7 @@ cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, dat
   co_return;
 }
 
-
-void
-mmr_txn_router::write(const transactor::write_t& w)
-{
+void mmr_txn_router::write(const transactor::write_t& w) {
   uint64_t addr = w.addr;
   size_t length = w.length;
   uint32_t value;
@@ -38,5 +33,4 @@ mmr_txn_router::write(const transactor::write_t& w)
   cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr write back to overlay: Addr = {:#x}\n", addr);
   //re route mmr write
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
-
 }

@@ -1,21 +1,21 @@
 module interrupts
-import rv_tester_params::*;
-#(
-  parameter int NUM = -1,
-  `TOPOLOGY,
-  `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PARAMS
-)
-(
-  input logic clk,
-  input logic sys_reset,
-  input logic reset,
-  input logic boot_done,
-  input logic [63:0] clocks,
-  /* verilator lint_off BLKANDNBLK */
-  output logic nmi,
-  /* verilator lint_on BLKANDNBLK */
-  `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
-);
+  import rv_tester_params::*;
+  #(
+    parameter int NUM = -1,
+    `TOPOLOGY,
+    `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PARAMS
+    )
+  (
+   input logic clk,
+   input logic sys_reset,
+   input logic reset,
+   input logic boot_done,
+   input logic [63:0] clocks,
+   /* verilator lint_off BLKANDNBLK */
+   output logic nmi,
+   /* verilator lint_on BLKANDNBLK */
+   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
+   );
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.INTERRUPTS.ID, NUM);
 
@@ -58,7 +58,7 @@ import rv_tester_params::*;
   export "DPI-C" function drive_nmi;
 
   function void drive_nmi(bit val);
-      nmi = val;
+    nmi = val;
   endfunction
 
 endmodule

@@ -59,11 +59,9 @@ typedef struct gpr_s {
     clear();
   }
 
-  constexpr gpr_s(bool valid, uint32_t rd_addr, uint64_t rd_wdata) :
-    valid(valid),
-    rd_addr(rd_addr),
-    rd_wdata(rd_wdata)
-  {}
+  constexpr gpr_s(bool valid, uint32_t rd_addr, uint64_t rd_wdata) : valid(valid),
+                                                                     rd_addr(rd_addr),
+                                                                     rd_wdata(rd_wdata) {}
 
   void clear() {
     valid = false;
@@ -79,11 +77,9 @@ typedef struct fpr_s {
     clear();
   }
 
-  constexpr fpr_s(bool valid, uint32_t frd_addr, uint64_t frd_wdata) :
-    valid(valid),
-    frd_addr(frd_addr),
-    frd_wdata(frd_wdata)
-  {}
+  constexpr fpr_s(bool valid, uint32_t frd_addr, uint64_t frd_wdata) : valid(valid),
+                                                                       frd_addr(frd_addr),
+                                                                       frd_wdata(frd_wdata) {}
 
   void clear() {
     valid = false;
@@ -99,11 +95,9 @@ typedef struct vr_s {
     clear();
   }
 
-  constexpr vr_s(bool valid, uint32_t vrd_addr, std::bitset<256> vrd_wdata) :
-    valid(valid),
-    vrd_addr(vrd_addr),
-    vrd_wdata(vrd_wdata)
-  {}
+  constexpr vr_s(bool valid, uint32_t vrd_addr, std::bitset<256> vrd_wdata) : valid(valid),
+                                                                              vrd_addr(vrd_addr),
+                                                                              vrd_wdata(vrd_wdata) {}
 
   void clear() {
     valid = false;
@@ -122,14 +116,12 @@ typedef struct csr_s {
     clear();
   }
 
-  constexpr csr_s(bool valid, uint32_t hart, uint64_t cycle, uint32_t addr, uint64_t mask, uint64_t data) :
-    valid(valid),
-    hart(hart),
-    cycle(cycle),
-    csr_addr(addr),
-    csr_wmask(mask),
-    csr_wdata(data)
-  {}
+  constexpr csr_s(bool valid, uint32_t hart, uint64_t cycle, uint32_t addr, uint64_t mask, uint64_t data) : valid(valid),
+                                                                                                            hart(hart),
+                                                                                                            cycle(cycle),
+                                                                                                            csr_addr(addr),
+                                                                                                            csr_wmask(mask),
+                                                                                                            csr_wdata(data) {}
 
   void clear() {
     valid = false;
@@ -161,7 +153,7 @@ typedef struct mem_s {
   bool mtime_valid;
   uint64_t mtime;
   bool trap_intr;
-  
+
   mem_s() {
     clear();
   }
@@ -213,7 +205,7 @@ typedef struct rv_instr_s {
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
-  uint64_t core_cycle = 0; 
+  uint64_t core_cycle = 0;
   uint64_t tag = 0;
   uint64_t branch_tag = 0;
   uint32_t opcode = 0;

@@ -1,4 +1,4 @@
-#include <map> 
+#include <map>
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
@@ -9,9 +9,8 @@
 class pmu {
 
 public:
-
-  #include "gen_events_core.hpp"
-  #include "gen_events_sc.hpp"
+#include "gen_events_core.hpp"
+#include "gen_events_sc.hpp"
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();
@@ -31,17 +30,17 @@ public:
   template <typename ContainerType, typename CycleType>
   void perf_region_start_temp(ContainerType& perf_region, const ContainerType& counters, CycleType& perf_start_cycle) {
     assert(perf_region.size() == counters.size());
-  
+
     for (size_t i = 0; i < perf_region.size(); i++) {
       perf_region[i] = counters[i];
     }
     perf_start_cycle = counters_core[CPU_CYCLES];
   }
-  
+
   template <typename ContainerType, typename CycleType>
   void perf_region_end_temp(ContainerType& perf_region, const ContainerType& counters, CycleType& perf_end_cycle) {
     assert(perf_region.size() == counters.size());
-  
+
     for (size_t i = 0; i < perf_region.size(); i++) {
       perf_region[i] = counters[i] - perf_region[i];
     }
@@ -66,22 +65,21 @@ public:
   }
 
   bool is_within_range(double, double, int, bool);
-  void process_core(const rv_tester_transactions::pmu_core::pmcounters_core<> &pmcounters);
-  void process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<> &pmcounters);
-  void process_core(const rv_tester_transactions::pmu_core::hpmcounters_core<> &hpmcounters);
-  void process_core(const rv_tester_transactions::pmu_core::pmc_checker<> &pmc_checker);
-  void process(const rv_tester::terminate_called_fast &);
-  std::string trigger_str_core(const rv_tester_transactions::pmu_core::pmcounters_core<> &pmcounters);
+  void process_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters);
+  void process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters);
+  void process_core(const rv_tester_transactions::pmu_core::hpmcounters_core<>& hpmcounters);
+  void process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker);
+  void process(const rv_tester::terminate_called_fast&);
+  std::string trigger_str_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters);
   std::string trigger_str_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters);
 
   bool shutdown_ready();
-  void get_filter_events_and_sum(uint64_t, std::vector<size_t>& , size_t&);
+  void get_filter_events_and_sum(uint64_t, std::vector<size_t>&, size_t&);
   size_t extract_granularity(uint64_t);
   size_t sum_event_vector(std::vector<size_t>& filtering_events);
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
 private:
-
   enum SM : uint32_t {
     SYNCING,
     SYNC_UNTIL_TERMINATE,
@@ -106,7 +104,7 @@ private:
   std::array<std::uint64_t, counter_core::COUNT_CORE> perf_region_core;
   std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
 
-  struct event_csr_details{
+  struct event_csr_details {
     bool programmed = false;
     std::vector<size_t> event_type;
     size_t sideband_count_eventwr;
@@ -118,7 +116,7 @@ private:
 
   static constexpr size_t num_event_csrs = 8;
   event_csr_details event_csr_array[num_event_csrs];
-  uint64_t hpmcounters_array [num_event_csrs];
+  uint64_t hpmcounters_array[num_event_csrs];
 
   uint64_t sideband_count_terminate_ = 0;
   uint64_t expected_count_ = 0;
@@ -127,4 +125,3 @@ private:
   std::unordered_map<uint64_t, size_t>::const_iterator pmc_event;
   std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>>::const_iterator filtered_pmc_event;
 };
-
