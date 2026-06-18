@@ -15,7 +15,6 @@ void mmr_txn_router::configure() {
 cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
-  uint32_t value = 0;
 
   //reroute mmr read
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
