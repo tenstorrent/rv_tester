@@ -1,27 +1,23 @@
 from typing import List, Dict, Any
 import argparse
+import csv
+import io
 
 pmcounter_dpi_width = 24
 
 def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
     """Parse core PMC CSV data into a list of event dictionaries."""
     core_data_dict = []
-    core_events = data_str.split('\n')
-    
-    skip_header = True
-    for event in core_events:
-        if skip_header:
-            skip_header = False
-            continue
-        if event:
-            desc = event.split(',')
+    reader = csv.DictReader(io.StringIO(data_str))
+    reader.fieldnames = [fn.lstrip('\ufeff').strip() for fn in (reader.fieldnames or [])]
+    for row in reader:
+        if row.get("Name"):
             core_data_dict.append({
-                "name": desc[1], 
-                "description": desc[2], 
-                "event_id": desc[0], 
-                "unit": desc[4], 
-                "multi_hot_encoding": desc[11], 
-                "multi_D_filter": desc[12]
+                "name": row["Name"],
+                "description": row["Description"],
+                "event_id": row["Event ID"],
+                "multi_hot_encoding": row.get("Multi-hot Encoding", "No"),
+                "multi_D_filter": row.get("Multi-dimensional Encoding", "No")
             })
     
     # Add synthetic events
@@ -29,7 +25,6 @@ def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
         "name": "branch_instructions", 
         "description": "Sum of retired branches", 
         "event_id": -1, 
-        "unit": "FE", 
         "multi_hot_encoding": "No", 
         "multi_D_filter": "No"
     })
@@ -37,7 +32,6 @@ def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
         "name": "tb_cycles", 
         "description": "Event for each TB cycle", 
         "event_id": -1, 
-        "unit": "FE", 
         "multi_hot_encoding": "No", 
         "multi_D_filter": "No"
     })
@@ -47,19 +41,14 @@ def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
 def parse_sc_csv(data_str: str) -> List[Dict[Any, Any]]:
     """Parse shared cache PMC CSV data into a list of event dictionaries."""
     sc_data_dict = []
-    sc_events = data_str.split('\n')
-    
-    sc_skip_header = True
-    for event in sc_events:
-        if sc_skip_header:
-            sc_skip_header = False
-            continue
-        if event:
-            desc = event.split(',')
+    reader = csv.DictReader(io.StringIO(data_str))
+    reader.fieldnames = [fn.lstrip('\ufeff').strip() for fn in (reader.fieldnames or [])]
+    for row in reader:
+        if row.get("Name"):
             sc_data_dict.append({
-                "name": desc[1], 
-                "description": desc[2], 
-                "event_id": desc[0]
+                "name": row["Name"],
+                "description": row["Description"],
+                "event_id": row["Event ID"]
             })
     
     # Add synthetic event
