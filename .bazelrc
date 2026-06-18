@@ -29,12 +29,22 @@ build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarati
 # side. Linking still needs -fsanitize=undefined so clang's driver pulls
 # libclang_rt.ubsan_standalone_cxx — the C++ runtime that provides
 # __ubsan_vptr_type_cache + __ubsan_handle_dynamic_type_cache_miss_abort.
+#
+# The `--driver-mode=g++` linkopt forces clang to act as clang++ during
+# the link, which is what triggers it to link libclang_rt.ubsan_standalone_cxx
+# (and libclang_rt.asan_cxx). Without it, bazel invokes plain `clang` for
+# the link — that's the C driver, which only links the C runtimes and the
+# `__ubsan_vptr_*` / `__asan_handle_cxx_*` symbols from C++-instrumented
+# objects end up unresolved.
 build:ubsan --features=ubsan
 build:ubsan --linkopt=-fsanitize=undefined
+build:ubsan --linkopt=--driver-mode=g++
 
 # ASan: bazel's features=asan handles both compile and link by default,
 # but bundle it as a config so the CI script is symmetric with ubsan.
+# Also force clang++ link mode so asan_cxx gets linked (matches :ubsan).
 build:asan --features=asan
+build:asan --linkopt=--driver-mode=g++
 
 # clang-tidy via erenon/bazel_clang_tidy. Run with `--config=clang-tidy`.
 build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
