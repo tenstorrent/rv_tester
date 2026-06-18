@@ -16,38 +16,24 @@ build:bzlmod --define=use_bzlmod=1
 build --cxxopt=-include --cxxopt=bit
 build --host_cxxopt=-include --host_cxxopt=bit
 
-# Global -Wno-error= for warnings that flow into FIRST-PARTY compilation:
-# (a) emitted from external headers `#include`'d by first-party TUs
-# (nlohmann/json.hpp, fmt's deprecated `map<...>`, verilator's
-# verilated_funcs.h's unused-parameter / sign-compare); or
-# (b) emitted from verilator-generated .cpp under `bazel-out/.../bin/test/...`
-# whose path doesn't match `external/.*` (so per_file_copt sees it as
-# first-party even though it's generated).
+# Mirror cvm's relaxations (BCR m4/flex/bison gnulib, googletest deprecated
+# std::get_temporary_buffer under libstdc++ 12).
 build --copt=-Wno-error=implicit-function-declaration --host_copt=-Wno-error=implicit-function-declaration
-build --copt=-Wno-error=deprecated-declarations --host_copt=-Wno-error=deprecated-declarations
-build --copt=-Wno-error=deprecated-literal-operator --host_copt=-Wno-error=deprecated-literal-operator
-build --copt=-Wno-error=macro-redefined --host_copt=-Wno-error=macro-redefined
-build --copt=-Wno-error=unused-parameter --host_copt=-Wno-error=unused-parameter
-build --copt=-Wno-error=unused-variable --host_copt=-Wno-error=unused-variable
-build --copt=-Wno-error=sign-compare --host_copt=-Wno-error=sign-compare
-build --copt=-Wno-error=bool-operation --host_copt=-Wno-error=bool-operation
-build --copt=-Wno-error=bitwise-instead-of-logical --host_copt=-Wno-error=bitwise-instead-of-logical
-build --copt=-Wno-error=unused-but-set-variable --host_copt=-Wno-error=unused-but-set-variable
 
-# External-only -Wno-error= for warnings clang 20 emits only from external
-# C source compiles (bzip2, gnulib). First-party stays strict on these.
-build --per_file_copt=external/.*@-Wno-error=cast-function-type-mismatch
-
-# -Werror everywhere via Bazel's built-in feature. Compile side: -Werror.
-# Link side: -Wl,-fatal-warnings. The two -Wno-error= blocks above keep
-# external deps building under it.
-build --features=treat_warnings_as_errors
-
-# Extra warning lenses (-Wall, -Wextra) only on first-party rv_tester code.
-# The leading `-` on the regex means "files NOT matching external/.*".
-# Bazel has no built-in -Wall/-Wextra feature, so per_file_copt is the
-# only built-in mechanism to keep these off third-party translation units.
-build --per_file_copt=-external/.*@-Wall,-Wextra
+# -Wall / -Werror only on first-party rv_tester code. The -Wno-error= entries
+# cover clang 20 warnings BCR-fetched headers trigger when included from
+# first-party TUs (whisper, nlohmann json, etc.).
+#
+# Bazel's built-in `treat_warnings_as_errors` feature is NOT used here:
+# it (a) only adds -Werror (no -Wall) and (b) cannot be scoped to non-
+# external targets — features are workspace-global once enabled via
+# `--features=`, and external compiles under it would need ~10 extra
+# `-Wno-error=` overrides because Bazel's default toolchain already
+# enables -Wall-equivalent warnings on every translation unit. The
+# `--per_file_copt=-<regex>@<flags>` path-negation form is the only
+# built-in mechanism that distinguishes first-party from external/*
+# paths without touching every BUILD.bazel.
+build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarations,-Wno-error=deprecated-literal-operator,-Wno-error=macro-redefined
 
 # UBSan: --features=ubsan only flips -fsanitize=undefined on the compile
 # side. Linking still needs -fsanitize=undefined so clang's driver pulls
