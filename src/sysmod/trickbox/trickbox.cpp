@@ -3,10 +3,8 @@
 #include "sysmod_plusargs.h"
 #include "rvfi_plusargs.h"
 
-
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc )
-  : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this)
-{
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
+    : device(tag, addr, 0x1c00000 /* size */, loc, &trickbox::write, &trickbox::read, this) {
 
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
@@ -32,13 +30,10 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
 }
 
-
-trickbox::~trickbox()
-{
+trickbox::~trickbox() {
 }
 
-void trickbox::configure()
-{
+void trickbox::configure() {
   device::configure();
   for (auto& d : subdevices_) {
     d->configure();
@@ -46,55 +41,51 @@ void trickbox::configure()
 }
 
 bool trickbox::init_elf(const std::string& path) {
-    try {
-        m_.load_ELF(path);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_.load_ELF(path);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }
-
 
 void trickbox::read(const transactor::read_t& r, data_t& data) {
 
   if (!FLAGS_rvfi)
-      return;
+    return;
   auto& addr = r.addr;
   auto& length = r.length;
 
   for (auto& d : subdevices_) {
-    d->read_dev(addr,length,data);
+    d->read_dev(addr, length, data);
   }
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
+  cvm::log(cvm::HIGH, "TRICKBOX READ::::: ADDR:{:#x} \n", addr);
+  cvm::log(cvm::HIGH, "TRICKBOX READ::::: DATA byte 0:{:#x} \n", (uint32_t)data[0]);
+  cvm::log(cvm::HIGH, "TRICKBOX READ::::: DATA byte 1:{:#x} \n", (uint32_t)data[1]);
+  cvm::log(cvm::HIGH, "TRICKBOX READ::::: DATA byte 2:{:#x} \n", (uint32_t)data[2]);
 
   return;
 }
 
-void
-trickbox::write(const transactor::write_t& w)
-{
+void trickbox::write(const transactor::write_t& w) {
   if (!FLAGS_rvfi)
-      return;
+    return;
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;
   auto& strb = w.strb;
 
   for (auto& d : subdevices_) {
-    d->write(addr,length,data,strb);
+    d->write(addr, length, data, strb);
   }
 }
-void trickbox::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) 
-{
-uint64_t t_data;  
-deserializeInt(data,t_data);
+void trickbox::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) {
+  uint64_t t_data;
+  deserializeInt(data, t_data);
 
-cvm::log (cvm::HIGH,"TRICKBOX BACKDOOR WRITE::::: ADDR:{:#x} DATA:{:#x}\n",addr,t_data);
+  cvm::log(cvm::HIGH, "TRICKBOX BACKDOOR WRITE::::: ADDR:{:#x} DATA:{:#x}\n", addr, t_data);
   for (auto& d : subdevices_) {
-    d->write(addr,length,data,strb);
+    d->write(addr, length, data, strb);
   }
 }

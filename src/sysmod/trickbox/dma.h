@@ -25,11 +25,9 @@
 #include "whisper_client.h"
 #include "src/sysmod/trickbox/io_coh_helper.h"
 
-class dma : public subdevice
-{
+class dma : public subdevice {
 public:
-
-  dma(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, mem_manager &m_, io_coh_helper* io_coh_helper_ptr = nullptr);
+  dma(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, mem_manager& m_, io_coh_helper* io_coh_helper_ptr = nullptr);
   // Destructor.
   virtual ~dma();
 
@@ -39,8 +37,7 @@ public:
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.
   template <typename INT>
-  void serializeInt(INT x, size_t n, data_t& data)
-  {
+  void serializeInt(INT x, size_t n, data_t& data) {
     for (unsigned i = 0; i < n; ++i, x >>= 8)
       data[i] = x & 0xff;
   }
@@ -48,11 +45,10 @@ public:
   // Copy bytes from data iterator into the given integer following
   // lilttle endian convention.
   template <typename INT>
-  void deserializeInt(const data_t& data, INT& x)
-  {
+  void deserializeInt(const data_t& data, INT& x) {
     x = 0;
     for (unsigned i = 0; i < sizeof(x); ++i)
-      x |= INT(data[i]) << i*8;
+      x |= INT(data[i]) << i * 8;
   }
 
   cvm::messenger::task<void> call_io_coh_helper_write(uint64_t addr, std::vector<uint8_t> ext_data_vec, uint64_t size, bool write_in_flight);
@@ -63,7 +59,7 @@ public:
   /// No-op if address is outside the range of this dma or if
   /// address is not properly aligned.
   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
-   void read_dev(uint64_t addr, size_t length,  data_t& data) override;
+  void read_dev(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this dma. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
@@ -75,44 +71,42 @@ public:
   // timer/time-compare entries.
 
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb) override;
+                     const strb_t& strb) override;
   void reset() override {
   }
 
- uint64_t convertToUInt64(const std::vector<uint8_t>& vec) {
+  uint64_t convertToUInt64(const std::vector<uint8_t>& vec) {
     if (vec.size() != 8) {
-        throw std::invalid_argument("Vector must have exactly 8 elements.");
+      throw std::invalid_argument("Vector must have exactly 8 elements.");
     }
 
     uint64_t result = 0;
     for (size_t i = 0; i < 8; ++i) {
-        result |= static_cast<uint64_t>(vec[i]) << (8 *  i);
+      result |= static_cast<uint64_t>(vec[i]) << (8 * i);
     }
 
     return result;
-}
+  }
 
-void gen_data_strb(uint64_t addr, data_t& wdata, std::vector<bool>& strb);
+  void gen_data_strb(uint64_t addr, data_t& wdata, std::vector<bool>& strb);
 
-typedef struct dma_txn{
+  typedef struct dma_txn {
     uint64_t addr;
     uint64_t data[8];
     uint64_t size;
     uint8_t cmd;
-    uint8_t status;    
+    uint8_t status;
     bool virt;
     bool in_flight = false;
-}dma_txn;
-
+  } dma_txn;
 
 protected:
-
   void dma_write(uint64_t addr, uint64_t data);
   void dma_read(uint64_t addr);
   void overlay_write(uint64_t addr, uint8_t map_key);
   cvm::messenger::task<axi::r_t> overlay_read(uint64_t addr, uint8_t map_key);
   cvm::messenger::task<void> blocking_read(uint64_t addr);
-  cvm::messenger::task<void> blocking_write(uint64_t addr) ;
+  cvm::messenger::task<void> blocking_write(uint64_t addr);
   cvm::messenger::task<void> handle_dma_read_request(uint8_t map_key);
 
 private:
@@ -142,7 +136,7 @@ private:
 
   std::vector<uint8_t> dma_write_data_vec_;
   std::vector<bool> dma_write_strb_vec_;
-  
+
   uint64_t dma_write_addr_ = 0;
   uint8_t dma_write_size_ = 0;
   uint8_t dma_map_key_ = 0;
@@ -150,15 +144,15 @@ private:
   uint8_t dma_read_size_ = 0;
   uint64_t num_writes = 0;
 
-  uint8_t  axi_id = 0;
+  uint8_t axi_id = 0;
 
-  bool write_in_flight = false; 
-  bool read_in_flight = false; 
-  bool burst_in_flight = false; 
+  bool write_in_flight = false;
+  bool read_in_flight = false;
+  bool burst_in_flight = false;
   bool poke_valid_ = false;
 
   axi::r_t resp_;
-  
+
   // Reference to io_coh_helper instance
   io_coh_helper* io_coh_helper_ptr_;
   // Reference to snoop_gen_sequence instance

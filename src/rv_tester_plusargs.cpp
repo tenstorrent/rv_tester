@@ -16,9 +16,9 @@ DEFINE_double(ext_mem_stall_factor, 0.8, "Apply mult factor for shared cache to 
 DEFINE_bool(timeout_scale_en, true, "Enable timeout scaling via DPI calls (default on for simulation, off for emulation)");
 
 extern "C" {
-    std::uint32_t ext_mem_rv_tester_get_stall_timeout() { return FLAGS_ext_mem_stall_factor * FLAGS_max_stall_cycle; }
+std::uint32_t ext_mem_rv_tester_get_stall_timeout() { return FLAGS_ext_mem_stall_factor * FLAGS_max_stall_cycle; }
 }
 
 extern "C" void stall_checker_rv_tester_error(const char* error, std::uint32_t threshold) {
-    cvm::log(cvm::ERROR, "Error: {}: {} cycles\n", error, threshold);
+  cvm::log(cvm::ERROR, "Error: {}: {} cycles\n", error, threshold);
 }

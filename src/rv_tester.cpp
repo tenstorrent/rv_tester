@@ -15,13 +15,12 @@
 #include "eot_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 
-
 static bool validate_ge0(const char* flagname, const int value) {
-    if (value < 0) {
-        cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
-        return false;
-    }
-    return true;
+  if (value < 0) {
+    cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
+    return false;
+  }
+  return true;
 }
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value);
 
@@ -36,7 +35,7 @@ DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test c
 DEFINE_bool(trace_en, false, "Set this while running trace test");
 DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
-DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
+DEFINE_bool(smc_sweep_test, false, "Set this while running small core sram sweep test");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
 DEFINE_bool(time_mtime_sync_enable, true, "Enable time and mtime sync check");
 DEFINE_int32(trace_timeout, 60000, "trace test end timeout after to host end call");
@@ -59,11 +58,10 @@ DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode f
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
 
-
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
-  if ((value==0) && (FLAGS_cvm_debug_cycle_on > 0))
+  if ((value == 0) && (FLAGS_cvm_debug_cycle_on > 0))
     FLAGS_cvm_debug_cycle_off = -1;
-  if ((value > 0) && (FLAGS_cvm_debug_cycle_on >= value )) {
+  if ((value > 0) && (FLAGS_cvm_debug_cycle_on >= value)) {
     cvm::log(cvm::NONE, "Invalid value for +{}={}, must be greater than cvm_debug_cycle_on={}\n", flagname, value, FLAGS_cvm_debug_cycle_on);
     return false;
   }
@@ -76,242 +74,236 @@ extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_a
 static bool check_called;
 class logger_instrument {
 
-    public:
-        logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc) {};
+public:
+  logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc) {};
 
-        void configure() {
-            clock = 0;
-            timestamp = 0;
+  void configure() {
+    clock = 0;
+    timestamp = 0;
 
-            cvm::set_logger_prefix([]() -> std::string_view {
-                prefix = (timestamp)? "[" + std::to_string(timestamp) + "ps]" : "";
-                prefix += (clock)? "[" + std::to_string(clock) + "] " : "";
-                return prefix;
-            });
+    cvm::set_logger_prefix([]() -> std::string_view {
+      prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+      prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      return prefix;
+    });
 
-            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [] (const auto& c) { clock = c.clock; });
-            cvm::registry::messenger.connect<rv_tester_transactions::logger::timestamp<>>(loc, [] (const auto& t) { timestamp = t.timeval; });
+    cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [](const auto& c) { clock = c.clock; });
+    cvm::registry::messenger.connect<rv_tester_transactions::logger::timestamp<>>(loc, [](const auto& t) { timestamp = t.timeval; });
+  }
 
-        }
+  void check() {
+    // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
+    // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
+    cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
+    if (!FLAGS_offline_dpi_replay) {
+      cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
+      cvm::registry::callbacks.push(
+          scope,
+          []() {
+            return rv_tester_terminate();
+          });
+    }
+  }
 
-        void check() {
-            // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
-            // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
-            cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
-            if (!FLAGS_offline_dpi_replay) {
-                cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
-                cvm::registry::callbacks.push(
-                    scope,
-                    []() {
-                        return rv_tester_terminate();
-                    });
-            }
-        }
+  static void set_scope(svScope s) { scope = s; };
 
-        static void set_scope(svScope s) { scope = s; };
-
-    private:
-
-        static svScope scope;
-        static std::string prefix;
-        static uint64_t clock;
-        static uint64_t timestamp;
-        cvm::topology::loc_t loc;
+private:
+  static svScope scope;
+  static std::string prefix;
+  static uint64_t clock;
+  static uint64_t timestamp;
+  cvm::topology::loc_t loc;
 };
-
 
 extern "C" {
 
-    void dpi_rv_tester_keeper_send_data(svBit data) {
-        cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n",data);
-        return;
+void dpi_rv_tester_keeper_send_data(svBit data) {
+  cvm::log(cvm::LOW, "[RVFI] keeper send data = {}\n", data);
+  return;
+}
+
+int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
+  //cvm::log(cvm::NONE, "rv_tester_perf_calc(init={} terminate={}  clocks={})\n", init,terminate,clocks);
+  static std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;
+  static std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+  static std::chrono::time_point<std::chrono::high_resolution_clock> end_time;
+  static std::chrono::time_point<std::chrono::high_resolution_clock> rstdone_time;
+  int pcps, tcps, period;
+  static std::uint64_t first_clk, rdone_clk;
+  static std::uint64_t last_clk;
+
+  end_time = std::chrono::high_resolution_clock::now();
+
+  if (init == 1) {
+    first_clk = clocks;
+    last_clk = clocks;
+    zero_time = end_time;
+    start_time = end_time;
+    return (1);
+  }
+
+  if (reset_done == 1) {
+    auto rduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
+    pcps = 0;
+    period = clocks - first_clk;
+    rstdone_time = end_time;
+    rdone_clk = clocks;
+    if (rduration > 0) {
+      pcps = (int)(period / rduration);
     }
+    cvm::log(cvm::NONE, "time={}  reset_performance_khz\": {}\n", clocks, pcps);
+    start_time = end_time;
+    last_clk = clocks;
+    return (1);
+  }
 
-    int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
-        //cvm::log(cvm::NONE, "rv_tester_perf_calc(init={} terminate={}  clocks={})\n", init,terminate,clocks);
-        static std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;
-        static std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
-        static std::chrono::time_point<std::chrono::high_resolution_clock> end_time;
-        static std::chrono::time_point<std::chrono::high_resolution_clock> rstdone_time;
-        int pcps,tcps,period;
-        static std::uint64_t first_clk, rdone_clk;
-        static std::uint64_t last_clk;
-
-        end_time = std::chrono::high_resolution_clock::now();
-
-        if (init==1) {
-            first_clk = clocks;
-            last_clk  = clocks;
-            zero_time = end_time; 
-            start_time = end_time;
-            return(1);
-        }
-
-
-        if (reset_done==1) {
-           auto rduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
-           pcps = 0;
-           period = clocks - first_clk;
-           rstdone_time = end_time;
-           rdone_clk  = clocks;
-           if (rduration > 0) {
-              pcps = (int)(period/rduration);
-           }
-           cvm::log(cvm::NONE, "time={}  reset_performance_khz\": {}\n", clocks,pcps);
-           start_time = end_time; 
-           last_clk = clocks;
-           return(1);
-        }
-
-        if (terminate==1) {
-           auto tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - rstdone_time).count();
-           period = clocks - rdone_clk;
-           if (tduration > 0) {
-              tcps = (int)(clocks/tduration);
-           }
-           cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"exec_performance_khz\": {}}}\n", tcps);
-
-           tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
-           tcps = 0;
-           period = clocks - first_clk;
-           if (tduration > 0) {
-              tcps = (int)(clocks/tduration);
-           }
-           cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"test_performance_khz\": {}}}\n", tcps);
-           last_clk = clocks;
-           start_time = end_time; 
-           return(1);
-        }
-
-        auto pduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-        pcps = 0;
-        if (pduration > 0) { 
-           period = clocks - last_clk;
-           pcps = (int)(period/pduration);
-        }
-        cvm::log(cvm::NONE, "time:{}  period_performance_khz\": {}\n", clocks,pcps);
-        start_time = end_time; 
-        last_clk = clocks;
-        return(1);
-
+  if (terminate == 1) {
+    auto tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - rstdone_time).count();
+    period = clocks - rdone_clk;
+    if (tduration > 0) {
+      tcps = (int)(clocks / tduration);
     }
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"exec_performance_khz\": {}}}\n", tcps);
 
-    int rv_tester_parse_flags() {
-        cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
-        cvm::plusargs::parse();
-        return 0;
+    tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
+    tcps = 0;
+    period = clocks - first_clk;
+    if (tduration > 0) {
+      tcps = (int)(clocks / tduration);
     }
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"test_performance_khz\": {}}}\n", tcps);
+    last_clk = clocks;
+    start_time = end_time;
+    return (1);
+  }
 
-    void rv_tester_set_seed() {
-        cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
-        cvm::rand::seed(FLAGS_seed);
-    }
+  auto pduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+  pcps = 0;
+  if (pduration > 0) {
+    period = clocks - last_clk;
+    pcps = (int)(period / pduration);
+  }
+  cvm::log(cvm::NONE, "time:{}  period_performance_khz\": {}\n", clocks, pcps);
+  start_time = end_time;
+  last_clk = clocks;
+  return (1);
+}
 
-    void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
+int rv_tester_parse_flags() {
+  cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
+  cvm::plusargs::parse();
+  return 0;
+}
 
-        std::map<std::string, memmap_entry_t> m;
-        if (!memmap::instance().get(m))
-            return;
-        if (m.size() > no_addr_rules) {
-            cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
-            return;
-        }
+void rv_tester_set_seed() {
+  cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
+  cvm::rand::seed(FLAGS_seed);
+}
 
-        std::uint32_t i = 0;
-        for (const auto& it : m) {
-            const auto& e = it.second;
-            rv_tester_set_address_map(i, e.base, e.end, e.type != "memory");
-            i++;
-        }
-        for(; i < no_addr_rules; i++) {
-            rv_tester_set_address_map(i, 1, 1, 1);
-        }
-    }
+void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
 
-    void rv_tester_build_registry() {
-        check_called = false;
-        cvm::registry::build();
-        cvm::registry::configure();
-    }
-   
-    void rv_tester_domain0_build_registry() {
-        check_called = false;
-        cvm::registry::build_domain(0);
-        cvm::registry::configure();
-    } 
+  std::map<std::string, memmap_entry_t> m;
+  if (!memmap::instance().get(m))
+    return;
+  if (m.size() > no_addr_rules) {
+    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+    return;
+  }
 
-    uint8_t rv_tester_shutdown_registry(bool unconditional_terminate)  {
-        if (!check_called) {
-            cvm::log(cvm::NONE, "[registry] check...\n");
-            cvm::registry::check();
-            check_called = true;
-        }
+  std::uint32_t i = 0;
+  for (const auto& it : m) {
+    const auto& e = it.second;
+    rv_tester_set_address_map(i, e.base, e.end, e.type != "memory");
+    i++;
+  }
+  for (; i < no_addr_rules; i++) {
+    rv_tester_set_address_map(i, 1, 1, 1);
+  }
+}
 
-        cvm::log(cvm::NONE, "[registry] shutdown...\n");
-        if (unconditional_terminate) {
-            return cvm::registry::shutdown();
-        }
-        else {
-            return cvm::registry::shutdown_domain(0);
-        }
-    }
-    
-    uint8_t rv_tester_domain1_shutdown_registry() {
-        cvm::log(cvm::NONE, "[registry] domain:1 shutdown...\n");
-        return cvm::registry::shutdown_domain(1);
-    }
+void rv_tester_build_registry() {
+  check_called = false;
+  cvm::registry::build();
+  cvm::registry::configure();
+}
 
-    uint8_t rv_tester_flush_callbacks() {
-        cvm::registry::callbacks.flush();
-        // force verilator to serialize
-        return true;
-    }
+void rv_tester_domain0_build_registry() {
+  check_called = false;
+  cvm::registry::build_domain(0);
+  cvm::registry::configure();
+}
 
-    void rv_tester_cvm_error() {
-        if (!check_called) {
-            cvm::registry::check();
-        }
-    }
+uint8_t rv_tester_shutdown_registry(bool unconditional_terminate) {
+  if (!check_called) {
+    cvm::log(cvm::NONE, "[registry] check...\n");
+    cvm::registry::check();
+    check_called = true;
+  }
 
-    void rv_tester_cvm_error_handler() {
-        logger_instrument::set_scope(svGetScope());
-        cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
-    }
+  cvm::log(cvm::NONE, "[registry] shutdown...\n");
+  if (unconditional_terminate) {
+    return cvm::registry::shutdown();
+  } else {
+    return cvm::registry::shutdown_domain(0);
+  }
+}
 
-    void rv_tester_transactions_dpi_init_domain_1() {
-        cvm::log(cvm::MEDIUM, "Streaming DPI init\n");
-        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-        if ((env_var != nullptr && std::string(env_var) == "1")) {
-            cvm::log(cvm::NONE, "[streaming_dpi] initializing offline dpi\n");
-            rv_tester_parse_flags();
+uint8_t rv_tester_domain1_shutdown_registry() {
+  cvm::log(cvm::NONE, "[registry] domain:1 shutdown...\n");
+  return cvm::registry::shutdown_domain(1);
+}
 
-            // override flags in offline mode
-            FLAGS_offline_dpi_replay = true;
-            FLAGS_sysmod_terminate = false;
-            FLAGS_signal_async = false;
-            FLAGS_perf = false;
-            FLAGS_offline_dpi = false;
+uint8_t rv_tester_flush_callbacks() {
+  cvm::registry::callbacks.flush();
+  // force verilator to serialize
+  return true;
+}
 
-            rv_tester_cvm_error_handler();
-            rv_tester_build_registry();
-        }
-    }
+void rv_tester_cvm_error() {
+  if (!check_called) {
+    cvm::registry::check();
+  }
+}
 
-    void rv_tester_streaming_dpi_shutdown() {
-        cvm::log(cvm::HIGH, "Streaming DPI shutdown\n");
-        if (!FLAGS_offline_dpi_replay) {
-            return;
-        }
-        cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
-        if (!rv_tester_shutdown_registry(false)) {
-            cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
-        }
-        rv_tester_domain1_shutdown_registry();
-    }
+void rv_tester_cvm_error_handler() {
+  logger_instrument::set_scope(svGetScope());
+  cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
+}
 
-    void rv_tester_clock_monitor(const uint64_t clocks, const uint32_t clock_mode) {
-        cvm::log(cvm::MEDIUM, "[{}] [CLOCK_MONITOR]: clock_mode={}\n", clocks, clock_mode);
-    }
+void rv_tester_transactions_dpi_init_domain_1() {
+  cvm::log(cvm::MEDIUM, "Streaming DPI init\n");
+  char* env_var = std::getenv("ZEBU_OFFLINE_DPI");
+  if ((env_var != nullptr && std::string(env_var) == "1")) {
+    cvm::log(cvm::NONE, "[streaming_dpi] initializing offline dpi\n");
+    rv_tester_parse_flags();
+
+    // override flags in offline mode
+    FLAGS_offline_dpi_replay = true;
+    FLAGS_sysmod_terminate = false;
+    FLAGS_signal_async = false;
+    FLAGS_perf = false;
+    FLAGS_offline_dpi = false;
+
+    rv_tester_cvm_error_handler();
+    rv_tester_build_registry();
+  }
+}
+
+void rv_tester_streaming_dpi_shutdown() {
+  cvm::log(cvm::HIGH, "Streaming DPI shutdown\n");
+  if (!FLAGS_offline_dpi_replay) {
+    return;
+  }
+  cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
+  if (!rv_tester_shutdown_registry(false)) {
+    cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
+  }
+  rv_tester_domain1_shutdown_registry();
+}
+
+void rv_tester_clock_monitor(const uint64_t clocks, const uint32_t clock_mode) {
+  cvm::log(cvm::MEDIUM, "[{}] [CLOCK_MONITOR]: clock_mode={}\n", clocks, clock_mode);
+}
 }
 
 svScope logger_instrument::scope;

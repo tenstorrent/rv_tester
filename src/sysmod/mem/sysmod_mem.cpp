@@ -1,7 +1,6 @@
 #include <iostream>
 #include "src/sysmod/mem/sysmod_mem.h"
 
-
 void sysmod_mem::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   auto& length = w.length;
@@ -39,46 +38,45 @@ void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {
 }
 
 bool sysmod_mem::init_hex(const std::string& path) {
-    try {
-        m_->load_verilog_hex(path);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_->load_verilog_hex(path);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }
 
 bool sysmod_mem::init_elf(const std::string& path) {
-    try {
-        m_->load_ELF(path);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_->load_ELF(path);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }
 
 bool sysmod_mem::init_lz4(const std::string& path, uint64_t offset) {
-    try {
-        m_->load_lz4(path, offset);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_->load_lz4(path, offset);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }
 
 bool sysmod_mem::init_bin(const std::string& path, uint64_t offset) {
-    try {
-        m_->load_bin(path, offset);
-    } catch(const std::exception& e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    return true;
+  try {
+    m_->load_bin(path, offset);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
 }
 
-void sysmod_mem::uninitialized_read_data_cb(std::function<std::vector<std::uint8_t>(std::uint64_t, std::uint64_t)> cb)
-{
+void sysmod_mem::uninitialized_read_data_cb(std::function<std::vector<std::uint8_t>(std::uint64_t, std::uint64_t)> cb) {
   m_->uninitialized_read_data_cb(cb);
 }

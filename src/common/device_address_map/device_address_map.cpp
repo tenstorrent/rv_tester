@@ -41,7 +41,7 @@ uint64_t generate_device_addr(uint32_t device_id, uint32_t cluster_id, uint32_t 
   uint32_t cluster_id_lower = cluster_id & ((1 << FLAGS_cluster_id_width) - 1);
   uint32_t cluster_id_upper = cluster_id >> FLAGS_cluster_id_width;
 
-  if(die_id_width > 0)
+  if (die_id_width > 0)
     res |= (uint64_t)cluster_id_upper << die_id_start_bit;
 
   if (is_imsic) {

@@ -6,26 +6,24 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-class remote_bitbang_t
-{
+class remote_bitbang_t {
 public:
   // Create a new server, listening for connections from localhost on the given
   // port.
   remote_bitbang_t(uint16_t port);
 
   // Do a bit of work.
-  void tick(unsigned char * jtag_tck,
-            unsigned char * jtag_tms,
-            unsigned char * jtag_tdi,
-            unsigned char * jtag_trstn,
+  void tick(unsigned char* jtag_tck,
+            unsigned char* jtag_tms,
+            unsigned char* jtag_tdi,
+            unsigned char* jtag_trstn,
             unsigned char jtag_tdo);
 
-  unsigned char done() {return quit;}
+  unsigned char done() { return quit; }
 
-  int exit_code() {return err;}
+  int exit_code() { return err; }
 
- private:
-
+private:
   int err;
 
   unsigned char tck;
@@ -49,7 +47,6 @@ public:
   void reset();
 
   void set_pins(char _tck, char _tms, char _tdi);
-
 };
 
 #endif

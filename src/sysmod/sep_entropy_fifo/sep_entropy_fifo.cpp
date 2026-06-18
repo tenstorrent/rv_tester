@@ -9,8 +9,7 @@ sep_entropy_fifo::sep_entropy_fifo(const std::string& tag, uint64_t addr, unsign
   fill_fifo();
 }
 
-void
-sep_entropy_fifo::read(const transactor::read_t& r, data_t& data) {
+void sep_entropy_fifo::read(const transactor::read_t& r, data_t& data) {
 
   auto pa = r.addr;
   auto length = r.length;
@@ -19,9 +18,10 @@ sep_entropy_fifo::read(const transactor::read_t& r, data_t& data) {
   uint64_t dword = 0;
   if (pa == fifo_base) {
     dword = fifo_.size();
-    if (!fifo_.size()) fill_fifo();
+    if (!fifo_.size())
+      fill_fifo();
   } else {
-    if ((pa+length) > (fifo_base+fifo_size)) {
+    if ((pa + length) > (fifo_base + fifo_size)) {
       cvm::log(cvm::ERROR, "Error: Read outside of device range for sep_entropy_fifo, addr={:x} size={}\n", pa, length);
       return;
     }
@@ -36,8 +36,7 @@ sep_entropy_fifo::read(const transactor::read_t& r, data_t& data) {
   serializeInt(dword, length, data);
 }
 
-void
-sep_entropy_fifo::fill_fifo() {
+void sep_entropy_fifo::fill_fifo() {
   while (fifo_.size() < FLAGS_entropy_fifo_size)
-   fifo_.push(rng1());
+    fifo_.push(rng1());
 }

@@ -8,17 +8,12 @@
 
 // A threadsafe-queue.
 template <class T>
-class SafeQueue
-{
+class SafeQueue {
 public:
   SafeQueue(void)
-    : q()
-    , m()
-    , c()
-  {}
+      : q(), m(), c() {}
 
-  ~SafeQueue(void)
-  {}
+  ~SafeQueue(void) {}
 
   // Add an element to the queue.
   void enqueue(const T& t) {
@@ -35,11 +30,9 @@ public:
 
   // Get the "front"-element.
   // If the queue is empty, wait till a element is available.
-  T dequeue(void)
-  {
+  T dequeue(void) {
     std::unique_lock<std::mutex> lock(m);
-    while(q.empty())
-    {
+    while (q.empty()) {
       // release lock as long as the wait and reaquire it afterwards.
       c.wait(lock);
     }
@@ -49,12 +42,10 @@ public:
   }
 
   // Pop the "front"-element if not empty
-  std::pair<bool, T> try_dequeue(void)
-  {
+  std::pair<bool, T> try_dequeue(void) {
     std::unique_lock<std::mutex> lock(m);
-    if(q.empty())
-    {
-        return std::make_pair(false, T());
+    if (q.empty()) {
+      return std::make_pair(false, T());
     }
     T val = std::move(q.front());
     q.pop();
@@ -62,12 +53,10 @@ public:
   }
 
   // Get the "front"-element if not empty
-  std::pair<bool, T> try_peek(void)
-  {
+  std::pair<bool, T> try_peek(void) {
     std::unique_lock<std::mutex> lock(m);
-    if(q.empty())
-    {
-        return std::make_pair(false, T());
+    if (q.empty()) {
+      return std::make_pair(false, T());
     }
     return std::make_pair(true, q.front());
   }

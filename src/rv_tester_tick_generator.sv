@@ -1,17 +1,17 @@
 module rv_tester_tick_generator
-#(
-  parameter string NAME = "noname",
-  parameter string EN = {NAME, "_rand_en"},
-  parameter string COUNT = {NAME, "_count"},
-  parameter string INTERVAL = {NAME, "_interval"},
-  parameter string WIDTH = {NAME, "_width"}
-) (
-  input logic clk,
-  input logic reset,
-  input logic inhibit,
-  output logic tick,
-  output logic last
-);
+  #(
+    parameter string NAME = "noname",
+    parameter string EN = {NAME, "_rand_en"},
+    parameter string COUNT = {NAME, "_count"},
+    parameter string INTERVAL = {NAME, "_interval"},
+    parameter string WIDTH = {NAME, "_width"}
+    ) (
+       input logic clk,
+       input logic reset,
+       input logic inhibit,
+       output logic tick,
+       output logic last
+       );
 
   // Internal variables
   bit en;

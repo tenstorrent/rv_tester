@@ -1,11 +1,18 @@
 ---
 Language: Cpp
-BasedOnStyle: Google
+Standard: c++20
+
 IndentWidth: 2
-ColumnLimit: 120
-PointerAlignment: Left
+TabWidth: 2
+UseTab: Never
+ContinuationIndentWidth: 4
+AccessModifierOffset: -2
+
+ColumnLimit: 0
 SortIncludes: false
+SortUsingDeclarations: false
+ReflowComments: false
+
 DerivePointerAlignment: false
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
 ...
