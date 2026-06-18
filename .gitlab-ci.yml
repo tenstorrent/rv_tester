@@ -16,14 +16,17 @@ stages:
     - test
     - notify
 
+.test-template:
+    variables:
+        SCHEDULER_PARAMETERS: "-n 8 -R span[hosts=1]"
+        BAZEL_OPTS: "--jobs=8"
+
 lint:
     # Verilog-side slang_lint is gone with bzsim. Standalone checks
     # (DECLARE_ grep, plusarg_lint.py) stay; clang-tidy moved to its own
     # job below.
     # TODO(open-source): restore slang/verible lint via BCR rules_verible.
     stage: test
-    extends:
-        - .smoke-rules-all-branches-template
     script:
         - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
         - python3 scripts/plusarg_lint.py
@@ -44,11 +47,12 @@ clang-tidy:
     # the headers reach for.
     stage: test
     extends:
-        - .smoke-rules-all-branches-template
+        - .test-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy
+        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
 
 build-bazel6-top:
     # Downstream consumers still run Bazel 6 + WORKSPACE. Build:
@@ -64,39 +68,42 @@ build-bazel6-top:
     # Both stay out of this surface.
     stage: test
     extends:
-        - .smoke-rules-all-branches-template
+        - .test-template
     script:
-        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv
+        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root_b6
+    timeout: 3h
 
 smoke:
     stage: test
     extends:
-        # TODO(open-source): remove with the gitlab-definitions include.
-        - .smoke-rules-all-branches-template
+        - .test-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
 
 asan+ubsan:
     stage: test
     extends:
-        - .smoke-rules-all-branches-template
+        - .test-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
 
 tsan:
     stage: test
     extends:
-        - .smoke-rules-all-branches-template
+        - .test-template
     script:
-        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --features=tsan --test_output=errors
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --features=tsan --test_output=errors ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
 
 submodule_update:
     # TODO(open-source): drop when this repo no longer manages git submodules through the internal template.
