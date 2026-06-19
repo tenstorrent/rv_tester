@@ -33,7 +33,7 @@ extern "C" {
 void axi_sw_r_reset();
 void axi_sw_b_reset();
 
-void axi_sw_reset_ptrs(cvm::topology::loc_t loc) {
+std::uint8_t axi_sw_reset_ptrs(cvm::topology::loc_t loc) {
   // Zero the SV FIFO write pointers from the C/DPI domain. wptr_nxt must NOT be
   // reset from RTL (e.g. inside the AXI_SW_DPI_FIFO macro) -- on ZeBu that makes
   // wptr_nxt a dual-driver (RTL + DPI) and the DPI push increment is silently
@@ -41,6 +41,7 @@ void axi_sw_reset_ptrs(cvm::topology::loc_t loc) {
   axi_sw_r_reset();
   axi_sw_b_reset();
   cvm::registry::messenger.signal<axi_sw_reset_t>(loc, {});
+  return 0;
 }
 
 std::uint8_t axi_sw_flush(cvm::topology::loc_t loc, std::uint64_t clock, axi_sw_defs::r_q_ptr_t ptr) {

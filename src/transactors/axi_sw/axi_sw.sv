@@ -167,7 +167,7 @@ module axi_sw #(
   logic b_queue_empty     ;
   logic r_queue_empty     ;
 
-  import "DPI-C" context function void axi_sw_reset_ptrs(int unsigned location);
+  import "DPI-C" context function byte unsigned axi_sw_reset_ptrs(int unsigned location);
 
   `CVM_REGISTRY_SET_SCOPE(LOCATION)
 
@@ -175,6 +175,7 @@ module axi_sw #(
     if (sys_reset) begin
 
       /* verilator lint_off BLKSEQ */
+      automatic byte unsigned _unused;
       if (LOCATION != cvm_topology::nil) begin
         // FIFO wptr_nxt is C-domain owned (written only by the DPI push/
         // reset). Reset goes through the axi_sw_reset_ptrs DPI *import*,
@@ -182,7 +183,7 @@ module axi_sw #(
         // zero wptr_nxt. Do NOT reset wptr_nxt from RTL (e.g. in the
         // AXI_SW_DPI_FIFO macro) -- on ZeBu that creates a dual-driver and
         // the DPI push increment is silently dropped.
-        axi_sw_reset_ptrs(LOCATION);
+        _unused = axi_sw_reset_ptrs(LOCATION);
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -670,13 +671,14 @@ module axi_sw_mst #(
   } w_t;
 
 
-  import "DPI-C" context function void axi_sw_mst_reset_ptrs(int unsigned location);
+  import "DPI-C" context function byte unsigned axi_sw_mst_reset_ptrs(int unsigned location);
 
   `CVM_REGISTRY_SET_SCOPE(LOCATION)
 
   always @(posedge clk) begin
     if (sys_reset) begin
       /* verilator lint_off BLKSEQ */
+      automatic byte unsigned _unused;
       if (LOCATION != cvm_topology::nil) begin
         // FIFO wptr_nxt is C-domain owned (written only by the DPI push/
         // reset). Reset goes through the axi_sw_mst_reset_ptrs DPI *import*,
@@ -684,7 +686,7 @@ module axi_sw_mst #(
         // zero wptr_nxt. Do NOT reset wptr_nxt from RTL (e.g. in the
         // AXI_SW_DPI_FIFO macro) -- on ZeBu that creates a dual-driver and
         // the DPI push increment is silently dropped.
-        axi_sw_mst_reset_ptrs(LOCATION);
+        _unused = axi_sw_mst_reset_ptrs(LOCATION);
       end
       /* verilator lint_on BLKSEQ */
     end
