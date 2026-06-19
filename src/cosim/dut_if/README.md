@@ -33,7 +33,3 @@ Responsibilities:
 - Track in-flight ifetch requests, AMO writes, and SC results/bypasses, and coordinate NCIO fetch transitions with the RVFI stream.
 
 Files: `mcmi.h`, `mcmi.cpp`.
-
-## Shared data model
-
-Both interfaces produce the structs defined in `cosim/bridge/bridge_if.h` (`rv_instr_t`, `mem_t`, `csr_t`, `rv_intr_t`, ...), which is the single contract the bridge consumes.

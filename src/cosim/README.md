@@ -7,12 +7,12 @@ Co-simulation (lockstep) infrastructure that compares a RISC-V DUT (Design Under
 As the DUT executes, it streams architectural events (retired instructions, register/CSR writes, memory accesses, interrupts, exceptions, debug entry/exit) over the RISC-V Formal Interface (RVFI). `cosim` feeds those same instructions to Whisper, collects the ISS architectural state, and checks that the DUT and ISS agree. Any divergence is flagged as a mismatch, which makes this the primary correctness check for the core.
 
 ```
-        RVFI events                  step / peek / poke
- DUT  ───────────────►  cosim  ◄──────────────────────►  Whisper ISS
-                          │
-                          ▼
-                Core Arch Checker (CAC)
-                 DUT state == ISS state ?
+                  RVFI / MCM events                                       step / peek / poke
+ DUT  ──────────►  cosim.sv  ──────────►  dut_if  ──────────►  bridge  ◄──────────────────────►  Whisper ISS
+                  (SV -> C++ DPI)      (rvfi, mcmi)              │
+                                                                 ▼
+                                                       Core Arch Checker (CAC)
+                                                       DUT state == ISS state ?
 ```
 
 ## Files
