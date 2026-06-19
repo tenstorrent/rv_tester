@@ -180,7 +180,6 @@ def rv_tester_gen(
             name + "_axi_sw_sv",
             name + "_axi_interfaces_sv",
             "@opensrc-axi//:axi",
-            "@rv_tester//third_party/rv_tester_clk_mux:rv_tester_clk_mux",
             name + "_cosim_sv",
         ],
         visibility = visibility,
