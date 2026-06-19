@@ -327,9 +327,7 @@ package rv_tester_params;
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_resp,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
   output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
-  output pmu_core_pkg::pmci_t              pmci         [rv_tester_params::NHARTS-1:0],           \
-  output pmu_core_pkg::hpmi_t              hpmi         [rv_tester_params::NHARTS-1:0],           \
-  output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
+  `RV_TESTER_PMCI_PORTS(input, output, rv_tester_params),                                         \
   input  logic                             rv_tester_reset_,                                      \
   `RV_TESTER_AXI_PORTS(input, output, rv_tester_params),                                          \
   input  logic warm_reset_now,                                                   \
@@ -400,9 +398,7 @@ package rv_tester_params;
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIFETCHES-1:0]   mcmi_ifetch_resp; \
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
   rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
-  pmu_core_pkg::pmci_t                     pmci          [rv_tester_params::NHARTS-1:0];          \
-  pmu_core_pkg::hpmi_t                     hpmi          [rv_tester_params::NHARTS-1:0];          \
-  rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
+  `RV_TESTER_PMCI_VARS(rv_tester_params)                                                          \
   `RV_TESTER_AXI_VARS(rv_tester_params)                                                           \
   logic warm_reset_now;                                                                           \
   logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \

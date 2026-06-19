@@ -1,6 +1,6 @@
 module rv_tester
   import rv_tester_params::*,
-    pmu_core_pkg::INSTRUCTIONS;
+    pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY

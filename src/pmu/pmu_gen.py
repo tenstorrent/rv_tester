@@ -5,404 +5,129 @@ import io
 
 pmcounter_dpi_width = 24
 
-def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
-    """Parse core PMC CSV data into a list of event dictionaries."""
-    core_data_dict = []
+def read_csv_rows(data_str: str) -> List[Dict[Any, Any]]:
+    """Read CSV rows, normalizing the header and dropping unnamed rows."""
     reader = csv.DictReader(io.StringIO(data_str))
     reader.fieldnames = [fn.lstrip('\ufeff').strip() for fn in (reader.fieldnames or [])]
-    for row in reader:
-        if row.get("Name"):
-            core_data_dict.append({
-                "name": row["Name"],
-                "description": row["Description"],
-                "event_id": row["Event ID"],
-                "multi_hot_encoding": row.get("Multi-hot Encoding", "No"),
-                "multi_D_filter": row.get("Multi-dimensional Encoding", "No")
-            })
-    
-    # Add synthetic events
-    core_data_dict.append({
-        "name": "branch_instructions", 
-        "description": "Sum of retired branches", 
-        "event_id": -1, 
-        "multi_hot_encoding": "No", 
-        "multi_D_filter": "No"
-    })
-    core_data_dict.append({
-        "name": "tb_cycles", 
-        "description": "Event for each TB cycle", 
-        "event_id": -1, 
-        "multi_hot_encoding": "No", 
-        "multi_D_filter": "No"
-    })
-    
-    return core_data_dict
+    return [row for row in reader if row.get("Name")]
+
+def make_event(name: str, description: str = "", event_id: Any = -1, core: bool = False) -> Dict[Any, Any]:
+    """Build an event dict. 'description' is optional. Core events carry the
+    extra multi-hot / multi-dimensional encoding fields."""
+    event = {
+        "name": name,
+        "description": description,
+        "event_id": event_id,
+    }
+    if core:
+        event["multi_hot_encoding"] = "No"
+        event["multi_D_filter"] = "No"
+    return event
+
+def parse_pmc_csv(data_str: str, core: bool, synthetic: List[Dict[Any, Any]]) -> List[Dict[Any, Any]]:
+    """Parse PMC CSV data into a list of event dictionaries, appending the
+    provided synthetic events. The 'Description' column is optional."""
+    events = []
+    for row in read_csv_rows(data_str):
+        event = make_event(row["Name"], row.get("Description", ""), row["Event ID"], core=core)
+        if core:
+            event["multi_hot_encoding"] = row.get("Multi-hot Encoding", "No")
+            event["multi_D_filter"] = row.get("Multi-dimensional Encoding", "No")
+        events.append(event)
+    events.extend(synthetic)
+    return events
+
+def parse_core_csv(data_str: str) -> List[Dict[Any, Any]]:
+    """Parse core PMC CSV data into a list of event dictionaries."""
+    synthetic = [
+        make_event("branch_instructions", "Sum of retired branches", core=True),
+        make_event("tb_cycles", "Event for each TB cycle", core=True),
+    ]
+    return parse_pmc_csv(data_str, core=True, synthetic=synthetic)
 
 def parse_sc_csv(data_str: str) -> List[Dict[Any, Any]]:
     """Parse shared cache PMC CSV data into a list of event dictionaries."""
-    sc_data_dict = []
-    reader = csv.DictReader(io.StringIO(data_str))
-    reader.fieldnames = [fn.lstrip('\ufeff').strip() for fn in (reader.fieldnames or [])]
-    for row in reader:
-        if row.get("Name"):
-            sc_data_dict.append({
-                "name": row["Name"],
-                "description": row["Description"],
-                "event_id": row["Event ID"]
-            })
-    
-    # Add synthetic event
-    sc_data_dict.append({
-        "name": "sc_tb_cycles", 
-        "description": "Event for each TB cycle", 
-        "event_id": -1
-    })
-    
-    return sc_data_dict
+    synthetic = [
+        make_event("sc_tb_cycles", "Event for each TB cycle"),
+    ]
+    return parse_pmc_csv(data_str, core=False, synthetic=synthetic)
 
-# Functions
-def create_cpp_frag(core_events: List[Dict[Any, Any]], sc_events: List[Dict[Any, Any]], path_core="gen_events_core.hpp", path_sc="gen_events_sc.hpp"):
-    pmevents = [core_events, sc_events]
+CONTROL_SIGNALS = ["perf_start", "perf_end", "terminate", "overflow", "sync"]
+IGNORE_NAMES = ["cpu_cycles", "instructions", "branch_instructions", "tb_cycles", "sc_tb_cycles"]
+
+
+def write_cpp_group(f, events, enum_name, count_name, to_vector_name,
+                     packet_ns, packet_struct, counter_array, to_string_name):
+    """Write one counter group (enum + to_vector + reflection map) into the
+    combined C++ header."""
     tab = "      "
-    paths = [path_core, path_sc]
+    f.write("typedef enum : size_t {\n")
+    for event in events:
+        f.write(f"      //{event['description']}\n")
+        f.write(f"      {event['name'].upper()},\n")
+    f.write(f"    {count_name}\n    }} {enum_name};\n\n")
 
-    enum_post_core = """    COUNT_CORE
-    } counter_core;"""
-    enum_post_sc = """    COUNT_SC
-    } counter_sc;"""
-    enum_posts = [enum_post_core, enum_post_sc]
+    f.write(f"    void {to_vector_name}(const rv_tester_transactions::{packet_ns}::{packet_struct}<>& pmcounters){{\n\n")
+    f.write(f"      const uint64_t casting_size_term = uint64_t(1) << {pmcounter_dpi_width};\n\n")
+    for event in events:
+        name = event["name"]
+        idx = f"{enum_name}::{name.upper()}"
+        f.write(f"{tab}{counter_array}[{idx}] = {counter_array}[{idx}] + ((pmcounters.{name} - ({counter_array}[{idx}] % casting_size_term)) % casting_size_term);\n")
+    f.write("    }\n\n")
 
-    to_vec_pre_core = f"""
-    void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters){{
-
-      const uint64_t casting_size_term = uint64_t(1) << {pmcounter_dpi_width};
-
-"""
-    to_vec_pre_sc = f"""
-    void sc_to_vector(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters){{
-
-      const uint64_t casting_size_term = uint64_t(1) << {pmcounter_dpi_width};
-
-"""
-    to_vec_pres = [to_vec_pre_core, to_vec_pre_sc]
-
-    counter_configs = ["counters_core", "counters_sc"]
-    rv_tester_transaction_configs = ["counter_core","counter_sc"]
-
-    to_strings = ["core_to_string", "sc_to_string"]
-
-    for events, path, enum_post, to_vec_pre, counter_config, rv_tester_transaction_config, to_string in zip(pmevents, paths, enum_posts, to_vec_pres, counter_configs, rv_tester_transaction_configs, to_strings):
-      f = open(path, "w")
-      
-      # Add header guard
-      guard = path.upper().replace('.', '_').replace('/', '_').replace('-', '_')
-      f.write(f"#ifndef {guard}\n")
-      f.write(f"#define {guard}\n\n")
-      f.write("// AUTOGENERATED -- DO NOT EDIT\n\n")
-      
-      enum_pre = """typedef enum : size_t {"""
-      f.write(enum_pre)
-      f.write("\n")
-      for event in events:
-          name = event["name"]
-          description = event["description"]
-          f.write(f"      //{description}")
-          f.write("\n")
-          f.write(f"      {name.upper()},")
-          f.write("\n")
-      f.write(enum_post)
-
-      to_vec_post = """
-    }
-
-    """
-      f.write('\n\n')
-      f.write(to_vec_pre)
-      for event in events:
-          name = event["name"]
-          f.write(f"{tab}{counter_config}[{rv_tester_transaction_config}::{name.upper()}] = {counter_config}[{rv_tester_transaction_config}::{name.upper()}] + ((pmcounters.{name} - ({counter_config}[{rv_tester_transaction_config}::{name.upper()}] % casting_size_term)) % casting_size_term);")
-          f.write("\n")
-      f.write(to_vec_post)
-
-      reflection_pre = f"""
-    const std::map<{rv_tester_transaction_config}, std::string_view> {to_string} = {{
-"""
-      f.write(reflection_pre)
-      for event in events:
-          name = event["name"]
-          f.write(f'{tab}{{{name.upper()},"{name}"}},')
-          f.write('\n')
-      f.write('    };')
-      if path == path_core:
-        event_map_pre = """
-
-    const std::unordered_map<uint64_t, size_t> event_map = {
-"""
-        f.write(event_map_pre)
-        for event in core_events:
-            name = event["name"]
-            event_id = event["event_id"]
-            f.write(f'{tab}{{{event_id},counter_core::{name.upper()}}},')
-            f.write('\n')
-        f.write('    };')
-
-        filtered_event_map_pre = """
-
-    const std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>> filtered_event_map = {
-"""
-        f.write(filtered_event_map_pre)
-        filtered_csv = []
-        filter_event_dict = {}
-        for event in core_events:
-            if (event["multi_hot_encoding"] == "Yes" and event["multi_D_filter"] == "No"):
-                filtered_csv.append({
-                    'event_31_16': event["event_id"][0:6],
-                    'event_15_0': event["event_id"][6:10],
-                    'name': event['name'],
-                })
-        for row in filtered_csv:
-            parent = row['event_31_16']
-            if parent not in filter_event_dict:
-                filter_event_dict[parent] = {}
-            filter_event_dict[parent][row['event_15_0']] = row['name']
-        if '0x1462' in filter_event_dict: filter_event_dict['0x1862'] = filter_event_dict.pop('0x1462') #op_complete filtered event granularity should be 16
-        if '0x1440' in filter_event_dict: filter_event_dict['0x1840'] = filter_event_dict.pop('0x1440') #op_issued filtered event granularity should be 16
-        for parent, child_dict in filter_event_dict.items():
-            filter_map_str = f"{tab}{{{parent}," + "{"
-            for child, event_name in child_dict.items():
-                bit_position = "0x"+child if child != '0' else None
-                filter_map_str += f'\n{tab}{tab}{{{bit_position},counter_core::{event_name.upper()}}},'
-            filter_map_str += "\n"+ f'{tab}{tab}'+"}\n"+f'{tab}'+"},\n"
-            f.write(filter_map_str)
-        f.write(f'    '+"};")
-      
-      # Close header guard
-      f.write(f"\n\n#endif // {guard}\n")
-      f.close()
+    f.write(f"    const std::map<{enum_name}, std::string_view> {to_string_name} = {{\n")
+    for event in events:
+        name = event["name"]
+        f.write(f'{tab}{{{name.upper()},"{name}"}},\n')
+    f.write("    };\n")
 
 
-def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv", prefix="", skip_pre = False):
+def write_cpp_event_maps(f, core_events):
+    """Write the core-only event_map and filtered_event_map."""
     tab = "      "
-    ignore_names = ["cpu_cycles", "instructions", "branch_instructions", "tb_cycles"]
+    f.write("\n\n    const std::unordered_map<uint64_t, size_t> event_map = {\n")
+    for event in core_events:
+        f.write(f'{tab}{{{event["event_id"]},counter_core::{event["name"].upper()}}},\n')
+    f.write("    };")
+
+    f.write("\n\n    const std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>> filtered_event_map = {\n")
+    filter_event_dict = {}
+    for event in core_events:
+        if event["multi_hot_encoding"] == "Yes" and event["multi_D_filter"] == "No":
+            parent = event["event_id"][0:6]
+            child = event["event_id"][6:10]
+            filter_event_dict.setdefault(parent, {})[child] = event["name"]
+    if '0x1462' in filter_event_dict: filter_event_dict['0x1862'] = filter_event_dict.pop('0x1462') #op_complete filtered event granularity should be 16
+    if '0x1440' in filter_event_dict: filter_event_dict['0x1840'] = filter_event_dict.pop('0x1440') #op_issued filtered event granularity should be 16
+    for parent, child_dict in filter_event_dict.items():
+        filter_map_str = f"{tab}{{{parent}," + "{"
+        for child, event_name in child_dict.items():
+            bit_position = "0x" + child if child != '0' else None
+            filter_map_str += f'\n{tab}{tab}{{{bit_position},counter_core::{event_name.upper()}}},'
+        filter_map_str += "\n" + f'{tab}{tab}' + "}\n" + f'{tab}' + "},\n"
+        f.write(filter_map_str)
+    f.write("    };")
+
+
+def create_cpp_frag(core_events, sc_events, path="gen_events.hpp"):
+    """Generate the combined C++ events header (core + sc)."""
+    guard = path.upper().replace('.', '_').replace('/', '_').replace('-', '_')
+    with open(path, "w") as f:
+        f.write(f"#ifndef {guard}\n#define {guard}\n\n")
+        write_cpp_group(f, core_events, "counter_core", "COUNT_CORE", "core_to_vector",
+                         "pmu_core", "pmcounters_core", "counters_core", "core_to_string")
+        write_cpp_event_maps(f, core_events)
+        f.write("\n\n")
+        write_cpp_group(f, sc_events, "counter_sc", "COUNT_SC", "sc_to_vector",
+                         "pmu_sc", "pmcounters_sc", "counters_sc", "sc_to_string")
+        f.write(f"\n\n#endif // {guard}\n")
+
+
+def build_events_sv(core_events, sc_events):
+    """Build the combined SystemVerilog events fragment (core + sc) as a
+    string. Shared by the standalone fragment and the inlined pmu.sv."""
     tab = "    "
-    f = open(path, 'w')
-    f.write("// AUTOGENERATED -- DO NOT EDIT\n")
-    pre_core = f"""
-localparam MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 32;
-parameter OVERFLOW_BIT = {pmcounter_dpi_width} - 1;
-parameter OVERFLOW_BIT_EXTRA = 2;
-logic overflow;
-logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-
-if (OVERFLOW_BIT < ($clog2(MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE) + 1))
-    $fatal(1, "The selected overflow bit cannot cover the maximum value change of a counter within a single clock cycle.");
-
-
-assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
-assign pmcounters_cores[0].data.location = location;
-    assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
-    assign pmcounters_cores[0].data.cpu_cycles = {pmcounter_dpi_width}'(cpu_cycles);
-    assign pmcounters_cores[0].data.instructions = {pmcounter_dpi_width}'(pmcounter[INSTRUCTIONS]);
-    assign pmcounters_cores[0].data.branch_instructions = {pmcounter_dpi_width}'(branch_instructions);
-    assign pmcounters_cores[0].data.perf_start = perf_start;
-    assign pmcounters_cores[0].data.perf_end = perf_end;
-    assign pmcounters_cores[0].data.terminate = terminate;
-    assign pmcounters_cores[0].data.overflow = overflow;
-    assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
-"""
-    pre_sc = f"""
-    generate
-        if (SC_PMCI_ENABLED == 1) begin
-             assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
-             assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
-             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
-             assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
-             assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
-             assign pmcounters_scs[0].data.terminate_sc = terminate;
-             assign pmcounters_scs[0].data.overflow_sc = pmcounters_cores[0].data.overflow;
-             assign pmcounters_scs[0].data.sync_sc = pmcounters_cores[0].data.sync;
-"""
-    post_sc = f"""
-        end
-    endgenerate
-
-    // AUTOGENERATED -- off
-"""
-    if not skip_pre:
-        f.write(pre_core)
-    else:
-        f.write(pre_sc)
-
-    for event in events:
-        name = event["name"]
-        if name in ignore_names:
-            continue
-        if prefix == "":
-            f.write(
-                f"{tab * 1}assign pmcounters_cores[0].data.{name} = {pmcounter_dpi_width}'({prefix}pmcounter[{name.upper()}]);")
-        elif prefix == "sc_":
-            f.write(
-                f"{tab * 3}assign pmcounters_scs[0].data.{name} = {pmcounter_dpi_width}'({prefix}pmci[{name.upper()}]);")
-        f.write('\n')
-    if skip_pre:
-        f.write(post_sc)
-
-
-def create_pmu_core_pkg(events: List[Dict[Any, Any]], path="gen_pmu_core_pkg.sv"):
-    tab = "    "
-    f = open(path, 'w')
-    f.write("// AUTOGENERATED -- DO NOT EDIT\n")
-    f.write("package pmu_core_pkg;\n")
-    f.write("\n")
-    f.write(f"{tab}import cvm_topology_gen::mods;\n")
-    f.write("\n")
-    f.write(f"{tab}// --------------------------------------\n")
-    f.write(f"{tab}// PMCI - Performance Monitoring Counters\n")
-    f.write(f"{tab}// --------------------------------------\n")
-    f.write(f"{tab}parameter NHARTS = mods.TOP.PLATFORM.NHARTS;\n")
-    f.write(f"{tab}parameter bit PMCI_EN = mods.TOP.PLATFORM.PMCI.ENABLE == 1;\n")
-    f.write(f"{tab}parameter bit [NHARTS-1:0][31:0] LS_PIPES = mods.TOP.PLATFORM.PMCI.LS_PIPES;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef enum {{\n")
-    for event in events:
-        name = event["name"]
-        f.write(f"{tab}{tab}{name.upper()},\n")
-    f.write(f"{tab}{tab}EVENT_COUNT\n")
-    f.write(f"{tab}}} pmc_event_t;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef logic [3:0] pmc_counter_t;\n")
-    f.write(f"{tab}typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef enum {{\n")
-    f.write(f"{tab}{tab}HPMCOUNTER3,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER4,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER5,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER6,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER7,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER8,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER9,\n")
-    f.write(f"{tab}{tab}HPMCOUNTER10\n")
-    f.write(f"{tab}}} hpm_num_t;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef logic [63:0] hpm_counter_t;\n")
-    f.write(f"{tab}typedef hpm_counter_t [7:0] hpmi_t;\n")
-    f.write("\n")
-    f.write("endpackage\n")
-    f.close()
-
-
-def create_pmu_sc_pkg(events: List[Dict[Any, Any]], path="gen_pmu_sc_pkg.sv"):
-    tab = "    "
-    f = open(path, 'w')
-    f.write("// AUTOGENERATED -- DO NOT EDIT\n")
-    f.write("package pmu_sc_pkg;\n")
-    f.write("\n")
-    f.write(f"{tab}parameter SC_COUNTER_HI = 32;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef enum {{\n")
-    for event in events:
-        name = event["name"]
-        f.write(f"{tab}{tab}{name.upper()},\n")
-    f.write(f"{tab}{tab}SC_EVENT_COUNT\n")
-    f.write(f"{tab}}} sc_pmc_event_t;\n")
-    f.write("\n")
-    f.write(f"{tab}typedef logic [SC_COUNTER_HI:0] sc_pmc_counter_t;\n")
-    f.write(f"{tab}typedef sc_pmc_counter_t [SC_EVENT_COUNT-1:0] sc_pmci_t;\n")
-    f.write("\n")
-    f.write("endpackage\n")
-    f.close()
-
-
-def create_yaml_frag_core(events: List[Dict[Any, Any]], path="gen_core_events.yaml"):
-    """Generate YAML anchor for pmcounters_core fields.
-
-    The generated fragment is a YAML anchor definition that gets merged
-    into rv_tester_transactions.yml via YAML merge syntax (<<: *anchor).
-    Anchors are filtered out by packet_gen since they don't have 'num' field.
-    """
-    tab = "    "
-    f = open(path, 'w')
-    f.write(f"# AUTOGENERATED -- DO NOT EDIT\n")
-    f.write(f"_pmcounters_core_fields: &pmcounters_core_fields\n")
-
-    for event in events:
-        name = event["name"]
-        f.write(f"{tab}{name}:\n")
-        f.write(f"{tab * 2}width: {pmcounter_dpi_width}\n")
-
-    # Add control signals
-    f.write(f"{tab}perf_start:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}perf_end:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}terminate:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}overflow:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}sync:\n")
-    f.write(f"{tab * 2}width: 1\n")
-
-    f.close()
-
-
-def create_yaml_frag_sc(events: List[Dict[Any, Any]], path="gen_sc_events.yaml"):
-    """Generate YAML anchor for pmcounters_sc fields.
-
-    The generated fragment is a YAML anchor definition that gets merged
-    into rv_tester_transactions.yml via YAML merge syntax (<<: *anchor).
-    Anchors are filtered out by packet_gen since they don't have 'num' field.
-    """
-    tab = "    "
-    f = open(path, 'w')
-    f.write(f"# AUTOGENERATED -- DO NOT EDIT\n")
-    f.write(f"_pmcounters_sc_fields: &pmcounters_sc_fields\n")
-
-    for event in events:
-        name = event["name"]
-        f.write(f"{tab}{name}:\n")
-        f.write(f"{tab * 2}width: {pmcounter_dpi_width}\n")
-
-    # Add control signals with _sc suffix
-    f.write(f"{tab}perf_start_sc:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}perf_end_sc:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}terminate_sc:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}overflow_sc:\n")
-    f.write(f"{tab * 2}width: 1\n")
-    f.write(f"{tab}sync_sc:\n")
-    f.write(f"{tab * 2}width: 1\n")
-
-    f.close()
-
-def create_monitor_frag(events: List[Dict[Any, Any]], prefix="", path="gen_monitor.sv"):
-    f = open(path, 'w')
-    f.write("// AUTOGENERATED -- DO NOT EDIT\n")
-    prelude = """always_comb begin
-"""
-    poslude = """end
-"""
-    f.write(prelude)
-    for event in events:
-        name = event["name"]
-        f.write(f"    {prefix}pmci[{name.upper()}] = {name};\n")
-    f.write(poslude)
-    f.close()
-
-def generate_pmu_sv_content(core_events: List[Dict[Any, Any]], sc_events: List[Dict[Any, Any]], pmu_template: str) -> str:
-    """Generate complete pmu.sv content by replacing the include placeholder with generated code."""
-    tab = "    "
-    ignore_names = ["cpu_cycles", "instructions", "branch_instructions", "tb_cycles", "sc_tb_cycles"]
-
-    # NOTE: Do NOT generate typedef enums here - they are already defined in rv_tester_defines.sv
-    # The gen_core_defines.sv and gen_sc_defines.sv includes should be removed, not replaced
-    core_defines = "// NOTE: pmc_event_t enum is defined in rv_tester_defines.sv"
-    sc_defines = "// NOTE: sc_pmc_event_t enum is defined in rv_tester_defines.sv"
-
-    # Generate core events
-    core_events_code = f"""// AUTOGENERATED -- DO NOT EDIT
-
+    out = f"""
 localparam MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 32;
 parameter OVERFLOW_BIT = {pmcounter_dpi_width} - 1;
 parameter OVERFLOW_BIT_EXTRA = 2;
@@ -426,13 +151,11 @@ assign pmcounters_cores[0].data.location = location;
 """
     for event in core_events:
         name = event["name"]
-        if name in ignore_names:
+        if name in IGNORE_NAMES:
             continue
-        core_events_code += f"{tab}assign pmcounters_cores[0].data.{name} = {pmcounter_dpi_width}'(pmcounter[{name.upper()}]);\n"
+        out += f"{tab}assign pmcounters_cores[0].data.{name} = {pmcounter_dpi_width}'(pmcounter[{name.upper()}]);\n"
 
-    # Generate SC events
-    sc_events_code = f"""// AUTOGENERATED -- DO NOT EDIT
-
+    out += """
     generate
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
@@ -446,68 +169,144 @@ assign pmcounters_cores[0].data.location = location;
 """
     for event in sc_events:
         name = event["name"]
-        if name in ignore_names:
+        if name in IGNORE_NAMES:
             continue
-        sc_events_code += f"{tab * 3}assign pmcounters_scs[0].data.{name} = {pmcounter_dpi_width}'(sc_pmci[{name.upper()}]);\n"
-    sc_events_code += """
+        out += f"{tab * 3}assign pmcounters_scs[0].data.{name} = {pmcounter_dpi_width}'(sc_pmci[{name.upper()}]);\n"
+    out += """
         end
     endgenerate
-
-    // AUTOGENERATED -- off
 """
+    return out
 
-    # Replace placeholders in template
-    result = pmu_template
-    result = result.replace('`include "gen_core_defines.sv"', core_defines)
-    result = result.replace('`include "gen_sc_defines.sv"', sc_defines)
-    result = result.replace('`include "gen_core_events.svh"', core_events_code)
-    result = result.replace('`include "gen_sc_events.svh"', sc_events_code)
+def create_sv_frag(core_events, sc_events, path="gen_events.svh"):
+    """Generate the combined SystemVerilog events fragment (core + sc)."""
+    with open(path, 'w') as f:
+        f.write(build_events_sv(core_events, sc_events))
 
-    return result
+
+def create_pmu_pkg(core_events, sc_events, path="gen_pmu_pkg.sv"):
+    """Generate the combined pmu_pkg package (core + sc types)."""
+    tab = "    "
+    f = open(path, 'w')
+    f.write("package pmu_pkg;\n\n")
+    f.write(f"{tab}// --------------------------------------\n")
+    f.write(f"{tab}// PMCI - Performance Monitoring Counters\n")
+    f.write(f"{tab}// --------------------------------------\n")
+    f.write(f"{tab}typedef enum {{\n")
+    for event in core_events:
+        f.write(f"{tab}{tab}{event['name'].upper()},\n")
+    f.write(f"{tab}{tab}EVENT_COUNT\n")
+    f.write(f"{tab}}} pmc_event_t;\n\n")
+    f.write(f"{tab}typedef logic [3:0] pmc_counter_t;\n")
+    f.write(f"{tab}typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;\n\n")
+    f.write(f"{tab}typedef enum {{\n")
+    for i in range(3, 11):
+        sep = ",\n" if i < 10 else "\n"
+        f.write(f"{tab}{tab}HPMCOUNTER{i}{sep}")
+    f.write(f"{tab}}} hpm_num_t;\n\n")
+    f.write(f"{tab}typedef logic [63:0] hpm_counter_t;\n")
+    f.write(f"{tab}typedef hpm_counter_t [7:0] hpmi_t;\n\n")
+    f.write(f"{tab}// --------------------------------------\n")
+    f.write(f"{tab}// Shared-cache PMCI\n")
+    f.write(f"{tab}// --------------------------------------\n")
+    f.write(f"{tab}parameter SC_COUNTER_HI = 32;\n\n")
+    f.write(f"{tab}typedef enum {{\n")
+    for event in sc_events:
+        f.write(f"{tab}{tab}{event['name'].upper()},\n")
+    f.write(f"{tab}{tab}SC_EVENT_COUNT\n")
+    f.write(f"{tab}}} sc_pmc_event_t;\n\n")
+    f.write(f"{tab}typedef logic [SC_COUNTER_HI:0] sc_pmc_counter_t;\n")
+    f.write(f"{tab}typedef sc_pmc_counter_t [SC_EVENT_COUNT-1:0] sc_pmci_t;\n\n")
+    f.write("endpackage\n")
+    f.close()
+
+
+def create_pmu_defines_frag(path="gen_pmu_defines.sv"):
+    """Generate the PMU interface macros (RV_TESTER_PMCI_PORTS/VARS),
+    mirroring RV_TESTER_AXI_PORTS/VARS. All signals are rv_tester outputs."""
+    tab = "    "
+    f = open(path, "w")
+    f.write("`define RV_TESTER_PMCI_PORTS(input, output, pkg) \\\n")
+    f.write(f"{tab}output pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0], \\\n")
+    f.write(f"{tab}output pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0], \\\n")
+    f.write(f"{tab}output pmu_pkg::sc_pmci_t sc_pmci\n\n")
+    f.write("`define RV_TESTER_PMCI_VARS(pkg) \\\n")
+    f.write(f"{tab}pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0]; \\\n")
+    f.write(f"{tab}pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0]; \\\n")
+    f.write(f"{tab}pmu_pkg::sc_pmci_t sc_pmci;\n")
+    f.close()
+
+
+def write_yaml_anchor(f, anchor, events, control_signals):
+    """Write one YAML anchor of counter fields + control signals."""
+    tab = "    "
+    f.write(f"_{anchor}: &{anchor}\n")
+    for event in events:
+        f.write(f"{tab}{event['name']}:\n")
+        f.write(f"{tab * 2}width: {pmcounter_dpi_width}\n")
+    for sig in control_signals:
+        f.write(f"{tab}{sig}:\n")
+        f.write(f"{tab * 2}width: 1\n")
+
+
+def create_yaml_frag(core_events, sc_events, path="gen_events.yaml"):
+    """Generate the combined transactions YAML (core + sc anchors).
+
+    Each anchor is merged into rv_tester_transactions.yml via YAML merge
+    syntax (<<: *anchor); packet_gen ignores anchors (no 'num' field)."""
+    f = open(path, 'w')
+    write_yaml_anchor(f, "pmcounters_core_fields", core_events, CONTROL_SIGNALS)
+    write_yaml_anchor(f, "pmcounters_sc_fields", sc_events,
+                       [s + "_sc" for s in CONTROL_SIGNALS])
+    f.close()
+
+
+def create_monitor_frag(core_events, sc_events, path="gen_monitor.svh"):
+    """Generate the combined PMU monitor fragment (core + sc)."""
+    f = open(path, 'w')
+    for events, prefix in ((core_events, ""), (sc_events, "sc_")):
+        f.write("always_comb begin\n")
+        for event in events:
+            name = event["name"]
+            f.write(f"    {prefix}pmci[{name.upper()}] = {name};\n")
+        f.write("end\n")
+    f.close()
+
+def generate_pmu_sv_content(core_events, sc_events, pmu_template):
+    """Inline the combined events fragment into the pmu.sv template."""
+    return pmu_template.replace('`include "gen_events.svh"',
+                                build_events_sv(core_events, sc_events))
 
 
 def main():
     parser = argparse.ArgumentParser(description='Generate PMU parameter files from CSV specifications')
     parser.add_argument('--core_pmc_csv', required=True, help='Path to core PMC CSV file')
     parser.add_argument('--sc_pmc_csv', required=True, help='Path to shared cache PMC CSV file')
-    parser.add_argument('--gen_events_core_hpp', required=True, help='Output path for core events C++ header')
-    parser.add_argument('--gen_events_sc_hpp', required=True, help='Output path for SC events C++ header')
-    parser.add_argument('--gen_core_events_sv', required=True, help='Output path for core events SystemVerilog')
-    parser.add_argument('--gen_sc_events_sv', required=True, help='Output path for SC events SystemVerilog')
-    parser.add_argument('--gen_pmu_core_pkg_sv', required=True, help='Output path for core PMU package SystemVerilog')
-    parser.add_argument('--gen_pmu_sc_pkg_sv', required=True, help='Output path for SC PMU package SystemVerilog')
-    parser.add_argument('--gen_core_monitor_sv', required=True, help='Output path for core monitor SystemVerilog')
-    parser.add_argument('--gen_sc_monitor_sv', required=True, help='Output path for SC monitor SystemVerilog')
-    parser.add_argument('--gen_core_events_yaml', required=True, help='Output path for core events YAML')
-    parser.add_argument('--gen_sc_events_yaml', required=True, help='Output path for SC events YAML')
+    parser.add_argument('--gen_events_hpp', required=True, help='Output path for combined events C++ header')
+    parser.add_argument('--gen_events_sv', required=True, help='Output path for combined events SystemVerilog')
+    parser.add_argument('--gen_pmu_pkg_sv', required=True, help='Output path for combined pmu_pkg SystemVerilog')
+    parser.add_argument('--gen_pmu_defines_sv', required=True, help='Output path for PMU interface defines (RV_TESTER_PMCI_PORTS/VARS)')
+    parser.add_argument('--gen_monitor_sv', required=True, help='Output path for combined monitor SystemVerilog')
+    parser.add_argument('--gen_events_yaml', required=True, help='Output path for combined events YAML')
     parser.add_argument('--pmu_template_sv', required=False, help='Path to pmu.sv template file')
     parser.add_argument('--gen_pmu_sv', required=False, help='Output path for generated pmu.sv')
     args = parser.parse_args()
 
-    # Read CSV files
     with open(args.core_pmc_csv, 'r') as f:
         core_data_str = f.read()
     with open(args.sc_pmc_csv, 'r') as f:
         sc_data_str = f.read()
 
-    # Parse CSVs
     core_data_dict = parse_core_csv(core_data_str)
     sc_data_dict = parse_sc_csv(sc_data_str)
 
-    # Generate files with explicit paths
-    create_cpp_frag(core_data_dict, sc_data_dict,
-                    path_core=args.gen_events_core_hpp,
-                    path_sc=args.gen_events_sc_hpp)
-    create_sv_frag(core_data_dict, args.gen_core_events_sv, "", False)
-    create_sv_frag(sc_data_dict, args.gen_sc_events_sv, "sc_", True)
-    create_pmu_core_pkg(core_data_dict, args.gen_pmu_core_pkg_sv)
-    create_pmu_sc_pkg(sc_data_dict, args.gen_pmu_sc_pkg_sv)
-    create_monitor_frag(core_data_dict, "", args.gen_core_monitor_sv)
-    create_monitor_frag(sc_data_dict, "sc_", args.gen_sc_monitor_sv)
-    create_yaml_frag_core(core_data_dict, args.gen_core_events_yaml)
-    create_yaml_frag_sc(sc_data_dict, args.gen_sc_events_yaml)
+    create_cpp_frag(core_data_dict, sc_data_dict, args.gen_events_hpp)
+    create_sv_frag(core_data_dict, sc_data_dict, args.gen_events_sv)
+    create_pmu_pkg(core_data_dict, sc_data_dict, args.gen_pmu_pkg_sv)
+    create_pmu_defines_frag(args.gen_pmu_defines_sv)
+    create_monitor_frag(core_data_dict, sc_data_dict, args.gen_monitor_sv)
+    create_yaml_frag(core_data_dict, sc_data_dict, args.gen_events_yaml)
 
-    # Generate complete pmu.sv if template provided
     if args.pmu_template_sv and args.gen_pmu_sv:
         with open(args.pmu_template_sv, 'r') as f:
             pmu_template = f.read()

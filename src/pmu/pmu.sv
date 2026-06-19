@@ -1,7 +1,7 @@
 module pmu
   import rv_tester_params::*;
   import rv_tester_pkg::*;
-  import pmu_core_pkg::*;
+  import pmu_pkg::*;
   #(
     parameter int NUM = -1,
     parameter int NRET = 1,
@@ -198,10 +198,7 @@ module pmu
   end
 
 
-`include "gen_core_defines.sv"
-`include "gen_sc_defines.sv"
-`include "gen_core_events.svh"
-`include "gen_sc_events.svh"
+`include "gen_events.svh"
 
 
   assign hpmcounters_cores[0].valid            = !reset  && ((|mhpm_write) || (terminate^terminate_1T)) && perf_enabled;
