@@ -414,9 +414,11 @@ module rv_tester
 
         automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
-        // rvt_reload causes error
         if (rv_tester_reset || rvt_reload) begin
 
+            if (rv_tester_reset || (rvt_reload && $test$plusargs("whisper_loadfrom")))
+            begin
+            // FIXME: Block indentation
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
             if (num_resets < 0)
@@ -473,6 +475,7 @@ module rv_tester
             cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
             cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
             cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
+            end
 
         end
         if (!dyn_clk_switch) clock_mode <= clk_profile[2:0];
