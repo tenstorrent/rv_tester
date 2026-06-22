@@ -532,8 +532,9 @@ module cosim
   //
   //---------------------------------------------------------------------------------
   // Compute MMR addresses from device_address_map plusargs (same arithmetic as generate_device_addr in device_address_map.cpp).
-  // Read plusargs with blocking assigns and compute in same cycle so addresses are correct immediately when reset deasserts.
-  // Defaults match device_address_map_plusargs.cpp for non-PL2; PL2 overrides come from run_args (e.g. BUILD.bazel).
+  // RVDE-30748: sample the plusargs once in the reset branch instead of issuing blocking DPI reads every cycle in the else
+  // branch. The per-cycle reads dominated emulation runtime (DPI synchronization), so they are latched while in reset and
+  // held in mb/pls/mds/mcs/mm/dm_id/ax_id for the steady-state arithmetic below.
   logic [PA_WIDTH-1:0] mmr_base;
   logic [PA_WIDTH-1:0] pl_start_bit;
   logic [PA_WIDTH-1:0] mmr_dev_start_bit;
@@ -541,6 +542,9 @@ module cosim
   logic [1:0] mmr_m_pl;
   logic [7:0] dm_dev_id;
   logic [7:0] axisw_dev_id;
+
+  longint unsigned mb;
+  int pls, mds, mcs, mm, dm_id, ax_id;
 
   always_ff @(posedge clk) begin
     if (reset) begin
@@ -554,24 +558,15 @@ module cosim
       mmr_lo_addr <= '0;
       mmr_hi_addr <= '0;
       dm_mmr_base <= '0;
+      mb <= cvm_plusargs::get_ulongint("mmr_base_addr");
+      pls <= cvm_plusargs::get_int("priv_level_start_bit");
+      mds <= cvm_plusargs::get_int("mmr_device_id_start_bit");
+      mcs <= cvm_plusargs::get_int("mmr_cluster_id_start_bit");
+      mm <= cvm_plusargs::get_int("mmr_m");
+      dm_id <= cvm_plusargs::get_int("dm_device_id");
+      ax_id <= cvm_plusargs::get_int("axisw_device_id");
     end
     else begin
-      longint unsigned mb;
-      int pls, mds, mcs, mm, dm_id, ax_id;
-      mb = cvm_plusargs::get_ulongint("mmr_base_addr");
-      if (mb == 0) mb = 64'h40000000;
-      pls = cvm_plusargs::get_int("priv_level_start_bit");
-      if (pls == 0) pls = 25;
-      mds = cvm_plusargs::get_int("mmr_device_id_start_bit");
-      if (mds == 0) mds = 16;
-      mcs = cvm_plusargs::get_int("mmr_cluster_id_start_bit");
-      if (mcs == 0) mcs = 21;
-      mm = cvm_plusargs::get_int("mmr_m");
-      if (mm == 0) mm = 1;
-      dm_id = cvm_plusargs::get_int("dm_device_id");
-      if (dm_id == 0) dm_id = 32'h19;
-      ax_id = cvm_plusargs::get_int("axisw_device_id");
-      if (ax_id == 0) ax_id = 32'h1B;
       mmr_base <= PA_WIDTH'(mb);
       pl_start_bit <= PA_WIDTH'(pls);
       mmr_dev_start_bit <= PA_WIDTH'(mds);
