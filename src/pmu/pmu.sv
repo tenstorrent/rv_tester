@@ -198,6 +198,40 @@ module pmu
   end
 
 
+  localparam MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 32;
+  parameter OVERFLOW_BIT = 24 - 1;
+  parameter OVERFLOW_BIT_EXTRA = 2;
+  logic overflow;
+  logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
+
+  if (OVERFLOW_BIT < ($clog2(MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE) + 1))
+    $fatal(1, "The selected overflow bit cannot cover the maximum value change of a counter within a single clock cycle.");
+
+  assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
+  assign pmcounters_cores[0].data.location = location;
+  assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
+  assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
+  assign pmcounters_cores[0].data.instructions = 24'(pmcounter[INSTRUCTIONS]);
+  assign pmcounters_cores[0].data.branch_instructions = 24'(branch_instructions);
+  assign pmcounters_cores[0].data.perf_start = perf_start;
+  assign pmcounters_cores[0].data.perf_end = perf_end;
+  assign pmcounters_cores[0].data.terminate = terminate;
+  assign pmcounters_cores[0].data.overflow = overflow;
+  assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
+
+  generate
+    if (SC_PMCI_ENABLED == 1) begin
+      assign pmcounters_scs[0].valid = pmcounters_cores[0].valid;
+      assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
+      assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
+      assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
+      assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
+      assign pmcounters_scs[0].data.terminate_sc = terminate;
+      assign pmcounters_scs[0].data.overflow_sc = pmcounters_cores[0].data.overflow;
+      assign pmcounters_scs[0].data.sync_sc = pmcounters_cores[0].data.sync;
+    end
+  endgenerate
+
 `include "gen_events.svh"
 
 
