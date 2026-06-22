@@ -189,14 +189,22 @@ def create_pmu_defines_frag(path="gen_pmu_defines.sv"):
     mirroring RV_TESTER_AXI_PORTS/VARS. All signals are rv_tester outputs."""
     tab = "    "
     f = open(path, "w")
+    f.write("`ifndef RV_TESTER_PMCI_DISABLE\n")
+    f.write("`define RV_TESTER_PMCI_ENABLE\n")
+    f.write("`endif\n\n")
+    f.write("`ifdef RV_TESTER_PMCI_ENABLE\n")
     f.write("`define RV_TESTER_PMCI_PORTS(input, output, pkg) \\\n")
     f.write(f"{tab}output pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0], \\\n")
     f.write(f"{tab}output pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0], \\\n")
-    f.write(f"{tab}output pmu_pkg::sc_pmci_t sc_pmci\n\n")
+    f.write(f"{tab}output pmu_pkg::sc_pmci_t sc_pmci,\n\n")
     f.write("`define RV_TESTER_PMCI_VARS(pkg) \\\n")
     f.write(f"{tab}pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0]; \\\n")
     f.write(f"{tab}pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0]; \\\n")
     f.write(f"{tab}pmu_pkg::sc_pmci_t sc_pmci;\n")
+    f.write("`else\n")
+    f.write("`define RV_TESTER_PMCI_PORTS(input, output, pkg)\n")
+    f.write("`define RV_TESTER_PMCI_VARS(pkg)\n")
+    f.write("`endif\n")
     f.close()
 
 

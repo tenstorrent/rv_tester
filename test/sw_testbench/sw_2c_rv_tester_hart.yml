@@ -31,7 +31,8 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   TOTAL_NIEVICTS: 2
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
-  ENABLE: 1
+  PMU_ENABLE: 1
+  SC_PMCI_ENABLED: 1
   LS_PIPES: [3, 3]
 
 rv_tester_csri_attrs: &rv_tester_csri_attrs
