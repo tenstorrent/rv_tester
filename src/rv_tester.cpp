@@ -200,7 +200,7 @@ void rv_tester_set_seed() {
   cvm::rand::seed(FLAGS_seed);
 }
 
-void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
+void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /*num_sets*/, int /*num_blocks*/, int /*addr_width*/, int /*data_width*/) {
 
   std::map<std::string, memmap_entry_t> m;
   if (!memmap::instance().get(m))
