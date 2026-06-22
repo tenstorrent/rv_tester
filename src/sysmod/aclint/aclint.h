@@ -14,14 +14,12 @@
 
 // Define a core local interruptor (aClint) at the given address
 // and for the given hart count. The size will be 48k bytes.
-class aclint : public device
-{
+class aclint : public device {
 public:
-
   /// Define a aCLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
   aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
-        cvm::topology::loc_t loc);
+         cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~aclint();
@@ -30,8 +28,7 @@ public:
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.
   template <typename INT>
-  void serializeInt(INT x, size_t n, data_t& data)
-  {
+  void serializeInt(INT x, size_t n, data_t& data) {
     for (unsigned i = 0; i < n; ++i, x >>= 8)
       data[i] = x & 0xff;
   }
@@ -39,11 +36,10 @@ public:
   // Copy bytes from data iterator into the given integer following
   // lilttle endian convention.
   template <typename INT>
-  void deserializeInt(const data_t& data, INT& x)
-  {
+  void deserializeInt(const data_t& data, INT& x) {
     x = 0;
     for (unsigned i = 0; i < sizeof(x); ++i)
-      x |= INT(data[i]) << i*8;
+      x |= INT(data[i]) << i * 8;
   }
 
   /// Read length bytes from the given address to the data iterator.
@@ -63,15 +59,11 @@ public:
 
   virtual void tick(uint64_t advance) override;
 
-
-
 protected:
-
   /// Assert/deassert the timer interrupt for each hart where the
   /// time-compare value is greater-than-or-equal/less-than the timer
   /// value.
-  void processTimerInterrupts()
-  {
+  void processTimerInterrupts() {
     for (unsigned i = 0; i < hartCount_; ++i) {
       bool flag = timer_ >= timeCompare_.at(i);
       if (timerIntPrev_.at(i) != flag)
@@ -81,23 +73,19 @@ protected:
   }
 
   // Used to assert/deassert a timer interrupt for given hart.
-  virtual void timerInterrupt(unsigned hart, bool flag)
-  {
+  virtual void timerInterrupt(unsigned hart, bool flag) {
     cvm::registry::messenger.signal<clint::timer_t>(loc(), clint::timer_t{hart, flag, timer_});
   }
 
-
 private:
-
   unsigned hartCount_ = 1;
 
-  std::vector<uint32_t> soft_;  // Software interrupt: one per hart.
-  std::vector<uint64_t> timeCompare_;  // One per hart.
-  std::vector<bool> timerIntPrev_; // Previous value of timer interrupt
+  std::vector<uint32_t> soft_;        // Software interrupt: one per hart.
+  std::vector<uint64_t> timeCompare_; // One per hart.
+  std::vector<bool> timerIntPrev_;    // Previous value of timer interrupt
   uint64_t timer_ = 0;
 
   std::mutex mutex_;
 
   std::uint64_t tickDivisor_;
 };
-

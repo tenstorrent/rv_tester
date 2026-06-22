@@ -10,14 +10,13 @@
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
 
-
 class pm_common {
-  public:
-    struct pm_common_tx_t {
-          uint32_t addr;
-          uint32_t data;
-    };
+public:
+  struct pm_common_tx_t {
+    uint32_t addr;
+    uint32_t data;
+  };
 
-    pm_common() { };
-    virtual ~pm_common() { };
+  pm_common() {};
+  virtual ~pm_common() {};
 };

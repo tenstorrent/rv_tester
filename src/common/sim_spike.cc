@@ -16,12 +16,11 @@
 #include <inttypes.h>
 
 sim_spike_t::sim_spike_t(const char* isa, size_t nprocs,
-             std::vector<std::pair<reg_t, mem_t*>> mems,
-             const std::vector<std::string>& args)
-  : mems(mems), procs(std::max(nprocs, size_t(1))),
-  current_step(0), current_proc(0), debug(false), log(true),
-    histogram_enabled(false), dtb_enabled(true), remote_bitbang(NULL)
-{
+                         std::vector<std::pair<reg_t, mem_t*>> mems,
+                         const std::vector<std::string>& args)
+    : mems(mems), procs(std::max(nprocs, size_t(1))),
+      current_step(0), current_proc(0), debug(false), log(true),
+      histogram_enabled(false), dtb_enabled(true), remote_bitbang(NULL) {
 
   for (auto& x : mems)
     bus.add_device(x.first, x.second);
@@ -42,15 +41,13 @@ sim_spike_t::sim_spike_t(const char* isa, size_t nprocs,
   set_procs_debug(true);
 }
 
-sim_spike_t::~sim_spike_t()
-{
+sim_spike_t::~sim_spike_t() {
   for (size_t i = 0; i < procs.size(); i++)
     delete procs[i];
   delete debug_mmu;
 }
 
-commit_log_t sim_spike_t::tick(size_t n)
-{
+commit_log_t sim_spike_t::tick(size_t n) {
   commit_log_t commit_log;
 
   reg_t pc = procs[0]->get_state()->pc;
@@ -76,49 +73,42 @@ void sim_spike_t::clint_tick() {
   clint->increment(1);
 }
 
-void sim_spike_t::set_debug(bool value)
-{
+void sim_spike_t::set_debug(bool value) {
   debug = value;
 }
 
-void sim_spike_t::set_log(bool value)
-{
+void sim_spike_t::set_log(bool value) {
   log = value;
 }
 
-void sim_spike_t::set_histogram(bool value)
-{
+void sim_spike_t::set_histogram(bool value) {
   histogram_enabled = value;
   for (size_t i = 0; i < procs.size(); i++) {
     procs[i]->set_histogram(histogram_enabled);
   }
 }
 
-void sim_spike_t::set_procs_debug(bool value)
-{
-  for (size_t i=0; i< procs.size(); i++)
+void sim_spike_t::set_procs_debug(bool value) {
+  for (size_t i = 0; i < procs.size(); i++)
     procs[i]->set_debug(value);
 }
 
-bool sim_spike_t::mmio_load(reg_t addr, size_t len, uint8_t* bytes)
-{
+bool sim_spike_t::mmio_load(reg_t addr, size_t len, uint8_t* bytes) {
   if (addr + len < addr)
     return false;
   return bus.load(addr, len, bytes);
 }
 
-bool sim_spike_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
-{
+bool sim_spike_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes) {
   if (addr + len < addr)
     return false;
   return bus.store(addr, len, bytes);
 }
 
-void sim_spike_t::make_bootrom()
-{
+void sim_spike_t::make_bootrom() {
   start_pc = 0x80000000;
 
-  #include "bootrom.h"
+#include "bootrom.h"
 
   std::vector<char> rom((char*)reset_vec, (char*)reset_vec + sizeof(reset_vec));
 

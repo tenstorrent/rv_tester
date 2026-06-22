@@ -1,18 +1,18 @@
 module triggers
-import rv_tester_params::*;
-#(
-  parameter int NUM = -1,
-  `TOPOLOGY,
-  `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PARAMS
-)
-(
-  input logic tb_clk,
-  input logic tb_reset,
-  input logic clk,
-  input logic reset,
-  input event_trigger_intf_t event_trigger_vec [NHARTS-1:0],
-  `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PORTS
-);
+  import rv_tester_params::*;
+  #(
+    parameter int NUM = -1,
+    `TOPOLOGY,
+    `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PARAMS
+    )
+  (
+   input logic tb_clk,
+   input logic tb_reset,
+   input logic clk,
+   input logic reset,
+   input event_trigger_intf_t event_trigger_vec [NHARTS-1:0],
+   `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PORTS
+   );
 
   import "DPI-C" function int unsigned get_random_in_range(int unsigned min, int unsigned max);
 
@@ -105,7 +105,7 @@ import rv_tester_params::*;
   assign m_event_trigger_ticks[0].data.location = location;
   // Use latched value when interrupt sequence is active, otherwise use current value
   assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, 
-                                                                interrupt_sequence_active ? event_trigger_vlds_latched : event_trigger_vlds};
+                                                              interrupt_sequence_active ? event_trigger_vlds_latched : event_trigger_vlds};
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = hart_specific_event_trigger;
   /* verilator lint_on WIDTHEXPAND */

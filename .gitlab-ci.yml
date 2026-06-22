@@ -27,28 +27,24 @@ lint:
     # job below.
     # TODO(open-source): restore slang/verible lint via BCR rules_verible.
     stage: test
-    script:
-        - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
-        - python3 scripts/plusarg_lint.py
-    timeout: 1h
-
-clang-tidy:
-    # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in
-    # `.bazelrc`. Mirrors the bzsim-era scope: lint the transitive
-    # deps reachable from sw_2c_tb_verilator, not the whole
-    # //src/... //test/... surface.
-    #
-    # TODO: widen to //src/... //test/... once the missing
-    # include / BUILD-dep findings the broader sweep surfaces are
-    # fixed. The broader sweep exposes cc_libraries whose hdrs are
-    # consumed only via rv_tester_gen / topology_gen, so they fail
-    # the aspect's standalone header-compile because their deps
-    # don't include the @cvm/// + transactor / messenger pieces
-    # the headers reach for.
-    stage: test
     extends:
         - .test-template
     script:
+        - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
+        - python3 scripts/plusarg_lint.py
+        - git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format  --Werror --dry-run --verbose
+        # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in
+        # `.bazelrc`. Mirrors the bzsim-era scope: lint the transitive
+        # deps reachable from sw_2c_tb_verilator, not the whole
+        # //src/... //test/... surface.
+        #
+        # TODO: widen to //src/... //test/... once the missing
+        # include / BUILD-dep findings the broader sweep surfaces are
+        # fixed. The broader sweep exposes cc_libraries whose hdrs are
+        # consumed only via rv_tester_gen / topology_gen, so they fail
+        # the aspect's standalone header-compile because their deps
+        # don't include the @cvm/// + transactor / messenger pieces
+        # the headers reach for.
         - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy ${BAZEL_OPTS}
     after_script:
         - chmod +w -R ./bazel_output_user_root

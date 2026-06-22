@@ -35,8 +35,8 @@ public:
 private:
   struct region {
     std::string filename;
-    uint64_t    start;
-    uint64_t    end;
+    uint64_t start;
+    uint64_t end;
   };
 
   cvm::topology::loc_t loc_;

@@ -33,7 +33,6 @@ private:
   using resource_id_t = cac::resource_id_t;
   using CacCore = cac::CacCore;
 
-
 public:
   struct error_loc {};
 
@@ -90,57 +89,58 @@ public:
 
   void final_phase();
   void report_metrics();
-  void process(const rv_tester::terminate_called &);
-  void process(const rv_tester::terminate_called_mem_checks &);
-  void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
+  void process(const rv_tester::terminate_called&);
+  void process(const rv_tester::terminate_called_mem_checks&);
+  void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode>(patch); }
 
 private:
-
   typedef enum {
     read,
     write,
     fetch
   } memclass_t;
 
-
   // Overload for vector<string> that allows regex matching.
   // The provided pattern is compiled to a std::regex and used to match each element.
-  inline bool find(const std::vector<std::string>& container, const std::string &pattern) {
-      if (container.empty()) return false;
-      std::regex re(pattern);
-      for (const auto &str : container) {
-          if (std::regex_match(str, re)) {
-              return true;
-          }
-      }
+  inline bool find(const std::vector<std::string>& container, const std::string& pattern) {
+    if (container.empty())
       return false;
+    std::regex re(pattern);
+    for (const auto& str : container) {
+      if (std::regex_match(str, re)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   template <typename... Args>
-      void print(cvm::verbosity_level v, Args&&... args) {
-          cvm::log(v, std::forward<Args>(args)...);
-          if (v <= cvm::verbosity_level::ERROR) {
-              cvm::registry::messenger.signal<error_loc>(loc_, {});
-          }
-      }
+  void print(cvm::verbosity_level v, Args&&... args) {
+    cvm::log(v, std::forward<Args>(args)...);
+    if (v <= cvm::verbosity_level::ERROR) {
+      cvm::registry::messenger.signal<error_loc>(loc_, {});
+    }
+  }
   template <typename... Args>
-      void error(std::string_view format, Args&&... args) {
-          std::string prefix = "Error: ";
-          if (patch_mode_) { prefix += "PATCH ";}
-          std::string out ="\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
-          print(cvm::ERROR, out);
-      }
+  void error(std::string_view format, Args&&... args) {
+    std::string prefix = "Error: ";
+    if (patch_mode_) {
+      prefix += "PATCH ";
+    }
+    std::string out = "\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
+    print(cvm::ERROR, out);
+  }
   bool flags_bridge_log_;
   template <typename... Args>
-      void bridge_log(Args&&... args) {
-        if (flags_bridge_log_) bridge_log_(std::forward<Args>(args)...);
-      }
+  void bridge_log(Args&&... args) {
+    if (flags_bridge_log_)
+      bridge_log_(std::forward<Args>(args)...);
+  }
 
 private:
-
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false, bool page4kX=false, bool dut_opcode_rewritten=false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed = false, bool page4kX = false, bool dut_opcode_rewritten = false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -176,17 +176,17 @@ private:
 
   // Process pre/post-step
   void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
-  void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
-  void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
-  void pre_step_debug_entry(     hart_id_t hart, const rv_instr_t& d);
+  void pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_poke(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_entry(hart_id_t hart, const rv_instr_t& d);
   void check_debug_mode_entry_via_ebreak(const rv_instr_t& d);
-  void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
-  void pre_step_debug_exit(      hart_id_t hart, const rv_instr_t& d);
-  void pre_step_nmi_check(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void pre_step_interrupt_process(  hart_id_t hart, const rv_instr_t& d);
-  void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_debug_poke(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_exit(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d);
+  void post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   std::string to_string(rv_intr_t& i);
@@ -218,7 +218,7 @@ private:
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
-  bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
+  bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle = 0);
   bool resynch_on_instr(const hart_id_t& hart, const std::string& instr, const uint64_t& cycle, std::string& resource, std::string& dut, std::string& iss, const rv_instr_t& d, const whisper_state_t& w);
   void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool clint_read(const uint64_t& pa);
@@ -237,89 +237,85 @@ private:
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
-  bool hyp_enabled() { return  (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
+  bool hyp_enabled() { return (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
-  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev=false, bool seip_new=false, bool consider_seip=false);
+  void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev = false, bool seip_new = false, bool consider_seip = false);
 
 private:
-
   const uint64_t sc_slice_base_;
 
   // CSRs where some bits are masked by misa.H
   std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
-    {0x300, "mstatus"},
-    {0x302, "medeleg"},
-    {0x303, "mideleg"},
-    {0x344, "mip"},
-    {0x309, "mvip"},
-    {0x304, "mie"},
-    {0x244, "sip"},
-    // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
-    // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
-    {0x30C, "mstateen0"},
-    // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
-    {0x10C, "sstateen0"}
+      {0x300, "mstatus"},
+      {0x302, "medeleg"},
+      {0x303, "mideleg"},
+      {0x344, "mip"},
+      {0x309, "mvip"},
+      {0x304, "mie"},
+      {0x244, "sip"},
+      // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
+      // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
+      {0x30C, "mstateen0"},
+      // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
+      {0x10C, "sstateen0"}};
+
+  // Bit masks for fields that are masked by misa.H in each CSR
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
+      {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
+      {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
+      {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+      {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
+      {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
+      {0x244, 0x0000000000001444}, // sip: same as mip (alias)
+      {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
+      {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
   };
 
-    // Bit masks for fields that are masked by misa.H in each CSR
-  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
-    {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
-    {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
-    {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-    {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-    {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
-    {0x244, 0x0000000000001444}, // sip: same as mip (alias)
-    {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
-    {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
-  };
-  
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
-        {0x600, "hstatus"},      // Hypervisor status register -
-        {0x602, "hedeleg"},      // Hypervisor exception delegation register -
-        {0x603, "hideleg"},      // Hypervisor interrupt delegation register -
-        {0x604, "hie"},          // Hypervisor interrupt-enable register -
-        {0x605, "htimedelta"},   // Hypervisor time delta register -
-        {0x606, "hcounteren"},   // Hypervisor counter-enable register -
-        {0x607, "hgeie"},        // Hypervisor guest external interrupt-enable register -
-        //{0x608, "hvien"}, -> hvip is defined by H extension whereas mvien and hvien are defined by Smaia/SSaia
-        {0x609, "hvictl"},
-        {0x60A, "henvcfg"},      // Hypervisor Environment Configuration regsiter -
-        {0x643, "htval"},        // Hypervisor Trap Value register -
-        {0x644, "hip"}, // -
-        {0x645, "hvip"},         // Hypervisor virtual interrupt pending -
-        {0x646, "hviprio1"},         //
-        {0x647, "hviprio2"},         //
-        {0x680, "hgatp"},        // Hypervisor trap value register -
-        {0x64A, "htinst"},       // Hypervisor trap instruction register -
-        {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
-        {0x34B, "mtval2"},       // Machine Trap Value register -
-        {0x34A, "mtinst"},        // Machine Trap Instruction register -
-        {0x200, "vsstatus"}, // -
-        {0x204, "vsie"}, // -
-        {0x205, "vstvec"}, // -
-        {0x240, "vsscratch"}, // -
-        {0x241, "vsepc"}, // -
-        {0x242, "vscause"}, // -
-        {0x243, "vstval"}, // -
-        {0x24D, "vstimecmp"},
-        {0x244, "vsip"}, // -
-        {0x280, "vsatp"}, // -
-        {0x25C, "vstopei"},         // Virtual Supervisor Top External Interrupt 
-        {0xEB0, "vstopi"},          // Virtual Supervisor Top Interrupt 
-    };
+      {0x600, "hstatus"},    // Hypervisor status register -
+      {0x602, "hedeleg"},    // Hypervisor exception delegation register -
+      {0x603, "hideleg"},    // Hypervisor interrupt delegation register -
+      {0x604, "hie"},        // Hypervisor interrupt-enable register -
+      {0x605, "htimedelta"}, // Hypervisor time delta register -
+      {0x606, "hcounteren"}, // Hypervisor counter-enable register -
+      {0x607, "hgeie"},      // Hypervisor guest external interrupt-enable register -
+      //{0x608, "hvien"}, -> hvip is defined by H extension whereas mvien and hvien are defined by Smaia/SSaia
+      {0x609, "hvictl"},
+      {0x60A, "henvcfg"},   // Hypervisor Environment Configuration regsiter -
+      {0x643, "htval"},     // Hypervisor Trap Value register -
+      {0x644, "hip"},       // -
+      {0x645, "hvip"},      // Hypervisor virtual interrupt pending -
+      {0x646, "hviprio1"},  //
+      {0x647, "hviprio2"},  //
+      {0x680, "hgatp"},     // Hypervisor trap value register -
+      {0x64A, "htinst"},    // Hypervisor trap instruction register -
+      {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
+      {0x34B, "mtval2"},    // Machine Trap Value register -
+      {0x34A, "mtinst"},    // Machine Trap Instruction register -
+      {0x200, "vsstatus"},  // -
+      {0x204, "vsie"},      // -
+      {0x205, "vstvec"},    // -
+      {0x240, "vsscratch"}, // -
+      {0x241, "vsepc"},     // -
+      {0x242, "vscause"},   // -
+      {0x243, "vstval"},    // -
+      {0x24D, "vstimecmp"},
+      {0x244, "vsip"},    // -
+      {0x280, "vsatp"},   // -
+      {0x25C, "vstopei"}, // Virtual Supervisor Top External Interrupt
+      {0xEB0, "vstopi"},  // Virtual Supervisor Top Interrupt
+  };
 
   // MCM order map needed for periodic cosim
-  std::unordered_map<uint64_t , int> mcm_orders_;
+  std::unordered_map<uint64_t, int> mcm_orders_;
 
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
-    {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
+      {0x25C, "vstopei"} // Virtual Supervisor Top External Interrupt
   };
 
   std::unordered_set<csr_base*> interrupt_csrs_to_resynch_ = {&mip, &sip, &hip, &vsip, &hgeip, &mtopi, &vstopi, &stopi};
   // TODO: Add interrupt CSRs for check
   // std::unordered_set<csr_base*> interrupt_csrs_for_check_ = {&mvip, &sip, &hip, &vsip, &mie, &sie, &vsie, &hie, &mstatus, &sstatus, &hstatus, &vsstatus, &mnstatus, &mideleg, &mvien, &hideleg, &hvien};
-
-
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -346,8 +342,8 @@ private:
 
   uint32_t step_ = 1;
   uint32_t cycle_ = 1;
-  uint64_t whisper_time_=0;
-  uint64_t rvfi_calls_=0;
+  uint64_t whisper_time_ = 0;
+  uint64_t rvfi_calls_ = 0;
   bool psc_stepping_ = false;
 
   // State variables
@@ -363,7 +359,7 @@ private:
 
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
-  uint64_t curr_cbo_inv_addr_=0;
+  uint64_t curr_cbo_inv_addr_ = 0;
 
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
@@ -380,8 +376,8 @@ private:
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> msi_{};
-  rv_nmi_t nmi_ {};
-  rv_nmi_t prev_nmi_ {};
+  rv_nmi_t nmi_{};
+  rv_nmi_t prev_nmi_{};
   std::unordered_map<uint64_t, uint64_t> nmi_age_{};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
@@ -416,12 +412,9 @@ private:
   bool cvm_debug_ = false;
   uint64_t previous_cycle_;
 
-  // Memmap
-  std::map<std::string, memmap_entry_t> memmap_;
-  uint64_t sep_base_=0, sep_end_=0;
-  uint64_t maplic_base_=0, maplic_end_=0;
-  uint64_t saplic_base_=0, saplic_end_=0;
-
+  uint64_t sep_base_ = 0, sep_end_ = 0;
+  uint64_t maplic_base_ = 0, maplic_end_ = 0;
+  uint64_t saplic_base_ = 0, saplic_end_ = 0;
 
   std::unordered_map<intr, int> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
@@ -434,12 +427,11 @@ private:
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
-  uint64_t dword_vec_array [vlen/64] = {0};
+  uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
 
-
-  bool terminated_=false, end_mcm_=false, metrics_reported_=false;
+  bool terminated_ = false, end_mcm_ = false, metrics_reported_ = false;
   bool check_nmi_at_patch_exit_ = false;
   uint64_t check_nmi_at_patch_cause_ = 0;
   bool check_intr_at_patch_exit_ = false;
@@ -459,7 +451,7 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
-  std::pair<uint64_t /*pa*/, uint64_t/*age*/> latest_imsic_{0, 0};
+  std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;

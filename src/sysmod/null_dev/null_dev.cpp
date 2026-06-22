@@ -1,7 +1,6 @@
 #include <iostream>
 #include "src/sysmod/null_dev/null_dev.h"
 
-
 void null_dev::write(const transactor::write_t&) {
   return;
 }

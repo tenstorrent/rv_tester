@@ -5,8 +5,7 @@
 DEFINE_string(device_load_dir, "", "Path to load device snapshots");
 DEFINE_string(device_save_dir, "", "Path to save device snapshots");
 
-bool
-device::load_snapshot(std::ifstream& ifs) {
+bool device::load_snapshot(std::ifstream& ifs) {
   if (FLAGS_device_load_dir.empty())
     return false;
 
@@ -14,13 +13,11 @@ device::load_snapshot(std::ifstream& ifs) {
   if (not ifs) {
     cvm::log(cvm::HIGH, "Could not find " + tag_ + " under snapshot load directory, will skip\n");
     return false;
-  }
-  else
+  } else
     return true;
 }
 
-bool
-device::save_snapshot(const std::stringstream& ss) {
+bool device::save_snapshot(const std::stringstream& ss) {
   if (FLAGS_device_save_dir.empty())
     return false;
 
@@ -28,8 +25,7 @@ device::save_snapshot(const std::stringstream& ss) {
   if (not ofs) {
     cvm::log(cvm::HIGH, "Error: Could not open " + FLAGS_device_save_dir + " for saving snapshot\n");
     return false;
-  }
-  else {
+  } else {
     ofs << ss.rdbuf();
     ofs.close();
     return true;

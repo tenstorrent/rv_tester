@@ -9,8 +9,8 @@ REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
 static bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
   if (value <= 0) {
-      cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
-      return false;
+    cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
+    return false;
   }
   return true;
 }
@@ -53,7 +53,7 @@ DEFINE_bool(enable_external_interrupt_sequence_debug, false, "Enable external_in
 // Constructor
 // ---------------------------------------------------------------------------
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id)
-  : sequence_log_file_("h" + std::to_string(id) + "_external_interrupt_sequence.log"), loc_(loc), id_(id), msi_wait_timeout_(0) {
+    : sequence_log_file_("h" + std::to_string(id) + "_external_interrupt_sequence.log"), loc_(loc), id_(id), msi_wait_timeout_(0) {
 
   sysmod_loc_ = cvm::topology::get_from_type("SYSMOD", 0);
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
@@ -123,16 +123,16 @@ external_interrupt_sequence::~external_interrupt_sequence() {
   }
 }
 
-void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds){
+void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds) {
   last_trigger = current_trigger;
   current_trigger = trigger_info;
   drive_msi_in_curr_hart = (per_core_trigger_vlds == (1 << id_));
   log(cvm::HIGH, "[ExtInterruptSeq] capture_trigger_info: hart_id={}, per_core_trigger_vlds=0x{:x}, expected=0x{:x}, drive_msi_in_curr_hart={}\n",
-           id_, per_core_trigger_vlds, (1 << id_), drive_msi_in_curr_hart);
+      id_, per_core_trigger_vlds, (1 << id_), drive_msi_in_curr_hart);
 }
 
 void external_interrupt_sequence::interrupt_injection_thread() {
-  auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
+  auto* task = +[](external_interrupt_sequence* m) -> cvm::messenger::task<void> {
     co_await m->interrupt_trigger();
     co_return;
   };
@@ -144,7 +144,8 @@ cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
     co_await delayed_trigger();
     log(cvm::HIGH, "[ExtInterruptSeq] drive_msi_in_curr_hart = {}\n", drive_msi_in_curr_hart);
     if (drive_msi_in_curr_hart) {
-      while (check_axi_backpressure()) co_await delayed_trigger();
+      while (check_axi_backpressure())
+        co_await delayed_trigger();
       log(cvm::HIGH, "[ExtInterruptSeq] driving external interrupt due to trigger\n");
 
       // Randomize MSI parameters
@@ -159,7 +160,8 @@ cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
       uint64_t intr_num;
       do {
         intr_num = rng1() & FLAGS_imsic_intr_mask;
-        if (intr_file == 0x02) intr_num &= FLAGS_imsic_vs_intr_mask;
+        if (intr_file == 0x02)
+          intr_num &= FLAGS_imsic_vs_intr_mask;
       } while (intr_num == 0);
 
       unsigned intr_hart = get_logical_core_id(id_);
@@ -203,7 +205,8 @@ void external_interrupt_sequence::on_sysmod_tick(uint64_t advance) {
   if (timer_ < timer_rand_intr_)
     return;
 
-  if (check_axi_backpressure()) return;
+  if (check_axi_backpressure())
+    return;
 
   // Randomize MSI parameters
   unsigned intr_file = 0;
@@ -250,12 +253,12 @@ void external_interrupt_sequence::on_sysmod_tick(uint64_t advance) {
 void external_interrupt_sequence::on_directed_msi(const directed_msi_request_t& req) {
   unsigned intr_file = (req.packed_data >> 12) & 0xf;
   unsigned intr_hart = (req.packed_data >> 16) & 0xfff;
-  unsigned vs_id     = (req.packed_data >> 28) & 0x3f;
+  unsigned vs_id = (req.packed_data >> 28) & 0x3f;
   bool disable_vs_rand = (req.packed_data >> 40) & 0x1;
   bool exp_err_rsp = (intr_hart < FLAGS_num_harts) ? false : true;
 
   log(cvm::HIGH, "[ExtInterruptSeq] Directed MSI: num={} file={} hart={} vs_id={}\n",
-           req.intr_num, intr_file, intr_hart, vs_id);
+      req.intr_num, intr_file, intr_hart, vs_id);
   send_msi(req.intr_num, intr_file, intr_hart, vs_id, disable_vs_rand, exp_err_rsp);
   ext_interrupt_count_++;
 }
@@ -270,7 +273,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
   uint32_t addr = 0;
 
   log(cvm::HIGH, "[ExtInterruptSeq] send_msi: num={} file={} hart={} vs_id={}\n",
-           intr_num, intr_file, intr_hart, vs_id);
+      intr_num, intr_file, intr_hart, vs_id);
 
   if (intr_file == 0x0) {
     addr = msi_m_file_addr + (intr_hart << 18);
@@ -283,8 +286,10 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
     uint64_t data_misa, mask, poke_mask, read_mask;
     bool valid;
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(
-            cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-            intr_hart, 0x301, data_misa, mask, poke_mask, read_mask, valid) || !valid) && FLAGS_whisper_client_check)
+             cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+             intr_hart, 0x301, data_misa, mask, poke_mask, read_mask, valid) ||
+         !valid) &&
+        FLAGS_whisper_client_check)
       log(cvm::ERROR, "Error: Hart {}: Failed to peek MISA in send_msi()\n", intr_hart);
 
     if (((data_misa >> 7) & 0x1) && !disable_vs_id_rand) {
@@ -293,34 +298,38 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       // Peek HSTATUS for VGEIN
       uint64_t hstatus_data;
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(
-              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-              intr_hart, 0x600, hstatus_data, mask, poke_mask, read_mask, valid) || !valid) && FLAGS_whisper_client_check)
+               cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+               intr_hart, 0x600, hstatus_data, mask, poke_mask, read_mask, valid) ||
+           !valid) &&
+          FLAGS_whisper_client_check)
         log(cvm::ERROR, "Error: Hart {}: Failed to peek HSTATUS in send_msi()\n", intr_hart);
       uint32_t vgein = (hstatus_data >> 12) & 0x3F;
 
       // Peek HGEIE
       uint64_t hgeie_data;
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(
-              cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-              intr_hart, 0x607, hgeie_data, mask, poke_mask, read_mask, valid) || !valid) && FLAGS_whisper_client_check)
+               cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+               intr_hart, 0x607, hgeie_data, mask, poke_mask, read_mask, valid) ||
+           !valid) &&
+          FLAGS_whisper_client_check)
         log(cvm::ERROR, "Error: Hart {}: Failed to peek HGEIE in send_msi()\n", intr_hart);
 
       // 50% chance for single vs dual interrupt
       bool generate_dual_interrupt = (rng1() % 2) == 0;
 
-        if (!generate_dual_interrupt) {
-          // Single interrupt case
-          if ((rng1() % 100) < 70) {
-            // 70% chance to use VGEIN
-            vs_id = vgein;
-            intr_vs_id_vgein_++;
-          } else {
-            // 30% chance to use random VS ID != VGEIN
-            do {
-              vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
-            } while (vs_id == vgein);
-            intr_vs_id_random_++;
-          }
+      if (!generate_dual_interrupt) {
+        // Single interrupt case
+        if ((rng1() % 100) < 70) {
+          // 70% chance to use VGEIN
+          vs_id = vgein;
+          intr_vs_id_vgein_++;
+        } else {
+          // 30% chance to use random VS ID != VGEIN
+          do {
+            vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
+          } while (vs_id == vgein);
+          intr_vs_id_random_++;
+        }
 
         addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
         uint32_t length = 0x40;
@@ -343,21 +352,21 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
         }
         cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb, exp_err_rsp});
 
-          // Second interrupt with different VS ID
-          uint32_t second_vs_id;
-          if ((rng1() % 100) < 70) {
-            // 70% chance to pick VS ID with HGEIE set
-            do {
-              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
-            // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
-          } else {
-            // 30% chance to pick VS ID with HGEIE not set
-            do {
-              second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
-            } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL<<vgein)) != (0x3E & ~(1ULL<<vgein)) && (hgeie_data & (1ULL << second_vs_id))));
-            // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
-          }
+        // Second interrupt with different VS ID
+        uint32_t second_vs_id;
+        if ((rng1() % 100) < 70) {
+          // 70% chance to pick VS ID with HGEIE set
+          do {
+            second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
+          } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL << vgein)) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+          // Chosen VS should not be equal to vgein, and if any HGEIE bits(except the vgein bit) are set, chosen VS should have its HGEIE bit set
+        } else {
+          // 30% chance to pick VS ID with HGEIE not set
+          do {
+            second_vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1; // Range [1,5]
+          } while ((second_vs_id == vgein) || ((hgeie_data & ~(1ULL << vgein)) != (0x3E & ~(1ULL << vgein)) && (hgeie_data & (1ULL << second_vs_id))));
+          // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
+        }
 
         addr = msi_vs_file_addr + (second_vs_id << 12) + (intr_hart << 18);
         cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb, exp_err_rsp});
@@ -365,7 +374,8 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       }
     } else {
       is_vgein_intr = false;
-      if (!disable_vs_id_rand) vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1;
+      if (!disable_vs_id_rand)
+        vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1;
       addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
     }
   } else {
@@ -396,7 +406,7 @@ bool external_interrupt_sequence::check_axi_backpressure() {
   unsigned free_ids = cvm::registry::messenger.call<axi_mst_t::free_aw_ids_rpc>(axi_mst_loc_l);
   if (free_ids <= FLAGS_msi_backpressure_threshold) {
     log(cvm::HIGH, "[ExtInterruptSeq] Backpressure: only {} free AXI IDs (threshold={}), deferring MSI\n",
-             free_ids, FLAGS_msi_backpressure_threshold);
+        free_ids, FLAGS_msi_backpressure_threshold);
     msi_wait_timeout_ = 0;
     return true;
   }
@@ -417,7 +427,7 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
   uint32_t logical_id = 0;
-  
+
   // Parse the hart enable ID string and find the logical position
   while (std::getline(ss, token, ',')) {
     uint64_t hart_id = std::stoull(token);
