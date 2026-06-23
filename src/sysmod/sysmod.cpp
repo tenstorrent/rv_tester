@@ -845,8 +845,7 @@ void sysmod::load_prog(const std::string& hex, const std::string& load, const st
 }
 
 void sysmod::load_prog_easy(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
-  if ((FLAGS_whisper_loadfrom  != "") && m_rvfi.init_jalr_seen && !prog_loaded)
-  {
+  if ((FLAGS_whisper_loadfrom != "") && m_rvfi.init_jalr_seen && !prog_loaded) {
     cvm::log(cvm::MEDIUM, "Exec load_prog_easy {}\n", m_rvfi.cycle);
     load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
     prog_loaded = true;
