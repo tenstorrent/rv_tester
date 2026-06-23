@@ -147,7 +147,6 @@ public:
   bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>& value);
   bool whisperGetLastLdStAddress(int hart, uint64_t& value);
   bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
-
   bool whisperSnapshotSave();
 
   private:
@@ -176,7 +175,7 @@ private:
 
 public:
   CVM_MESSENGER_procedure_call(iss_select_rand_RPC, std::vector<iss_select_s>(uint32_t));
-  CVM_MESSENGER_procedure_call(whisperConnectRPC, int (uint64_t));
+  CVM_MESSENGER_procedure_call(whisperConnectRPC, int(uint64_t));
   CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool(void));
   CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&, bool&, bool&));
   CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool(int, uint64_t&, uint32_t&, unsigned&));

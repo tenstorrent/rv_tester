@@ -108,7 +108,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
 template <typename URV>
 void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc_, [this](uint32_t hart = 0) { return this->get_iss_select(hart); });
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this] (uint64_t restart_pc=0) {return this->whisperConnect(restart_pc);});
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this](
+    uint64_t restart_pc = 0) {return this->whisperConnect(restart_pc);});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc_, [this]() { return this->whisperConnected(); });
   cvm::registry::messenger.procedure<whisperStepRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) { return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid); });
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc_, [this](int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) { return this->whisperSimpleStep(hart, pc, instruction, changeCount); });
@@ -156,8 +157,9 @@ void whisperClient<URV>::configure() {
 }
 
 template <typename URV>
-bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
-                                    uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile) {
+bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
+  session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
+  uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
   auto config_file = overrideWhisperJson(standalone);
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
@@ -166,11 +168,11 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc())});
   args_str.insert(args_str.end(), {"--nmevec", std::to_string(getNmiExceptionPc())});
 
-  //if (!standalone && FLAGS_whisper_loadfrom  == "") -- Cosim capture, desired
-  if (standalone && FLAGS_whisper_loadfrom  != "")
+  //if (!standalone && FLAGS_whisper_loadfrom == "") -- Cosim capture, desired
+  if (standalone && FLAGS_whisper_loadfrom != "")
     args_str.insert(args_str.end(), "--hintops");
   if (!standalone && (FLAGS_whisper_loadfrom  != ""))
-    args_str.insert(args_str.end(), {"--loadfrom",  FLAGS_whisper_loadfrom});
+    args_str.insert(args_str.end(), {"--loadfrom", FLAGS_whisper_loadfrom});
 
   if (FLAGS_cplfw && FLAGS_cplfw_path != "")
     args_str.push_back(FLAGS_cplfw_path);
@@ -237,7 +239,7 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   else if (FLAGS_cplfw)
     resetpc = FLAGS_resetpcfw;
   // Remove last term?
-  if (standalone || (FLAGS_whisper_loadfrom  == "") || (restart_pc != 0))
+  if (standalone || (FLAGS_whisper_loadfrom == "") || (restart_pc != 0))
     args_str.insert(args_str.end(), {"--startpc", std::to_string(resetpc)});
 
   if (standalone) {
@@ -1211,8 +1213,7 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
 }
 
 template <typename URV>
-bool
-whisperClient<URV>::whisperSnapshotSave()
+bool whisperClient<URV>::whisperSnapshotSave()
 {
   system_->saveSnapshot("snapshot0");
   return true;
