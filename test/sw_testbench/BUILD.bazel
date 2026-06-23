@@ -1,4 +1,3 @@
-load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@cvm//:defs.bzl", "topology_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 
@@ -8,8 +7,13 @@ load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 # verilator-generated header is per-harness, so each sw_<N>c_tb_verilator
 # cc_binary needs its own compile against its own veri_lib output.
 exports_files(
-    ["memmap.json", "sw_tb.cpp", "whisper.json"],
+    ["memmap.json", "sw_tb.cpp", "whisper.json", "pulp_platform_verilator_waiver.vlt"],
     visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["top.sv", "harness_undefines.sv"],
+    visibility = ["//test/sw_testbench/verilator:__pkg__"],
 )
 
 cc_library(
@@ -29,6 +33,7 @@ harnesses = ["sw_1c", "sw_2c"]
             name = name + "_harness_define",
             outs = [name + "_harness_defines.sv"],
             cmd = "echo '`define HARNESS {}' > $@".format(name.upper()),
+            visibility = ["//test/sw_testbench/verilator:__pkg__"],
         ),
 
         topology_gen(
@@ -53,18 +58,6 @@ harnesses = ["sw_1c", "sw_2c"]
                 "alwayslink": True,
                 "linkstatic": True,
             },
-            visibility = ["//test/sw_testbench/verilator:__pkg__"],
-        ),
-
-        verilog_library(
-            name = name + "_top",
-            srcs = [
-                name + "_harness_define",
-                "top.sv",
-                "harness_undefines.sv",
-            ],
-            deps = [name + "_rv_tester_sv"],
-            top_module = "top",
             visibility = ["//test/sw_testbench/verilator:__pkg__"],
         ),
     ]
