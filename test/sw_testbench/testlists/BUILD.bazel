@@ -1,1 +1,62 @@
-exports_files(["infinite.S", "nop.S"])
+# Each smoke entry collapses to one sh_test that runs the pre-built
+# sw_<N>c_tb_verilator binary against infinite.elf with the configured
+# plusargs.
+#
+# infinite.elf is checked in as-is for now. TODO(open-source): replace with
+# a real riscv32 toolchain cross-compile step once a public-friendly riscv
+# toolchain is in the CI container.
+
+exports_files(
+    ["infinite.S", "nop.S", "infinite.elf", "sim.sh"],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "infinite_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
+sh_test(
+    name = "infinite_2c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_2c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=2",
+        "+num_harts=2",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_2c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [
+        ":infinite_1c_verilator",
+        ":infinite_2c_verilator",
+    ],
+    visibility = ["//visibility:public"],
+)

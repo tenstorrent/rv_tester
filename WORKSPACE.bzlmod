@@ -1,29 +1,5 @@
-# WORKSPACE.bzlmod - loaded after MODULE.bazel for hybrid mode
+# WORKSPACE.bzlmod - loaded after MODULE.bazel for hybrid mode.
+# All external repo wiring now lives in MODULE.bazel; this file is intentionally
+# minimal (mirrors cvm's stub).
 
 workspace(name = "rv_tester")
-
-# Initialize bzsim dependencies (bzsim is not a bzlmod module)
-load("@bzsim//:repositories.bzl", "bzsim_dependencies")
-bzsim_dependencies()
-
-# Initialize testgen dependencies (testgen is not a bzlmod module)
-load("@testgen//:repositories.bzl", "testgen_dependencies")
-testgen_dependencies()
-
-# Initialize opensrc repositories (legacy)
-load("//infra/bazel:opensrc_repositories.bzl", "opensrc_repositories")
-opensrc_repositories()
-
-# VCS dependencies from rules_vcs (comes via module extension)
-load("@rules_vcs//vcs:repositories.bzl", "rules_vcs_dependencies")
-rules_vcs_dependencies()
-
-# Load testlists
-load("//infra/bazel:testlist.bzl", "load_testlists")
-load_testlists()
-
-# REMOVED (now come through bzlmod):
-# - bazel_skylib workspace init (skylib comes via bazel_dep)
-# - m4/flex/bison toolchains (transitive dependencies, not direct)
-# - rv_tester_dependencies* (now handled in MODULE.bazel)
-# - cvm/whisper dependencies (handled via their MODULE.bazel files)

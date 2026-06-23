@@ -94,17 +94,12 @@ module rv_tester
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) profile6_clkgen(.clk(profile6_clk[c]), .fastest_clk(fastest_clk));
 
 
-        clk_mux_glitch_free #(
-                              .NUM_INPUTS(7),
-                              .CLOCK_DURING_RESET(1)
-                              ) i_clk_mux (
-                                           .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
-                                           .test_clk_i     (1'b0),             // FIXME:Add test clock
-                                           .test_en_i      (1'b0),             // FIXME:Add test enable
-                                           .async_rstn_i   (~rv_tester_reset),
-                                           .async_sel_i    (clock_mode),
-                                           .clk_o          (clk[c])
-                                           );
+        rv_tester_clk_mux #(.NUM_INPUTS(7)) i_clk_mux (
+            .clks_i      ({profile6_clk[c], profile5_clk[c], profile4_clk[c],
+                           profile3_clk[c], profile2_clk[c], profile1_clk[c], def_clk[c]}),
+            .async_sel_i (clock_mode),
+            .clk_o       (clk[c])
+        );
       end
 `endif
     end
@@ -239,7 +234,7 @@ module rv_tester
 `endif   
   assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset) || dut_terminate || warm_reset_now;
 
-  assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
+  assign rerun_now           = terminated && !terminated_1T && num_reruns != -1 && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
   // Assert `cvm_done` CVM_DONE_DELAY_CYCLES TB clk cycles after `terminate_1T` (uvm/CVM handshake).
   assign cvm_done = cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1];

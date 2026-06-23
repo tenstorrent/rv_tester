@@ -471,8 +471,8 @@ assign pmcounters_cores[0].data.location = location;
     result = pmu_template
     result = result.replace('`include "gen_core_defines.sv"', core_defines)
     result = result.replace('`include "gen_sc_defines.sv"', sc_defines)
-    result = result.replace('`include "gen_core_events.sv"', core_events_code)
-    result = result.replace('`include "gen_sc_events.sv"', sc_events_code)
+    result = result.replace('`include "gen_core_events.svh"', core_events_code)
+    result = result.replace('`include "gen_sc_events.svh"', sc_events_code)
 
     return result
 

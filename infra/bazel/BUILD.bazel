@@ -1,0 +1,2 @@
+# Marks infra/bazel/ as a package so //infra/bazel:*.bzl files can be loaded
+# by downstream WORKSPACE consumers.

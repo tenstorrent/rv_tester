@@ -1,2 +1,62 @@
+build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
+build --action_env=CC=clang --action_env=CXX=clang++ --host_action_env=CC=clang --host_action_env=CXX=clang++
+
+# Bazel-7 / bzlmod invocations opt in via --config=bzlmod. Sets both the
+# --enable_bzlmod toggle and the //src:use_bzlmod config_setting (which
+# whisper + cosim/whisper_if select() on to flip between bazel_dep boost
+# (bzlmod) and -lboost_program_options legacy linking). Bazel-6 WORKSPACE
+# jobs don't pass --config=bzlmod, so the use_bzlmod=1 define stays off
+# and the WORKSPACE branch of the select wins.
+build:bzlmod --enable_bzlmod
+build:bzlmod --define=use_bzlmod=1
+
+# mem_manager's sparse_mem.cc uses std::has_single_bit / std::countr_zero
+# without including <bit>; force-include it so the C++20 names resolve under
+# Debian libstdc++ 12 + clang 20 (older libstdc++ pulled <bit> in transitively).
+build --cxxopt=-include --cxxopt=bit
+build --host_cxxopt=-include --host_cxxopt=bit
+
+# Mirror cvm's relaxations (BCR m4/flex/bison gnulib, googletest deprecated
+# std::get_temporary_buffer under libstdc++ 12).
+build --copt=-Wno-error=implicit-function-declaration --host_copt=-Wno-error=implicit-function-declaration
+
+# -Wall / -Werror only on first-party rv_tester code. The -Wno-error= entries
+# cover clang 20 warnings BCR-fetched headers trigger when included from
+# first-party TUs (whisper, nlohmann json, etc.).
+#
+# Bazel's built-in `treat_warnings_as_errors` feature is NOT used here:
+# it (a) only adds -Werror (no -Wall) and (b) cannot be scoped to non-
+# external targets — features are workspace-global once enabled via
+# `--features=`, and external compiles under it would need ~10 extra
+# `-Wno-error=` overrides because Bazel's default toolchain already
+# enables -Wall-equivalent warnings on every translation unit. The
+# `--per_file_copt=-<regex>@<flags>` path-negation form is the only
+# built-in mechanism that distinguishes first-party from external/*
+# paths without touching every BUILD.bazel.
+build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarations,-Wno-error=deprecated-literal-operator,-Wno-error=macro-redefined
+
+# UBSan: --features=ubsan only flips -fsanitize=undefined on the compile
+# side. Linking still needs -fsanitize=undefined so clang's driver pulls
+# libclang_rt.ubsan_standalone_cxx — the C++ runtime that provides
+# __ubsan_vptr_type_cache + __ubsan_handle_dynamic_type_cache_miss_abort.
+#
+# The `--driver-mode=g++` linkopt forces clang to act as clang++ during
+# the link, which is what triggers it to link libclang_rt.ubsan_standalone_cxx
+# (and libclang_rt.asan_cxx). Without it, bazel invokes plain `clang` for
+# the link — that's the C driver, which only links the C runtimes and the
+# `__ubsan_vptr_*` / `__asan_handle_cxx_*` symbols from C++-instrumented
+# objects end up unresolved.
+build:ubsan --features=ubsan
+build:ubsan --linkopt=-fsanitize=undefined
+build:ubsan --linkopt=--driver-mode=g++
+
+# ASan: bazel's features=asan handles both compile and link by default,
+# but bundle it as a config so the CI script is symmetric with ubsan.
+# Also force clang++ link mode so asan_cxx gets linked (matches :ubsan).
+build:asan --features=asan
+build:asan --linkopt=--driver-mode=g++
+
+# clang-tidy via erenon/bazel_clang_tidy. Run with `--config=clang-tidy`.
+build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
 build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy_config
-build:clang-tidy --aspects_parameters=clang_tidy_repository=rv_tester

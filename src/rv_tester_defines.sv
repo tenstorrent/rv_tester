@@ -1,6 +1,10 @@
 ///////////////includes///////////////////////////////
 
 `include "axi/typedef.svh"
+// The `RV_TESTER_AXI_ENUMS / TYPEDEFS / PORTS macros come from the
+// generated axi_defines.sv, which is in `:_axi_interfaces_sv`'s srcs.
+// Both Verilator and VCS process all srcs as one compilation unit, so
+// the `define`s become globally visible — no explicit `include needed.
 /////////////////////////////////////////////////////
 
 package rv_tester_params;

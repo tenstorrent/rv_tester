@@ -1,0 +1,31 @@
+Fix verilator_process_wrapper.cc to propagate verilator's exit code.
+
+`std::system()` returns the encoded wait() status, not the raw exit code.
+Returning it directly truncates to 8 bits in the kernel, so a verilator
+exit of 1 (status 256) becomes "exit 0" — bazel treats failures like
+`%Error: Exiting due to N warning(s)` as success.
+
+--- a/verilator/private/verilator_process_wrapper.cc
++++ b/verilator/private/verilator_process_wrapper.cc
+@@ -13,6 +13,7 @@
+ #else
+ #include <dirent.h>
+ #include <unistd.h>
++#include <sys/wait.h>
+ #endif
+
+ /**
+@@ -117,7 +118,12 @@ int main(int argc, char* argv[]) {
+     }
+     int result = std::system(cmd.c_str());
+     if (result != 0) {
+-        return result;
++        // `std::system` returns the encoded wait() status, not the raw
++        // exit code. Extract via WEXITSTATUS so verilator exit N becomes
++        // wrapper exit N (not N<<8, which the kernel truncates to 0 and
++        // hides the failure from bazel).
++        if (WIFEXITED(result)) return WEXITSTATUS(result);
++        return 1;
+     }
+
+     // Delete any non-deterministic files.

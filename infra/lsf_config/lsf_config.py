@@ -1,1 +1,0 @@
-lsf_config.bzl

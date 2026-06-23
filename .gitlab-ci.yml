@@ -1,38 +1,113 @@
+# TODO(open-source): re-publish the CI image on a public registry and switch
+# the URL. The image is built from cvm/Containerfile and contains no internal
+# Tenstorrent code; only the hosting URL is internal for now.
+image:
+    name: "aus-gitlab.local.tenstorrent.com:5005/riscv/dv/cvm:0.1.3"
+
 include:
-  - local: 'infra/container/gitlab-container.yml'
+  # TODO(open-source): drop the internal gitlab-definitions include along with
+  # `.smoke-rules-all-branches-template` / `.notify-template` references below.
   - project: 'riscv/dv/gitlab-definitions'
     ref: main
     file: 'common-definitions.yml'
 
 stages:
     - submodule_update
-    - build
+    - test
     - notify
 
+.test-template:
+    variables:
+        SCHEDULER_PARAMETERS: "-n 8 -R span[hosts=1]"
+        BAZEL_OPTS: "--jobs=8"
+
 lint:
+    # Verilog-side slang_lint is gone with bzsim. Standalone checks
+    # (DECLARE_ grep, plusarg_lint.py) stay; clang-tidy moved to its own
+    # job below.
+    # TODO(open-source): restore slang/verible lint via BCR rules_verible.
+    stage: test
     extends:
-        - .bzsim-template
-        - .smoke-rules-all-branches-template
-    stage: build
+        - .test-template
     script:
-        - ${BZSIM} build sw_2c_tb:slang_lint --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_BUILD_OPTS}
         - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
         - python3 scripts/plusarg_lint.py
         - git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format  --Werror --dry-run --verbose
-        - ${BZSIM} build sw_2c_tb:dpi  --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_BUILD_OPTS} --config=clang-tidy
-    timeout: 1h
+        # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in
+        # `.bazelrc`. Mirrors the bzsim-era scope: lint the transitive
+        # deps reachable from sw_2c_tb_verilator, not the whole
+        # //src/... //test/... surface.
+        #
+        # TODO: widen to //src/... //test/... once the missing
+        # include / BUILD-dep findings the broader sweep surfaces are
+        # fixed. The broader sweep exposes cc_libraries whose hdrs are
+        # consumed only via rv_tester_gen / topology_gen, so they fail
+        # the aspect's standalone header-compile because their deps
+        # don't include the @cvm/// + transactor / messenger pieces
+        # the headers reach for.
+        - bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
+
+build-bazel6-top:
+    # Downstream consumers still run Bazel 6 + WORKSPACE. Build:
+    #  - //src:all                          — leaf verilog_library/cc_library exports
+    #  - //test/sw_testbench:sw_<N>c_rv_tester_sv — verilog side of rv_tester_gen,
+    #    drives every sub-gen (csr/project_overrides/pmu_fragment/packet/
+    #    generate_axi_interfaces/sysmod_sv/pmu_sv/interrupts_sv/triggers_sv/
+    #    memdump_sv/axi_sw_sv).
+    # The cc side (rv_tester_dpi) transitively pulls @boost.* which is BCR-only
+    # and not wired into WORKSPACE; verilator-bound packages
+    # (//test/sw_testbench/verilator, //test/transactors/axi_sw,
+    # //test/rv_tester_delay_resp_tb) load @rules_verilator (bzlmod-only).
+    # Both stay out of this surface.
+    stage: test
+    extends:
+        - .test-template
+    script:
+        - bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./bazel_output_user_root_b6
+    timeout: 3h
 
 smoke:
+    stage: test
     extends:
-        - .bzsim-template
-        - .smoke-rules-all-branches-template
-    stage: build
-    tags:
-        - jacamar-lsf
+        - .test-template
     script:
-        - ${BZSIM} test --lsf-opt=-mfast --lsf-opt=-qsmoke ${BZSIM_OPTS} smoke
-    timeout: 1h
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
 
+asan+ubsan:
+    stage: test
+    extends:
+        - .test-template
+    script:
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --config=asan --config=ubsan --test_output=errors ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
+
+tsan:
+    stage: test
+    extends:
+        - .test-template
+    script:
+        - bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only --features=tsan --test_output=errors ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./bazel_output_user_root
+    timeout: 3h
+
+submodule_update:
+    # TODO(open-source): drop when this repo no longer manages git submodules through the internal template.
+    stage: submodule_update
+    extends:
+        - .submodule-update-template
+
+# TODO(open-source): the notify_* jobs trigger an internal downstream pipeline. Drop when the repo is published.
 notify_riscv_cluster:
     stage: notify
     rules:
@@ -57,53 +132,3 @@ notify_riscv_cluster_bbl:
     variables:
         UPDATE_DIRECTORY: rv-common
         UPDATE_TARGET_BRANCH: babylon/work/core
-
-asan+ubsan:
-    extends:
-        - .bzsim-template
-        - .smoke-rules-all-branches-template
-    stage: build
-    tags:
-        - jacamar-lsf
-    script:
-        - ${BZSIM} test --lsf-opt=-mfast --lsf-opt=-qsmoke  smoke ${BZSIM_OPTS} --config asan+ubsan
-    timeout: 1h
-
-tsan:
-    extends:
-        - .bzsim-template
-        - .smoke-rules-all-branches-template
-    stage: build
-    tags:
-        - jacamar-lsf
-    script:
-        - ${BZSIM} test  --lsf-opt=-mfast --lsf-opt=-qsmoke smoke ${BZSIM_OPTS} --config tsan
-    timeout: 1h
-
-valgrind:
-    extends:
-        - .bzsim-template
-        - .smoke-rules-all-branches-template
-    stage: build
-    tags:
-        - jacamar-lsf
-    script:
-        # TODO(mboisvert): Clean this by adding native +valgrind support to runtime.
-        - ${BZSIM} test  --lsf-opt=-mfast --lsf-opt=-qsmoke smoke ${BZSIM_OPTS} --bazel-test-opt=--test_tag_filters=-no-valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=/opt/rh/gcc-toolset-11/root/bin/valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--trace-children=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--tool=memcheck --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--leak-check=full --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--show-reachable=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--track-origins=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--error-exitcode=1
-    timeout: 1h
-
-
-submodule_update:
-    stage: submodule_update
-    extends:
-        - .submodule-update-template
-
-infra_update:
-    stage: submodule_update
-    extends:
-        - .infra-update-template
-
-container_update:
-    stage: submodule_update
-    extends:
-        - .container-update-template

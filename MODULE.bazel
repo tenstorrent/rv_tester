@@ -1,19 +1,5 @@
 module(name = "rv_tester", version = "0.0.0")
 
-# Local module dependencies with path overrides
-bazel_dep(name = "lsf_config", version = "")
-local_path_override(module_name = "lsf_config", path = "infra/lsf_config")
-
-bazel_dep(name = "bzsim", version = "0.0.0")
-local_path_override(module_name = "bzsim", path = "infra/bzsim_clone")
-
-# Internal bazel dependencies
-bazel_dep(name = "cvm", version = "2026.01.23-11.07.09")
-bazel_dep(name = "whisper", version = "2026.01.23-13.14.58")
-bazel_dep(name = "rules_verilator", version = "2026.01.23-11.07.09")
-bazel_dep(name = "rules_hdl", version = "2026.01.16-22.01.28")
-bazel_dep(name = "mem_manager", version = "2026.01.22-16.29.06")
-
 # BCR dependencies
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -22,13 +8,57 @@ bazel_dep(name = "rules_flex", version = "0.2.1")
 bazel_dep(name = "rules_bison", version = "0.2.2")
 bazel_dep(name = "rules_python", version = "0.40.0")
 bazel_dep(name = "boost.algorithm", version = "1.89.0.bcr.2")
+bazel_dep(name = "boost.circular_buffer", version = "1.89.0.bcr.2")
+bazel_dep(name = "boost.format", version = "1.89.0.bcr.2")
+bazel_dep(name = "boost.io", version = "1.89.0.bcr.2")
+bazel_dep(name = "boost.iostreams", version = "1.89.0.bcr.2")
 bazel_dep(name = "boost.program_options", version = "1.89.0.bcr.2")
+bazel_dep(name = "lz4", version = "1.10.0.bcr.1")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.7")
 bazel_dep(name = "fmt", version = "9.1.0")
 bazel_dep(name = "rules_cc", version = "0.0.9")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2", repo_name = "com_google_googletest")
+# cvm bazel_dep'd this; since we load @cvm via the external_deps extension
+# (which ignores @cvm's own MODULE.bazel), declare it ourselves so cvm's
+# BUILD.bazel files that reference @com_github_gflags_gflags resolve.
+bazel_dep(name = "gflags", version = "2.2.2", repo_name = "com_github_gflags_gflags")
 
-bazel_dep(name = "corearchcoverage", version = "2026.02.02-17.54.03")
+# Upstream Verilator + verilog_library rules (same as cvm). Patch
+# rules_verilator's process wrapper to propagate verilator's exit code
+# correctly — without it, the wrapper masks verilator failures and bazel
+# treats `%Error: Exiting due to N warning(s)` as success.
+bazel_dep(name = "rules_verilator", version = "1.1.0")
+bazel_dep(name = "rules_verilog", version = "1.1.0")
 
-# Python toolchain - use Python 3.9 to match cvm's requirements
+# erenon/bazel_clang_tidy — drives the clang-tidy aspect that
+# `.bazelrc`'s `build:clang-tidy` config attaches to each cc target.
+bazel_dep(name = "bazel_clang_tidy", version = "0.0.0")
+archive_override(
+    module_name = "bazel_clang_tidy",
+    urls = ["https://github.com/erenon/bazel_clang_tidy/archive/db677011c7363509a288a9fb3bf0a50830bbf791.tar.gz"],
+    strip_prefix = "bazel_clang_tidy-db677011c7363509a288a9fb3bf0a50830bbf791",
+    integrity = "sha256-cjoiSKMv0j33LPlj9Kf0BEBYy9wJoa1+jvZ/0WwHM0Y=",
+)
+single_version_override(
+    module_name = "rules_verilator",
+    version = "1.1.0",
+    patches = ["//bazel:rules_verilator_propagate_exit.patch"],
+    patch_strip = 1,
+)
+# Reuse cvm's verilator pin (Python 3.9 toolchain blocks rules_venv 5.046.bcr.3).
+single_version_override(
+    module_name = "verilator",
+    version = "5.046",
+)
+
+# @cvm + @rules_hdl come from the shared //bazel:external_deps.bzl
+# extension below — see the use_repo() call. Declaring them via the same
+# extension that already handles @CoreArchChecker / @mem_manager / @opensrc-*
+# means MODULE.bazel can't (yet) load .bzl constants, so we expose them as
+# raw repos (their own MODULE.bazel files are ignored — rv_tester's
+# bazel_deps cover what cvm's BUILD targets need).
+
+# Python toolchain - use Python 3.9 to match deps requirements
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     is_default = True,
@@ -40,49 +70,42 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     hub_name = "rv_tester_pypi",
     python_version = "3.9",
-    requirements_lock = "//infra/bazel:requirements.txt",
+    requirements_lock = "//bazel:requirements.txt",
 )
-use_repo(pip, "rv_tester_pypi")
+# cvm's own MODULE.bazel pip.parse'd `cvm_pypi`; since we load @cvm as a
+# raw repo (its MODULE.bazel is ignored), we re-declare it here so cvm's
+# BUILD targets that reference @cvm_pypi resolve.
+pip.parse(
+    hub_name = "cvm_pypi",
+    python_version = "3.9",
+    requirements_lock = "@cvm//deps:requirements_lock.txt",
+)
+use_repo(pip, "cvm_pypi", "rv_tester_pypi")
 
-# Use local verilator via rules_verilator extension
-verilator_ext = use_extension("@rules_verilator//:extensions.bzl", "verilator")
-use_repo(verilator_ext, "verilator")
+# @whisper has its own MODULE.bazel (declares pybind11_bazel / boost / lz4 /
+# zlib transitive deps via BCR). Use bazel_dep + git_override so bzlmod
+# processes those declarations — that's how @whisper'\''s BUILD load of
+# @pybind11_bazel//:build_defs.bzl resolves without a top-level shim.
+bazel_dep(name = "whisper", version = "0.0.0")
+git_override(
+    module_name = "whisper",
+    commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
+    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
+)
 
-
-# Non-bzlmod dependencies via module extension
-deps = use_extension("//infra/bazel:extensions.bzl", "deps")
+# Remaining externals don't have their own MODULE.bazel. Declarations live
+# in //bazel:external_deps.bzl so they're shared with WORKSPACE-mode
+# (Bazel-6). TODO(open-source): mirror each to a public source
+# (tenstorrent/whisper for the RISC-V ISS; nlohmann/json from BCR for the
+# JSON parser) and re-publish the rest of the Tenstorrent-owned forks
+# before this repo can build offline.
+rv_tester_external = use_extension("//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
 use_repo(
-    deps,
-    "opensrc-nlohmann-json",
+    rv_tester_external,
     "CoreArchChecker",
-    "opensrc-wall_clock_profiler",
-    "checkin-script",
-    "aegissocspec",
-    "risc-v-cpu-spec",
+    "cvm",
+    "mem_manager",
     "opensrc-axi",
-    "opensrc-axi_llc",
-    "opensrc-tech_cells_generic",
-)
-
-
-bzsim_deps = use_extension("@bzsim//:extensions.bzl", "bzsim_deps")
-use_repo(
-    bzsim_deps,
-    "rules_vcs",
-    "rules_questasim",
-    "rules_spyglass",
-    "rules_vcf",
-    "rules_jg",
-    "rules_xcelium",
-    "rules_pkg",
-    "unit_test_bzsim",
-    "opensrc-unit-riscv-dv",
-    "rv_sim",
-    "bazel_clang_tidy",
-)
-
-internal_deps = use_extension("//infra/bazel:internal_extensions.bzl", "internal_deps")
-use_repo(
-    internal_deps,
-    "testgen",
+    "opensrc-nlohmann-json",
+    "rules_hdl",
 )

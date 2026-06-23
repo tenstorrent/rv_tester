@@ -1,0 +1,2 @@
+# Marks //test as a package so :verilator_opts.bzl can be loaded from the
+# testbench sub-packages.

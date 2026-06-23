@@ -1,0 +1,36 @@
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("//test:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
+
+# Verilator-side of the sw_testbench, split out so the parent
+# //test/sw_testbench package stays buildable under Bazel-6 WORKSPACE mode
+# (it doesn't load @rules_verilator).
+
+harnesses = ["sw_1c", "sw_2c"]
+
+[
+    [
+        verilator_cc_library(
+            name = name + "_tb_veri_lib",
+            module = "//test/sw_testbench:" + name + "_top",
+            vopts = SW_TESTBENCH_VOPTS,
+        ),
+
+        cc_binary(
+            name = name + "_tb_verilator",
+            srcs = ["//test/sw_testbench:sw_tb.cpp"],
+            deps = [
+                ":" + name + "_tb_veri_lib",
+                "//test/sw_testbench:dpi_glue",
+                "//test/sw_testbench:" + name + "_rv_tester_dpi",
+                "@cvm//:logger",
+                "@cvm//:topology",
+                # Pulls verilator's runtime, which dedups lz4 symbols that
+                # verilator's verilated_fst_c statically defines (the @lz4
+                # dep from cvm/logger duplicates them otherwise).
+                "@rules_verilator//verilator:verilated_runtime",
+            ],
+            visibility = ["//visibility:public"],
+        ),
+    ]
+    for name in harnesses
+]

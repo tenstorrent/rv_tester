@@ -1,20 +1,13 @@
+load("@rv_tester_pypi//:requirements.bzl", "requirement")
 load(":csr_param_gen.bzl", "csr_param_gen")
-
-config_setting(
-    name = "use_bzlmod",
-    define_values = {"use_bzlmod": "1"},
-)
 
 py_binary(
     name = "csr_param_gen",
     srcs = ["csr_param_gen.py"],
-    deps = select({
-        ":use_bzlmod": [
-            "@rv_tester_pypi//pyyaml",
-            "@rv_tester_pypi//bitstring",
-        ],
-        "//conditions:default": [],
-    }),
+    deps = [
+        requirement("pyyaml"),
+        requirement("bitstring"),
+    ],
     visibility = ["//visibility:public"],
 )
 

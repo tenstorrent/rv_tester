@@ -1,4 +1,0 @@
-#! /usr/bin/env bash
-
-# Return 0 if cannot run a container, 1 if can
-! command -v "podman" > /dev/null

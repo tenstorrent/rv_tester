@@ -1,0 +1,19 @@
+# Hand-written replacement for the testgen-generated rules from smoke.py.
+
+sh_test(
+    name = "axi_sw_tb_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
+    ],
+    data = [
+        "//test/transactors/axi_sw:axi_sw_tb_verilator",
+    ],
+    tags = ["no-valgrind"],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [":axi_sw_tb_verilator"],
+    visibility = ["//visibility:public"],
+)

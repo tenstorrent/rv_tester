@@ -1,5 +1,7 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@rules_hdl//verilog:build_defs.bzl", "verilog_flist")
+# verilog_flist was a Tenstorrent-fork addition to rules_hdl that cvm's
+# rules_hdl_compat shim doesn't ship. The _f filelist below isn't consumed by
+# our verilator-only path, so the call site is gone too.
 
 def _generate_axi_interfaces_impl(ctx):
     """Implementation of the generate_axi_interfaces rule."""
@@ -88,7 +90,7 @@ _generate_axi_interfaces = rule(
 )
 
 def generate_axi_interfaces(name, transactions, topology, package, visibility = None, **kwargs):
-    sv_output      = name + "/" + package + ".svh"
+    sv_output      = name + "/" + package + ".sv"
     sw_cpp_output  = name + "/" + package + "_sw_registry.cpp"
     mst_cpp_output = name + "/" + package + "_mst_registry.cpp"
     defines_output = name + "/" + package + ".h"
@@ -104,9 +106,15 @@ def generate_axi_interfaces(name, transactions, topology, package, visibility = 
         **kwargs,
     )
 
+    # The .sv output ships in srcs so it joins the simulator's single
+    # compilation unit — the `define` directives become globally visible
+    # to subsequent files (rv_tester_defines.sv etc.). Naming it .sv (not
+    # .svh) is what makes Verilator treat it as part of the CU rather than
+    # an include-only header. Works for both cvm rules_hdl_compat (Bazel-7
+    # smoke) and the aus-gitlab bazel_rules_hdl fork (downstream WORKSPACE).
     verilog_library(
         name = name + "_sv",
-        srcs = [":" + name],
+        srcs = [sv_output],
         deps = [
             "@opensrc-axi//:axi",
         ],
@@ -155,13 +163,6 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             packet + "_sv",
         ],
         visibility = ["//visibility:public"],
-    )
-
-    verilog_flist(
-        name = name + "_f",
-        srcs = [
-            axi_sw_sv
-        ],
     )
 
     native.cc_library(
