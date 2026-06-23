@@ -149,7 +149,6 @@ public:
   bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
   bool whisperSnapshotSave();
 
-  private:
   // Deliver a non-maskable interrupt to whisper.
   bool whisperNmi(int hart, uint64_t time, uint64_t cause);
   bool whisperClearNmi(int hart, uint64_t time);
