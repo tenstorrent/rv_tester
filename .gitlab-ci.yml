@@ -12,7 +12,6 @@ include:
     file: 'common-definitions.yml'
 
 stages:
-    - submodule_update
     - test
     - notify
 
@@ -100,12 +99,6 @@ tsan:
     after_script:
         - chmod +w -R ./bazel_output_user_root
     timeout: 3h
-
-submodule_update:
-    # TODO(open-source): drop when this repo no longer manages git submodules through the internal template.
-    stage: submodule_update
-    extends:
-        - .submodule-update-template
 
 # TODO(open-source): the notify_* jobs trigger an internal downstream pipeline. Drop when the repo is published.
 notify_riscv_cluster:
