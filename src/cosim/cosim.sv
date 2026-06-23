@@ -955,6 +955,7 @@ end
     assign m_rvfis[n].data.pc_rdata    = rvfi[n].pc_rdata;
     assign m_rvfis[n].data.pc_wdata    = rvfi[n].pc_wdata;
     assign m_rvfis[n].data.pc_error    = rvfi[n].pc_error;
+    assign m_rvfis[n].data.init_jalr_seen = rvfi[n].init_jalr_seen;
     assign m_rvfis[n].data.mem_addr    = rvfi[n].mem_addr;
     assign m_rvfis[n].data.mem_paddr   = rvfi[n].mem_paddr;
     assign m_rvfis[n].data.mem_error   = rvfi[n].mem_error;

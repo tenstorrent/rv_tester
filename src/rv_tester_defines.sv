@@ -131,6 +131,7 @@ package rv_tester_params;
     logic [VALEN-1:0]           pc_rdata ;
     logic [VALEN-1:0]           pc_wdata ;
     logic                       pc_error ;
+    logic                       init_jalr_seen;
     logic [VALEN-1:0]           mem_addr ;
     logic [PALEN-1:0]           mem_paddr;
     logic [(RDLEN/8)-1:0]       mem_rmask;
@@ -333,6 +334,7 @@ package rv_tester_params;
   `RV_TESTER_AXI_PORTS(input, output, rv_tester_params),                                          \
   input  logic warm_reset_now,                                                   \
   input  logic sys_reset [rv_tester_params::NCLKS-1:0],                          \
+  output bit rvt_reload,                                                         \
   output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0], \
   input logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire
 
@@ -404,10 +406,10 @@ package rv_tester_params;
   `RV_TESTER_AXI_VARS(rv_tester_params)                                                           \
   logic warm_reset_now;                                                                           \
   logic sys_reset [rv_tester_params::NCLKS-1:0];                                                  \
+  bit rvt_reload;                                                                                 \
   rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];           \
   rv_tester_pkg::dm_write_t dmi_write;                                                            \
   logic [rv_tester_params::NHARTS-1:0][31:0] cycles_since_retire;
-
   
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

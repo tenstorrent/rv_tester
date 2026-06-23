@@ -158,7 +158,7 @@ int whisperClient<URV>::processStandaloneInfo() {
   std::shared_ptr<WdRiscv::Session<URV>> session_iss;
   std::shared_ptr<WdRiscv::System<URV>> system_iss;
   WdRiscv::Args args_iss = WdRiscv::Args();
-  bool ok = constructSystem(session_iss, system_iss, args_iss, FLAGS_num_harts, true);
+  bool ok = constructSystem(session_iss, system_iss, args_iss, FLAGS_num_harts, 0, true);
   if (!ok) {
     cvm::log(cvm::ERROR, "Error: Couldn't construct system for Standalone processing\n");
     return 1;

@@ -227,6 +227,8 @@ cosim:
                 width: 1
             opcode_rewritten:
                 width: 1
+            init_jalr_seen:
+                width: 1
 
     m_gp_regs:
         domain: 1

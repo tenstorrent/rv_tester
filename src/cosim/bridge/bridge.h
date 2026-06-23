@@ -84,7 +84,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
   virtual void process_debug_haltreq(bool haltreq) override;
 
-  void reset();
+  void reset(uint64_t restart_pc = 0);
   void csr_init();
 
   void final_phase();

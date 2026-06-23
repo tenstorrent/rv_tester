@@ -45,6 +45,8 @@ void eot::configure() {
     eot_mem_checks_done_ = true;
     this->eot_terminate(passed);
   });
+  cvm::registry::messenger.procedure<init_tohost_addr_RPC>(loc_, [this]() { this->init_tohost_addr(); });
+
   init_tohost_addr();
 }
 

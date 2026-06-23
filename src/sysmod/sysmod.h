@@ -49,6 +49,7 @@ public:
   void load_boot(const std::string& boot);
   void load_debugrom(const std::string& debugrom);
   void load_cplfw(const std::string& cplfw);
+  void load_prog_easy(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
   void load_prog(const std::string& hex, const std::string& load, const std::string& lz4, const std::string& bin);
   void load_csr_mmr_boot(uint64_t dut);
   void load_io(const std::string& io);
@@ -115,6 +116,8 @@ private:
 
   inval_load_s inval_load_;
   inval_crsp_s inval_crsp_;
+
+  bool prog_loaded = false;
 
   void reset();
   void process(const rv_tester_transactions::sysmod::tick<>& tick);

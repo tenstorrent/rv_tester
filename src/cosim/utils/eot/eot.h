@@ -34,8 +34,10 @@ public:
   std::uint64_t get_tohost_addr();
   CVM_MESSENGER_procedure_call(get_tohost_addr_RPC, std::uint64_t());
 
-private:
   void init_tohost_addr();
+  CVM_MESSENGER_procedure_call(init_tohost_addr_RPC, void());
+
+private:
   void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
   void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
   void process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal);

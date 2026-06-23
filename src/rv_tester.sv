@@ -409,63 +409,66 @@ module rv_tester
 
     automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
 
-    if (rv_tester_reset) begin
-
-      $display("[RVTESTER]: new test");
-      _ = rv_tester_parse_flags();
-      if (num_resets < 0)
-        rv_tester_set_seed();
-      rv_tester_cvm_error_handler();
-
-      /* verilator lint_off BLKSEQ */
-      rv_tester_error_terminate.terminate = '0;
-      /* verilator lint_on BLKSEQ */
-
-      if(num_builds < 0) begin
-        $display("[RVTESTER]: constructing Full registry");
-        rv_tester_build_registry();
-        num_builds <= 0;
+    if (rv_tester_reset || rvt_reload) begin
+      if (rv_tester_reset || (rvt_reload && $test$plusargs("whisper_loadfrom")))
+      begin
+        $display("[RVTESTER]: new test");
+        _ = rv_tester_parse_flags();
+        if (num_resets < 0)
+          rv_tester_set_seed();
+        rv_tester_cvm_error_handler();
+  
+        /* verilator lint_off BLKSEQ */
+        rv_tester_error_terminate.terminate = '0;
+        /* verilator lint_on BLKSEQ */
+  
+  
+        if (rv_tester_reset) begin
+          if(num_builds < 0) begin
+            $display("[RVTESTER]: constructing Full registry");
+            rv_tester_build_registry();
+            num_builds <= 0;
+          end else begin
+            $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
+            rv_tester_domain0_build_registry();
+          end
+        end
+        rv_tester_parse_memmap(NoAddrRules, 0, 0, 0, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ADDR_WIDTH, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].DATA_WIDTH);
+  
+        /* verilator lint_off BLKSEQ */
+        // zebu bug doesn't allow nested function calls, so create intermediate variables
+        // Using nested function calls in cvm as Palladium doesn't support strings
+        _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+        _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+        _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+        perf_period                 = cvm_plusargs::get_int("perf_period");
+        /* verilator lint_on BLKSEQ */
+  
+  
+        eot_addr                        <= eot_get_addr();
+        eot_status                      <= 1;
+        eot_syscall                     <= 0;
+        perf                            <= cvm_plusargs::get_bool("perf") != '0;
+        cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
+        quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
+        ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
+        trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
+        freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
+        clk_profile                     <= cvm_plusargs::get_int("clk_profile");
+        dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+        call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+        gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
+        gen_timestamp                   <= _cvm_verbosity >= _gen_timestamp_verbosity;
+        assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
+        overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+        perf_count                      <= '0;
+  
+        cvm_verbosity        <= _cvm_verbosity;
+        curr_cvm_verbosity   <= _cvm_verbosity;
+        cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+        cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+        cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
       end
-      else begin
-        $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
-        rv_tester_domain0_build_registry();
-      end
-      rv_tester_parse_memmap(NoAddrRules, 0, 0, 0, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ADDR_WIDTH, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].DATA_WIDTH);
-
-      /* verilator lint_off BLKSEQ */
-      // zebu bug doesn't allow nested function calls, so create intermediate variables
-      // Using nested function calls in cvm as Palladium doesn't support strings
-      _cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
-      _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-      _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
-      perf_period                 = cvm_plusargs::get_int("perf_period");
-      /* verilator lint_on BLKSEQ */
-
-
-      eot_addr                        <= eot_get_addr();
-      eot_status                      <= 1;
-      eot_syscall                     <= 0;
-      perf                            <= cvm_plusargs::get_bool("perf") != '0;
-      cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
-      quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
-      ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
-      trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
-      freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
-      clk_profile                     <= cvm_plusargs::get_int("clk_profile");
-      dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
-      call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-      gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
-      gen_timestamp                   <= _cvm_verbosity >= _gen_timestamp_verbosity;
-      assertion_test_cycle            <= cvm_plusargs::get_int("assertion_test_cycle");
-      overlay_mmr_en                  <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-      perf_count                      <= '0;
-
-      cvm_verbosity        <= _cvm_verbosity;
-      curr_cvm_verbosity   <= _cvm_verbosity;
-      cvm_debug_verbosity  <= cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
-      cvm_debug_cycle_on   <= cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
-      cvm_debug_cycle_off  <= cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
-
     end
     if (!dyn_clk_switch) clock_mode <= clk_profile[2:0];
     num_reruns      <= num_reruns - int'(rerun_now);
