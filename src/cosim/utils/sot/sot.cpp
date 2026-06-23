@@ -27,7 +27,7 @@ void sot::init_label() {
         found = true;
         cvm::log(cvm::MEDIUM, "[SOT] Test start Label={} PC={:#x}\n", label, addr);
       } catch (...) {
-          continue;
+        continue;
       }
     }
   }
@@ -53,4 +53,3 @@ void sot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     cvm::registry::messenger.signal<rv_tester::test_started>(loc_, rv_tester::test_started{});
   }
 }
-

@@ -16,22 +16,20 @@ DEFINE_bool(htif_log, true, "tee htif characters to htif.log");
 DEFINE_bool(pty, false, "Use a pseudo-terminal for the HTIF console");
 
 // https://stackoverflow.com/a/45675259
-htif::pty::pty()
-{
-  if (!FLAGS_pty)
-  {
+htif::pty::pty() {
+  if (!FLAGS_pty) {
     return;
   }
 
   struct termios tty;
-  tty.c_iflag = (tcflag_t) 0;
-  tty.c_lflag = (tcflag_t) 0;
+  tty.c_iflag = (tcflag_t)0;
+  tty.c_lflag = (tcflag_t)0;
   tty.c_cflag = CS8;
-  tty.c_oflag = (tcflag_t) 0;
+  tty.c_oflag = (tcflag_t)0;
 
   char name[256];
   auto e = openpty(&master, &slave, name, &tty, nullptr);
-  if(0 > e) {
+  if (0 > e) {
     master = -1;
     slave = -1;
     cvm::log(cvm::ERROR, "Error: {}\n", std::strerror(errno));
@@ -40,8 +38,7 @@ htif::pty::pty()
   cvm::log(cvm::NONE, "HTIF PTY: {}\n", name);
 }
 
-htif::pty::~pty()
-{
+htif::pty::~pty() {
   if (slave != -1)
     close(slave);
   if (master != -1)
@@ -81,29 +78,24 @@ int htif::pty::read() {
 }
 
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
-  : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0), htif_log_("htif.log")
-{
+    : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0), htif_log_("htif.log") {
 }
 
-
-htif::~htif()
-{
+htif::~htif() {
 }
 
 static bool
-hasPendingInput(int fd)
-{
+hasPendingInput(int fd) {
   static bool firstTime = true;
 
-  if (firstTime)
-    {
-      firstTime = false;
-      struct termios term;
-      tcgetattr(fd, &term);
-      cfmakeraw(&term);
-      term.c_lflag &= ~ECHO;
-      tcsetattr(fd, 0, &term);
-    }
+  if (firstTime) {
+    firstTime = false;
+    struct termios term;
+    tcgetattr(fd, &term);
+    cfmakeraw(&term);
+    term.c_lflag &= ~ECHO;
+    tcsetattr(fd, 0, &term);
+  }
 
   struct pollfd inPollfd;
   inPollfd.fd = fd;
@@ -112,32 +104,25 @@ hasPendingInput(int fd)
   return code == 1 and (inPollfd.revents & POLLIN) != 0;
 }
 
-
 static int
-readCharNonBlocking(int fd)
-{
+readCharNonBlocking(int fd) {
   if (not hasPendingInput(fd))
     return 0;
 
   char c = 0;
   int ret = ::read(fd, &c, sizeof(c));
-  if (ret == 1)
-    {
-      return c;
-    }
-  else if (ret == -1)
-    {
-      cvm::log(cvm::ERROR, "Error: readCharNonBlocking: unexpected fail on read, errno={}\n", strerror(errno));
-      return -1;
-    }
+  if (ret == 1) {
+    return c;
+  } else if (ret == -1) {
+    cvm::log(cvm::ERROR, "Error: readCharNonBlocking: unexpected fail on read, errno={}\n", strerror(errno));
+    return -1;
+  }
 
   // We raced with something else that consumed the input between poll and read
   return 0;
 }
 
-void
-htif::read(const transactor::read_t& r, data_t& data)
-{
+void htif::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
 
@@ -145,8 +130,8 @@ htif::read(const transactor::read_t& r, data_t& data)
     return;
 
   uint64_t offset = addr - this->addr();
-  uint64_t di = offset / 8;  // Double word index
-                             //
+  uint64_t di = offset / 8; // Double word index
+                            //
   bool to = (di == 0) ^ FLAGS_htif_flip;
 
   uint64_t dword;
@@ -170,10 +155,7 @@ htif::read(const transactor::read_t& r, data_t& data)
   return;
 }
 
-
-void
-htif::write(const transactor::write_t& w)
-{
+void htif::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   // auto& length = w.length;
   auto& data = w.data;
@@ -185,13 +167,12 @@ htif::write(const transactor::write_t& w)
   deserializeInt(data, dword);
 
   uint64_t offset = addr - this->addr();
-  uint64_t di = offset / 8;  // Double word index
+  uint64_t di = offset / 8; // Double word index
 
-  if ((di == 1) ^ FLAGS_htif_flip)
-    {
-      from_ = dword;
-      return;
-    }
+  if ((di == 1) ^ FLAGS_htif_flip) {
+    from_ = dword;
+    return;
+  }
 
   // Writing to-host.
   uint64_t payload = (dword << 16) >> 16;
@@ -206,38 +187,34 @@ htif::write(const transactor::write_t& w)
         htif_log_.log(cvm::NONE, s);
         htif_log_.flush();
       }
-	    pty_.write(c);
-	    putchar(c);
-	    fflush(stdout);
+      pty_.write(c);
+      putchar(c);
+      fflush(stdout);
     }
   } else if (dev == 1 && cmd == 0) {
-	if (!FLAGS_pty) {
-	  int ch;
-	  ch = pty_.read();
-	  if (ch < 0)
-	    ch = readCharNonBlocking(fileno(stdin));
-	  if (ch > 0)
-	    from_ = ((payload >> 48) << 48) | uint64_t(ch);
-	}
-  }
-  else if (dev == 0 and cmd == 0) {
+    if (!FLAGS_pty) {
+      int ch;
+      ch = pty_.read();
+      if (ch < 0)
+        ch = readCharNonBlocking(fileno(stdin));
+      if (ch > 0)
+        from_ = ((payload >> 48) << 48) | uint64_t(ch);
+    }
+  } else if (dev == 0 and cmd == 0) {
     if ((payload & 1) && ((payload >> 1) == uint64_t(0))) {
       if (passed_ == 0) {
         cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0\n");
         if (FLAGS_eot != "tohost_all") {
-          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed=true});
+          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = true});
         }
-      }
-      else if(passed_ == 1) {
+      } else if (passed_ == 1) {
         cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 again, no longer going to log successive writes\n");
       }
       passed_++;
+    } else {
+      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}\n", (payload & 1), (payload >> 1));
     }
-    else {
-      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}\n",(payload & 1), (payload >> 1));
-    }
-  }
-  else {
+  } else {
     assert(0);
   }
 }

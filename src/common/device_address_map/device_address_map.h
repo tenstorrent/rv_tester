@@ -31,7 +31,7 @@ uint64_t generate_imsic_m_addr(uint32_t cluster_id, uint32_t core_id);
 uint64_t generate_imsic_s_addr(uint32_t cluster_id, uint32_t core_id);
 
 // MMR base addresses
-uint64_t generate_cr_device_addr(uint32_t cluster_id, uint32_t core_id=0); // Default core_id is 0
+uint64_t generate_cr_device_addr(uint32_t cluster_id, uint32_t core_id = 0); // Default core_id is 0
 uint64_t generate_tr_device_addr(uint32_t cluster_id);
 uint64_t generate_cpl_device_addr(uint32_t cluster_id);
 uint64_t generate_cpl_sram_device_addr(uint32_t cluster_id);

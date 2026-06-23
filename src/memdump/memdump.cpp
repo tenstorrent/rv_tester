@@ -14,7 +14,7 @@
 #include "src/sysmod/htif/htif.h"
 #include "sysmod_plusargs.h"
 #include "src/sysmod/sysmod_rpc.h"
-#include "transactor.h"  // pulls in axi_seqids.hpp (SNOOP_GEN_SEQ_ID); needs to be included exactly once per TU
+#include "transactor.h" // pulls in axi_seqids.hpp (SNOOP_GEN_SEQ_ID); needs to be included exactly once per TU
 
 DEFINE_string(memdump, "",
               "Dump memory regions to files at end of test. "
@@ -31,7 +31,8 @@ std::string popen_capture(const std::string& cmd) {
   std::array<char, 256> buffer;
   std::string result;
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-  if (!pipe) return result;
+  if (!pipe)
+    return result;
   while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
     result += buffer.data();
   }
@@ -40,7 +41,8 @@ std::string popen_capture(const std::string& cmd) {
 
 std::string strip(const std::string& s) {
   const auto first = s.find_first_not_of(" \t\n\r");
-  if (first == std::string::npos) return "";
+  if (first == std::string::npos)
+    return "";
   const auto last = s.find_last_not_of(" \t\n\r");
   return s.substr(first, last - first + 1);
 }
@@ -49,11 +51,12 @@ std::vector<std::string> split(const std::string& s, char delim) {
   std::vector<std::string> out;
   std::string item;
   std::stringstream ss(s);
-  while (std::getline(ss, item, delim)) out.push_back(item);
+  while (std::getline(ss, item, delim))
+    out.push_back(item);
   return out;
 }
 
-}  // namespace
+} // namespace
 
 memdump::memdump(cvm::topology::loc_t loc, unsigned) {
   loc_ = loc;
@@ -61,11 +64,12 @@ memdump::memdump(cvm::topology::loc_t loc, unsigned) {
 }
 
 void memdump::configure() {
-  if (regions_.empty()) return;
+  if (regions_.empty())
+    return;
 
   axi_mst_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  sysmod_loc_  = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-  channel_     = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
+  sysmod_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+  channel_ = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
 
   // Reserve a defer slot now so sysmod's terminate handler will hold the
   // sim-end callback until our dump coroutine completes, regardless of the
@@ -97,7 +101,8 @@ bool memdump::lookup_symbol(const std::string& sym, uint64_t& out) {
   const std::string cmd = "nm " + FLAGS_load + " | grep -w " + sym;
   const std::string result = popen_capture(cmd);
   for (auto& line : split(result, '\n')) {
-    if (line.size() < 16) continue;
+    if (line.size() < 16)
+      continue;
     try {
       uint64_t addr = std::stoull(line.substr(0, 16), nullptr, 16);
       symbol_cache_[sym] = addr;
@@ -148,16 +153,20 @@ bool memdump::evaluate_expr(const std::string& expr, uint64_t& out) {
   uint64_t acc = 0;
   for (auto& [o, raw] : terms) {
     uint64_t v = 0;
-    if (!resolve_token(raw, v)) return false;
-    if (o == '+') acc += v;
-    else          acc -= v;
+    if (!resolve_token(raw, v))
+      return false;
+    if (o == '+')
+      acc += v;
+    else
+      acc -= v;
   }
   out = acc;
   return true;
 }
 
 void memdump::parse_plusarg() {
-  if (FLAGS_memdump.empty()) return;
+  if (FLAGS_memdump.empty())
+    return;
   for (auto& spec : split(FLAGS_memdump, ',')) {
     auto fields = split(spec, ':');
     if (fields.size() != 3) {
@@ -171,8 +180,10 @@ void memdump::parse_plusarg() {
       continue;
     }
     uint64_t start = 0, end = 0;
-    if (!evaluate_expr(fields[1], start)) continue;
-    if (!evaluate_expr(fields[2], end))   continue;
+    if (!evaluate_expr(fields[1], start))
+      continue;
+    if (!evaluate_expr(fields[2], end))
+      continue;
     if (start >= end) {
       cvm::log(cvm::ERROR,
                "Error: [memdump] {} : start {:#x} >= end {:#x}, skipping\n",
@@ -189,12 +200,12 @@ void memdump::parse_plusarg() {
 cvm::messenger::task<void>
 memdump::read_line(uint64_t addr, std::vector<uint8_t>& out) {
   axi::a_no_id_t ar{};
-  ar.w     = false;
-  ar.addr  = addr & ~uint64_t(0x3F);
-  ar.size  = axi::sz_t(6);  // 64 bytes/beat
-  ar.len   = axi::len_t(0); // single beat
+  ar.w = false;
+  ar.addr = addr & ~uint64_t(0x3F);
+  ar.size = axi::sz_t(6); // 64 bytes/beat
+  ar.len = axi::len_t(0); // single beat
   ar.burst = axi::burst_t(0);
-  ar.prot  = axi::prot_t(2);
+  ar.prot = axi::prot_t(2);
   ar.seqid = axi::seqid_t(SNOOP_GEN_SEQ_ID);
   ar.allow_decerr_resp = false;
 
@@ -218,7 +229,7 @@ memdump::dump_all() {
       continue;
     }
     const uint64_t cl_start = r.start & ~uint64_t(0x3F);
-    const uint64_t cl_end   = (r.end + 0x3F) & ~uint64_t(0x3F);
+    const uint64_t cl_end = (r.end + 0x3F) & ~uint64_t(0x3F);
     for (uint64_t addr = cl_start; addr < cl_end; addr += 64) {
       co_await read_line(addr, chunk);
       const uint64_t lo = std::max(addr, r.start);

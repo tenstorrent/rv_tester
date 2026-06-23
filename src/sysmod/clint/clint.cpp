@@ -7,12 +7,11 @@
 
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc000 /* size */, loc, &clint::write, &clint::read, this), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
-{
+    : device(tag, addr, 0xc000 /* size */, loc, &clint::write, &clint::read, this), hartCount_(hartCount), soft_(hartCount),
+      timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0) {
   auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
   tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
-  
+
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
     std::string line;
@@ -31,8 +30,7 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
         iss >> val;
         // TODO: error check number < hartCount
         timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
-      }
-      else {
+      } else {
         cvm::log(cvm::NONE, "Error: unrecognized line " + type + " for " + tag + "\n");
       }
     }
@@ -41,9 +39,7 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
   }
 }
 
-
-clint::~clint()
-{
+clint::~clint() {
   std::stringstream ss;
   // no point in saving interrupt status
   ss << "timer " << std::dec << timer_ << '\n';
@@ -54,10 +50,7 @@ clint::~clint()
   save_snapshot(ss);
 }
 
-
-void
-clint::read(const transactor::read_t& r, data_t& data)
-{
+void clint::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
 
@@ -65,7 +58,7 @@ clint::read(const transactor::read_t& r, data_t& data)
   if (offset < 0x4000) {
     // Sofware interrupt: 1 word per hart.
     if ((offset % 4) != 0)
-      return;  // Address must be a multiple of 4.
+      return; // Address must be a multiple of 4.
     unsigned hartIx = offset / 4;
     uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
     serializeInt(word, length, data);
@@ -87,10 +80,7 @@ clint::read(const transactor::read_t& r, data_t& data)
   return;
 }
 
-
-void
-clint::write(const transactor::write_t& w)
-{
+void clint::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;
@@ -128,8 +118,7 @@ clint::write(const transactor::write_t& w)
   }
 }
 
-void clint::tick(uint64_t advance)
-{
+void clint::tick(uint64_t advance) {
   if ((advance % tickDivisor_) != 0) {
     cvm::log(cvm::ERROR, "Error: Clock advancing by {}, not a multiple of configured divisor {}\n", advance, tickDivisor_);
   }

@@ -19,22 +19,21 @@ class remote_bitbang_t;
 
 typedef struct
 {
-  char     priv;
+  char priv;
   uint64_t pc;
-  char     is_fp;
-  char     rd;
+  char is_fp;
+  char rd;
   uint64_t data;
   uint32_t instr;
-  char     was_exception;
+  char was_exception;
 } commit_log_t;
 
 // this class encapsulates the processors and memory in a RISC-V machine.
-class sim_spike_t : public simif_t
-{
+class sim_spike_t : public simif_t {
 public:
   sim_spike_t(const char* isa, size_t _nprocs,
-        std::vector<std::pair<reg_t, mem_t*>> mems,
-        const std::vector<std::string>& args);
+              std::vector<std::pair<reg_t, mem_t*>> mems,
+              const std::vector<std::string>& args);
   ~sim_spike_t();
 
   int init_sim();
@@ -57,7 +56,7 @@ public:
 
 private:
   std::vector<std::pair<reg_t, mem_t*>> mems;
-  mmu_t* debug_mmu;  // debug port into main memory
+  mmu_t* debug_mmu; // debug port into main memory
   std::vector<processor_t*> procs;
   reg_t start_pc;
   std::string dts;
@@ -70,7 +69,7 @@ private:
   processor_t* get_core(const std::string& i);
   static const size_t INTERLEAVE = 5000;
   static const size_t INSNS_PER_RTC_TICK = 100; // 10 MHz clock for 1 BIPS core
-  static const size_t CPU_HZ = 1000000000; // 1GHz CPU
+  static const size_t CPU_HZ = 1000000000;      // 1GHz CPU
   size_t current_step;
   size_t current_proc;
   bool debug;
@@ -88,8 +87,6 @@ private:
   void make_bootrom();
 
 public:
-
 };
-
 
 #endif
