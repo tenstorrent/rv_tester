@@ -108,8 +108,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
 template <typename URV>
 void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc_, [this](uint32_t hart = 0) { return this->get_iss_select(hart); });
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this](uint64_t
-    restart_pc = 0) {return this->whisperConnect(restart_pc); });
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this](uint64_t restart_pc = 0) {return this->whisperConnect(restart_pc); });
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc_, [this]() { return this->whisperConnected(); });
   cvm::registry::messenger.procedure<whisperStepRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) { return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid); });
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc_, [this](int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) { return this->whisperSimpleStep(hart, pc, instruction, changeCount); });
