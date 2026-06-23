@@ -156,10 +156,7 @@ void whisperClient<URV>::configure() {
 }
 
 template <typename URV>
-bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session,
-    std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args,
-    uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile)
-    {
+bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args, uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
   auto config_file = overrideWhisperJson(standalone);
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);

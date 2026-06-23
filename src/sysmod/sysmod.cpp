@@ -868,7 +868,7 @@ void sysmod::load_boot(const std::string& boot) {
         return;
       }
     }
-  } 
+  }
 }
 
 void sysmod::load_debugrom(const std::string& debugrom) {

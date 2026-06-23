@@ -1620,11 +1620,7 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   bool valid;
 
   try {
-    if (((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy(
-        "TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag, w.pc, w.opcode,
-        w.change_count, w.disasm, w.priv_mode, w.fp_flags, w.trap, w.stop,
-        w.is_load, w.is_cancelled, valid)) || !valid) &&
-        FLAGS_whisper_client_check) {
+    if (((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag, w.pc, w.opcode, w.change_count, w.disasm, w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load, w.is_cancelled, valid)) || !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to step whisper\n", hart);
       return;
     }
@@ -1633,8 +1629,7 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   // WdRiscv::CoreException::SnapshotAndStop not caught!
   catch (const WdRiscv::CoreException& ce) {
     if (ce.type() == WdRiscv::CoreException::Snapshot) {
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(
-          cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
         error("Hart {}: Failed to save whisper shanpshot\n", hart);
       }
       w.stop = 0;
