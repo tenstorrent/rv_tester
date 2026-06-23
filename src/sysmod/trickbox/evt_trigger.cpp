@@ -44,6 +44,6 @@ void evt_trigger::read_dev(uint64_t addr, size_t length, data_t& data) {
   return;
 }
 cvm::messenger::task<void>
-evt_trigger::read(uint64_t addr, size_t length, data_t& data) {
+evt_trigger::read(uint64_t /*addr*/, size_t /*length*/, data_t& /*data*/) {
   co_return;
 }

@@ -39,7 +39,7 @@ void interrupter::read_dev(uint64_t addr, size_t length, data_t& data) {
 void interrupter::checkUsage() {}
 
 cvm::messenger::task<void>
-interrupter::read(uint64_t addr, size_t, data_t&) {
+interrupter::read(uint64_t /*addr*/, size_t, data_t&) {
   co_return;
 }
 
