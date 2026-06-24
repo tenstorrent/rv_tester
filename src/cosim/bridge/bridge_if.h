@@ -294,6 +294,7 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
+  uint64_t core_cycle;
   bool hw;
   std::bitset<64> mip;
   std::bitset<64> mip_set;

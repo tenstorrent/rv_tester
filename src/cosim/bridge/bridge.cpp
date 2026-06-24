@@ -2762,9 +2762,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   std::bitset<64> non_std_intr = 0;
   for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit), uint64_t(C_HWAI)}) {
     if (i.mip_clr[ir] && !i.hw) {
-      sw_intr_clear_cycle_[ir] = i.cycle;
+      sw_intr_clear_cycle_[ir] = i.core_cycle;
     }
-    if (i.mip_set[ir] && sw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
+    if (i.mip_set[ir] && sw_intr_clear_cycle_[ir] == (i.core_cycle - 1)) {
       bridge_log(cvm::HIGH, "<{}> MIP[{}] SW cleared in the last cycle, HW asserted in this cycle. Poking to Whisper.\n", i.cycle, ir);
       non_std_intr |= std::bitset<64>(1ULL << ir);
     }
