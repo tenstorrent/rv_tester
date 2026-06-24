@@ -9,8 +9,7 @@
 class pmu {
 
 public:
-#include "gen_events_core.hpp"
-#include "gen_events_sc.hpp"
+#include "gen_events.hpp"
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();

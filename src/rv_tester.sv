@@ -1,6 +1,6 @@
 module rv_tester
   import rv_tester_params::*,
-    pmu_core_pkg::INSTRUCTIONS;
+    pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY
@@ -284,9 +284,11 @@ module rv_tester
 
     quiesce_counter <= quiesce_counter + int'(terminate);
 
+`ifdef RV_TESTER_PMCI_ENABLE
     for (int i=0; i<NHARTS; i++) begin
       instructions  <= instructions + LU'(pmci[i][INSTRUCTIONS]);
     end
+`endif
 
     if (rv_tester_reset) begin
       quiesce_counter <= '0;
@@ -908,49 +910,53 @@ end
     end
   end
 
-  for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
-    if (p == 0) begin : pmu_c0
-      pmu #(
-            .NUM(p),
-            .NRET(NRETS[p]),
-            .SC_PMCI_ENABLED(p == 0),
-            `TOPOLOGY_CFG,
-            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
-            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
-            ) pmu (
-                   .clk(dut_clk[CORE_CLK_IDX]),
-                   .sys_reset(sys_reset[CORE_CLK_IDX]),
-                   .reset(dut_reset[CORE_CLK_IDX]),
-                   .clocks,
-                   .pmci(pmci[p]),
-                   .hpmi(hpmi[p]),
-                   .sc_pmci(sc_pmci),
-                   .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                   .terminate(terminate_sync[CORE_CLK_IDX]),
-                   `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
-                   `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
-                   );
-    end else begin : pmu_cX
-      pmu #(
-            .NUM(p),
-            .NRET(NRETS[p]),
-            .SC_PMCI_ENABLED(p == 0),
-            `TOPOLOGY_CFG,
-            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
-            ) pmu (
-                   .clk(dut_clk[CORE_CLK_IDX]),
-                   .sys_reset(sys_reset[CORE_CLK_IDX]),
-                   .reset(dut_reset[CORE_CLK_IDX]),
-                   .clocks,
-                   .pmci(pmci[p]),
-                   .hpmi(hpmi[p]),
-                   .sc_pmci(),
-                   .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                   .terminate(terminate_sync[CORE_CLK_IDX]),
-                   `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
-                   );
+`ifdef RV_TESTER_PMCI_ENABLE
+  if (PMU_ENABLE) begin : pmu_en
+    for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
+      if (p == 0 && SC_PMCI_EN) begin : pmu_c0
+        pmu #(
+              .NUM(p),
+              .NRET(NRETS[p]),
+              .SC_PMCI_ENABLED(1'b1),
+              `TOPOLOGY_CFG,
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
+              ) pmu (
+                     .clk(dut_clk[CORE_CLK_IDX]),
+                     .sys_reset(sys_reset[CORE_CLK_IDX]),
+                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clocks,
+                     .pmci(pmci[p]),
+                     .hpmi(hpmi[p]),
+                     .sc_pmci(sc_pmci),
+                     .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+                     .terminate(terminate_sync[CORE_CLK_IDX]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+                     `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+                     );
+      end else begin : pmu_cX
+        pmu #(
+              .NUM(p),
+              .NRET(NRETS[p]),
+              .SC_PMCI_ENABLED(1'b0),
+              `TOPOLOGY_CFG,
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
+              ) pmu (
+                     .clk(dut_clk[CORE_CLK_IDX]),
+                     .sys_reset(sys_reset[CORE_CLK_IDX]),
+                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clocks,
+                     .pmci(pmci[p]),
+                     .hpmi(hpmi[p]),
+                     .sc_pmci(),
+                     .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+                     .terminate(terminate_sync[CORE_CLK_IDX]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+                     );
+      end
     end
   end
+`endif
 
   assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
   assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;

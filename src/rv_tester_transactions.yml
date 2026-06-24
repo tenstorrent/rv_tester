@@ -749,6 +749,16 @@ pmu_core:
         domain: 1
         num: 1
         fields:
+            perf_start:
+                width: 1
+            perf_end:
+                width: 1
+            terminate:
+                width: 1
+            overflow:
+                width: 1
+            sync:
+                width: 1
             <<: *pmcounters_core_fields
     hpmcounters_core:
         domain: 1
@@ -787,6 +797,16 @@ pmu_sc:
         domain: 1
         num: 1
         fields:
+            perf_start_sc:
+                width: 1
+            perf_end_sc:
+                width: 1
+            terminate_sc:
+                width: 1
+            overflow_sc:
+                width: 1
+            sync_sc:
+                width: 1
             <<: *pmcounters_sc_fields
 
 reset_driver:
