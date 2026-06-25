@@ -284,6 +284,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
 
   rv_intr_t intr;
   intr.cycle = m_interrupt_pend.cycle;
+  intr.core_cycle = m_interrupt_pend.core_cycle;
   intr.hw = m_interrupt_pend.hw;
   intr.mip = std::bitset<64>(m_interrupt_pend.mip);
   intr.mip_set = std::bitset<64>(m_interrupt_pend.mip_set);
