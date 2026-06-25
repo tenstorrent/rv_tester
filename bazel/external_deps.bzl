@@ -96,7 +96,7 @@ def rv_tester_external_deps():
         patch_args = ["-p1"],
     )
 
-    opensrc_nlohmann_json_hash = "ece38f1883dd1e59c498c63b8f53c3b4bcbc593c"
+    opensrc_nlohmann_json_hash = "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03"
     maybe(
         git_repository,
         name = "opensrc-nlohmann-json",
