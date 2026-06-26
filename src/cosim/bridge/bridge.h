@@ -68,6 +68,8 @@ public:
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) override;
+  virtual void process_dut_mcm_ncio_complete(hart_id_t hart, mem_t& m, bool cache) override;
+  virtual void process_dut_mcm_ncio_visible(hart_id_t hart, mem_t& m, bool cache) override;
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
   virtual void process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;

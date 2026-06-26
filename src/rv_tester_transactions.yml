@@ -384,6 +384,72 @@ cosim:
                 qualify: v_ext
                 width: 8
 
+    m_mcmi_ncio_complete:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPASSES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 64
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
+            cbo:
+                width: 1
+            attr:
+                width: 32
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
+            elem_idx:
+                qualify: v_ext
+                width: 8
+
+    m_mcmi_ncio_visible:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPASSES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 64
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
+            cbo:
+                width: 1
+            attr:
+                width: 32
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
+            elem_idx:
+                qualify: v_ext
+                width: 8
+
     m_mcmi_write:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.MCMI.NWRITES)}

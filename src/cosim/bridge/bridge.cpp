@@ -2579,6 +2579,62 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
              m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data, cache);
 }
 
+void bridge::process_dut_mcm_ncio_complete(hart_id_t hart, mem_t& m, bool cache) {
+  if (end_mcm_)
+    return;
+
+  bool valid = false;
+  if (FLAGS_cosim_period > 0) {
+    if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
+      print(cvm::HIGH, "process_dut_mcm_ncio_complete: [Hart={} adding tag={} to mcm_orders\n", hart, m.tag);
+      mcm_orders_.insert(std::pair<uint64_t, int>(m.tag, 1));
+    }
+  }
+
+  if (m.v_ext) {
+    std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecNcioCompleteRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm ncio complete\n", hart);
+      return;
+    }
+  } else {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmNcioCompleteRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm ncio complete\n", hart);
+      return;
+    }
+  }
+
+  bridge_log(cvm::HIGH, "<{}> mcm_ncio_complete [valid={}, tag={}, vec={}, addr={:#x}, size={}, data={:#x}, cache={}]\n",
+             m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data, cache);
+}
+
+void bridge::process_dut_mcm_ncio_visible(hart_id_t hart, mem_t& m, bool cache) {
+  if (end_mcm_)
+    return;
+
+  bool valid = false;
+
+  if (m.v_ext) {
+    std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecNcioVisibleRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm ncio visible\n", hart);
+      return;
+    }
+  } else {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmNcioVisibleRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm ncio visible\n", hart);
+      return;
+    }
+  }
+
+  if (m.pa == FLAGS_tohost && m.data == 0x1) {
+    end_mcm_ = true;
+  }
+
+  bridge_log(cvm::HIGH, "<{}> mcm_ncio_visible [valid={}, tag={}, vec={}, addr={:#x}, size={}, data={:#x}, cache={}]\n",
+             m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data, cache);
+}
+
 // Process mem accesses - store drains
 void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
   if (end_mcm_)

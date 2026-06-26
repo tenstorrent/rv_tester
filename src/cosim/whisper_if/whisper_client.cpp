@@ -119,6 +119,10 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) { return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid); });
   cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
   cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
+  cvm::registry::messenger.procedure<whisperMcmNcioCompleteRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmNcioComplete(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
+  cvm::registry::messenger.procedure<whisperMcmVecNcioCompleteRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmVecNcioComplete(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
+  cvm::registry::messenger.procedure<whisperMcmNcioVisibleRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmNcioVisible(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
+  cvm::registry::messenger.procedure<whisperMcmVecNcioVisibleRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) { return this->whisperMcmVecNcioVisible(hart, time, instrTag, addr, size, value, elemIx, field, cache, valid); });
   cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc_, [this](int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid) { return this->whisperMcmWrite(hart, time, addr, size, handle, mask, error, valid); });
   cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc_, [this](int hart, uint64_t time, uint64_t addr, bool& valid) { return this->whisperMcmIFetch(hart, time, addr, valid); });
   cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc_, [this](int hart, uint64_t time, uint64_t addr, bool& valid) { return this->whisperMcmIEvict(hart, time, addr, valid); });
@@ -855,6 +859,120 @@ bool whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t inst
     assert(value == 0);
     req.buffer.fill(0);
   }
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperMcmNcioComplete(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+                                                 unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
+  req.hart = hart;
+  req.type = WhisperMessageType::McmNcioComplete;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr & ~FLAGS_pa_mask;
+  req.value = value;
+  req.size = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);
+
+  if (size > 8) {
+    assert(value == 0);
+    req.buffer.fill(0);
+  }
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperMcmVecNcioComplete(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+                                                   unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
+  req.hart = hart;
+  req.type = WhisperMessageType::McmNcioComplete;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr & ~FLAGS_pa_mask;
+  req.size = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);
+
+  std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+
+  if (size <= 8) {
+    return whisperMcmNcioComplete(hart, time, instrTag, (addr & ~FLAGS_pa_mask), size, value[0], elemIx, field, cache, valid);
+  }
+
+  for (unsigned i = 0; i < size; ++i)
+    req.buffer.at(i) = byte_value[i];
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperMcmNcioVisible(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+                                               unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool cache, bool& valid) {
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
+  req.hart = hart;
+  req.type = WhisperMessageType::McmNcioVisible;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr & ~FLAGS_pa_mask;
+  req.value = value;
+  req.size = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);
+
+  if (size > 8) {
+    assert(value == 0);
+    req.buffer.fill(0);
+  }
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperMcmVecNcioVisible(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+                                                  unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool cache, bool& valid) {
+  WhisperFlags wflags;
+  wflags.bits.cache = cache;
+  req.flags = wflags.value;
+  req.hart = hart;
+  req.type = WhisperMessageType::McmNcioVisible;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr & ~FLAGS_pa_mask;
+  req.size = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);
+
+  std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+
+  if (size <= 8) {
+    return whisperMcmNcioVisible(hart, time, instrTag, (addr & ~FLAGS_pa_mask), size, value[0], elemIx, field, cache, valid);
+  }
+
+  for (unsigned i = 0; i < size; ++i)
+    req.buffer.at(i) = byte_value[i];
 
   if (not whisperCommand(req, reply))
     return false;

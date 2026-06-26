@@ -30,6 +30,8 @@ void mcmi::configure() {
       rv_tester_transactions::cosim::m_mcmi_insert<>,
       rv_tester_transactions::cosim::m_mcmi_write<>,
       rv_tester_transactions::cosim::m_mcmi_bypass<>,
+      rv_tester_transactions::cosim::m_mcmi_ncio_complete<>,
+      rv_tester_transactions::cosim::m_mcmi_ncio_visible<>,
       rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
       rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
       rv_tester_transactions::cosim::m_mcmi_ievict<>,
@@ -360,6 +362,78 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         m.v_ext = m_mcmi_bypass.v_ext;
         m.elem_idx = m_mcmi_bypass.elem_idx;
         bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+      });
+}
+
+void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ncio_complete<>& msg) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (patch_access(msg.addr))
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.tag = msg.order;
+  m.hart = msg.hart;
+  m.cycle = msg.cycle;
+  m.v_ext = msg.v_ext;
+  m.elem_idx = msg.elem_idx;
+
+  process_memory_access(
+      msg.addr,
+      msg.mask,
+      msg.data_vec,
+      [&]() {
+        m.pa = msg.addr;
+        m.size = std::popcount(msg.mask);
+        m.data = msg.data;
+        m.data_vec = extract_bits_as_bitset(msg.data_vec, m.size * 8, 0);
+        bridge_->process_dut_mcm_ncio_complete(msg.hart, m, false);
+      },
+      [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string&) {
+        m.pa = start_addr;
+        m.size = size;
+        m.data_vec = data_vec;
+        m.v_ext = msg.v_ext;
+        m.elem_idx = msg.elem_idx;
+        bridge_->process_dut_mcm_ncio_complete(msg.hart, m, false);
+      });
+}
+
+void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ncio_visible<>& msg) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (patch_access(msg.addr))
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.tag = msg.order;
+  m.hart = msg.hart;
+  m.cycle = msg.cycle;
+  m.v_ext = msg.v_ext;
+  m.elem_idx = msg.elem_idx;
+
+  process_memory_access(
+      msg.addr,
+      msg.mask,
+      msg.data_vec,
+      [&]() {
+        m.pa = msg.addr;
+        m.size = std::popcount(msg.mask);
+        m.data = msg.data;
+        m.data_vec = extract_bits_as_bitset(msg.data_vec, m.size * 8, 0);
+        bridge_->process_dut_mcm_ncio_visible(msg.hart, m, false);
+      },
+      [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string&) {
+        m.pa = start_addr;
+        m.size = size;
+        m.data_vec = data_vec;
+        m.v_ext = msg.v_ext;
+        m.elem_idx = msg.elem_idx;
+        bridge_->process_dut_mcm_ncio_visible(msg.hart, m, false);
       });
 }
 

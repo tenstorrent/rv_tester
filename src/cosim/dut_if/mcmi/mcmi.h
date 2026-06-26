@@ -43,6 +43,8 @@ private:
   void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
   void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
   void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
+  void process(const rv_tester_transactions::cosim::m_mcmi_ncio_complete<>& m_mcmi_ncio_complete);
+  void process(const rv_tester_transactions::cosim::m_mcmi_ncio_visible<>& m_mcmi_ncio_visible);
   void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
   void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
   void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
