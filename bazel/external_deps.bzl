@@ -39,8 +39,8 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 def _declare_cvm_and_rules_hdl():
     # One pinned cvm tarball, fetched twice — once for @cvm (full tree),
     # once for @rules_hdl (the rules_hdl_compat shim sub-dir).
-    cvm_hash = "438b90fdfa6c8449e124e756f0ddc392cf2fe93e"
-    sha256 = "7e1a0f6e137936634e68b3fc5327b58e0c0823295275c2ba97ee9f65aefcc3d4"
+    cvm_hash = "a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc"
+    sha256 = "94a7f33c98ab1025b99ea9df342af1de24a1d9bba4ec0784016b52fa97a8ff0c"
     cvm_url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit = cvm_hash)
     maybe(
         http_archive,
