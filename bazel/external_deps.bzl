@@ -23,8 +23,12 @@ pre-declares the same repo (with their own pin) wins; ours becomes a
 no-op. This mirrors the historical `bazel/repositories.bzl` pattern
 (commit `90936c63`).
 
-TODO(open-source): swap the pulp-platform forks (axi, nlohmann-json) for
-the public github upstreams; re-publish the Tenstorrent-owned forks
+@opensrc-axi and @opensrc-nlohmann-json now fetch the public github
+upstreams (pulp-platform/axi, nlohmann/json) directly; both override the
+upstream BUILD with `build_file_content` (axi to skip the @tensix-tt_tech
+/ @bzsim graph, nlohmann to skip its @rules_license metadata).
+
+TODO(open-source): re-publish the Tenstorrent-owned forks
 (CoreArchChecker, mem_manager).
 """
 
@@ -52,6 +56,16 @@ def _declare_cvm_and_rules_hdl():
         strip_prefix = "cvm-{commit}/bazel/rules_hdl_compat".format(commit = cvm_hash),
         url = cvm_url,
     )
+
+_OPENSRC_NLOHMANN_JSON_BUILD = """
+cc_library(
+    name = "json",
+    hdrs = glob(["include/nlohmann/**/*.hpp"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+    alwayslink = True,
+)
+"""
 
 _OPENSRC_AXI_BUILD = """
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
@@ -96,23 +110,24 @@ def rv_tester_external_deps():
         patch_args = ["-p1"],
     )
 
-    opensrc_nlohmann_json_hash = "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03"
+    opensrc_nlohmann_json_hash = "c37f82e5630c6a36b37b995896e1523c1d1f0654"
     maybe(
         git_repository,
         name = "opensrc-nlohmann-json",
         commit = opensrc_nlohmann_json_hash,
-        remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-nlohmann-json.git",
+        remote = "https://github.com/nlohmann/json.git",
+        build_file_content = _OPENSRC_NLOHMANN_JSON_BUILD,
     )
 
-    # pulp-platform/axi fork. BUILD overridden — see _OPENSRC_AXI_BUILD.
+    # pulp-platform/axi (public upstream). BUILD overridden — see _OPENSRC_AXI_BUILD.
     # We pull typedef.svh + axi_pkg.sv only; the upstream BUILD pulls in
     # @opensrc-common_cells/@tensix-tt_tech/@bzsim which we don't ship.
-    opensrc_axi_hash = "7387de678e025b809341fa8a2893ef5e931e6d4d"
+    opensrc_axi_hash = "e55ae2a7ee606ee3cfd4257f63982a971b704407"
     maybe(
         git_repository,
         name = "opensrc-axi",
         commit = opensrc_axi_hash,
-        shallow_since = "1669784673 -0600",
-        remote = "https://aus-gitlab.local.tenstorrent.com/opensrc/opensrc-axi.git",
+        shallow_since = "2026-06-22 18:08:39 +0200",
+        remote = "https://github.com/pulp-platform/axi.git",
         build_file_content = _OPENSRC_AXI_BUILD,
     )
