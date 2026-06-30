@@ -379,6 +379,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ncio_complete<>& 
   m.cycle = msg.cycle;
   m.v_ext = msg.v_ext;
   m.elem_idx = msg.elem_idx;
+  m.field = 0;
 
   process_memory_access(
       msg.addr,
@@ -415,6 +416,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ncio_visible<>& m
   m.cycle = msg.cycle;
   m.v_ext = msg.v_ext;
   m.elem_idx = msg.elem_idx;
+  m.field = 0;
 
   process_memory_access(
       msg.addr,
