@@ -213,7 +213,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (FLAGS_cosim && FLAGS_r && m_rvfi.init_jalr_seen && !whisper_reloaded) {
     cvm::log(cvm::MEDIUM, "Restore Bridge Reset\n");
     cvm::log(cvm::MEDIUM, "Paddr = {:#x}, Raddr = {:#x}, Waddr = {:#x}\n", m_rvfi.pc_paddr, m_rvfi.pc_rdata, m_rvfi.pc_wdata);
-    bridge_->reset(m_rvfi.pc_rdata + 4);
+    bridge_->reset(true);
     cvm::registry::messenger.call<eot::init_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
     whisper_reloaded = true;
   }

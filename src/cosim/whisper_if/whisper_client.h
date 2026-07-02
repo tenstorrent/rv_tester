@@ -102,9 +102,9 @@ public:
   //
   std::vector<iss_select_s> get_iss_select(uint32_t hart = 0) { return rand_addrs_map_[hart].rand_addrs; }
 
-  static bool constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&, std::shared_ptr<WdRiscv::System<URV>>&, WdRiscv::Args&, uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile = "");
+  static bool constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&, std::shared_ptr<WdRiscv::System<URV>>&, WdRiscv::Args&, uint16_t ncores, bool standalone, std::string logfile = "");
   static std::string overrideWhisperJson(bool standalone);
-  int whisperConnect(uint64_t restart_pc);
+  int whisperConnect();
   bool whisperConnected();
   int whisperStandalone();
   int processStandaloneInfo();
@@ -174,7 +174,7 @@ private:
 
 public:
   CVM_MESSENGER_procedure_call(iss_select_rand_RPC, std::vector<iss_select_s>(uint32_t));
-  CVM_MESSENGER_procedure_call(whisperConnectRPC, int(uint64_t));
+  CVM_MESSENGER_procedure_call(whisperConnectRPC, int(void));
   CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool(void));
   CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&, bool&, bool&));
   CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool(int, uint64_t&, uint32_t&, unsigned&));
