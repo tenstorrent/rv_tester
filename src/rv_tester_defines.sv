@@ -100,53 +100,53 @@ package rv_tester_params;
 
   typedef struct packed {
     logic                       valid    ;
-    logic [HARTLEN-1:0]         hart     ;
+    logic [HARTLEN-1:0]         hart     ; 
     logic [64-1:0]              order    ;
-    logic [64-1:0]              branch_tag;
+    logic [64-1:0]              branch_tag; // branch tracking tag
     logic [ILEN-1:0]            insn     ;
     logic                       trap     ;
-    logic [XLEN-1:0]            cause    ;
+    logic [XLEN-1:0]            cause    ; 
     logic                       halt     ;
     logic                       intr     ;
-    logic                       virt_mode;
+    logic                       virt_mode; 
     logic [4-1:0]               mode     ;
     logic [2-1:0]               ixl      ;
     logic [6-1:0]               rd_addr  ;
     logic [XLEN-1:0]            rd_wdata ;
-    logic                       frd_valid;
+    logic                       frd_valid;  
     logic [6-1:0]               frd_addr ;
-    logic [FLEN-1:0]            frd_wdata;
-    logic                       vrd_valid;
-    logic [6-1:0]               vrd_addr ;
-    logic [VLEN-1:0]            vrd_wdata;
-    logic                       vec      ;
+    logic [FLEN-1:0]            frd_wdata; 
+    logic                       vrd_valid; 
+    logic [6-1:0]               vrd_addr ; 
+    logic [VLEN-1:0]            vrd_wdata; 
+    logic                       vec      ; 
     logic                       flags_valid;
-    logic [5-1:0]               flags    ;
-    logic [CSRLEN-1:0]          csr_addr ;
+    logic [5-1:0]               flags    ; 
+    logic [CSRLEN-1:0]          csr_addr ; 
     logic [XLEN-1:0]            csr_wdata;
     logic [XLEN-1:0]            csr_wmask;
     logic [XLEN-1:0]            csr_rdata;
     logic [XLEN-1:0]            csr_rmask;
-    logic [VALEN-1:0]           pc_paddr ;
+    logic [VALEN-1:0]           pc_paddr ; 
     logic [VALEN-1:0]           pc_rdata ;
     logic [VALEN-1:0]           pc_wdata ;
-    logic                       pc_error ;
-    logic                       init_jalr_seen;
+    logic                       pc_error ; // PC fetch error
+    logic                       init_jalr_seen; // boot/init JALR marker
     logic [VALEN-1:0]           mem_addr ;
-    logic [PALEN-1:0]           mem_paddr;
+    logic [PALEN-1:0]           mem_paddr; 
     logic [(RDLEN/8)-1:0]       mem_rmask;
     logic [(RDLEN/8)-1:0]       mem_wmask;
     logic [RDLEN-1:0]           mem_rdata;
     logic [RDLEN-1:0]           mem_wdata;
-    logic [32-1:0]              mem_attr ;
-    logic                       mem_page4kX;
-    logic [32-1:0]              mem_page4kX_attr ;
-    logic                       mem_error;
-    logic                       comp     ;
-    logic [64-1:0]              uop      ;
-    logic                       last_uop ;
-    logic                       last_insn;
-    logic                       opcode_modified;
+    logic [32-1:0]              mem_attr ; // memory attributes
+    logic                       mem_page4kX; // is memory cross 4K page boundary?
+    logic [32-1:0]              mem_page4kX_attr ; // 4K page-crossing attributes
+    logic                       mem_error; // is a memory access error?
+    logic                       comp     ; // is a compressed instruction?
+    logic [64-1:0]              uop      ; 
+    logic                       last_uop ; // Last instruction marker in case of multi-op opcodes, for simple ops, always set.
+    logic                       last_insn; // last instruction marker
+    logic                       opcode_modified; // is opcode rewritten?
   } rvfi_t;
 
   // --------------------------------------
