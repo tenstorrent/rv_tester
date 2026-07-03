@@ -811,6 +811,7 @@ end
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .dut_reset(dut_reset[TB_CLK_IDX]),
                      .clocks,
+                     .rvt_reload,
                      .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
                      .csri(csri[c]),
                      .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),

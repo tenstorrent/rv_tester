@@ -116,6 +116,7 @@ module cosim
       input reset,
       input dut_core_reset,
       input dut_reset,
+      input rvt_reload,
       input logic [63:0] clocks,
       input rule_t [NoAddrRules-1:0] addr_map,
       input rvfi_t [NRET-1:0] rvfi,
@@ -558,15 +559,7 @@ module cosim
       mmr_lo_addr <= '0;
       mmr_hi_addr <= '0;
       dm_mmr_base <= '0;
-      mb <= cvm_plusargs::get_ulongint("mmr_base_addr");
-      pls <= cvm_plusargs::get_int("priv_level_start_bit");
-      mds <= cvm_plusargs::get_int("mmr_device_id_start_bit");
-      mcs <= cvm_plusargs::get_int("mmr_cluster_id_start_bit");
-      mm <= cvm_plusargs::get_int("mmr_m");
-      dm_id <= cvm_plusargs::get_int("dm_device_id");
-      ax_id <= cvm_plusargs::get_int("axisw_device_id");
-    end
-    else begin
+    end else begin
       mmr_base <= PA_WIDTH'(mb);
       pl_start_bit <= PA_WIDTH'(pls);
       mmr_dev_start_bit <= PA_WIDTH'(mds);
@@ -577,6 +570,15 @@ module cosim
       mmr_lo_addr <= PA_WIDTH'(mb | (64'(mm) << pls));
       mmr_hi_addr <= PA_WIDTH'(mb | (64'(mm) << pls) | (64'(ax_id) << mds) + 64'hFFFF);
       dm_mmr_base <= PA_WIDTH'(mb | (64'(dm_id) << mds) | (64'(mm) << pls));
+    end
+    if (reset || rvt_reload) begin
+      mb <= cvm_plusargs::get_ulongint("mmr_base_addr");
+      pls <= cvm_plusargs::get_int("priv_level_start_bit");
+      mds <= cvm_plusargs::get_int("mmr_device_id_start_bit");
+      mcs <= cvm_plusargs::get_int("mmr_cluster_id_start_bit");
+      mm <= cvm_plusargs::get_int("mmr_m");
+      dm_id <= cvm_plusargs::get_int("dm_device_id");
+      ax_id <= cvm_plusargs::get_int("axisw_device_id");
     end
   end
   for(genvar n=0;n<NRET;n=n+1) begin
@@ -808,7 +810,7 @@ end
 
 
   always @(posedge tb_clk) begin
-    if (reset) begin
+    if (reset || rvt_reload) begin
       /* verilator lint_off BLKSEQ */
       rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
       cache_model_enabled = (cvm_plusargs::get_bool("cache_model_en") != '0);
@@ -1608,7 +1610,7 @@ end
   end
 
   always @(posedge tb_clk) begin
-    if (reset) begin
+    if (reset || rvt_reload) begin
       /* verilator lint_off BLKSEQ */
       max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
       max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
@@ -1622,13 +1624,14 @@ end
       psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
       psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
       timeout_scale_en <= (cvm_plusargs::get_bool("timeout_scale_en") != '0);
+    end
 
-
+    if (reset) begin
       /* verilator lint_on BLKSEQ */
       boot_wfi <= '0;
       cosim_terminate_sent <= '0;
       boot_done <= '0;
-    end else if(!reset) begin
+    end else begin
       if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
         boot_wfi <= '1;
       end

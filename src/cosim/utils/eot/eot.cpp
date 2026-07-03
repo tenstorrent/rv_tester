@@ -134,6 +134,8 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 }
 
 void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, uint64_t data, int max_instr) {
+  cvm::log(cvm::NONE, "<{}> Hart:<{}> JW MAX={}", cycle, hartid, max_instr);
+
   if (ended_)
     return;
 
