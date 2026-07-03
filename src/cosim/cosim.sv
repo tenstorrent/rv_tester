@@ -116,7 +116,7 @@ module cosim
       input reset,
       input dut_core_reset,
       input dut_reset,
-      input rvt_reload,
+      input rvt_reload_d2,
       input logic [63:0] clocks,
       input rule_t [NoAddrRules-1:0] addr_map,
       input rvfi_t [NRET-1:0] rvfi,
@@ -571,7 +571,7 @@ module cosim
       mmr_hi_addr <= PA_WIDTH'(mb | (64'(mm) << pls) | (64'(ax_id) << mds) + 64'hFFFF);
       dm_mmr_base <= PA_WIDTH'(mb | (64'(dm_id) << mds) | (64'(mm) << pls));
     end
-    if (reset || rvt_reload) begin
+    if (reset || rvt_reload_d2) begin
       mb <= cvm_plusargs::get_ulongint("mmr_base_addr");
       pls <= cvm_plusargs::get_int("priv_level_start_bit");
       mds <= cvm_plusargs::get_int("mmr_device_id_start_bit");
@@ -810,7 +810,7 @@ end
 
 
   always @(posedge tb_clk) begin
-    if (reset || rvt_reload) begin
+    if (reset || rvt_reload_d2) begin
       /* verilator lint_off BLKSEQ */
       rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
       cache_model_enabled = (cvm_plusargs::get_bool("cache_model_en") != '0);
@@ -1296,7 +1296,6 @@ end
     assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0;
   end
 
-
   // m_mcmi_bypass
   for (genvar n = 0; n < NBYPASS; n++) begin
     assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_bypass[n].valid;
@@ -1610,7 +1609,7 @@ end
   end
 
   always @(posedge tb_clk) begin
-    if (reset || rvt_reload) begin
+    if (reset || rvt_reload_d2) begin
       /* verilator lint_off BLKSEQ */
       max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
       max_cycle <= cvm_plusargs::get_ulongint("max_cycle");

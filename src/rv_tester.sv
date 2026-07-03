@@ -40,6 +40,8 @@ module rv_tester
   logic  profile5_clk [NCLKS-1:0];
   logic  profile6_clk [NCLKS-1:0];
 
+  bit rvt_reload_d1, rvt_reload_d2;
+
   logic fastest_clk;
   localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
                                                              PROFILE1_CLOCK_FREQ_MHZ,
@@ -447,7 +449,6 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
-        eot_addr                        <= eot_get_addr();
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -477,6 +478,11 @@ module rv_tester
     if (num_reruns < 0) begin
       num_reruns  <= cvm_plusargs::get_int("num_reruns");
     end
+
+    if(rv_tester_reset || (rvt_reload_d2 && $test$plusargs("whisper_loadfrom")))
+      eot_addr <= eot_get_addr();
+    rvt_reload_d2 <= rvt_reload_d1;
+    rvt_reload_d1 <= rvt_reload;
 
   end
 
@@ -811,7 +817,7 @@ end
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .dut_reset(dut_reset[TB_CLK_IDX]),
                      .clocks,
-                     .rvt_reload,
+                     .rvt_reload_d2,
                      .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
                      .csri(csri[c]),
                      .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
