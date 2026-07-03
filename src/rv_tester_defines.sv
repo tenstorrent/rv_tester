@@ -131,7 +131,7 @@ package rv_tester_params;
     logic [VALEN-1:0]           pc_rdata ;
     logic [VALEN-1:0]           pc_wdata ;
     logic                       pc_error ; // PC fetch error
-    logic                       init_jalr_seen; // boot/init JALR marker
+    logic                       init_jalr_seen; // internal: capture the first jalr etc.
     logic [VALEN-1:0]           mem_addr ;
     logic [PALEN-1:0]           mem_paddr; 
     logic [(RDLEN/8)-1:0]       mem_rmask;
@@ -144,8 +144,8 @@ package rv_tester_params;
     logic                       mem_error; // is a memory access error?
     logic                       comp     ; // is a compressed instruction?
     logic [64-1:0]              uop      ; 
-    logic                       last_uop ; // Last instruction marker in case of multi-op opcodes, for simple ops, always set.
-    logic                       last_insn; // last instruction marker
+    logic                       last_uop ; // last uop in case of multi-op opcodes, for simple ops, always set.
+    logic                       last_insn; // last instruction in the same cycle
     logic                       opcode_modified; // is opcode rewritten?
   } rvfi_t;
 
