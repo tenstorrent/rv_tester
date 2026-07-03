@@ -70,6 +70,7 @@ DEFINE_bool(flags_check, true, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 10000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
+DEFINE_bool(hyp_save_restore_en, true, "Save/restore hypervisor masked CSRs on misa.H transition");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -1731,41 +1732,43 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           if (c.csr_wdata & 0x80) {
             if (!misa_h_) {
               // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
-              for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                bool valid = false;
-                uint64_t peek_value = 0;
-                uint64_t poke_value = 0;
-                if (addr == mip.address || addr == mvip.address) {
-                  if (addr == mvip.address)
-                    continue;
-                  uint64_t mvip_value = get_csr(id_, src_t::dut, mvip.address);
-                  mask = 0xffffffffffffffffULL;
-                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                  update_csr(hart, src_t::iss, mvip.address, mvip_value, mask, false, false);
-                  std::bitset<64> mip_bits;
-                  peek_mip(hart, d.cycle, mip_bits);
-                  auto old_mvip = mvip_;
-                  poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
-                  mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
-                  poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
-                  tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
-                  bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
+              if (FLAGS_hyp_save_restore_en) {
+                for (const auto& [addr, value] : hypervisor_masked_csrs_) {
+                  bool valid = false;
+                  uint64_t peek_value = 0;
+                  uint64_t poke_value = 0;
+                  if (addr == mip.address || addr == mvip.address) {
+                    if (addr == mvip.address)
+                      continue;
+                    uint64_t mvip_value = get_csr(id_, src_t::dut, mvip.address);
+                    mask = 0xffffffffffffffffULL;
+                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                    update_csr(hart, src_t::iss, mvip.address, mvip_value, mask, false, false);
+                    std::bitset<64> mip_bits;
+                    peek_mip(hart, d.cycle, mip_bits);
+                    auto old_mvip = mvip_;
+                    poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
+                    mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
+                    poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
+                    tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
+                    bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
 
-                } else {
-                  mask = 0xffffffffffffffffULL;
-                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
-                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                    return;
-                  }
-                  poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
-                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
-                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                    return;
-                  }
-                  if (addr == medeleg.address) {
-                    mask = 0xF00400;
-                    update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                  } else {
+                    mask = 0xffffffffffffffffULL;
+                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                      return;
+                    }
+                    poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
+                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
+                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                      return;
+                    }
+                    if (addr == medeleg.address) {
+                      mask = 0xF00400;
+                      update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                    }
                   }
                 }
               }
@@ -1776,11 +1779,13 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           } else {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
-              for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                if (addr == mip.address)
-                  hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
-                else
-                  hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+              if (FLAGS_hyp_save_restore_en) {
+                for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
+                  if (addr == mip.address)
+                    hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
+                  else
+                    hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+                }
               }
             }
             misa_h_ = 0;
