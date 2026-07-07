@@ -38,6 +38,7 @@ public:
   CVM_MESSENGER_procedure_call(init_tohost_addr_RPC, void());
 
 private:
+  void resolve_tohost_addr();
   void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
   void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
   void process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal);
