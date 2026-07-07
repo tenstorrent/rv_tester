@@ -494,6 +494,11 @@ module rv_tester
    * issues with coinciding zDPIs from transactions.
    */
   always @(posedge dut_clk[TB_CLK_IDX]) begin
+    if (!rv_tester_reset && unconditional_terminate)
+      sysmod.sysmod_terminate();
+  end
+
+  always @(posedge dut_clk[TB_CLK_IDX]) begin
 
     automatic logic shutdowned = '0;
     automatic logic domain1_shutdowned = '0;
