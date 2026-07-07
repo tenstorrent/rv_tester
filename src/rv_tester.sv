@@ -479,7 +479,7 @@ module rv_tester
       num_reruns  <= cvm_plusargs::get_int("num_reruns");
     end
 
-    if(rv_tester_reset || (rvt_reload_d2 && $test$plusargs("whisper_loadfrom")))
+    if(rv_tester_reset || (rvt_reload_d2 && cvm_plusargs::get_bool("whisper_loadfrom")))
       eot_addr <= eot_get_addr();
     rvt_reload_d2 <= rvt_reload_d1;
     rvt_reload_d1 <= rvt_reload;
