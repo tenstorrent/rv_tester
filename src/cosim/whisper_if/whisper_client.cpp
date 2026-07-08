@@ -47,6 +47,7 @@ DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 DEFINE_bool(whisper_vmvr_ignore_vill, false, "Enable whisper vmvr_ignore_vill flag");
 DEFINE_string(whisper_loadfrom, "", "Path to whisper Snapshot");
+DEFINE_bool(savepoint_en, false, "savepoint_en");
 DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can be set dynamically based on chicken bits");
 DEFINE_uint32(derr_interrupt_num_default, 23, "DERR interrupt default number");
 #include "iss_utils.h"
@@ -108,7 +109,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
 template <typename URV>
 void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc_, [this](uint32_t hart = 0) { return this->get_iss_select(hart); });
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this](uint64_t restart_pc = 0) { return this->whisperConnect(restart_pc); });
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc_, [this]() { return this->whisperConnect(); });
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc_, [this]() { return this->whisperConnected(); });
   cvm::registry::messenger.procedure<whisperStepRPC>(loc_, [this](int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid) { return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, isCancelled, valid); });
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc_, [this](int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) { return this->whisperSimpleStep(hart, pc, instruction, changeCount); });
@@ -151,12 +152,12 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc_, [this](int hart, uint64_t time, uint64_t cause) { return this->whisperNmi(hart, time, cause); });
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc_, [this](int hart, uint64_t time) { return this->whisperClearNmi(hart, time); });
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this](int hart, uint64_t time, uint64_t cause) { return this->whisperClearNmiCause(hart, time, cause); });
-
+  cvm::registry::messenger.procedure<whisperSnapshotSaveRPC>(loc_, [this]() { return this->whisperSnapshotSave(); });
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this](uint64_t addr, unsigned size, bool enable) { return this->whisperMcmSkipReadDataCheck(addr, size, enable); });
 }
 
 template <typename URV>
-bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args, uint16_t ncores, bool standalone, uint64_t restart_pc, std::string logfile) {
+bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args, uint16_t ncores, bool standalone, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
   auto config_file = overrideWhisperJson(standalone);
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
@@ -165,11 +166,10 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc())});
   args_str.insert(args_str.end(), {"--nmevec", std::to_string(getNmiExceptionPc())});
 
-  //if (!standalone && FLAGS_whisper_loadfrom == "") -- Cosim capture, desired
-  if (standalone && FLAGS_whisper_loadfrom != "")
+  if (!standalone && FLAGS_savepoint_en) // Cosim capture
     args_str.insert(args_str.end(), "--hintops");
   if (!standalone && (FLAGS_whisper_loadfrom != ""))
-    args_str.insert(args_str.end(), {"--loadfrom", FLAGS_whisper_loadfrom});
+    args_str.insert(args_str.end(), {"--loadfrom", FLAGS_whisper_loadfrom, "--elfaftersnap"});
 
   if (FLAGS_cplfw && FLAGS_cplfw_path != "")
     args_str.push_back(FLAGS_cplfw_path);
@@ -231,12 +231,10 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
     args_str.insert(args_str.end(), {"--tlbsize", std::to_string(FLAGS_whisper_tlb_size)});
 
   auto resetpc = FLAGS_resetpc;
-  if (restart_pc != 0)
-    resetpc = restart_pc;
-  else if (FLAGS_cplfw)
+  if (FLAGS_cplfw)
     resetpc = FLAGS_resetpcfw;
   // Remove last term?
-  if (standalone || (FLAGS_whisper_loadfrom == "") || (restart_pc != 0))
+  if (standalone || (FLAGS_whisper_loadfrom == ""))
     args_str.insert(args_str.end(), {"--startpc", std::to_string(resetpc)});
 
   if (standalone) {
@@ -310,14 +308,14 @@ int whisperClient<URV>::whisperStandalone() {
 }
 
 template <typename URV>
-int whisperClient<URV>::whisperConnect(uint64_t restart_pc) {
+int whisperClient<URV>::whisperConnect() {
   if (FLAGS_preload && FLAGS_standalone && ncores_ > 1)
     cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
 
   if (FLAGS_standalone) {
     cvm::log(cvm::MEDIUM, "Running Whisper standalone\n");
     args_ = WdRiscv::Args();
-    if (!constructSystem(session_, system_, args_, FLAGS_num_harts, true, 0, "iss_standalone.log"))
+    if (!constructSystem(session_, system_, args_, FLAGS_num_harts, true, "iss_standalone.log"))
       cvm::log(cvm::ERROR, "Error: could not construct system\n");
     int failed = whisperStandalone();
     if (failed)
@@ -329,7 +327,7 @@ int whisperClient<URV>::whisperConnect(uint64_t restart_pc) {
 
   cvm::log(cvm::HIGH, "Construct Whisper for cosim\n");
   args_ = WdRiscv::Args();
-  if (!constructSystem(session_, system_, args_, ncores_, false, restart_pc))
+  if (!constructSystem(session_, system_, args_, ncores_, false))
     cvm::log(cvm::ERROR, "Error: could not construct system\n");
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 

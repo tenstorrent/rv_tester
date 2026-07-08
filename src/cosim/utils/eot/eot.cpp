@@ -10,6 +10,8 @@
 #include "src/sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"
 
+extern "C" void rv_tester_set_eot_addr(std::uint64_t addr);
+
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
@@ -51,6 +53,11 @@ void eot::configure() {
 }
 
 void eot::init_tohost_addr() {
+  resolve_tohost_addr();
+  cvm::registry::callbacks.push(loc_, [&]() { rv_tester_set_eot_addr(tohost_addr_); });
+}
+
+void eot::resolve_tohost_addr() {
 
   // Get tohost address from
   // 1. plusarg if provided
@@ -349,11 +356,6 @@ eot::~eot() {
 }
 
 extern "C" {
-static bool hw_eot_terminated = false;
-std::uint64_t eot_get_addr() {
-  hw_eot_terminated = false;
-  return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
-}
 int is_eot_tohost() {
   if (FLAGS_eot == "tohost")
     return 1;

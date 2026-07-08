@@ -33,6 +33,7 @@ typedef struct whisper_state_s {
   bool stop = false;
   bool is_load = false;
   bool is_cancelled = false;
+  bool force_resynch = false;
 } whisper_state_t;
 
 // dut <-> bridge

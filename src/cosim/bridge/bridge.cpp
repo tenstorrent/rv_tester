@@ -250,7 +250,7 @@ void bridge::configure() {
 // Destructor
 bridge::~bridge() {}
 
-void bridge::reset(uint64_t restart_pc) {
+void bridge::reset(bool rebuild_whisper) {
   auto& memmap_ = memmap::instance();
   if (!memmap::instance().parsed()) {
     error("Getting Memmap failed");
@@ -271,7 +271,7 @@ void bridge::reset(uint64_t restart_pc) {
 
   // Construct whisper for cosim API calls
   // API called "connect" due to legacy usage of whisper client/server connection made using sockets
-  if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), restart_pc) != 0) {
+  if (((id_ == 0) || rebuild_whisper) && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
@@ -1630,11 +1630,13 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   // WdRiscv::CoreException::SnapshotAndStop not caught!
   catch (const WdRiscv::CoreException& ce) {
     if (ce.type() == WdRiscv::CoreException::Snapshot) {
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
+      if (!snapshot_taken && !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
         error("Hart {}: Failed to save whisper shanpshot\n", hart);
       }
       w.stop = 0;
       w.trap = 0;
+      w.force_resynch = true;
+      snapshot_taken = true;
       print_instr(hart, w);
       // continue simulation
       return;
@@ -2097,6 +2099,9 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
 
   // Whisper cancelled post-trigger instruction that DUT completed
   if (w.is_cancelled && !d.excp && !d.intr)
+    return true;
+
+  if (w.force_resynch)
     return true;
 
   // TODO: Revisit when Whisper models icount/step trigger interactions correctly.

@@ -40,6 +40,8 @@ module rv_tester
   logic  profile5_clk [NCLKS-1:0];
   logic  profile6_clk [NCLKS-1:0];
 
+  bit rvt_reload_d1, rvt_reload_d2;
+
   logic fastest_clk;
   localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
                                                              PROFILE1_CLOCK_FREQ_MHZ,
@@ -116,7 +118,6 @@ module rv_tester
   import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
   import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
   import "DPI-C" context function bit rv_tester_flush_callbacks();
-  import "DPI-C" function longint unsigned eot_get_addr();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
 
@@ -189,6 +190,7 @@ module rv_tester
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
+  `CVM_REGISTRY_SET_SCOPE(location)
 
   bit gen_clocks = '0;
   bit gen_timestamp = '0;
@@ -447,7 +449,6 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
-        eot_addr                        <= eot_get_addr();
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -478,6 +479,9 @@ module rv_tester
       num_reruns  <= cvm_plusargs::get_int("num_reruns");
     end
 
+    rvt_reload_d2 <= rvt_reload_d1;
+    rvt_reload_d1 <= rvt_reload;
+
   end
 
   /*
@@ -487,6 +491,11 @@ module rv_tester
    * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
    * issues with coinciding zDPIs from transactions.
    */
+  always @(posedge dut_clk[TB_CLK_IDX]) begin
+    if (!rv_tester_reset && unconditional_terminate)
+      sysmod.sysmod_terminate();
+  end
+
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
     automatic logic shutdowned = '0;
@@ -811,6 +820,7 @@ end
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .dut_reset(dut_reset[TB_CLK_IDX]),
                      .clocks,
+                     .rvt_reload_d2,
                      .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
                      .csri(csri[c]),
                      .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
@@ -978,8 +988,12 @@ end
                     };
 
   endfunction
-
   export "DPI-C" function rv_tester_set_address_map;
+
+  function automatic void rv_tester_set_eot_addr(longint unsigned addr);
+    eot_addr = addr;
+  endfunction
+  export "DPI-C" function rv_tester_set_eot_addr;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");

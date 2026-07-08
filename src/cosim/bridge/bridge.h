@@ -84,7 +84,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
   virtual void process_debug_haltreq(bool haltreq) override;
 
-  void reset(uint64_t restart_pc = 0);
+  void reset(bool rebuild_whisper = false);
   void csr_init();
 
   void final_phase();
@@ -461,4 +461,5 @@ private:
   bool intr_partially_deferred_ = false;
   bool intr_undeferred_due_to_xret_intr_csr_ = false;
   bool nmi_undeferred_due_to_xret_intr_csr_ = false;
+  bool snapshot_taken = false;
 };
