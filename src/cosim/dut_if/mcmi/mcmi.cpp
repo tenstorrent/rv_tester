@@ -413,9 +413,17 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   // RVDE-17736: Manage fetch/evict signaling for ncio region
   if (is_ncio(m.attr)) {
     auto it = std::find_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; });
+    bool active = std::find_if(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; }) != active_ncio_fetches_.end();
     if (it == ncio_fetches_.end()) {
+      // First fetch of this ncio line.
       bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
       ncio_fetches_.emplace_back(m);
+    } else if (!active) {
+      // Re-fetch in a new window: ncio bytes are volatile, so evict whisper's stale
+      // snapshot and re-read the current bytes instead of reusing the pa-dedup entry.
+      process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m.cycle, m_mcmi_ifetch_resp.hart, it->pa));
+      bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+      *it = m;
     }
     active_ncio_fetches_.emplace_back(m);
   } else {
