@@ -437,7 +437,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
       // snapshot and re-read the current bytes instead of reusing the pa-dedup entry.
       process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m.cycle, m_mcmi_ifetch_resp.hart, it->pa));
       bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
-      *it = m;
     }
     active_ncio_fetches_.emplace_back(m);
   } else {
