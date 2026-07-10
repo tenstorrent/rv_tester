@@ -129,7 +129,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // supplying instruction bytes and a fresh non-speculative fetch is needed.
   if ((!ncio_fetches_.empty()) || ncio_mem_transition_) {
     if (m_rvfi.branch_tag != prev_branch_tag_) {
-      process_ncio_fetches(m_rvfi.cycle, m_rvfi.hart);
+      process_ncio_fetches(m_rvfi);
     }
     active_ncio_fetches_.clear();
     ncio_mem_transition_ = false;
@@ -520,7 +520,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_
   }
 }
 
-void mcmi::process_ncio_fetches(uint64_t cycle, uint32_t hart) {
+void mcmi::process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (terminated_ || in_reset_)
     return;
 
@@ -528,7 +528,7 @@ void mcmi::process_ncio_fetches(uint64_t cycle, uint32_t hart) {
       std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
         bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
         if (evict)
-          process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, cycle, hart, fetch.pa));
+          process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m_rvfi.cycle, m_rvfi.hart, fetch.pa));
         return evict;
       }),
       ncio_fetches_.end());
