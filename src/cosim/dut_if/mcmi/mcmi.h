@@ -64,7 +64,7 @@ private:
   bool sc_failed(mem_t& write);
   void process_amo(mem_t& read);
   void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
-  void process_ncio_fetches(const rv_instr_t& instr);
+  void process_ncio_fetches(uint64_t cycle, uint32_t hart);
 
   // Helper functions for m_mcmi_read processing
   void process_read_single_consecutive(mem_t& m, const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read,
@@ -106,6 +106,7 @@ private:
 
   // Shared state that may need to be synchronized with rvfi
   bool ncio_mem_transition_ = false;
+  uint64_t prev_branch_tag_ = 0;
   std::vector<mem_t> ncio_fetches_;
   std::vector<mem_t> active_ncio_fetches_;
 
