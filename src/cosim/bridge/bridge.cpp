@@ -885,9 +885,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  // Cracked AMOCAS: RVFI reports the original opcode on the last uop, so INSN is comparable.
-  bool amocas_cracked = d.ucode && !d.excp && (d.disasm.substr(0, 6) == "amocas");
-  if (FLAGS_insn_check && !d.comp && (!d.ucode || amocas_cracked) && !d.opcode_modified && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
+  if (FLAGS_insn_check && !d.comp && (!d.ucode || is_cracked_amocas(d.disasm)) && !d.opcode_modified && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -2076,6 +2074,10 @@ bool bridge::is_cracked_csr(const std::string& instr) {
   }
 
   return false;
+}
+
+bool bridge::is_cracked_amocas(const std::string& instr) {
+  return instr.find("amocas") != std::string::npos;
 }
 
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
