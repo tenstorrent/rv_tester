@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // plusargs for rvfi so packages that depend on them can include them
 #include "cvm/plusargs.hpp"
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "src/sysmod/aplic/aplic_device.h"
 
 void aplic_device::read(const transactor::read_t& r, data_t& data) {

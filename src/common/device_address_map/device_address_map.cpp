@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "device_address_map/device_address_map.h"
 #include "device_address_map/device_address_map_plusargs.h"
 

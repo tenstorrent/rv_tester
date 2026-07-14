@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "axi_sw.h"
 
 DEFINE_int32(axi_sw_read_latency_max, 0, "Maximum latency of axi reads");

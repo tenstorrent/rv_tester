@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module dpi_rv_tester_keeper_ctrl (input bit clk, output bit load, input bit data  );
 
   bit send;

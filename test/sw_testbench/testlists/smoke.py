@@ -1,4 +1,6 @@
 #! /usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
 
 if __name__ == '__main__':
     print("cc_test_generator --name infinite -s //test/sw_testbench/testlists:infinite.S")

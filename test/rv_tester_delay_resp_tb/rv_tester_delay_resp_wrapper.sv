@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 `include "axi/typedef.svh"
 
 module rv_tester_delay_resp_wrapper #(

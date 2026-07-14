@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "src/sysmod/trickbox/evt_trigger.h"

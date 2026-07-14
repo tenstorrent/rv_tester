@@ -3,8 +3,8 @@
 To test the performance of `rv_tester`, we can run the SW testbench with a simple input file containing an infinite loop (`testlists/infinite.S`) for a sufficiently large number of cycles. Using various profilers, we can then evaluate the bottlenecks of `rv_tester`. The script `profile.py` provides an easy way to automate the process of running these profilers and dumping the output. E.g.:
 
 ```
-[mboisvert@aus-rv-l-4 ~]$ cd path/to/rv_tester
-[mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py --help
+[user@host ~]$ cd path/to/rv_tester
+[user@host rv_tester]$ python3 sw_testbench/profiling/run_profiler.py --help
 usage: run_profiler.py [-h] [--max_cycles MAX_CYCLES]
                        [--input_program INPUT_PROGRAM]
                        {gprof,perf,gperftools,wall_clock_profiler} ...
@@ -31,7 +31,7 @@ optional arguments:
                         bazel-bin/...' (default: False)
 
 
-[mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --help
+[user@host rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --help
 usage: run_profiler.py gperftools [-h] [--use_realtime]
 
 Google's suite of performance analysis tools, most notably pprof. Generates an
@@ -42,16 +42,16 @@ optional arguments:
   --use_realtime  If true, use realtime for profiling. Otherwise, use CPU time
                   (default: False)
 
-[mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --use_realtime
+[user@host rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --use_realtime
 ...
 See gperftools-results.txt for the profiling results
-[mboisvert@aus-rv-l-4 rv_tester]$ head gperftools-results.txt 
-Using local file /proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator.
+[user@host rv_tester]$ head gperftools-results.txt 
+Using local file <path-to>/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator.
 Using local file prof.out.
 Dropping nodes with <= 76 samples; edges with <= 15 abs(samples)
-digraph "/proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator; 15344 samples" {
+digraph "<path-to>/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator; 15344 samples" {
 node [width=0.375,height=0.25];
-Legend [shape=box,fontsize=24,shape=plaintext,label="/proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator\lTotal samples: 15344\lFocusing on: 15344\lDropped nodes with <= 76 abs(samples)\lDropped edges with <= 15 samples\l"];
+Legend [shape=box,fontsize=24,shape=plaintext,label="<path-to>/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator\lTotal samples: 15344\lFocusing on: 15344\lDropped nodes with <= 76 abs(samples)\lDropped edges with <= 15 samples\l"];
 N1 [label="__libc_start_main\n0 (0.0%)\rof 15344 (100.0%)\r",shape=box,fontsize=8.0];
 N2 [label="_start\n0 (0.0%)\rof 15344 (100.0%)\r",shape=box,fontsize=8.0];
 N3 [label="main\n4 (0.0%)\rof 15343 (100.0%)\r",shape=box,fontsize=8.8];
