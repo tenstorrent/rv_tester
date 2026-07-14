@@ -2,7 +2,7 @@
 
 ## Reporting Security Vulnerabilities
 
-Tenstorrent takes the security of our software products seriously. If you believe you have found a security vulnerability in cvm, please report it to us as described below.
+Tenstorrent takes the security of our software products seriously. If you believe you have found a security vulnerability in rv_tester, please report it to us as described below.
 
 ## How to Report a Security Vulnerability
 
