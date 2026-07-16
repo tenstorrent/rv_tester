@@ -1,7 +1,7 @@
 # RV_TESTER
 
 RISCV CPU testing component written in SV and C++
-Bla 
+
 ## Overview
 
 This repository contains the verification collateral needed to interface with a RISC-V CPU core and perform lockstep architectural checks against the [Whisper](https://github.com/tenstorrent/whisper) RISC-V CPU ISS. Along with the co-simulation flow, it provides soft device models, an AXI transactor/master, performance-counter (PMU) modeling, interrupt and trigger generation, and the platform glue that ties it all together. RV_TESTER is RVA23-compatible.
