@@ -1,4 +1,4 @@
-"""Shared declaration of rv_tester's external aus-gitlab dependencies.
+"""Shared declaration of rv_tester's external Tenstorrent dependencies.
 
 Holds repos that DON'T have their own MODULE.bazel (no bzlmod-native
 dep wiring). Called from two places:
@@ -28,8 +28,11 @@ upstreams (pulp-platform/axi, nlohmann/json) directly; both override the
 upstream BUILD with `build_file_content` (axi to skip the @tensix-tt_tech
 / @bzsim graph, nlohmann to skip its @rules_license metadata).
 
-TODO(open-source): re-publish the Tenstorrent-owned forks
-(CoreArchChecker, mem_manager).
+@cvm, @CoreArchChecker and @mem_manager now fetch from their GitHub
+mirrors (tenstorrent/CVM, tenstorrent/CoreArchChecker,
+tenstorrent/mem-manager). TODO(open-source): these repos are still
+PRIVATE — fetching needs a GitHub token in ~/.netrc until they are made
+public.
 """
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
@@ -39,21 +42,25 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 def _declare_cvm_and_rules_hdl():
     # One pinned cvm tarball, fetched twice — once for @cvm (full tree),
     # once for @rules_hdl (the rules_hdl_compat shim sub-dir).
-    cvm_hash = "a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc"
-    sha256 = "94a7f33c98ab1025b99ea9df342af1de24a1d9bba4ec0784016b52fa97a8ff0c"
-    cvm_url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit = cvm_hash)
+    # Source: public-facing GitHub mirror (tenstorrent/CVM). The repo is
+    # currently PRIVATE, so this fetch needs a GitHub token in ~/.netrc until
+    # it is made public. GitHub's canonical repo name is capitalized (CVM), so
+    # the archive's top-level dir — and thus strip_prefix — is "CVM-<commit>".
+    cvm_hash = "dc013e68311e474ad20d2d612a7a5527343eff81"
+    sha256 = "1a4894ac46fc34fec23f7d71536e4438d77c7304c012484558c7b5c3994a647f"
+    cvm_url = "https://github.com/tenstorrent/CVM/archive/{commit}.tar.gz".format(commit = cvm_hash)
     maybe(
         http_archive,
         name = "cvm",
         sha256 = sha256,
-        strip_prefix = "cvm-{commit}".format(commit = cvm_hash),
+        strip_prefix = "CVM-{commit}".format(commit = cvm_hash),
         url = cvm_url,
     )
     maybe(
         http_archive,
         name = "rules_hdl",
         sha256 = sha256,
-        strip_prefix = "cvm-{commit}/bazel/rules_hdl_compat".format(commit = cvm_hash),
+        strip_prefix = "CVM-{commit}/bazel/rules_hdl_compat".format(commit = cvm_hash),
         url = cvm_url,
     )
 
@@ -90,22 +97,25 @@ verilog_library(
 def rv_tester_external_deps():
     _declare_cvm_and_rules_hdl()
 
-    CoreArchChecker_hash = "d1d38af45ebddf8aa54a510b2b62196f19555109"
+    # Public-facing GitHub mirrors (tenstorrent/*). Both repos are currently
+    # PRIVATE, so these fetches need a GitHub token in ~/.netrc until they are
+    # made public.
+    CoreArchChecker_hash = "1a7c3c6f127d8082bcd1717fdab9d600d4777fb8"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "cf897b3945d6aafe3a00831bf33adf004f3e1821020aab806ccc27c601ebf311",
+        sha256 = "cf2414c450a427aeeb1d0bc041e9a2a8c6233b87f9a9009f199f77d75a2d8ebc",
         strip_prefix = "CoreArchChecker-{commit}".format(commit = CoreArchChecker_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit = CoreArchChecker_hash),
+        url = "https://github.com/tenstorrent/CoreArchChecker/archive/{commit}.tar.gz".format(commit = CoreArchChecker_hash),
     )
 
-    mem_manager_hash = "c3975c0eafa40e765c645abdc3001e419002e9cc"
+    mem_manager_hash = "185e4dd9c31799c62ea15a3efc960f1d52416888"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "271bbbf8f0afa96f42539825b7e513611f16820835e7406dd48bb249ca60ac49",
+        sha256 = "ad504949f0c5fc12573cc22d814f693c5d44a067181019b36b33fd1a3be989d5",
         strip_prefix = "mem-manager-{commit}".format(commit = mem_manager_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit = mem_manager_hash),
+        url = "https://github.com/tenstorrent/mem-manager/archive/{commit}.tar.gz".format(commit = mem_manager_hash),
         patches = ["@rv_tester//bazel:mem_manager_use_bcr_lz4.patch"],
         patch_args = ["-p1"],
     )
