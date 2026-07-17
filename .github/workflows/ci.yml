@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# GitHub Actions translation of .gitlab-ci.yml. The two internal `notify_*`
+# jobs (which trigger the internal riscv_cluster GitLab pipeline) and the
+# `riscv/dv/gitlab-definitions` include are intentionally omitted — they are
+# GitLab-only and have no GitHub equivalent.
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - "ascalon/**"
+  pull_request:
+
+env:
+  # Mirrors BAZEL_OPTS from .gitlab-ci.yml's .test-template.
+  BAZEL_OPTS: "--jobs=8"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.3
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Static checks
+        run: |
+          (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
+          python3 scripts/plusarg_lint.py
+          git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format --Werror --dry-run --verbose
+      - name: clang-tidy
+        # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in .bazelrc.
+        run: bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy $BAZEL_OPTS
+
+  build-bazel6-top:
+    # Downstream consumers still run Bazel 6 + WORKSPACE.
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.3
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bazel 6 WORKSPACE build
+        run: bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv $BAZEL_OPTS
+
+  test:
+    # smoke / asan+ubsan / tsan share one recipe, differing only by config.
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.3
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: smoke
+            flags: ""
+          - name: asan+ubsan
+            flags: "--config=asan --config=ubsan"
+          - name: tsan
+            flags: "--features=tsan"
+    name: test (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - name: bazel test //test/...
+        run: bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only ${{ matrix.flags }} --test_output=errors $BAZEL_OPTS
