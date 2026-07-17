@@ -89,8 +89,8 @@ use_repo(pip, "cvm_pypi", "rv_tester_pypi")
 bazel_dep(name = "whisper", version = "0.0.0")
 git_override(
     module_name = "whisper",
-    commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
-    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
+    commit = "b50d320a0182a1bd6a869ec35acad1b19697c8f7",
+    remote = "https://github.com/tenstorrent/whisper.git",
 )
 
 # Remaining externals don't have their own MODULE.bazel. Declarations live

@@ -153,8 +153,6 @@ void sysmod::configure() {
   cvm::registry::messenger.procedure<sysmod_get_boot_addr>(loc_, [this]() -> uint64_t {
     return this->dev("boot")->addr();
   });
-  cvm::registry::messenger.procedure<sysmod_block_terminate>(loc_, [this]() { this->block_terminate(); });
-  cvm::registry::messenger.procedure<sysmod_unblock_terminate>(loc_, [this]() { this->unblock_terminate(); });
 
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
@@ -442,34 +440,10 @@ void sysmod::terminate(htif::terminate_t t) {
     cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, prio);
 
   if (FLAGS_sysmod_terminate) {
-    if (terminate_blockers_ > 0) {
-      cvm::log(cvm::HIGH, "[SYSMOD] terminate deferred ({} blockers active)\n", terminate_blockers_);
-      pending_terminate_ = t;
-    } else {
-      finalize_terminate();
-    }
+    cvm::registry::callbacks.push(
+        loc_,
+        sysmod_terminate);
   }
-}
-
-void sysmod::block_terminate() {
-  terminate_blockers_++;
-  cvm::log(cvm::HIGH, "[SYSMOD] block_terminate -> {} blockers\n", terminate_blockers_);
-}
-
-void sysmod::unblock_terminate() {
-  terminate_blockers_--;
-  cvm::log(cvm::HIGH, "[SYSMOD] unblock_terminate -> {} blockers\n", terminate_blockers_);
-  if (terminate_blockers_ == 0 && pending_terminate_) {
-    pending_terminate_.reset();
-    finalize_terminate();
-  }
-}
-
-void sysmod::finalize_terminate() {
-  cvm::log(cvm::HIGH, "[SYSMOD] rminated -> {} blockers\n", terminate_blockers_);
-  cvm::registry::callbacks.push(
-      loc_,
-      sysmod_terminate);
 }
 
 void sysmod::actual_test_started(rv_tester::test_started) {

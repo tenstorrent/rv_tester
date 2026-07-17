@@ -3,7 +3,6 @@
 
 #include "memdump.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -17,7 +16,6 @@
 #include "src/sysmod/htif/htif.h"
 #include "sysmod_plusargs.h"
 #include "src/sysmod/sysmod_rpc.h"
-#include "transactor.h" // pulls in axi_seqids.hpp (SNOOP_GEN_SEQ_ID); needs to be included exactly once per TU
 
 DEFINE_string(memdump, "",
               "Dump memory regions to files at end of test. "
@@ -70,21 +68,13 @@ void memdump::configure() {
   if (regions_.empty())
     return;
 
-  axi_mst_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
   sysmod_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-  channel_ = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
-
-  // Reserve a defer slot now so sysmod's terminate handler will hold the
-  // sim-end callback until our dump coroutine completes, regardless of the
-  // order in which the htif::terminate_t handlers fire.
-  cvm::registry::messenger.call<sysmod_block_terminate>(sysmod_loc_);
 
   cvm::registry::messenger.connect<htif::terminate_t>(
       cvm::topology::get_from_type("PLATFORM", 0),
       [this](htif::terminate_t) {
         auto* task = +[](memdump* self) -> cvm::messenger::task<void> {
           co_await self->dump_all();
-          cvm::registry::messenger.call<sysmod_unblock_terminate>(self->sysmod_loc_);
           co_return;
         };
         cvm::registry::messenger.fork(task, this);
@@ -201,53 +191,24 @@ void memdump::parse_plusarg() {
 }
 
 cvm::messenger::task<void>
-memdump::read_line(uint64_t addr, std::vector<uint8_t>& out) {
-  axi::a_no_id_t ar{};
-  ar.w = false;
-  ar.addr = addr & ~uint64_t(0x3F);
-  ar.size = axi::sz_t(6); // 64 bytes/beat
-  ar.len = axi::len_t(0); // single beat
-  ar.burst = axi::burst_t(0);
-  ar.prot = axi::prot_t(2);
-  ar.seqid = axi::seqid_t(SNOOP_GEN_SEQ_ID);
-  ar.allow_decerr_resp = false;
-
-  axi::id_t id;
-  while (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar, id)) {
-    co_await cvm::registry::messenger.wait<rv_tester_transactions::sysmod::tick<>>(sysmod_loc_);
-  }
-  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(
-      channel_, [&id](const auto& r) { return r.id == id; });
-  out.assign(resp.data.begin(), resp.data.end());
-  co_return;
-}
-
-cvm::messenger::task<void>
 memdump::dump_all() {
-  std::vector<uint8_t> chunk;
+  // Read the raw contents of main memory directly via sysmod's backdoor read
+  // (sysmod_eot -> memory device backdoor_read).  This bypasses the caches and
+  // issues no AXI transactions: we dump whatever is actually sitting in the
+  // backing store, not the value a hart would observe through its cache.
   for (auto& r : regions_) {
     std::ofstream ofs(r.filename, std::ios::binary | std::ios::trunc);
     if (!ofs) {
       cvm::log(cvm::ERROR, "Error: [memdump] cannot open {} for writing\n", r.filename);
       continue;
     }
-    const uint64_t cl_start = r.start & ~uint64_t(0x3F);
-    const uint64_t cl_end = (r.end + 0x3F) & ~uint64_t(0x3F);
-    for (uint64_t addr = cl_start; addr < cl_end; addr += 64) {
-      co_await read_line(addr, chunk);
-      const uint64_t lo = std::max(addr, r.start);
-      const uint64_t hi = std::min(addr + 64, r.end);
-      if (chunk.size() < 64) {
-        cvm::log(cvm::ERROR,
-                 "Error: [memdump] short read at {:#x} ({} bytes), padding with zeros\n",
-                 addr, chunk.size());
-        chunk.resize(64, 0);
-      }
-      ofs.write(reinterpret_cast<const char*>(chunk.data() + (lo - addr)), hi - lo);
-    }
+    const size_t len = r.end - r.start;
+    device::data_t chunk(len, 0);
+    cvm::registry::messenger.call<sysmod_eot>(sysmod_loc_, r.start, len, chunk);
+    ofs.write(reinterpret_cast<const char*>(chunk.data()), len);
     cvm::log(cvm::NONE,
              "[memdump] wrote {} bytes to {} from [{:#x}, {:#x})\n",
-             r.end - r.start, r.filename, r.start, r.end);
+             len, r.filename, r.start, r.end);
   }
   co_return;
 }

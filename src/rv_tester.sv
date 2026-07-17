@@ -494,10 +494,14 @@ module rv_tester
    * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
    * issues with coinciding zDPIs from transactions.
    */
+`ifndef PALLADIUM_CAKE1X
+`ifndef ZEBU_TRIGGER
   always @(posedge dut_clk[TB_CLK_IDX]) begin
-    if (!rv_tester_reset && unconditional_terminate)
+    if (!rv_tester_reset && unconditional_terminate && (cvm_plusargs::get_bool("savepoint_en") != '0))
       sysmod.sysmod_terminate();
   end
+`endif
+`endif
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 

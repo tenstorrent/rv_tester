@@ -125,6 +125,20 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (!m_rvfi.last_uop)
     return;
 
+  // RVDE-17736: Close the ncio fetch window at instruction boundaries.
+  // ncio bytes are volatile, so any line fetched in a prior window but not
+  // re-fetched in the current one must be evicted from whisper's snapshot.
+  // Using branch_tag change as the marker that the previous fetch stops
+  // supplying instruction bytes and a fresh non-speculative fetch is needed.
+  if ((!ncio_fetches_.empty()) || ncio_mem_transition_) {
+    if (m_rvfi.branch_tag != prev_branch_tag_) {
+      process_ncio_fetches(m_rvfi);
+    }
+    active_ncio_fetches_.clear();
+    ncio_mem_transition_ = false;
+  }
+  prev_branch_tag_ = m_rvfi.branch_tag;
+
   vec_cmode_ = false;
 
   // RVDE-24355: Clean up conservative mode memory errors when vec_cmode_ is cleared
@@ -416,9 +430,16 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   // RVDE-17736: Manage fetch/evict signaling for ncio region
   if (is_ncio(m.attr)) {
     auto it = std::find_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; });
+    bool active = std::find_if(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; }) != active_ncio_fetches_.end();
     if (it == ncio_fetches_.end()) {
+      // First fetch of this ncio line.
       bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
       ncio_fetches_.emplace_back(m);
+    } else if (!active) {
+      // Re-fetch in a new window: ncio bytes are volatile, so evict whisper's stale
+      // snapshot and re-read the current bytes instead of reusing the pa-dedup entry.
+      process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m.cycle, m_mcmi_ifetch_resp.hart, it->pa));
+      bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
     }
     active_ncio_fetches_.emplace_back(m);
   } else {
@@ -502,7 +523,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_
   }
 }
 
-void mcmi::process_ncio_fetches(const rv_instr_t& instr) {
+void mcmi::process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (terminated_ || in_reset_)
     return;
 
@@ -510,7 +531,7 @@ void mcmi::process_ncio_fetches(const rv_instr_t& instr) {
       std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
         bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
         if (evict)
-          process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+          process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m_rvfi.cycle, m_rvfi.hart, fetch.pa));
         return evict;
       }),
       ncio_fetches_.end());

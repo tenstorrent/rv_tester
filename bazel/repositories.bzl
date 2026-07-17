@@ -58,9 +58,9 @@ def rv_tester_repositories(_unused_bzlmod = False):
     maybe(
         git_repository,
         name = "whisper",
-        commit = "c349731df9bab5281d74ce862aebfcd72cd85f9e",
-        shallow_since = "1656867071 -0400",
-        remote = "https://aus-gitlab.local.tenstorrent.com/riscv/swerv-iss.git",
+        commit = "b50d320a0182a1bd6a869ec35acad1b19697c8f7",
+        shallow_since = "2026-07-15",
+        remote = "https://github.com/tenstorrent/whisper.git",
     )
 
     # Eager-declare @rules_python so `infra/bazel/dependencies.bzl` can

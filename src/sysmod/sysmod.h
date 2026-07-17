@@ -129,10 +129,4 @@ private:
   void set_secure_region(std::string region);
   void configure_uninit_read_callbacks();
   std::string get_set_csr_perf();
-
-  int terminate_blockers_ = 0;
-  std::optional<htif::terminate_t> pending_terminate_;
-  void block_terminate();
-  void unblock_terminate();
-  void finalize_terminate();
 };
