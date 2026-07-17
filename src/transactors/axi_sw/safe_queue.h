@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // https://stackoverflow.com/a/16075550
 #ifndef SAFE_QUEUE
 #define SAFE_QUEUE

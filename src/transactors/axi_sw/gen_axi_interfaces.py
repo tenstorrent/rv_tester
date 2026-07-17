@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Generate AXI interface definitions from topology configuration.
 This script creates SystemVerilog macros and typedefs for all AXI interfaces.

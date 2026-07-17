@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module rv_tester_delay_resp_tb_check #(
     parameter int unsigned TIMEOUT = 500,  // max cycles to wait after AR/AW for R/B response
     parameter int CW = 32

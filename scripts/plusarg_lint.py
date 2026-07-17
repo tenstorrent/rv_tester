@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 # Checks that plusargs are not duplicately defined
 # Assumes there's no declares in C/C++ files
 

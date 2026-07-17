@@ -1,0 +1,63 @@
+# REUSE (https://reuse.software) annotations for files that do not carry an
+# inline SPDX header. Hand-written C++/SystemVerilog/Python sources under src/
+# and test/ carry their own SPDX-FileCopyrightText / SPDX-License-Identifier
+# headers; the entries below cover everything else so the tree is 100 %
+# REUSE-compliant. Verified with `reuse lint`.
+version = 1
+
+# --- Build system, CI, config, tooling, data, and binary assets --------------
+# Bazel build/workspace/module files, Starlark, CI, shell/editor/tooling config,
+# test fixtures, and binary assets. All authored by Tenstorrent and licensed the
+# same as the rest of the project (Apache-2.0); they either have no natural place
+# for a comment header or are data/binary files.
+[[annotations]]
+path = [
+    ".bazelrc",
+    ".gitignore",
+    ".clang-format",
+    ".clang-format-ignore",
+    ".clang-tidy",
+    "WORKSPACE",
+    "WORKSPACE.bzlmod",
+    "MODULE.bazel",
+    "LICENSE_understanding.txt",
+    "NOTICE",
+    "**/*.bazel",
+    "**/*.bzl",
+    "**/*.yml",
+    "**/*.yaml",
+    "**/*.sh",
+    "**/*.vlt",
+    "**/*.patch",
+    "**/*.json",
+    "**/*.csv",
+    "**/*.txt",
+    "**/*.select",
+    "**/*.config",
+    "**/*.S",
+    "**/*.elf",
+    "**/*.png",
+    "**/*.graffle",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# --- Documentation (CC BY 4.0) -----------------------------------------------
+# Prose documentation is licensed under CC BY 4.0 (see LICENSE-DOCS), matching
+# the project's split between code (Apache-2.0) and docs.
+[[annotations]]
+path = ["**/*.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# --- Bundled IEEE 1800-2017 header (NOT Apache-2.0) --------------------------
+# Reproduced from the IEEE 1800-2017 SystemVerilog standard for DPI interface
+# compatibility. Remains IEEE property and is not covered by this project's
+# Apache-2.0 license. See LICENSES/LicenseRef-IEEE-1800-2017.txt.
+[[annotations]]
+path = ["src/common/svdpi.h"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Copyright IEEE. Reproduced from IEEE Std 1800-2017."
+SPDX-License-Identifier = "LicenseRef-IEEE-1800-2017"

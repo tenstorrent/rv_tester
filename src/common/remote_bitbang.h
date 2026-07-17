@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // See LICENSE.Berkeley for license details.
 
 #ifndef REMOTE_BITBANG_H

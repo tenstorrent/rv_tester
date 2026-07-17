@@ -1,4 +1,5 @@
-// Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 

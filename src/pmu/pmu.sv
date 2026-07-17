@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module pmu
   import rv_tester_params::*;
   import rv_tester_pkg::*;

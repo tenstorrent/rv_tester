@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include <cinttypes>
 #include "Vrv_tester_delay_resp_tb_top.h"
 #include "svdpi.h"

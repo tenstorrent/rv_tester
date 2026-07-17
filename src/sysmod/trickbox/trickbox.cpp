@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "cvm/plusargs.hpp"
 #include "src/sysmod/trickbox/trickbox.h"
 #include "sysmod_plusargs.h"

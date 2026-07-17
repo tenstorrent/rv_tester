@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // declarations for plusargs that other targets may need
 #include "cvm/plusargs.hpp"
 
