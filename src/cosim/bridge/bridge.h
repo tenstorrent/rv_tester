@@ -86,7 +86,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
   virtual void process_debug_haltreq(bool haltreq) override;
 
-  void reset(uint64_t restart_pc = 0);
+  void reset(bool rebuild_whisper = false);
   void csr_init();
 
   void final_phase();
@@ -142,7 +142,7 @@ private:
 private:
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed = false, bool page4kX = false, bool dut_opcode_rewritten = false);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed = false, bool page4kX = false, bool dut_opcode_modified = false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -217,6 +217,7 @@ private:
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
+  bool is_cracked_amocas(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
@@ -463,4 +464,5 @@ private:
   bool intr_partially_deferred_ = false;
   bool intr_undeferred_due_to_xret_intr_csr_ = false;
   bool nmi_undeferred_due_to_xret_intr_csr_ = false;
+  bool snapshot_taken = false;
 };

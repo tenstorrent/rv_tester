@@ -40,6 +40,8 @@ module rv_tester
   logic  profile5_clk [NCLKS-1:0];
   logic  profile6_clk [NCLKS-1:0];
 
+  bit rvt_reload_d1, rvt_reload_d2;
+
   logic fastest_clk;
   localparam bit [6:0][NCLKS-1:0][31:0] ALL_PROFILE_FREQS = {
                                                              PROFILE1_CLOCK_FREQ_MHZ,
@@ -116,7 +118,6 @@ module rv_tester
   import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
   import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
   import "DPI-C" context function bit rv_tester_flush_callbacks();
-  import "DPI-C" function longint unsigned eot_get_addr();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
 
@@ -189,6 +190,7 @@ module rv_tester
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
+  `CVM_REGISTRY_SET_SCOPE(location)
 
   bit gen_clocks = '0;
   bit gen_timestamp = '0;
@@ -284,9 +286,11 @@ module rv_tester
 
     quiesce_counter <= quiesce_counter + int'(terminate);
 
+`ifdef RV_TESTER_PMCI_ENABLE
     for (int i=0; i<NHARTS; i++) begin
       instructions  <= instructions + LU'(pmci[i][INSTRUCTIONS]);
     end
+`endif
 
     if (rv_tester_reset) begin
       quiesce_counter <= '0;
@@ -445,7 +449,6 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
-        eot_addr                        <= eot_get_addr();
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -476,6 +479,9 @@ module rv_tester
       num_reruns  <= cvm_plusargs::get_int("num_reruns");
     end
 
+    rvt_reload_d2 <= rvt_reload_d1;
+    rvt_reload_d1 <= rvt_reload;
+
   end
 
   /*
@@ -485,6 +491,15 @@ module rv_tester
    * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
    * issues with coinciding zDPIs from transactions.
    */
+`ifndef PALLADIUM_CAKE1X
+`ifndef ZEBU_TRIGGER
+  always @(posedge dut_clk[TB_CLK_IDX]) begin
+    if (!rv_tester_reset && unconditional_terminate && (cvm_plusargs::get_bool("savepoint_en") != '0))
+      sysmod.sysmod_terminate();
+  end
+`endif
+`endif
+
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
     automatic logic shutdowned = '0;
@@ -809,6 +824,7 @@ end
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .dut_reset(dut_reset[TB_CLK_IDX]),
                      .clocks,
+                     .rvt_reload_d2,
                      .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
                      .csri(csri[c]),
                      .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
@@ -908,49 +924,53 @@ end
     end
   end
 
-  for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
-    if (p == 0) begin : pmu_c0
-      pmu #(
-            .NUM(p),
-            .NRET(NRETS[p]),
-            .SC_PMCI_ENABLED(p == 0),
-            `TOPOLOGY_CFG,
-            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
-            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
-            ) pmu (
-                   .clk(dut_clk[CORE_CLK_IDX]),
-                   .sys_reset(sys_reset[CORE_CLK_IDX]),
-                   .reset(dut_reset[CORE_CLK_IDX]),
-                   .clocks,
-                   .pmci(pmci[p]),
-                   .hpmi(hpmi[p]),
-                   .sc_pmci(sc_pmci),
-                   .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                   .terminate(terminate_sync[CORE_CLK_IDX]),
-                   `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
-                   `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
-                   );
-    end else begin : pmu_cX
-      pmu #(
-            .NUM(p),
-            .NRET(NRETS[p]),
-            .SC_PMCI_ENABLED(p == 0),
-            `TOPOLOGY_CFG,
-            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
-            ) pmu (
-                   .clk(dut_clk[CORE_CLK_IDX]),
-                   .sys_reset(sys_reset[CORE_CLK_IDX]),
-                   .reset(dut_reset[CORE_CLK_IDX]),
-                   .clocks,
-                   .pmci(pmci[p]),
-                   .hpmi(hpmi[p]),
-                   .sc_pmci(),
-                   .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                   .terminate(terminate_sync[CORE_CLK_IDX]),
-                   `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
-                   );
+`ifdef RV_TESTER_PMCI_ENABLE
+  if (PMU_ENABLE) begin : pmu_en
+    for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
+      if (p == 0 && SC_PMCI_EN) begin : pmu_c0
+        pmu #(
+              .NUM(p),
+              .NRET(NRETS[p]),
+              .SC_PMCI_ENABLED(1'b1),
+              `TOPOLOGY_CFG,
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
+              ) pmu (
+                     .clk(dut_clk[CORE_CLK_IDX]),
+                     .sys_reset(sys_reset[CORE_CLK_IDX]),
+                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clocks,
+                     .pmci(pmci[p]),
+                     .hpmi(hpmi[p]),
+                     .sc_pmci(sc_pmci),
+                     .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+                     .terminate(terminate_sync[CORE_CLK_IDX]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+                     `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+                     );
+      end else begin : pmu_cX
+        pmu #(
+              .NUM(p),
+              .NRET(NRETS[p]),
+              .SC_PMCI_ENABLED(1'b0),
+              `TOPOLOGY_CFG,
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
+              ) pmu (
+                     .clk(dut_clk[CORE_CLK_IDX]),
+                     .sys_reset(sys_reset[CORE_CLK_IDX]),
+                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clocks,
+                     .pmci(pmci[p]),
+                     .hpmi(hpmi[p]),
+                     .sc_pmci(),
+                     .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+                     .terminate(terminate_sync[CORE_CLK_IDX]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+                     );
+      end
     end
   end
+`endif
 
   assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
   assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
@@ -972,8 +992,12 @@ end
                     };
 
   endfunction
-
   export "DPI-C" function rv_tester_set_address_map;
+
+  function automatic void rv_tester_set_eot_addr(longint unsigned addr);
+    eot_addr = addr;
+  endfunction
+  export "DPI-C" function rv_tester_set_eot_addr;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");

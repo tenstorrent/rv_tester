@@ -33,6 +33,7 @@ typedef struct whisper_state_s {
   bool stop = false;
   bool is_load = false;
   bool is_cancelled = false;
+  bool force_resynch = false;
 } whisper_state_t;
 
 // dut <-> bridge
@@ -201,7 +202,7 @@ typedef struct rv_instr_s {
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
-  bool opcode_rewritten = false;
+  bool opcode_modified = false;
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
@@ -253,7 +254,7 @@ typedef struct rv_instr_s {
     last_uop = true;
     comp = false;
     ucode = false;
-    opcode_rewritten = false;
+    opcode_modified = false;
     trap = false;
     trap_valid = false;
     nmi = false;
@@ -294,6 +295,7 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
+  uint64_t core_cycle;
   bool hw;
   std::bitset<64> mip;
   std::bitset<64> mip_set;

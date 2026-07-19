@@ -2,7 +2,7 @@
 # the URL. The image is built from cvm/Containerfile and contains no internal
 # Tenstorrent code; only the hosting URL is internal for now.
 image:
-    name: "aus-gitlab.local.tenstorrent.com:5005/riscv/dv/cvm:0.1.3"
+    name: "ghcr.io/tenstorrent/cvm:0.1.3"
 
 include:
   # TODO(open-source): drop the internal gitlab-definitions include along with
@@ -12,7 +12,6 @@ include:
     file: 'common-definitions.yml'
 
 stages:
-    - submodule_update
     - test
     - notify
 
@@ -100,12 +99,6 @@ tsan:
     after_script:
         - chmod +w -R ./bazel_output_user_root
     timeout: 3h
-
-submodule_update:
-    # TODO(open-source): drop when this repo no longer manages git submodules through the internal template.
-    stage: submodule_update
-    extends:
-        - .submodule-update-template
 
 # TODO(open-source): the notify_* jobs trigger an internal downstream pipeline. Drop when the repo is published.
 notify_riscv_cluster:

@@ -100,53 +100,53 @@ package rv_tester_params;
 
   typedef struct packed {
     logic                       valid    ;
-    logic [HARTLEN-1:0]         hart     ;
+    logic [HARTLEN-1:0]         hart     ; 
     logic [64-1:0]              order    ;
-    logic [64-1:0]              branch_tag;
+    logic [64-1:0]              branch_tag; // branch tracking tag
     logic [ILEN-1:0]            insn     ;
     logic                       trap     ;
-    logic [XLEN-1:0]            cause    ;
+    logic [XLEN-1:0]            cause    ; 
     logic                       halt     ;
     logic                       intr     ;
-    logic                       virt_mode;
+    logic                       virt_mode; 
     logic [4-1:0]               mode     ;
     logic [2-1:0]               ixl      ;
     logic [6-1:0]               rd_addr  ;
     logic [XLEN-1:0]            rd_wdata ;
-    logic                       frd_valid;
+    logic                       frd_valid;  
     logic [6-1:0]               frd_addr ;
-    logic [FLEN-1:0]            frd_wdata;
-    logic                       vrd_valid;
-    logic [6-1:0]               vrd_addr ;
-    logic [VLEN-1:0]            vrd_wdata;
-    logic                       vec      ;
+    logic [FLEN-1:0]            frd_wdata; 
+    logic                       vrd_valid; 
+    logic [6-1:0]               vrd_addr ; 
+    logic [VLEN-1:0]            vrd_wdata; 
+    logic                       vec      ; 
     logic                       flags_valid;
-    logic [5-1:0]               flags    ;
-    logic [CSRLEN-1:0]          csr_addr ;
+    logic [5-1:0]               flags    ; 
+    logic [CSRLEN-1:0]          csr_addr ; 
     logic [XLEN-1:0]            csr_wdata;
     logic [XLEN-1:0]            csr_wmask;
     logic [XLEN-1:0]            csr_rdata;
     logic [XLEN-1:0]            csr_rmask;
-    logic [VALEN-1:0]           pc_paddr ;
+    logic [VALEN-1:0]           pc_paddr ; 
     logic [VALEN-1:0]           pc_rdata ;
     logic [VALEN-1:0]           pc_wdata ;
-    logic                       pc_error ;
-    logic                       init_jalr_seen;
+    logic                       pc_error ; // PC fetch error
+    logic                       init_jalr_seen; // internal: capture the first jalr etc.
     logic [VALEN-1:0]           mem_addr ;
-    logic [PALEN-1:0]           mem_paddr;
+    logic [PALEN-1:0]           mem_paddr; 
     logic [(RDLEN/8)-1:0]       mem_rmask;
     logic [(RDLEN/8)-1:0]       mem_wmask;
     logic [RDLEN-1:0]           mem_rdata;
     logic [RDLEN-1:0]           mem_wdata;
-    logic [32-1:0]              mem_attr ;
-    logic                       mem_page4kX;
-    logic [32-1:0]              mem_page4kX_attr ;
-    logic                       mem_error;
-    logic                       comp     ;
-    logic [64-1:0]              uop      ;
-    logic                       last_uop ;
-    logic                       last_insn;
-    logic                       opcode_rewritten;
+    logic [32-1:0]              mem_attr ; // memory attributes
+    logic                       mem_page4kX; // is memory cross 4K page boundary?
+    logic [32-1:0]              mem_page4kX_attr ; // 4K page-crossing attributes
+    logic                       mem_error; // is a memory access error?
+    logic                       comp     ; // is a compressed instruction?
+    logic [64-1:0]              uop      ; 
+    logic                       last_uop ; // last uop in case of multi-op opcodes, for simple ops, always set.
+    logic                       last_insn; // last instruction in the same cycle
+    logic                       opcode_modified; // is opcode rewritten?
   } rvfi_t;
 
   // --------------------------------------
@@ -230,6 +230,12 @@ package rv_tester_params;
     logic valid;
   } event_trigger_t;
   typedef event_trigger_t [TRIGGER_COUNT-1:0] event_trigger_intf_t;
+  // --------------------------------------
+  // PMCI - Performance Monitoring Counters
+  // --------------------------------------
+  parameter bit PMU_ENABLE = mods.TOP.PLATFORM.PMCI.PMU_ENABLE == 1;
+  parameter bit SC_PMCI_EN = mods.TOP.PLATFORM.PMCI.SC_PMCI_ENABLED == 1;
+
   // --------------------------------------
   // CSRI - Control Status Registers
   // --------------------------------------
@@ -327,7 +333,7 @@ package rv_tester_params;
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_resp,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
   output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
-  `RV_TESTER_PMCI_PORTS(input, output, rv_tester_params),                                         \
+  `RV_TESTER_PMCI_PORTS(input, output, rv_tester_params)                                          \
   input  logic                             rv_tester_reset_,                                      \
   `RV_TESTER_AXI_PORTS(input, output, rv_tester_params),                                          \
   input  logic warm_reset_now,                                                   \

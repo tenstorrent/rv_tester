@@ -70,6 +70,7 @@ DEFINE_bool(flags_check, true, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 10000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
+DEFINE_bool(hyp_save_restore_en, true, "Save/restore hypervisor masked CSRs on misa.H transition");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -249,7 +250,7 @@ void bridge::configure() {
 // Destructor
 bridge::~bridge() {}
 
-void bridge::reset(uint64_t restart_pc) {
+void bridge::reset(bool rebuild_whisper) {
   auto& memmap_ = memmap::instance();
   if (!memmap::instance().parsed()) {
     error("Getting Memmap failed");
@@ -270,7 +271,7 @@ void bridge::reset(uint64_t restart_pc) {
 
   // Construct whisper for cosim API calls
   // API called "connect" due to legacy usage of whisper client/server connection made using sockets
-  if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), restart_pc) != 0) {
+  if (((id_ == 0) || rebuild_whisper) && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
@@ -667,7 +668,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Update cac with whisper state
   if (!psc_stepping_) {
     if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
-      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_rewritten);
+      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
     }
 
     // Update cac with dut state
@@ -884,7 +885,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !d.opcode_rewritten && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
+  if (FLAGS_insn_check && !d.comp && (!d.ucode || is_cracked_amocas(d.disasm)) && !d.opcode_modified && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -1410,7 +1411,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   step(hart, w);
   bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_rewritten);
+  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1457,7 +1458,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   }
 }
 
-void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_rewritten) {
+void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_modified) {
 
   w_.valid = true;
   w_.cycle = w.time;
@@ -1491,7 +1492,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_rewritten && (patch_mode_ == NO_PATCH))
+  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1629,11 +1630,13 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   // WdRiscv::CoreException::SnapshotAndStop not caught!
   catch (const WdRiscv::CoreException& ce) {
     if (ce.type() == WdRiscv::CoreException::Snapshot) {
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
+      if (!snapshot_taken && !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSnapshotSaveRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0))) {
         error("Hart {}: Failed to save whisper shanpshot\n", hart);
       }
       w.stop = 0;
       w.trap = 0;
+      w.force_resynch = true;
+      snapshot_taken = true;
       print_instr(hart, w);
       // continue simulation
       return;
@@ -1731,41 +1734,43 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           if (c.csr_wdata & 0x80) {
             if (!misa_h_) {
               // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
-              for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                bool valid = false;
-                uint64_t peek_value = 0;
-                uint64_t poke_value = 0;
-                if (addr == mip.address || addr == mvip.address) {
-                  if (addr == mvip.address)
-                    continue;
-                  uint64_t mvip_value = get_csr(id_, src_t::dut, mvip.address);
-                  mask = 0xffffffffffffffffULL;
-                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                  update_csr(hart, src_t::iss, mvip.address, mvip_value, mask, false, false);
-                  std::bitset<64> mip_bits;
-                  peek_mip(hart, d.cycle, mip_bits);
-                  auto old_mvip = mvip_;
-                  poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
-                  mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
-                  poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
-                  tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
-                  bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
+              if (FLAGS_hyp_save_restore_en) {
+                for (const auto& [addr, value] : hypervisor_masked_csrs_) {
+                  bool valid = false;
+                  uint64_t peek_value = 0;
+                  uint64_t poke_value = 0;
+                  if (addr == mip.address || addr == mvip.address) {
+                    if (addr == mvip.address)
+                      continue;
+                    uint64_t mvip_value = get_csr(id_, src_t::dut, mvip.address);
+                    mask = 0xffffffffffffffffULL;
+                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                    update_csr(hart, src_t::iss, mvip.address, mvip_value, mask, false, false);
+                    std::bitset<64> mip_bits;
+                    peek_mip(hart, d.cycle, mip_bits);
+                    auto old_mvip = mvip_;
+                    poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
+                    mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
+                    poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
+                    tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
+                    bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
 
-                } else {
-                  mask = 0xffffffffffffffffULL;
-                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
-                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                    return;
-                  }
-                  poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
-                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
-                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                    return;
-                  }
-                  if (addr == medeleg.address) {
-                    mask = 0xF00400;
-                    update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                  } else {
+                    mask = 0xffffffffffffffffULL;
+                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                      return;
+                    }
+                    poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
+                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
+                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                      return;
+                    }
+                    if (addr == medeleg.address) {
+                      mask = 0xF00400;
+                      update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
+                    }
                   }
                 }
               }
@@ -1776,11 +1781,13 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           } else {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
-              for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                if (addr == mip.address)
-                  hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
-                else
-                  hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+              if (FLAGS_hyp_save_restore_en) {
+                for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
+                  if (addr == mip.address)
+                    hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
+                  else
+                    hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+                }
               }
             }
             misa_h_ = 0;
@@ -2069,6 +2076,10 @@ bool bridge::is_cracked_csr(const std::string& instr) {
   return false;
 }
 
+bool bridge::is_cracked_amocas(const std::string& instr) {
+  return instr.find("amocas") != std::string::npos;
+}
+
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
   uint32_t cluster_id = 0;
 
@@ -2092,6 +2103,9 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
 
   // Whisper cancelled post-trigger instruction that DUT completed
   if (w.is_cancelled && !d.excp && !d.intr)
+    return true;
+
+  if (w.force_resynch)
     return true;
 
   // TODO: Revisit when Whisper models icount/step trigger interactions correctly.
@@ -2818,9 +2832,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   std::bitset<64> non_std_intr = 0;
   for (auto ir : {uint64_t(LO_PRI_RASI), uint64_t(HI_PRI_RASI), uint64_t(i.buserr_bit), uint64_t(C_HWAI)}) {
     if (i.mip_clr[ir] && !i.hw) {
-      sw_intr_clear_cycle_[ir] = i.cycle;
+      sw_intr_clear_cycle_[ir] = i.core_cycle;
     }
-    if (i.mip_set[ir] && sw_intr_clear_cycle_[ir] == (i.cycle - 1)) {
+    if (i.mip_set[ir] && sw_intr_clear_cycle_[ir] == (i.core_cycle - 1)) {
       bridge_log(cvm::HIGH, "<{}> MIP[{}] SW cleared in the last cycle, HW asserted in this cycle. Poking to Whisper.\n", i.cycle, ir);
       non_std_intr |= std::bitset<64>(1ULL << ir);
     }

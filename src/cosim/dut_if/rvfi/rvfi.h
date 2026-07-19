@@ -119,6 +119,7 @@ private:
   //---------------------------------------------------------------------------------------------------------
   //#define USE_OLD_CODE 1
   bool ucode_ = false;
+  bool opcode_modified_ = false;
   bool nmi_ = false;
   bool intr_ = false;
   bool intr_virt_mode_ = false;

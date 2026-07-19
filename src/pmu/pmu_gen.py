@@ -52,7 +52,6 @@ def parse_sc_csv(data_str: str) -> List[Dict[Any, Any]]:
     ]
     return parse_pmc_csv(data_str, core=False, synthetic=synthetic)
 
-CONTROL_SIGNALS = ["perf_start", "perf_end", "terminate", "overflow", "sync"]
 IGNORE_NAMES = ["cpu_cycles", "instructions", "branch_instructions", "tb_cycles", "sc_tb_cycles"]
 
 
@@ -124,58 +123,22 @@ def create_cpp_frag(core_events, sc_events, path="gen_events.hpp"):
 
 
 def build_events_sv(core_events, sc_events):
-    """Build the combined SystemVerilog events fragment (core + sc) as a
-    string. Shared by the standalone fragment and the inlined pmu.sv."""
+    """Build the auto-generated per-event counter assigns (core + sc)."""
     tab = "    "
-    out = f"""
-localparam MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 32;
-parameter OVERFLOW_BIT = {pmcounter_dpi_width} - 1;
-parameter OVERFLOW_BIT_EXTRA = 2;
-logic overflow;
-logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-
-if (OVERFLOW_BIT < ($clog2(MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE) + 1))
-    $fatal(1, "The selected overflow bit cannot cover the maximum value change of a counter within a single clock cycle.");
-
-assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
-assign pmcounters_cores[0].data.location = location;
-    assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
-    assign pmcounters_cores[0].data.cpu_cycles = {pmcounter_dpi_width}'(cpu_cycles);
-    assign pmcounters_cores[0].data.instructions = {pmcounter_dpi_width}'(pmcounter[INSTRUCTIONS]);
-    assign pmcounters_cores[0].data.branch_instructions = {pmcounter_dpi_width}'(branch_instructions);
-    assign pmcounters_cores[0].data.perf_start = perf_start;
-    assign pmcounters_cores[0].data.perf_end = perf_end;
-    assign pmcounters_cores[0].data.terminate = terminate;
-    assign pmcounters_cores[0].data.overflow = overflow;
-    assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
-"""
+    out = ""
     for event in core_events:
         name = event["name"]
         if name in IGNORE_NAMES:
             continue
-        out += f"{tab}assign pmcounters_cores[0].data.{name} = {pmcounter_dpi_width}'(pmcounter[{name.upper()}]);\n"
+        out += f"assign pmcounters_cores[0].data.{name} = {pmcounter_dpi_width}'(pmcounter[{name.upper()}]);\n"
 
-    out += """
-    generate
-        if (SC_PMCI_ENABLED == 1) begin
-             assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
-             assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
-             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
-             assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
-             assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
-             assign pmcounters_scs[0].data.terminate_sc = terminate;
-             assign pmcounters_scs[0].data.overflow_sc = pmcounters_cores[0].data.overflow;
-             assign pmcounters_scs[0].data.sync_sc = pmcounters_cores[0].data.sync;
-"""
+    out += "\ngenerate\n    if (SC_PMCI_ENABLED == 1) begin\n"
     for event in sc_events:
         name = event["name"]
         if name in IGNORE_NAMES:
             continue
-        out += f"{tab * 3}assign pmcounters_scs[0].data.{name} = {pmcounter_dpi_width}'(sc_pmci[{name.upper()}]);\n"
-    out += """
-        end
-    endgenerate
-"""
+        out += f"{tab * 2}assign pmcounters_scs[0].data.{name} = {pmcounter_dpi_width}'(sc_pmci[{name.upper()}]);\n"
+    out += "    end\nendgenerate\n"
     return out
 
 def create_sv_frag(core_events, sc_events, path="gen_events.svh"):
@@ -226,27 +189,31 @@ def create_pmu_defines_frag(path="gen_pmu_defines.sv"):
     mirroring RV_TESTER_AXI_PORTS/VARS. All signals are rv_tester outputs."""
     tab = "    "
     f = open(path, "w")
+    f.write("`ifndef RV_TESTER_PMCI_DISABLE\n")
+    f.write("`define RV_TESTER_PMCI_ENABLE\n")
+    f.write("`endif\n\n")
+    f.write("`ifdef RV_TESTER_PMCI_ENABLE\n")
     f.write("`define RV_TESTER_PMCI_PORTS(input, output, pkg) \\\n")
     f.write(f"{tab}output pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0], \\\n")
     f.write(f"{tab}output pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0], \\\n")
-    f.write(f"{tab}output pmu_pkg::sc_pmci_t sc_pmci\n\n")
+    f.write(f"{tab}output pmu_pkg::sc_pmci_t sc_pmci,\n\n")
     f.write("`define RV_TESTER_PMCI_VARS(pkg) \\\n")
     f.write(f"{tab}pmu_pkg::pmci_t    pmci    [pkg::NHARTS-1:0]; \\\n")
     f.write(f"{tab}pmu_pkg::hpmi_t    hpmi    [pkg::NHARTS-1:0]; \\\n")
     f.write(f"{tab}pmu_pkg::sc_pmci_t sc_pmci;\n")
+    f.write("`else\n")
+    f.write("`define RV_TESTER_PMCI_PORTS(input, output, pkg)\n")
+    f.write("`define RV_TESTER_PMCI_VARS(pkg)\n")
+    f.write("`endif\n")
     f.close()
 
 
-def write_yaml_anchor(f, anchor, events, control_signals):
-    """Write one YAML anchor of counter fields + control signals."""
+def write_yaml_anchor(f, anchor, events):
     tab = "    "
     f.write(f"_{anchor}: &{anchor}\n")
     for event in events:
         f.write(f"{tab}{event['name']}:\n")
         f.write(f"{tab * 2}width: {pmcounter_dpi_width}\n")
-    for sig in control_signals:
-        f.write(f"{tab}{sig}:\n")
-        f.write(f"{tab * 2}width: 1\n")
 
 
 def create_yaml_frag(core_events, sc_events, path="gen_events.yaml"):
@@ -255,9 +222,8 @@ def create_yaml_frag(core_events, sc_events, path="gen_events.yaml"):
     Each anchor is merged into rv_tester_transactions.yml via YAML merge
     syntax (<<: *anchor); packet_gen ignores anchors (no 'num' field)."""
     f = open(path, 'w')
-    write_yaml_anchor(f, "pmcounters_core_fields", core_events, CONTROL_SIGNALS)
-    write_yaml_anchor(f, "pmcounters_sc_fields", sc_events,
-                       [s + "_sc" for s in CONTROL_SIGNALS])
+    write_yaml_anchor(f, "pmcounters_core_fields", core_events)
+    write_yaml_anchor(f, "pmcounters_sc_fields", sc_events)
     f.close()
 
 
