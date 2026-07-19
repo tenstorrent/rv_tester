@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
 #include <sstream> // stringstream

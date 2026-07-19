@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "axi_sw_mst.h"
 
 DEFINE_bool(axi_allow_slverr_resp, false, "Allow Slave error responses on axi_mst transactions");

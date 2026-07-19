@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // See LICENSE for license details.
 
 #ifndef _RISCV_SPIKE_H

@@ -25,3 +25,40 @@ The main components involved here are:
 - **Termination & rerun** — Aggregates termination sources (DUT, cosim, sysmod/HTIF, DMI timeout, errors), drives a graceful quiesce/drain handshake, prints PASS metrics, and supports rerunning or warm-resetting a test.
 - **Performance & monitoring** — Periodic and end-of-test performance calculation, instruction counting, and clock monitoring.
 - **Interrupts, triggers & PMU** — Generate interrupts and event triggers to the core and model its performance counters.
+
+## Getting Started
+
+rv_tester builds with [Bazel](https://bazel.build/) (bzlmod).
+
+```sh
+# Build the exported targets
+bazel build //...
+
+# Run the tests
+bazel test //test/...
+```
+
+Nested READMEs under `src/` (e.g. `src/cosim/`, `src/sysmod/`) document
+individual subsystems in more detail.
+
+## Contributing
+
+Contributions are welcome! Bug reports and feature requests are handled via
+[GitHub Issues](https://github.com/tenstorrent/rv_tester/issues), and changes
+are submitted via pull requests (reviewed weekly). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for build/test instructions and contribution
+standards, and note that this project follows the
+[Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). To report a security
+vulnerability, follow the process in [SECURITY.md](SECURITY.md).
+
+## License
+
+- [LICENSE](LICENSE) (Apache-2.0) — Overall license for this project, except where specified.
+- [LICENSE-DOCS](LICENSE-DOCS) (CC-BY-4.0) — License for all documentation and images only.
+- [LICENSE_understanding.txt](LICENSE_understanding.txt) — Tenstorrent's clarification of how the Apache-2.0 license applies to this repository.
+
+This repository is [REUSE](https://reuse.software) compliant; per-file license
+and copyright information is provided via inline SPDX headers and
+[REUSE.toml](REUSE.toml). Third-party components (e.g. the PCG random library
+and the IEEE 1800-2017 DPI header) retain their own licenses as recorded in
+[NOTICE](NOTICE).

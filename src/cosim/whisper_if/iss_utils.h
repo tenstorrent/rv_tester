@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "whisper_client.h"
 #include "cosim/utils/util.h"
 #include "whisper_decoder.h"

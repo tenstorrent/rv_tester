@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module rv_tester_clkgen #(
                           parameter int CLOCK_FREQ_MHZ = 2000,
                           parameter int FASTEST_FREQ_MHZ = 2000

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "external_interrupt_sequence.hpp"
 #include "sysmod_plusargs.h"
 #include "rv_tester_plusargs.h"

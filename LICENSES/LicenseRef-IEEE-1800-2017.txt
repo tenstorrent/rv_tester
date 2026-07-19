@@ -1,0 +1,20 @@
+IEEE 1800-2017 SystemVerilog PLI/DPI Headers
+============================================
+
+The files annotated with this license identifier are reproduced from the
+IEEE Std 1800-2017 (SystemVerilog) standard — specifically the Direct
+Programming Interface (DPI, Annex I) and the Verification Procedural
+Interface / Programming Language Interface (VPI/PLI) header definitions.
+
+These headers are the property of the IEEE. They are bundled here solely for
+interface compatibility so that the project's DPI/VPI code can be compiled
+against the standard-defined ABI. They are NOT covered by the Apache License,
+Version 2.0, that applies to the rest of this project.
+
+Copyright of these files remains with the IEEE (Institute of Electrical and
+Electronics Engineers). Redistribution and use are governed by the terms of
+the IEEE 1800-2017 standard rather than by this repository's license.
+
+This is a LicenseRef placeholder recorded for REUSE compliance to make the
+provenance and licensing status of these bundled files explicit; it does not
+grant any additional rights.

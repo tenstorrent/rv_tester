@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "src/sysmod/heartbeat/heartbeat.h"
 
 DEFINE_int32(heartbeat_period, 5000, "Cycles between heartbeat messages. Set to 0 to turn off");

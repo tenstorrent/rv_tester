@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module rv_tester_cdc_pulse (
                             input  logic        clk_a,            // Clock domain A
                             input  logic        clk_b,            // Clock domain B

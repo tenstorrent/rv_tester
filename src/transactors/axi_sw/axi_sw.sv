@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // can't call a function from a function in DPI export on palladium
 `define AXI_SW_DPI_FIFO_PUSH(name, D, data, rptr)              \
     if (1) begin                                               \

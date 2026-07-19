@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // vim: ft=c et ts=2 sw=0 sts
 
 #include <iostream>
