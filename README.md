@@ -8,7 +8,9 @@ This repository contains the verification collateral needed to interface with a 
 
 The DUT (the RISC-V core under test) is surrounded with everything needed to boot, stimulate, observe, and check the core. As the core executes, its retired instructions and memory ordering events are checked instruction-by-instruction against Whisper, while its bus traffic is serviced by a software system model of the surrounding platform.
 
+![RV_TESTER architecture](doc/rv_tester.png)
 
+RV_TESTER was accepted to RISC-V North America Summit 2025, wherein it was present as a poster!
 
 The main components involved here are:
 
@@ -19,7 +21,7 @@ The main components involved here are:
 - **AXI SW (transactor)** — Receives requests from the RISC-V CPU AXI bus and creates C++ transactions.
 - **AXI MST SW** — Converts C++ transactions into SystemVerilog bus-level activity.
 - **Sysmod** — System model that divides the address space per the memmap and routes requests to device models. See `[src/sysmod/](src/sysmod/README.md)`.
-- **Devices (CLINT, TRICKBOX, HTIF, DM, ...)** — Model device-specific functionality.
+- **Devices (CLINT, HTIF, DM, ...)** — Model device-specific functionality.
 - **Clocking & reset** — Per-domain clock generation, optional glitch-free clock-profile muxing for dynamic frequency switching, external-clock support, and cold/warm reset sequencing (including DUT-requested warm resets) across clock domains.
 - **Lifecycle & DPI bring-up** — Parses plusargs, seeds randomization, builds and tears down the `C++` object registry, and orders DPI initialization against reset so the `C++` side is ready before the core leaves reset.
 - **Termination & rerun** — Aggregates termination sources (DUT, cosim, sysmod/HTIF, DMI timeout, errors), drives a graceful quiesce/drain handshake, prints PASS metrics, and supports rerunning or warm-resetting a test.
