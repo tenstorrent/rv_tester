@@ -28,15 +28,24 @@ The main components involved here are:
 
 ## Getting Started
 
-rv_tester builds with [Bazel](https://bazel.build/) (bzlmod).
+rv_tester builds with [Bazel](https://bazel.build/) 7 in bzlmod mode. Every
+invocation must pass `--config=bzlmod` (see `.bazelrc`); without it Bazel uses
+the legacy WORKSPACE path, which does not wire up all dependencies (e.g.
+`@rules_verilator`) and fails to load.
 
 ```sh
-# Build the exported targets
-bazel build //...
+# Build everything
+bazel-7 build //... --config=bzlmod
 
-# Run the tests
-bazel test //test/...
+# Build and run the tests
+bazel-7 test //test/... --config=bzlmod
 ```
+
+These mirror CI: the `smoke` job (the `smoke` entry of the `test` matrix in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and runs the test
+suite with `bazel-7 test //test/... --config=bzlmod --build_tests_only`, so a
+green `bazel-7 test //test/...` locally reproduces the CI smoke result. CI also
+runs the same recipe under `asan+ubsan` and `tsan`.
 
 Nested READMEs under `src/` (e.g. `src/cosim/`, `src/sysmod/`) document
 individual subsystems in more detail.
