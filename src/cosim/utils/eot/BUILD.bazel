@@ -16,7 +16,12 @@ cc_library(
     deps = [
         "@CoreArchChecker//src:cac_lib",
         "//src/common/device_address_map:device_address_map",
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@cvm//:topology",
     ],
     alwayslink = True,
+    tags = ["manual"],
     visibility = ["//visibility:public"],
 )

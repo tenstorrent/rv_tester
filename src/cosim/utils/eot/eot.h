@@ -5,7 +5,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/registry.hpp"
-#include "cvm/callbacks.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
 

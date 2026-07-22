@@ -9,6 +9,9 @@ __pycache__
 /regressions
 /build
 
+# Sphinx documentation build output
+/docs/_build
+
 # Stray run-time artifacts from local simulator invocations
 /heartbeat.log
 /iss_cmd.log
