@@ -1,4 +1,4 @@
-build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
+build --cxxopt=-std=c++23 --host_cxxopt=-std=c++23
 build --action_env=CC=clang --action_env=CXX=clang++ --host_action_env=CC=clang --host_action_env=CXX=clang++
 
 # Bazel-7 / bzlmod invocations opt in via --config=bzlmod. Sets both the
