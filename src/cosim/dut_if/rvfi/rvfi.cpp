@@ -773,7 +773,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
                                 (csr_addr_check >= 0x323) && (csr_addr_check <= 0x32A) &&
                                 instr.ucode && !instr.last_uop;
 
-  if (!instr.ucode || !cracked_gprs_.empty()) {
+  if ((!instr.ucode || !cracked_gprs_.empty()) && instr.last_uop) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
     std::string csr_replaced_instr = instr_dis;
     uint32_t csr_opcode = instr.opcode & 0x7F;
@@ -788,6 +788,8 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
       std::string csr_replaced_instr, dummy_mhpmevent_instr = whisper::disassemble(instr.opcode);
       get_csr_name_instr(dummy_mhpmevent_instr, csr_replaced_instr);
       dut_log += fmt::format(" {} (microcode)", csr_replaced_instr);
+    } else if (instr.disasm.substr(0, 7) == "illegal") {
+      dut_log += " (microcode)";
     } else {
       dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
     }

@@ -670,7 +670,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Update cac with whisper state
   if (!psc_stepping_) {
     if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
-      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
+      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified, d.ucode);
     }
 
     // Update cac with dut state
@@ -1413,7 +1413,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   step(hart, w);
   bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
+  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified, d.ucode);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1460,7 +1460,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   }
 }
 
-void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_modified) {
+void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_modified, bool dut_ucode) {
 
   w_.valid = true;
   w_.cycle = w.time;
@@ -1494,7 +1494,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
+  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !dut_ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
