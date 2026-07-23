@@ -595,9 +595,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
             cosim_util::is_csr_opcode(m_rvfi.insn, csr_addr) &&
             (csr_addr >= 0x323) && (csr_addr <= 0x32A);
         if (!is_dummy_mhpmevent) {
-          cracked_gpr_.valid = true;
-          cracked_gpr_.rd_addr = m_rvfi.rd_addr;
-          cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+          cracked_gprs_.emplace_back(true, m_rvfi.rd_addr, m_rvfi.rd_wdata);
         }
       }
       // This is for print in the rvfi log
@@ -682,10 +680,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   // GPR
-  if (cracked_gpr_.valid) {
-    instr.gpr.emplace_back(true, cracked_gpr_.rd_addr, cracked_gpr_.rd_wdata);
-    cracked_gpr_.valid = false;
+  for (auto& g : cracked_gprs_) {
+    instr.gpr.emplace_back(true, g.rd_addr, g.rd_wdata);
   }
+  cracked_gprs_.clear();
 
   // VR
   if (!cracked_vrs_.empty()) {
@@ -775,7 +773,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
                                 (csr_addr_check >= 0x323) && (csr_addr_check <= 0x32A) &&
                                 instr.ucode && !instr.last_uop;
 
-  if (!instr.ucode || cracked_gpr_.valid) {
+  if (!instr.ucode || !cracked_gprs_.empty()) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
     std::string csr_replaced_instr = instr_dis;
     uint32_t csr_opcode = instr.opcode & 0x7F;
