@@ -14,8 +14,8 @@ genrule(
 
 cc_library(
     name = "axi",
-    srcs = [ "axi.cpp" ],
-    hdrs = [ "axi.h", "safe_queue.h" ],
+    srcs = [ "axi.cpp", "eam.cpp" ],
+    hdrs = [ "axi.h", "eam.hpp", "safe_queue.h" ],
     deps = [
         "@rv_tester//src/common:transactor",
         "@rv_tester//src:plusargs",
