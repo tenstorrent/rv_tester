@@ -94,4 +94,4 @@ cc_library(
     include_prefix = "axi_sw",
     visibility = ["//visibility:public"],
 )
-exports_files(["safe_queue.h", "axi_sw.h"] + glob(["axi_sw*", "axi.*", "gen_axi_interfaces.py"]))
+exports_files(["safe_queue.h", "axi_sw.h"] + glob(["axi_sw*", "axi.*", "eam.*", "gen_axi_interfaces.py"]))

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "eam.hpp"
+#include "src/transactors/axi_sw/eam.hpp"
 #include "cvm/logger.hpp"
 
 eam& eam::instance() {
@@ -10,12 +10,15 @@ eam& eam::instance() {
 }
 
 bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
+  // AxCACHE is deliberately NOT compared: cache_mem_attr_t is the decoded
+  // AxCACHE attribute, and the allocate-hint bits carry read-channel vs
+  // write-channel meaning (e.g. WB_RA on AR vs WB_WA on AW for the same
+  // region), so a legal LR/SC pair can legitimately differ here. It is still
+  // captured in the entry for debug.
   return e.rsv_addr == rsv_base(a.addr) &&
          e.len == a.len &&
          e.burst == a.burst &&
-         e.size == a.size &&
-         e.prot == a.prot &&
-         e.cache == a.cache;
+         e.prot == a.prot;
 }
 
 void eam::span(const axi::a_t& a, axi::addr_t& first, axi::addr_t& last) {

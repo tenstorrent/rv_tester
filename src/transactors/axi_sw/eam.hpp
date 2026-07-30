@@ -4,7 +4,7 @@
 #pragma once
 #include <array>
 #include <cstddef>
-#include "axi.h"
+#include "src/transactors/axi_sw/axi.h"
 
 // AXI Exclusive Access Monitor (EAM).
 //
