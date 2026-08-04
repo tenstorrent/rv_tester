@@ -43,7 +43,9 @@ std::uint8_t axi_sw_reset_ptrs(cvm::topology::loc_t loc) {
   // dropped. Calling these exports from within this DPI *import* is ZeBu-legal.
   axi_sw_r_reset();
   axi_sw_b_reset();
-  cvm::registry::messenger.signal<axi_sw_reset_t>(loc, {});
+  // This is a context import, so svGetScope() is our instance's scope. Hand it
+  // to the transactor for the direct DPI export calls in r_dpi()/b_dpi().
+  cvm::registry::messenger.signal<axi_sw_reset_t>(loc, axi_sw_reset_t{svGetScope()});
   return 0;
 }
 

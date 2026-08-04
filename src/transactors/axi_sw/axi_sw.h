@@ -71,7 +71,12 @@ void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::
 }
 } // namespace _axi_sw
 
-struct axi_sw_reset_t {};
+// Carries the SV scope of the axi_sw instance. r_dpi()/b_dpi() call the DPI
+// exports directly rather than through cvm::registry::callbacks, so nothing
+// else sets the scope for us on the synchronous read flush path.
+struct axi_sw_reset_t {
+  svScope scope;
+};
 
 struct axi_sw_defs {
 
@@ -283,6 +288,12 @@ private:
     std::unique_lock<std::mutex> l{r_dpi_mutex_, std::defer_lock};
     if (!l.try_lock())
       return;
+    // This runs on whichever thread flushed the messenger queue, so the scope
+    // is not necessarily ours. r_dpi() calls the DPI export directly, so set it.
+    if (scope_)
+      svSetScope(scope_);
+    else
+      cvm::log(cvm::ERROR, "[axi_sw] Error: scope_ not set before synchronous read flush\n");
     int sent = 0;
     while (r_dpi())
       sent++;
@@ -374,6 +385,7 @@ private:
     }
   }
 
+  svScope scope_ = nullptr;
   cvm::topology::loc_t loc_;
   unsigned id_;
   std::string name_;
@@ -403,26 +415,27 @@ private:
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_ / 8, r.id, r.last, d);
 
     uint16_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
-    auto dw = data_width_;
 
-    cvm::registry::callbacks.push(loc_, [r, latency, dw]() {
-      switch (dw) {
-      case 64:
-        _axi_sw::axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      case 128:
-        _axi_sw::axi_sw_r_16(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      case 256:
-        _axi_sw::axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      case 512:
-        _axi_sw::axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      default:
-        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
-      }
-    });
+    // Call the DPI export directly. Deferring it onto cvm::registry::callbacks
+    // gives the read response unbounded latency under +cb_async, which defeats
+    // the +axi_sw_read_latency_fixed timeout: the RTL requests a flush on time
+    // but the response is not delivered until the async thread drains the queue.
+    switch (data_width_) {
+    case 64:
+      _axi_sw::axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 128:
+      _axi_sw::axi_sw_r_16(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 256:
+      _axi_sw::axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 512:
+      _axi_sw::axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    default:
+      cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    }
 
     return true;
   }
@@ -445,9 +458,7 @@ private:
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
     uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
-    cvm::registry::callbacks.push(loc_, [b, latency]() {
-      _axi_sw::axi_sw_b(b.id, b.resp, latency);
-    });
+    _axi_sw::axi_sw_b(b.id, b.resp, latency);
     return true;
   }
 
@@ -480,7 +491,10 @@ public:
     axi_ = new axi(data_width, loc, name_);
     cvm::registry::messenger.connect<axi_sw_reset_t>(
         loc_,
-        [this](const auto&) { return this->reset_ptrs(); });
+        [this](const axi_sw_reset_t& m) {
+          scope_ = m.scope;
+          return this->reset_ptrs();
+        });
 
     std::tie(std::ignore, add_latency_min_, add_latency_max_) = _axi_sw::get_uint64_pair(FLAGS_axi_sw_add_response_latency_range);
 
