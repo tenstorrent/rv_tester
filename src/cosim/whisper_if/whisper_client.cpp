@@ -38,6 +38,8 @@ DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_
 DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_string(whisper_stdin, "", "Redirect whisper stdin");
+DEFINE_bool(whisper_redirect_stdin_in_cosim, false,
+            "Allow embedded Whisper to redirect process stdin in cosim");
 DEFINE_string(whisper_stdout, "", "Redirect whisper stdout");
 DEFINE_string(whisper_stderr, "", "Redirect whisper stderr");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -130,6 +132,7 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperMcmDWritebackRPC>(loc_, [this](int hart, uint64_t time, uint64_t addr, bool& valid) { return this->whisperMcmDWriteback(hart, time, addr, valid); });
   // Add MCM Dfetch RPC
   cvm::registry::messenger.procedure<whisperMcmDFetchRPC>(loc_, [this](int hart, uint64_t time, uint64_t addr, bool& valid) { return this->whisperMcmDFetch(hart, time, addr, valid); });
+  cvm::registry::messenger.procedure<whisperMcmDecodeRPC>(loc_, [this](int hart, uint64_t time, uint64_t tag, uint64_t addr, unsigned size, bool& valid) { return this->whisperMcmDecode(hart, time, tag, addr, size, valid); });
   cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc_, [this](int hart, uint64_t time, bool& valid) { return this->whisperMcmEnd(hart, time, valid); });
   cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc_, [this](int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) { return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid); });
   cvm::registry::messenger.procedure<whisperPokeRPC>(loc_, [this](int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool cache, bool skipmem, bool& valid) { return this->whisperPoke(hart, time, resource, addr, value, cache, skipmem, valid); });
@@ -166,6 +169,10 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
   args_str.insert(args_str.end(), {"--config", config_file});
   args_str.insert(args_str.end(), {"--cores", std::to_string(ncores)});
+
+  // Embedded cosim must never consume simv's stdin.  UCLI2Proc owns it.
+  if (!standalone && !FLAGS_whisper_redirect_stdin_in_cosim)
+    args_str.push_back("--noconinput");
   args_str.insert(args_str.end(), {"--nmivec", std::to_string(getNmiPc())});
   args_str.insert(args_str.end(), {"--nmevec", std::to_string(getNmiExceptionPc())});
 
@@ -214,10 +221,15 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   else if (!standalone)
     args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
 
-  if (FLAGS_whisper_stdin != "")
-    args_str.insert(args_str.end(), {"--stdin", FLAGS_whisper_stdin});
-  else if (!standalone)
+  if (FLAGS_whisper_stdin != "") {
+    if (standalone || FLAGS_whisper_redirect_stdin_in_cosim) {
+      args_str.insert(args_str.end(), {"--stdin", FLAGS_whisper_stdin});
+    } else {
+      cvm::log(cvm::MEDIUM, "Ignoring +whisper_stdin in embedded cosim to preserve simv stdin\n");
+    }
+  } else if (!standalone && FLAGS_whisper_redirect_stdin_in_cosim) {
     args_str.insert(args_str.end(), {"--stdin", "/dev/null"});
+  }
 
   if (FLAGS_stee_secure_region != "")
     args_str.insert(args_str.end(), {"--steesr", FLAGS_stee_secure_region});
@@ -984,6 +996,25 @@ bool whisperClient<URV>::whisperMcmDFetch(int hart, uint64_t time, uint64_t addr
 
   valid = reply.type != WhisperMessageType::Invalid;
   cvm::log(cvm::FULL, "dfetch valid : {}\n", valid);
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperMcmDecode(int hart, uint64_t time, uint64_t tag, uint64_t addr,
+                                          unsigned size, bool& valid) {
+  req.hart = hart;
+  req.type = WhisperMessageType::McmDecode;
+  req.time = time;
+  req.instrTag = tag;
+  req.address = addr;
+  req.size = size;
+
+  if (not whisperCommand(req, reply)) {
+    return false;
+  }
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  cvm::log(cvm::FULL, "decode valid : {}\n", valid);
   return true;
 }
 

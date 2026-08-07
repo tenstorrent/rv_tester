@@ -161,13 +161,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (loc_ != m_rvfi.location)
     return;
 
-  if (patch_mode_) {
-    if (!patch_mode_first_tag_) {
-      patch_mode_first_tag_ = m_rvfi.order;
-    }
-    if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
-      patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
-  }
+  // patch_mode_first_tag_ is captured from the patch trap (the trigger's tag),
+  // not from the first ucode record here. See rvfi::process(m_trap) for ecause 60.
 
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
@@ -275,6 +270,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       if (FLAGS_cosim)
         bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
+      if (FLAGS_patch_mode_tag_override)
+        patch_mode_first_tag_ = m_trap.order; // trigger tag (mc_excp.Tag), not a ucode tag
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
@@ -507,7 +504,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       patch_mode_ = true;
 
       if (FLAGS_patch_mode_tag_override) {
-        patch_mode_first_tag_ = m_rvfi.order;
+        // Preserve the trigger tag captured at the patch trap (ecause 60); only
+        // fall back to this ucode record for a pure ucode-initiated patch entry.
+        if (!patch_mode_first_tag_)
+          patch_mode_first_tag_ = m_rvfi.order;
         instr.tag = patch_mode_first_tag_;
       }
     }
@@ -547,6 +547,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       if (FLAGS_cosim)
         bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
+      // Preserve the trigger tag captured at the patch trap (ecause 60); only
+      // fall back to this ucode record for a pure ucode-initiated patch entry.
+      if (FLAGS_patch_mode_tag_override && !patch_mode_first_tag_)
+        patch_mode_first_tag_ = m_rvfi.order;
     }
     instr.priv = m_rvfi.mode;
     if (instr.ucode && (m_rvfi.mode != priv_)) {
@@ -826,7 +830,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt: {})", (instr.icause != 0 || !intr_virt_mode_) ? intr_name(instr.icause) : std::to_string(instr.icause));
+    dut_log += fmt::format(" (interrupt: {})", (instr.icause != 0 || !intr_virt_mode_) ? intr_name((instr.icause + static_cast<int>(intr_virt_mode_))) : std::to_string(instr.icause));
 
   if (instr.excp)
     dut_log += fmt::format(" (exception: {})", excp_name(instr.ecause));

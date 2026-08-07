@@ -438,6 +438,21 @@ cosim:
             addr:
                 width: ${TOP.PLATFORM.PALEN}
     
+    m_mcmi_decode:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NDECODES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 8
+
     m_mcmi_devict:
         domain: 1
         num: 1

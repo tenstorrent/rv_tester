@@ -193,7 +193,7 @@ module rv_tester
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
-  `CVM_REGISTRY_SET_SCOPE(location)
+  import "DPI-C" context function int cvm_registry_set_scope(int unsigned location);
 
   bit gen_clocks = '0;
   bit gen_timestamp = '0;
@@ -421,6 +421,11 @@ module rv_tester
       begin
         $display("[RVTESTER]: new test");
         _ = rv_tester_parse_flags();
+        /* RVDE-31919 CVM_REGISTRY_SET_SCOPE
+        * The macro makes zEMI3 insert a 3-state cvm_registry_set_scope service state machine as the first machine in <inst>tester, shifting every other one down a slot.
+        * That retiming makes the always block miss the one-cycle deposited rv_tester_reset pulse → reset branch never runs → registry never built → hang at cycle ~11-12 with core_no_fetch stuck high.
+        */
+        _ = cvm_registry_set_scope(location);
         if (num_resets < 0)
           rv_tester_set_seed();
         rv_tester_cvm_error_handler();
@@ -815,6 +820,7 @@ end
             .NBYPASS(NBYPASSES[c]),
             .NIFETCH(NIFETCHES[c]),
             .NIEVICT(NIEVICTS[c]),
+            .NDECODE(NDECODES[c]),
             .NCSRI(MAX_NCSRI),
             .NoAddrRules(NoAddrRules),
             .rule_t(xbar_rule_t),
@@ -837,6 +843,7 @@ end
                      .mcmi_ifetch_req(mcmi_ifetch_req[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
                      .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
                      .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
+                     .mcmi_decode(mcmi_decode[NDECODES_CUMSUM[c] +: NDECODES[c]]),
                      .nmi_pend(nmi_pend[c]),
                      .interrupt_pend(interrupt_pend[c]),
                      .mtime(mtime),
@@ -1004,6 +1011,13 @@ end
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
+  end
+
+  always @(posedge dut_clk[TB_CLK_IDX]) begin
+    if (!rv_tester_reset) begin
+      terminate_never_unknown: assert(!$isunknown(terminate))
+        else $error("<%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
+    end
   end
 
 endmodule

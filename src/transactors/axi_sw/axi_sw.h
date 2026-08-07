@@ -65,6 +65,7 @@ inline bool axi_sw_destroyed = false;
 extern "C" {
 void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
 void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+void axi_sw_r_16(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
 }
@@ -402,23 +403,23 @@ private:
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_ / 8, r.id, r.last, d);
 
     uint16_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
-    auto dw = data_width_;
 
-    cvm::registry::callbacks.push(loc_, [r, latency, dw]() {
-      switch (dw) {
-      case 64:
-        _axi_sw::axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      case 256:
-        _axi_sw::axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      case 512:
-        _axi_sw::axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
-        break;
-      default:
-        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
-      }
-    });
+    switch (data_width_) {
+    case 64:
+      _axi_sw::axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 128:
+      _axi_sw::axi_sw_r_16(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 256:
+      _axi_sw::axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    case 512:
+      _axi_sw::axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
+      break;
+    default:
+      cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+    }
 
     return true;
   }
@@ -441,9 +442,7 @@ private:
     cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
 
     uint8_t latency = cvm::rand::lcg::generate<uint64_t>(add_latency_max_ - add_latency_min_) + add_latency_min_;
-    cvm::registry::callbacks.push(loc_, [b, latency]() {
-      _axi_sw::axi_sw_b(b.id, b.resp, latency);
-    });
+    _axi_sw::axi_sw_b(b.id, b.resp, latency);
     return true;
   }
 

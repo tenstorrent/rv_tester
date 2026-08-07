@@ -36,6 +36,7 @@ void mcmi::configure() {
       rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
       rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
       rv_tester_transactions::cosim::m_mcmi_ievict<>,
+      rv_tester_transactions::cosim::m_mcmi_decode<>,
       rv_tester_transactions::cosim::m_mcmi_devict<>,
       rv_tester_transactions::cosim::m_mcmi_flush<>,
       rv_tester_transactions::cosim::m_mcmi_writeback<>,
@@ -467,6 +468,30 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
 
+void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_decode<>& m_mcmi_decode) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (patch_fetch_access(m_mcmi_decode.addr))
+    return;
+
+  if (debug_fetch_access(m_mcmi_decode.addr))
+    return;
+
+  // A line-crossing 4B instruction arrives as two size-2 fragments sharing one
+  // tag, so each fragment is just an independent call - no special casing here.
+  const unsigned size = std::popcount(m_mcmi_decode.mask);
+
+  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm decode tag : {}, addr : {:#x}, size : {}\n",
+           m_mcmi_decode.order, m_mcmi_decode.addr, size);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDecodeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_decode.hart, m_mcmi_decode.cycle, m_mcmi_decode.order, m_mcmi_decode.addr, size, valid) || !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm decode for tag : {}, address : {:#x} , cycle : {}\n", m_mcmi_decode.hart, m_mcmi_decode.order, m_mcmi_decode.addr, m_mcmi_decode.cycle);
+    return;
+  }
+}
+
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
   if (terminated_ || in_reset_)
     return;
@@ -561,6 +586,20 @@ bool mcmi::patch_access(uint64_t addr) {
     if (addr == (pcontrol0 + (i * 0x10000)))
       return true;
   return false;
+}
+
+// mdecode ONLY. patch_mode_ filters handler code wherever c_ptvec relocated it;
+// the address window covers decodes before patch_mode_ latches. Kept separate
+// from patch_access() so other MCM events are unaffected.
+bool mcmi::patch_fetch_access(uint64_t addr) {
+  if (patch_mode_)
+    return true;
+  return addr >= patch_ram_lo && addr < patch_ram_hi;
+}
+
+// mdecode ONLY. Drop DM-window decodes so whisper keeps the poked debug opcode.
+bool mcmi::debug_fetch_access(uint64_t addr) {
+  return addr >= debug_mem_lo && addr < debug_mem_hi;
 }
 
 bool mcmi::is_ncio(uint32_t mem_attr) {

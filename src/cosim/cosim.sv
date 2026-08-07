@@ -108,6 +108,7 @@ module cosim
     parameter int NBYPASS = 1,
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
+    parameter int NDECODE = 1,
     parameter int NCSRI = 1,
     parameter type rule_t = axi_pkg::xbar_rule_64_t,
     parameter int unsigned NoAddrRules = 20,
@@ -131,6 +132,7 @@ module cosim
       input mcmi_t [NIFETCH-1:0] mcmi_ifetch_req,
       input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
       input mcmi_t [NIEVICT-1:0] mcmi_ievict,
+      input mcmi_t [NDECODE-1:0] mcmi_decode,
       input rv_tester_pkg::nmi_t nmi_pend,
       input rv_tester_params::interrupt_pend_t interrupt_pend,
       input rv_tester_pkg::mtimeMmr_t mtime,
@@ -281,6 +283,7 @@ module cosim
   bit [NREAD-1:0]   mcmi_read_pokes;
   bit [NINSERT-1:0] mcmi_insert_pokes;
   bit [NIEVICT-1:0] mcmi_ievict_pokes;
+  bit [NDECODE-1:0] mcmi_decode_pokes;
 
 
   bit csrrw_valid;
@@ -432,7 +435,6 @@ module cosim
   bit [PA_WIDTH-1:0] debug_exit_pc;
   longint unsigned debug_entry_pc_offset_arg;
   longint unsigned debug_exit_pc_offset_arg;
-  int hart_enable_mask;
   int nharts;
   longint unsigned hart;
   bit boot_wfi;
@@ -1394,6 +1396,19 @@ end
     assign mcmi_ievict_pokes[n] = mcmi_ievict[n].valid;
   end
 
+  // m_mcmi_decode - per-instruction-fragment I$ read (coherent I-cache)
+  for (genvar n = 0; n < NDECODE; n++) begin
+    assign m_mcmi_decodes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_decode[n].valid;
+    assign m_mcmi_decodes[n].data.location = location;
+    assign m_mcmi_decodes[n].data.cycle = mcmi_decode[n].valid ? clocks : '0;
+    assign m_mcmi_decodes[n].data.hart = NUM;
+    assign m_mcmi_decodes[n].data.order = mcmi_decode[n].order;
+    assign m_mcmi_decodes[n].data.addr = mcmi_decode[n].addr;
+    // size travels as popcount(mask), same idiom as m_mcmi_read/insert/bypass
+    assign m_mcmi_decodes[n].data.mask = mcmi_decode[n].mask[7:0];
+    assign mcmi_decode_pokes[n] = mcmi_decode[n].valid;
+  end
+
   // m_mcmi_devict
   assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
   assign m_mcmi_devicts[0].data.location = location;
@@ -1617,7 +1632,6 @@ end
       cosim_period <= cvm_plusargs::get_int("cosim_period");
       max_instructions <= cvm_plusargs::get_ulongint("max_instr");
       nharts <= cvm_plusargs::get_int("num_harts");
-      hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
       //mcm_value  = cvm_plusargs::get_int("mcm");

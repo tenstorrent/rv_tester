@@ -162,18 +162,21 @@ package rv_tester_params;
   parameter TOTAL_NBYPASSES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NBYPASSES : 1;
   parameter TOTAL_NIFETCHES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NIFETCHES : 1;
   parameter TOTAL_NIEVICTS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NIEVICTS : 1;
+  parameter TOTAL_NDECODES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NDECODES : 1;
   parameter bit [NHARTS-1:0][31:0] NREADS = mods.TOP.PLATFORM.COSIM.MCMI.NREADS;
   parameter bit [NHARTS-1:0][31:0] NINSERTS = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS;
   parameter bit [NHARTS-1:0][31:0] NWRITES = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES;
   parameter bit [NHARTS-1:0][31:0] NBYPASSES = mods.TOP.PLATFORM.COSIM.MCMI.NBYPASSES;
   parameter bit [NHARTS-1:0][31:0] NIFETCHES = mods.TOP.PLATFORM.COSIM.MCMI.NIFETCHES;
   parameter bit [NHARTS-1:0][31:0] NIEVICTS = mods.TOP.PLATFORM.COSIM.MCMI.NIEVICTS;
+  parameter bit [NHARTS-1:0][31:0] NDECODES = mods.TOP.PLATFORM.COSIM.MCMI.NDECODES;
   parameter bit [NHARTS-1:0][31:0] NREADS_CUMSUM   = mods.TOP.PLATFORM.COSIM.MCMI.NREADS_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NINSERTS_CUMSUM = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NWRITES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NBYPASSES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NBYPASSES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NIFETCHES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NIFETCHES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NIEVICTS_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NIEVICTS_CUMSUM;
+  parameter bit [NHARTS-1:0][31:0] NDECODES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NDECODES_CUMSUM;
 
   typedef struct packed {
     logic                       valid;
@@ -335,6 +338,7 @@ package rv_tester_params;
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_req,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_resp,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
+  output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NDECODES-1:0]   mcmi_decode,  \
   output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
   `RV_TESTER_PMCI_PORTS(input, output, rv_tester_params)                                          \
   input  logic                             rv_tester_reset_,                                      \
@@ -406,6 +410,7 @@ package rv_tester_params;
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIFETCHES-1:0]   mcmi_ifetch_req; \
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIFETCHES-1:0]   mcmi_ifetch_resp; \
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
+  rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NDECODES-1:0]    mcmi_decode; \
   rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
   `RV_TESTER_PMCI_VARS(rv_tester_params)                                                          \
   `RV_TESTER_AXI_VARS(rv_tester_params)                                                           \

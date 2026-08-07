@@ -60,17 +60,10 @@ DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-// DCLS
-DEFINE_bool(dcls_en, false, "Enable DCLS i.e. Dual core lockstep mode");
 //core harvesting
-//FIXME: Move these defines to cluster_rv_tester/harvesting_agent.cpp once all rv_tester deps are moved
-DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could ie 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
-// SC harvesting
-//FIXME: Move these defines to cluster_rv_tester/harvesting_agent.cpp once all rv_tester deps are moved
-DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
 //Fuse
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(ntrace_enable, true, "Trace enable fuse");

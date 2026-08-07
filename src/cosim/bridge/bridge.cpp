@@ -1153,6 +1153,8 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
   if (d.intr) {
+    uint64_t dut_intr_bit = d.icause + (d.virt_mode ? 1 : 0);
+    intr_during_trap_.reset(dut_intr_bit);
     defer_interrupt(hart, d.cycle, 0 | intr_during_trap_.to_ullong());
     if (intr_during_trap_.to_ullong() != 0)
       intr_partially_deferred_ = true;
