@@ -162,7 +162,7 @@ def create_pmu_pkg(core_events, sc_events, path="gen_pmu_pkg.sv"):
         f.write(f"{tab}{tab}{event['name'].upper()},\n")
     f.write(f"{tab}{tab}EVENT_COUNT\n")
     f.write(f"{tab}}} pmc_event_t;\n\n")
-    f.write(f"{tab}typedef logic [3:0] pmc_counter_t;\n")
+    f.write(f"{tab}typedef logic [7:0] pmc_counter_t;\n")
     f.write(f"{tab}typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;\n\n")
     f.write(f"{tab}typedef enum {{\n")
     for i in range(3, 11):
