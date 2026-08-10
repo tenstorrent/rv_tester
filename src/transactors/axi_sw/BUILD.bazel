@@ -52,10 +52,33 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+# RPC tag types only -- no rv_tester_transactions.hpp, so a caller that just
+# pushes transactions to the AXI master can depend on this without taking the
+# project-generated packet dependency that axi_sw_mst.h needs.
+cc_library(
+    name = "axi_sw_mst_rpc",
+    hdrs = [ "axi_sw_mst_rpc.h", "axi.h", "safe_queue.h" ],
+    deps = [
+        "@rv_tester//src/common:transactor",
+        "@rv_tester//src:plusargs",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:messenger",
+        "@cvm//:random",
+        "@fmt//:fmt"
+    ],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "axi_sw_mst",
     hdrs = [ "axi_sw_mst.h", "axi_sw_mst_plusargs.h", "axi.h", "safe_queue.h" ],
     deps = [
+        ":axi_sw_mst_rpc",
         "@rv_tester//src/common:transactor",
         "@rv_tester//src:plusargs",
         "@cvm//:plusargs",

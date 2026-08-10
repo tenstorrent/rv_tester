@@ -10,6 +10,7 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "src/transactors/axi_sw/axi.h"
+#include "src/transactors/axi_sw/axi_sw_mst_rpc.h"
 
 class mmr_txn_router : public device {
 public:
@@ -23,6 +24,7 @@ public:
 private:
   cvm::topology::loc_t axi_mst_loc_l;
   cvm::messenger::pool<axi::r_t>::channel_info channel;
+  size_t data_width_ = 0;
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

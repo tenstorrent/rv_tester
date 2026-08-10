@@ -8,6 +8,7 @@ cc_library(
     srcs = glob(["mmr_txn_router.cpp"]),
     deps = [
         "//src/transactors/axi_sw:axi_sw_h",
+        "//src/transactors/axi_sw:axi_sw_mst_rpc",
         "//src/sysmod:device",
         "@mem_manager//:mem_manager",
         "//src/common:common",

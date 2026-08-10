@@ -7,6 +7,7 @@
 #include <variant>
 #include <typeinfo>
 #include "src/transactors/axi_sw/axi.h"
+#include "src/transactors/axi_sw/axi_sw_mst_rpc.h"
 
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
@@ -506,9 +507,11 @@ public:
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;
   }
-  CVM_MESSENGER_procedure_call(push_ar_no_id_rpc, bool(const axi::a_no_id_t& ar, axi::id_t& id));
-  CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool(const axi::a_no_id_t& aw, axi::id_t& id));
-  CVM_MESSENGER_procedure_call(push_w_rpc, void(const axi::w_t& w));
+  // Declared in axi_sw_mst_rpc.h so a caller need not name this instantiation;
+  // re-exported here to keep axi_sw_mst<...>::push_ar_no_id_rpc spellings valid.
+  using push_ar_no_id_rpc = ::push_ar_no_id_rpc;
+  using push_aw_no_id_rpc = ::push_aw_no_id_rpc;
+  using push_w_rpc = ::push_w_rpc;
+  using free_aw_ids_rpc = ::free_aw_ids_rpc;
   CVM_MESSENGER_procedure_call(try_lock_rpc, lock_t());
-  CVM_MESSENGER_procedure_call(free_aw_ids_rpc, unsigned());
 };

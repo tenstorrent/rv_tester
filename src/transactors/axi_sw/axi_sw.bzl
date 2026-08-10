@@ -177,6 +177,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//src/transactors/axi_sw:axi_sw_plusargs.h",
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst.h",
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst_plusargs.h",
+            "@rv_tester//src/transactors/axi_sw:axi_sw_mst_rpc.h",
             "@rv_tester//src/transactors/axi_sw:axi.h",
             "@rv_tester//src/transactors/axi_sw:safe_queue.h",
         ],
