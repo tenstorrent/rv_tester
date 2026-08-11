@@ -157,12 +157,14 @@ def create_pmu_pkg(core_events, sc_events, path="gen_pmu_pkg.sv"):
     f.write(f"{tab}// --------------------------------------\n")
     f.write(f"{tab}// PMCI - Performance Monitoring Counters\n")
     f.write(f"{tab}// --------------------------------------\n")
+    f.write(f"{tab}parameter PMCOUNTER_DPI_WIDTH = {pmcounter_dpi_width};\n")
+    f.write(f"{tab}parameter CORE_COUNTER_HI = 8;\n\n")
     f.write(f"{tab}typedef enum {{\n")
     for event in core_events:
         f.write(f"{tab}{tab}{event['name'].upper()},\n")
     f.write(f"{tab}{tab}EVENT_COUNT\n")
     f.write(f"{tab}}} pmc_event_t;\n\n")
-    f.write(f"{tab}typedef logic [7:0] pmc_counter_t;\n")
+    f.write(f"{tab}typedef logic [CORE_COUNTER_HI-1:0] pmc_counter_t;\n")
     f.write(f"{tab}typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;\n\n")
     f.write(f"{tab}typedef enum {{\n")
     for i in range(3, 11):
