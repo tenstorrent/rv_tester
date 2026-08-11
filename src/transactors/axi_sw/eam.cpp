@@ -46,7 +46,48 @@ eam::~eam() {
   if (FLAGS_metrics) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_declined_exclusive_read_count\": \"{}\"}}\n", declined_excl_read_count_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_forced_fail_exclusive_write_count\": \"{}\"}}\n", forced_fail_excl_write_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_tb_fail_exclusive_write_count\": \"{}\"}}\n", tb_fail_excl_write_count_);
   }
+}
+
+// Reprogramming either operand starts a new injection window: a test arms
+// tb_fail_en_ once and then drives a sequence of LR/SC loops, programming
+// tb_fail_addr_/tb_fail_cnt_ before each one. Without this reset the injected
+// count would carry over from the previous loop and the new loop would see
+// fewer than tb_fail_cnt_ failures.
+void eam::set_tb_fail_addr(uint64_t addr) {
+  tb_fail_addr_ = addr;
+  tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_addr set to {:#x}\n", addr);
+}
+
+void eam::set_tb_fail_cnt(uint64_t cnt) {
+  tb_fail_cnt_ = cnt;
+  tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_cnt set to {}\n", cnt);
+}
+
+void eam::set_tb_fail_en(bool en) {
+  tb_fail_en_ = en;
+  if (en)
+    tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_en set to {} (tb_fail_addr={:#x}, tb_fail_cnt={})\n",
+           en, tb_fail_addr_, tb_fail_cnt_);
+}
+
+bool eam::tb_fail_excl_write(const axi::a_t& a) {
+  if (!tb_fail_en_ || tb_fail_cnt_ == 0)
+    return false;
+  if (uint64_t(a.addr) != tb_fail_addr_)
+    return false;
+  if (tb_fail_injected_ >= tb_fail_cnt_)
+    return false;
+
+  tb_fail_injected_++;
+  tb_fail_excl_write_count_++;
+  cvm::log(cvm::HIGH, "[eam] tb injected exclusive write fail: id={}, addr={:#x}, injected={}/{}\n",
+           a.id, a.addr, tb_fail_injected_, tb_fail_cnt_);
+  return true;
 }
 
 bool eam::decline_excl_read() {
@@ -161,7 +202,10 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   const bool was_valid = e.valid;
   // DV knob: force-fail this exclusive write per the 'n:e' pattern.
   const bool forced_fail = pattern_fail_excl_write();
-  const bool pass = was_valid && fields_match(e, a) && !forced_fail;
+  // Trickbox injection: fails the exclusive write regardless of whether a
+  // valid reservation exists, for the programmed number of occurrences.
+  const bool tb_fail = tb_fail_excl_write(a);
+  const bool pass = was_valid && fields_match(e, a) && !forced_fail && !tb_fail;
   // Count writes that would have passed but were failed solely by forced_fail.
   if (forced_fail && was_valid && fields_match(e, a))
     forced_fail_excl_write_count_++;
@@ -174,8 +218,8 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   } else {
     v.allow_write = false;
     v.resp = axi::RESP_OKAY;
-    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}\n",
-             index(a.id), a.id, a.addr, was_valid, forced_fail);
+    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}\n",
+             index(a.id), a.id, a.addr, was_valid, forced_fail, tb_fail);
   }
   return v;
 }

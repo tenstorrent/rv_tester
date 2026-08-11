@@ -29,6 +29,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new dma("dma", addr + 0x90000, 1, loc, m_);
   subdevices_.emplace_back(sub);
+  sub = new eam_helper("eam_helper", addr + 0x92000, 1, loc);
+  subdevices_.emplace_back(sub);
   sub = new post_si_pcietc_helper("post_si_pcietc_helper", addr + 0x1000000, 1, loc);
   subdevices_.emplace_back(sub);
 }

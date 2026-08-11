@@ -55,7 +55,26 @@ public:
   // dequeued and before the beat loop.
   eam_verdict on_addr(const axi::a_t& a);
 
+  // Trickbox (eam_helper) programmable knobs. Currently only stored/reported;
+  // no behavioural effect on the reservation table yet.
+  // The expected programming sequence from a test is: set the LR/SC loop
+  // address, set the (randomised) fail count, then arm the mechanism with
+  // set_tb_fail_en(true) so that counting only starts once both operands are
+  // stable.
+  void set_tb_fail_addr(uint64_t addr);
+  void set_tb_fail_cnt(uint64_t cnt);
+  void set_tb_fail_en(bool en);
+  uint64_t tb_fail_addr() const { return tb_fail_addr_; }
+  uint64_t tb_fail_cnt() const { return tb_fail_cnt_; }
+  bool tb_fail_en() const { return tb_fail_en_; }
+
 private:
+  // Returns true if this exclusive write must be failed by the trickbox
+  // injection mechanism: tb_fail_en_ is armed, the address matches
+  // tb_fail_addr_ exactly and fewer than tb_fail_cnt_ failures have been
+  // injected since the last arming. Consumes one count.
+  bool tb_fail_excl_write(const axi::a_t& a);
+
   eam();
   ~eam();
 
@@ -84,7 +103,15 @@ private:
   unsigned pattern_fail_ = 0;
   unsigned excl_wr_count_ = 0;
 
+  // Programmed by the trickbox eam_helper subdevice.
+  uint64_t tb_fail_addr_ = 0;
+  uint64_t tb_fail_cnt_ = 0;
+  bool tb_fail_en_ = false;
+  // Number of failures injected since tb_fail_en_ was last written to 1.
+  uint64_t tb_fail_injected_ = 0;
+
   // Metrics.
   uint64_t declined_excl_read_count_ = 0;
   uint64_t forced_fail_excl_write_count_ = 0;
+  uint64_t tb_fail_excl_write_count_ = 0;
 };

@@ -24,6 +24,7 @@
 #include "src/sysmod/trickbox/io_coh_helper.h"
 #include "src/sysmod/trickbox/ras_helper.h"
 #include "src/sysmod/trickbox/dma.h"
+#include "src/sysmod/trickbox/eam_helper.h"
 #include "src/sysmod/trickbox/post_si_pcietc_helper.h"
 #include <mem_manager.h>
 
