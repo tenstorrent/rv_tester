@@ -4,7 +4,13 @@
 #pragma once
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <string>
+#include "cvm/plusargs.hpp"
 #include "src/transactors/axi_sw/axi.h"
+
+DECLARE_int32(eam_decline_excl_pct);
+DECLARE_string(eam_pass_invalidate_ratio);
 
 // AXI Exclusive Access Monitor (EAM).
 //
@@ -50,7 +56,16 @@ public:
   eam_verdict on_addr(const axi::a_t& a);
 
 private:
-  eam() = default;
+  eam();
+  ~eam();
+
+  // Returns true if this exclusive read should be declined per
+  // +eam_decline_excl_pct.
+  bool decline_excl_read();
+
+  // Returns true if this exclusive write must be failed per the "n:e" pattern
+  // of +eam_pass_invalidate_ratio. Advances the mod-(n+e) counter.
+  bool pattern_fail_excl_write();
 
   static std::size_t index(axi::id_t id) { return id % NUM_ENTRIES; }
   static axi::addr_t rsv_base(axi::addr_t addr) { return addr & ~(RSV_BYTES - 1); }
@@ -63,4 +78,13 @@ private:
   void invalidate_overlaps(const axi::a_t& a);
 
   std::array<eam_entry, NUM_ENTRIES> t_{};
+
+  // +eam_pass_invalidate_ratio = "n:e": n successes then e failures, repeating.
+  unsigned pattern_pass_ = 1;
+  unsigned pattern_fail_ = 0;
+  unsigned excl_wr_count_ = 0;
+
+  // Metrics.
+  uint64_t declined_excl_read_count_ = 0;
+  uint64_t forced_fail_excl_write_count_ = 0;
 };

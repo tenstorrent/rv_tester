@@ -3,10 +3,65 @@
 
 #include "src/transactors/axi_sw/eam.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
+#include "rv_tester_plusargs.h"
+
+DEFINE_int32(eam_decline_excl_pct, 0, "Percentage of exclusive reads (ARLOCK) the EAM declines: no reservation is taken and OKAY is returned instead of EXOKAY");
+DEFINE_string(eam_pass_invalidate_ratio, "1:0", "Exclusive write (AWLOCK) pass/fail pattern in format 'n:e': n exclusive writes succeed, then e are failed (reservation invalidated), repeating");
 
 eam& eam::instance() {
   static eam inst;
   return inst;
+}
+
+eam::eam() {
+  const std::string& p = FLAGS_eam_pass_invalidate_ratio;
+  const size_t delim = p.find(':');
+  if (delim == std::string::npos) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    return;
+  }
+
+  try {
+    pattern_pass_ = std::stoul(p.substr(0, delim));
+    pattern_fail_ = std::stoul(p.substr(delim + 1));
+  } catch (const std::exception&) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    pattern_pass_ = 1;
+    pattern_fail_ = 0;
+    return;
+  }
+
+  if (pattern_pass_ + pattern_fail_ == 0) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' must have n+e greater than zero\n", p);
+    pattern_pass_ = 1;
+    pattern_fail_ = 0;
+  }
+
+  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}\n",
+           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_);
+}
+
+eam::~eam() {
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_declined_exclusive_read_count\": \"{}\"}}\n", declined_excl_read_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_forced_fail_exclusive_write_count\": \"{}\"}}\n", forced_fail_excl_write_count_);
+  }
+}
+
+bool eam::decline_excl_read() {
+  if (FLAGS_eam_decline_excl_pct <= 0)
+    return false;
+
+  const uint64_t r = cvm::rand::lcg::generate<uint64_t>(100);
+  return int32_t(r) < FLAGS_eam_decline_excl_pct;
+}
+
+bool eam::pattern_fail_excl_write() {
+  const unsigned period = pattern_pass_ + pattern_fail_;
+  const unsigned phase = excl_wr_count_ % period;
+  excl_wr_count_ = (excl_wr_count_ + 1) % period;
+  return phase >= pattern_pass_;
 }
 
 bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
@@ -72,6 +127,18 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
     if (!a.lock)
       return v;
 
+    // DV knob: randomly decline the exclusive read. No reservation is taken
+    // (and any stale one for this ID is dropped) so a later SC cannot pass.
+    if (decline_excl_read()) {
+      declined_excl_read_count_++;
+      t_[index(a.id)].valid = false;
+      cvm::log(cvm::HIGH, "[eam] exclusive read declined (+eam_decline_excl_pct={}): entry={}, id={}, addr={:#x}\n",
+               FLAGS_eam_decline_excl_pct, index(a.id), a.id, a.addr);
+      v.override_resp = true;
+      v.resp = axi::RESP_OKAY;
+      return v;
+    }
+
     // Exclusive read: install/overwrite the reservation for this ID.
     eam_entry& e = t_[index(a.id)];
     e = eam_entry{true, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache};
@@ -92,7 +159,12 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   // Exclusive write: only its own entry can grant success.
   eam_entry& e = t_[index(a.id)];
   const bool was_valid = e.valid;
-  const bool pass = was_valid && fields_match(e, a);
+  // DV knob: force-fail this exclusive write per the 'n:e' pattern.
+  const bool forced_fail = pattern_fail_excl_write();
+  const bool pass = was_valid && fields_match(e, a) && !forced_fail;
+  // Count writes that would have passed but were failed solely by forced_fail.
+  if (forced_fail && was_valid && fields_match(e, a))
+    forced_fail_excl_write_count_++;
   e.valid = false;
 
   v.override_resp = true;
@@ -102,8 +174,8 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   } else {
     v.allow_write = false;
     v.resp = axi::RESP_OKAY;
-    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}\n",
-             index(a.id), a.id, a.addr, was_valid);
+    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}\n",
+             index(a.id), a.id, a.addr, was_valid, forced_fail);
   }
   return v;
 }

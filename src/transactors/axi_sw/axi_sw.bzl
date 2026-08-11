@@ -191,6 +191,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
           "@cvm//:logger",
           "@cvm//:bitmanip",
           "@cvm//:messenger",
+          "@cvm//:random",
           packet + "_cc",
         ],
         alwayslink = True,
