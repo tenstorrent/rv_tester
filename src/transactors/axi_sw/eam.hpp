@@ -11,6 +11,7 @@
 
 DECLARE_int32(eam_decline_excl_pct);
 DECLARE_string(eam_pass_invalidate_ratio);
+DECLARE_uint64(eam_reservation_ttl);
 
 // AXI Exclusive Access Monitor (EAM).
 //
@@ -36,6 +37,9 @@ struct eam_entry {
   axi::sz_t size = axi::sz_t(0);
   axi::prot_t prot = axi::prot_t(0);
   axi::cache_mem_attr_t cache = axi::cache_mem_attr_t(0);
+  // TB clock count at which the reservation was taken, used by
+  // +eam_reservation_ttl. Zero when the knob is disabled.
+  uint64_t rsv_cycle = 0;
 };
 
 struct eam_verdict {
@@ -86,6 +90,14 @@ private:
   // of +eam_pass_invalidate_ratio. Advances the mod-(n+e) counter.
   bool pattern_fail_excl_write();
 
+  // Current TB clock count, fetched from SV. Returns 0 (no DPI call) when
+  // +eam_reservation_ttl is disabled or the rv_tester scope is not registered.
+  static uint64_t current_cycles();
+
+  // Returns true if the reservation has been held for at least
+  // +eam_reservation_ttl cycles and must therefore fail the exclusive write.
+  bool ttl_expired(const eam_entry& e, uint64_t now);
+
   static std::size_t index(axi::id_t id) { return id % NUM_ENTRIES; }
   static axi::addr_t rsv_base(axi::addr_t addr) { return addr & ~(RSV_BYTES - 1); }
   static bool fields_match(const eam_entry& e, const axi::a_t& a);
@@ -114,4 +126,5 @@ private:
   uint64_t declined_excl_read_count_ = 0;
   uint64_t forced_fail_excl_write_count_ = 0;
   uint64_t tb_fail_excl_write_count_ = 0;
+  uint64_t ttl_fail_excl_write_count_ = 0;
 };

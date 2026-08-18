@@ -123,6 +123,8 @@ module rv_tester
   import "DPI-C" context function bit rv_tester_flush_callbacks();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
+  // Registers this scope in the EAM so that it can call rv_tester_get_clocks().
+  import "DPI-C" context function void eam_register_scope();
 
   localparam int unsigned MaxInFlightReadReq = topology.TOP.PLATFORM.MAX_IN_FLIGHT_READ_REQ;
   localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
@@ -439,6 +441,7 @@ module rv_tester
             $display("[RVTESTER]: constructing registry for domain:0 (without DM Model and others)");
             rv_tester_domain0_build_registry();
           end
+          eam_register_scope();
         end
         rv_tester_parse_memmap(NoAddrRules, 0, 0, 0, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ADDR_WIDTH, topology.TOP.PLATFORM.AXI_SW[AXI_IDX].DATA_WIDTH);
   
@@ -1001,6 +1004,13 @@ end
     eot_addr = addr;
   endfunction
   export "DPI-C" function rv_tester_set_eot_addr;
+
+  // Read-only accessor for the TB cycle counter. Called from C++ (EAM) only on
+  // exclusive (locked) AXI transactions, so it costs nothing per clock.
+  function automatic longint unsigned rv_tester_get_clocks();
+    return clocks;
+  endfunction
+  export "DPI-C" function rv_tester_get_clocks;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");

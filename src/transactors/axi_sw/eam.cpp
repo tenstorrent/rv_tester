@@ -5,9 +5,25 @@
 #include "cvm/logger.hpp"
 #include "cvm/random.hpp"
 #include "rv_tester_plusargs.h"
+#include "svdpi.h"
+
+// DPI export from rv_tester.sv: returns the TB clock counter.
+extern "C" uint64_t rv_tester_get_clocks();
+
+namespace {
+// Scope of the rv_tester instance that owns rv_tester_get_clocks(), captured
+// once at registry build time so that the EAM (a process-wide singleton called
+// from arbitrary axi contexts) can set it before the exported call.
+svScope rv_tester_scope = nullptr;
+}  // namespace
+
+extern "C" void eam_register_scope() {
+  rv_tester_scope = svGetScope();
+}
 
 DEFINE_int32(eam_decline_excl_pct, 0, "Percentage of exclusive reads (ARLOCK) the EAM declines: no reservation is taken and OKAY is returned instead of EXOKAY");
 DEFINE_string(eam_pass_invalidate_ratio, "1:0", "Exclusive write (AWLOCK) pass/fail pattern in format 'n:e': n exclusive writes succeed, then e are failed (reservation invalidated), repeating");
+DEFINE_uint64(eam_reservation_ttl, 0, "Reservation time-to-live in TB clock cycles: an exclusive write (AWLOCK) is failed and its reservation invalidated if at least this many cycles elapsed since the exclusive read that took it. 0 disables the check");
 
 eam& eam::instance() {
   static eam inst;
@@ -38,8 +54,8 @@ eam::eam() {
     pattern_fail_ = 0;
   }
 
-  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}\n",
-           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_);
+  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}, reservation_ttl={}\n",
+           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_, FLAGS_eam_reservation_ttl);
 }
 
 eam::~eam() {
@@ -47,6 +63,7 @@ eam::~eam() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_declined_exclusive_read_count\": \"{}\"}}\n", declined_excl_read_count_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_forced_fail_exclusive_write_count\": \"{}\"}}\n", forced_fail_excl_write_count_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_tb_fail_exclusive_write_count\": \"{}\"}}\n", tb_fail_excl_write_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_ttl_fail_exclusive_write_count\": \"{}\"}}\n", ttl_fail_excl_write_count_);
   }
 }
 
@@ -103,6 +120,33 @@ bool eam::pattern_fail_excl_write() {
   const unsigned phase = excl_wr_count_ % period;
   excl_wr_count_ = (excl_wr_count_ + 1) % period;
   return phase >= pattern_pass_;
+}
+
+uint64_t eam::current_cycles() {
+  if (FLAGS_eam_reservation_ttl == 0 || rv_tester_scope == nullptr)
+    return 0;
+
+  const svScope prev = svGetScope();
+  svSetScope(rv_tester_scope);
+  const uint64_t now = rv_tester_get_clocks();
+  if (prev != nullptr)
+    svSetScope(prev);
+  return now;
+}
+
+bool eam::ttl_expired(const eam_entry& e, uint64_t now) {
+  if (FLAGS_eam_reservation_ttl == 0 || !e.valid)
+    return false;
+
+  // clocks is a monotonically increasing 64-bit counter, so no wrap handling.
+  const uint64_t age = now - e.rsv_cycle;
+  if (age < FLAGS_eam_reservation_ttl)
+    return false;
+
+  ttl_fail_excl_write_count_++;
+  cvm::log(cvm::HIGH, "[eam] reservation ttl expired: entry={}, id={}, rsv_addr={:#x}, rsv_cycle={}, now={}, age={} >= ttl={}\n",
+           index(e.id), e.id, e.rsv_addr, e.rsv_cycle, now, age, FLAGS_eam_reservation_ttl);
+  return true;
 }
 
 bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
@@ -182,9 +226,9 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
 
     // Exclusive read: install/overwrite the reservation for this ID.
     eam_entry& e = t_[index(a.id)];
-    e = eam_entry{true, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache};
-    cvm::log(cvm::HIGH, "[eam] reserve: entry={}, id={}, addr={:#x}, rsv_addr={:#x}\n",
-             index(a.id), a.id, a.addr, e.rsv_addr);
+    e = eam_entry{true, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
+    cvm::log(cvm::HIGH, "[eam] reserve: entry={}, id={}, addr={:#x}, rsv_addr={:#x}, rsv_cycle={}\n",
+             index(a.id), a.id, a.addr, e.rsv_addr, e.rsv_cycle);
 
     v.override_resp = true;
     v.resp = axi::RESP_EXOKAY;
@@ -205,9 +249,12 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   // Trickbox injection: fails the exclusive write regardless of whether a
   // valid reservation exists, for the programmed number of occurrences.
   const bool tb_fail = tb_fail_excl_write(a);
-  const bool pass = was_valid && fields_match(e, a) && !forced_fail && !tb_fail;
+  // DV knob: fail the exclusive write if the reservation is older than
+  // +eam_reservation_ttl cycles. The entry is invalidated below regardless.
+  const bool ttl_fail = ttl_expired(e, current_cycles());
+  const bool pass = was_valid && fields_match(e, a) && !forced_fail && !tb_fail && !ttl_fail;
   // Count writes that would have passed but were failed solely by forced_fail.
-  if (forced_fail && was_valid && fields_match(e, a))
+  if (forced_fail && !ttl_fail && was_valid && fields_match(e, a))
     forced_fail_excl_write_count_++;
   e.valid = false;
 
@@ -218,8 +265,8 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   } else {
     v.allow_write = false;
     v.resp = axi::RESP_OKAY;
-    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}\n",
-             index(a.id), a.id, a.addr, was_valid, forced_fail, tb_fail);
+    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}, ttl_fail={}\n",
+             index(a.id), a.id, a.addr, was_valid, forced_fail, tb_fail, ttl_fail);
   }
   return v;
 }

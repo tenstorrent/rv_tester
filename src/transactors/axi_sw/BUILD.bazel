@@ -18,6 +18,7 @@ cc_library(
     hdrs = [ "axi.h", "eam.hpp", "safe_queue.h" ],
     deps = [
         "@rv_tester//src/common:transactor",
+        "@rv_tester//src/common:svdpi",
         "@rv_tester//src:plusargs",
         "@cvm//:plusargs",
         "@cvm//:topology",
