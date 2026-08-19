@@ -10,8 +10,14 @@ namespace {
 
 axi::a_no_id_t make_ar(uint64_t addr, size_t length) {
   axi::a_no_id_t ar(false, addr, 0);
+  // ms_mmr rejects ring AR with AXI size < 32b. Upsize narrow cosim reads
+  // on the reroute path; mmr_txn_router::read() still returns only the
+  // requested byte count to the memory model.
+  size_t axi_length = length;
+  if (axi_length > 0 && axi_length < 4)
+    axi_length = 4;
   // Mirror axi_sw_mst::a_wrapper burst sizing for power-of-two lengths.
-  switch (length) {
+  switch (axi_length) {
   case 1:
     ar.size = 0;
     ar.len = 0;
