@@ -282,7 +282,7 @@ module rv_tester
 
 
 `ifndef NO_TIMESTAMP
-    current_time <= $time;
+    current_time <= LU'($realtime / 1ps);
 `else
     current_time <= '0;
 `endif
