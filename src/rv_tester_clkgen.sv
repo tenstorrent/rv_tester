@@ -9,7 +9,10 @@ module rv_tester_clkgen #(
                              output logic clk
                              );
 
-  localparam int CLOCK_PERIOD_PS = 1000000 / CLOCK_FREQ_MHZ;
+  // Emulator clock primitives below take an integer picosecond count; the
+  // simulation branch takes a time value.
+  localparam int      CLOCK_PERIOD_PS = 1000000 / CLOCK_FREQ_MHZ;
+  localparam realtime CLOCK_PERIOD    = CLOCK_PERIOD_PS * 1ps;
 
 `ifdef IXCOM_COMPILE
  `ifdef PALLADIUM_CAKE1X
@@ -23,7 +26,7 @@ module rv_tester_clkgen #(
  `else
   initial begin
     clk = '0;
-    forever  #(CLOCK_PERIOD_PS*1ps/2) clk = ~clk;
+    forever  #(CLOCK_PERIOD/2) clk = ~clk;
   end
  `endif
 `endif
