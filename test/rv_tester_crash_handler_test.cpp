@@ -53,13 +53,19 @@ TEST(RvTesterCrashHandlerDeathTest, TerminateReportsUncaughtException) {
       "std::terminate called - uncaught exception: boom");
 }
 
-TEST(RvTesterCrashHandlerDeathTest, TerminateDumpsStdStacktrace) {
+TEST(RvTesterCrashHandlerDeathTest, TerminateDumpsStacktrace) {
+  // std::stacktrace is opt-in (--define rv_tester_std_stacktrace=1); without it
+  // the terminate path falls back to the async-signal-safe backtrace() dump.
   EXPECT_DEATH(
       {
         rv_tester_install_crash_handlers();
         trigger_terminate_with_exception();
       },
+#ifdef RV_TESTER_HAVE_STD_STACKTRACE
       "std::stacktrace");
+#else
+      "rv_tester stack trace \\(most recent call first\\)");
+#endif
 }
 
 TEST(RvTesterCrashHandlerTest, InstallIsIdempotent) {
