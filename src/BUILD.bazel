@@ -6,6 +6,15 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# std::stacktrace requires libstdc++exp.a, which some libstdc++ distributions
+# (e.g. RHEL8 gcc-toolset) omit even though the header declares the API.
+# Opt in with --define rv_tester_std_stacktrace=1 on toolchains that ship it.
+config_setting(
+    name = "std_stacktrace",
+    define_values = {"rv_tester_std_stacktrace": "1"},
+    visibility = ["//visibility:public"],
+)
+
 verilog_library(
     name = "dpic_pkg",
     srcs = ["dpic_pkg.sv"],
@@ -72,7 +81,14 @@ cc_library(
     name = "crash_handler",
     hdrs = [":rv_tester_crash_handler.hpp"],
     strip_include_prefix = ".",
-    linkopts = ["-lstdc++exp"],
+    defines = select({
+        ":std_stacktrace": ["RV_TESTER_USE_STD_STACKTRACE"],
+        "//conditions:default": [],
+    }),
+    linkopts = select({
+        ":std_stacktrace": ["-lstdc++exp"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
 )
 

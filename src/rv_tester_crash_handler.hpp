@@ -25,10 +25,19 @@
 #include <cstring>
 #include <exception>
 #include <initializer_list>
-#include <sstream>
-#include <stacktrace>
+#include <version>
 #include <execinfo.h>
 #include <unistd.h>
+
+// std::stacktrace is gated on RV_TESTER_USE_STD_STACKTRACE (set via
+// --define rv_tester_std_stacktrace=1) in addition to the feature-test macro:
+// some libstdc++ distributions (e.g. RHEL8 gcc-toolset) declare the API but do
+// not ship libstdc++exp.a, so availability cannot be detected at compile time.
+#if defined(RV_TESTER_USE_STD_STACKTRACE) && defined(__cpp_lib_stacktrace)
+#define RV_TESTER_HAVE_STD_STACKTRACE 1
+#include <sstream>
+#include <stacktrace>
+#endif
 
 namespace {
 
@@ -74,6 +83,7 @@ void rv_tester_dump_backtrace_safe() {
 // -g). NOT async-signal-safe (std::stacktrace allocates) — the signal path must
 // keep using rv_tester_dump_backtrace_safe().
 void rv_tester_dump_backtrace_normal() {
+#ifdef RV_TESTER_HAVE_STD_STACKTRACE
   std::ostringstream os;
   os << std::stacktrace::current();
   std::fprintf(stderr,
@@ -81,6 +91,9 @@ void rv_tester_dump_backtrace_normal() {
                "%s\n"
                "===========================================================================\n",
                os.str().c_str());
+#else
+  rv_tester_dump_backtrace_safe();
+#endif
 }
 
 const char* rv_tester_signal_name(int signum) {

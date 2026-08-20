@@ -215,7 +215,6 @@ def rv_tester_gen(
         name = rv_tester_assert_dpi,
         srcs = ["@rv_tester//src:rv_tester_assert_handler.cpp"],
         deps = ["@cvm//:logger", "@cvm//:plusargs"],
-        linkopts = ["-lstdc++exp"],
         alwayslink = True,
         visibility = visibility,
     )
