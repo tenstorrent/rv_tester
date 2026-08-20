@@ -13,8 +13,8 @@
 
 class mmr_txn_router : public device {
 public:
-  void write(const transactor::write_t& w);
-  cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
+  cvm::messenger::task<std::uint8_t> write(const transactor::write_t& w);
+  cvm::messenger::task<std::uint8_t> read(const read_t& r, data_t& data);
 
   mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
@@ -23,6 +23,7 @@ public:
 private:
   cvm::topology::loc_t axi_mst_loc_l;
   cvm::messenger::pool<transactor::read_response_t>::channel_info read_resp_channel_;
+  cvm::messenger::pool<transactor::write_response_t>::channel_info write_resp_channel_;
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

@@ -204,6 +204,7 @@ public:
     cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this](const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
     cvm::registry::messenger.procedure<axi_sw_mst_push_ar_no_id_rpc>(loc, [this](const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
     cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this](const axi::a_no_id_t& aw, axi::id_t& id) { return this->push_a_no_id(true, aw, id); });
+    cvm::registry::messenger.procedure<axi_sw_mst_push_write_request_rpc>(loc, [this](const transactor::write_request_t& req, axi::id_t& id) { return this->push_write_request(req, id); });
     cvm::registry::messenger.procedure<push_w_rpc>(loc, [this](const axi::w_t& w) { return this->push_w(w); });
     cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this]() { return this->try_lock(); });
     cvm::registry::messenger.procedure<free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
@@ -232,7 +233,7 @@ public:
 
     cvm::registry::messenger.signal<transactor::write_response_t>(
         loc_,
-        transactor::write_response_t{b.id});
+        transactor::write_response_t{b.id, b.resp});
 
     free_id(b.id);
     push_transactions();
@@ -266,7 +267,7 @@ public:
     if (r.last) {
       cvm::registry::messenger.signal<transactor::read_response_t>(
           loc_,
-          transactor::read_response_t{r.id, std::move(read_data_[r.id])});
+          transactor::read_response_t{r.id, std::move(read_data_[r.id]), r.resp});
 
       free_id(r.id);
       read_data_[r.id] = {};
@@ -478,12 +479,21 @@ public:
   }
 
   void process(const transactor::write_request_t& req) {
+    axi::id_t id;
+    push_write_request(req, id);
+  }
+
+  // Push a rerouted write and return the allocated AXI id so the caller can
+  // correlate the B-response (write_response_t) and recover its resp code.
+  bool push_write_request(const transactor::write_request_t& req, axi::id_t& id) {
     axi::a_t a;
     a.w = true;
     a.exp_err_rsp = req.exp_err_rsp;
+    a.allow_decerr_resp = req.allow_decerr_resp;
 
     if (!a_wrapper(req.addr, req.length, a))
-      return;
+      return false;
+    id = a.id;
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
     allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
@@ -510,6 +520,7 @@ public:
       transactions_.emplace_back(axi::w_t{std::move(data), std::move(strb), i == 0});
     }
     push_transactions();
+    return true;
   }
 
   void reset_ptrs() {

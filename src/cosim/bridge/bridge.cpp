@@ -536,6 +536,27 @@ void bridge::process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, ui
   prev_dut_trap_cause_ = cause;
   prev_dut_trap_order_ = order;
   prev_vec_cmode_first_tag_ = vec_cmode_first_tag;
+  if (cause == LD_ACCESS_FAULT)
+    skip_mcm_read_data_check_for_fault(order, 0, 0);
+}
+
+void bridge::skip_mcm_read_data_check_for_fault(uint64_t tag, uint64_t addr, unsigned size) {
+  if (!FLAGS_mcm)
+    return;
+
+  auto it = mcm_read_by_tag_.find(tag);
+  if (it != mcm_read_by_tag_.end()) {
+    addr = it->second.first;
+    size = it->second.second;
+  }
+  if (addr == 0 || size == 0)
+    return;
+
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmSkipReadDataCheckRPC>(
+           cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), addr, size, true)) &&
+      FLAGS_whisper_client_check) {
+    error("Hart {}: Failed whisper API McmSkipReadDataCheck addr={:#x} size={}\n", id_, addr, size);
+  }
 }
 
 // DUT interface callback: Instruction Retire
@@ -1027,18 +1048,43 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   return;
 }
 
-void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
-  if (!d.excp) {
-    return;
+void bridge::issue_whisper_mcm_read(hart_id_t hart, const mem_t& m, bool cache) {
+  bool valid = false;
+  if (m.v_ext) {
+    std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm vec load\n", hart);
+    }
+  } else {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed mcm load\n", hart);
+    }
   }
+  bridge_log(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+             m.cycle, valid, m.tag, m.pa, m.size, m.data);
+}
 
-  bool should_inject = parser::find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) ||
-                       parser::find(cosim_resynch_excp_, d.ecause) ||
+void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
+  const bool load_bus_error = d.mem_read.error && d.mem_read.valid && !d.mem_write.valid;
+  const bool pending_load_fault = (d.tag == prev_dut_trap_order_ && prev_dut_trap_cause_ == LD_ACCESS_FAULT);
+  if (!d.excp && !load_bus_error && !d.pc.error && !pending_load_fault)
+    return;
+
+  uint64_t ecause = d.ecause;
+  if ((load_bus_error || pending_load_fault) && ecause != LD_ACCESS_FAULT)
+    ecause = LD_ACCESS_FAULT;
+
+  bool should_inject = parser::find(cosim_resynch_excp_addr_, ecause, d.trap_addr) ||
+                       parser::find(cosim_resynch_excp_, ecause) ||
                        d.pc.error ||
-                       d.mem_read.error;
+                       d.mem_read.error ||
+                       pending_load_fault;
 
   if (!should_inject)
     return;
+
+  if (load_bus_error || pending_load_fault)
+    skip_mcm_read_data_check_for_fault(d.tag, d.mem_read.pa, d.mem_read.size);
 
   uint64_t xtval_addr = 0;
   for (auto& c : d.csr) {
@@ -1047,20 +1093,26 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
       break;
     }
   }
+  if (xtval_addr == 0) {
+    if (d.trap_addr != 0)
+      xtval_addr = d.trap_addr;
+    else if (d.mem_read.valid)
+      xtval_addr = d.mem_read.va;
+  }
 
   bool valid;
-  bool is_load = (d.trap_opcode != 0);
-  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, d.ecause, is_load, xtval_addr);
+  bool is_load = d.mem_read.valid || (d.trap_opcode != 0) || load_bus_error || pending_load_fault;
+  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, ecause, is_load, xtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-                                                                                          hart, is_load, d.ecause, 0, xtval_addr, valid) ||
+                                                                                          hart, is_load, ecause, 0, xtval_addr, valid) ||
        !valid) &&
       FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 
-  if (d.pc.error && d.ecause == INSN_ACCESS_FAULT)
+  if (d.pc.error && ecause == INSN_ACCESS_FAULT)
     num_exceptions_insn_err_access_fault_++;
-  if (d.mem_read.error && d.ecause == LD_ACCESS_FAULT)
+  if ((d.mem_read.error || pending_load_fault) && ecause == LD_ACCESS_FAULT)
     num_exceptions_ld_err_access_fault_++;
   if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
     num_exceptions_late_st_err_access_fault_++;
@@ -1662,8 +1714,15 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR -- disable this checking in PSC mode
   if ((FLAGS_gpr_check) & (FLAGS_cosim_period == 0)) {
+    // RVFI may report rd_wdata=0 on a load that took access fault; Whisper
+    // correctly leaves the dest register unchanged after InjectException.
+    const bool load_fault = (d.excp && d.ecause == LD_ACCESS_FAULT && d.mem_read.valid) ||
+                            (d.mem_read.error && d.mem_read.valid && !d.mem_write.valid) ||
+                            (d.tag == prev_dut_trap_order_ && prev_dut_trap_cause_ == LD_ACCESS_FAULT);
     for (const auto& gpr : d.gpr) {
       if (gpr.valid) {
+        if (load_fault)
+          continue;
         update_regs(hart, src_t::dut, resource_t::int_reg, gpr.rd_addr, {gpr.rd_wdata});
         if (patch_mode_ != NO_PATCH) {
           uint64_t data;
@@ -2493,7 +2552,9 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) {
   if (end_mcm_)
     return;
 
-  bool valid = false;
+  if (m.tag != 0)
+    mcm_read_by_tag_[m.tag] = {m.pa, m.size};
+
   if (FLAGS_cosim_period > 0) {
     if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
       print(cvm::HIGH, "process_dut_mcm_read: [Hart={} adding tag={} to mcm_orders\n", hart, m.tag);
@@ -2521,21 +2582,7 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) {
     }
   }
 
-  if (m.v_ext) {
-    std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm vec load\n", hart);
-      return;
-    }
-  } else {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm load\n", hart);
-      return;
-    }
-  }
-
-  bridge_log(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
-             m.cycle, valid, m.tag, m.pa, m.size, m.data);
+  issue_whisper_mcm_read(hart, m, cache);
 }
 
 // Process mem accesses - store inserts
