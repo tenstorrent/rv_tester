@@ -335,9 +335,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
         }
 
         addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data(64, 0);
-        std::vector<bool> strb(64, false);
+        uint32_t length = 4;
+        std::vector<uint8_t> data(4, 0);
+        std::vector<bool> strb(4, false);
         for (uint8_t i = 0; i < 4; ++i) {
           data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
           strb[i] = true;
@@ -346,9 +346,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       } else {
         // Dual interrupt -- first with VGEIN
         addr = msi_vs_file_addr + (vgein << 12) + (intr_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data(64, 0);
-        std::vector<bool> strb(64, false);
+        uint32_t length = 4;
+        std::vector<uint8_t> data(4, 0);
+        std::vector<bool> strb(4, false);
         for (uint8_t i = 0; i < 4; ++i) {
           data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
           strb[i] = true;
@@ -388,9 +388,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
 
   // Non-VGEIN path: construct and send AXI write
   if (!is_vgein_intr) {
-    uint32_t length = 0x40;
-    std::vector<uint8_t> data(64, 0);
-    std::vector<bool> strb(64, false);
+    uint32_t length = 4;
+    std::vector<uint8_t> data(4, 0);
+    std::vector<bool> strb(4, false);
     for (uint8_t i = 0; i < 4; ++i) {
       data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
       strb[i] = true;
