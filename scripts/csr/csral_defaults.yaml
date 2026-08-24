@@ -31,15 +31,15 @@ policies:
 
   # --- status family ---
   sstatus: {on_mismatch: skip} # token "sstatus"
-  vsstatus: {on_mismatch: skip} # token "sstatus" (substring; now explicit)
+  vsstatus: {on_mismatch: skip, exists_if: misa.H} # token "sstatus" (substring; now explicit) + hypervisor_csr_map_
   mstatus: {on_mismatch: skip} # token "mstatus"
-  hstatus: {on_mismatch: skip} # token "hstatus"
+  hstatus: {on_mismatch: skip, exists_if: misa.H} # token "hstatus" + hypervisor_csr_map_
 
   # --- interrupt enables (RVDE-11840) ---
   mie: {on_mismatch: skip} # token "mie"
-  hie: {on_mismatch: skip} # token "hie"
+  hie: {on_mismatch: skip, exists_if: misa.H} # token "hie" + hypervisor_csr_map_
   sie: {on_mismatch: skip} # token "sie"
-  vsie: {on_mismatch: skip} # token "vsie"
+  vsie: {on_mismatch: skip, exists_if: misa.H} # token "vsie" + hypervisor_csr_map_
 
   # --- vector (RVDE-17338; vtype permanent) ---
   vxsat: {on_mismatch: skip} # token "vxsat"
@@ -51,7 +51,7 @@ policies:
   srmcfg: {on_mismatch: skip} # token "srmcfg"
   menvcfg: {on_mismatch: skip} # token "menvcfg"
   senvcfg: {on_mismatch: skip} # token "senvcfg"
-  henvcfg: {on_mismatch: skip} # token "henvcfg" (FIXME: pointer masking)
+  henvcfg: {on_mismatch: skip, exists_if: misa.H} # token "henvcfg" + hypervisor_csr_map_
 
   # --- triggers (Sdtrig; tinfo RVDE-7518/RVTOOLS-3124) ---
   tselect: {on_mismatch: skip} # token "tselect"
@@ -74,18 +74,18 @@ policies:
   # --- interrupt-pending set (interrupt_csrs_to_resynch_, bridge.h:319) ---
   mip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "mip"
   sip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "sip"
-  hip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "hip"
-  vsip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "vsip"
-  hgeip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "hgeip"
+  hip: {class: interrupt, volatile: true, on_mismatch: resynch_rd, exists_if: misa.H} # token "hip" + hypervisor_csr_map_
+  vsip: {class: interrupt, volatile: true, on_mismatch: resynch_rd, exists_if: misa.H} # token "vsip" + hypervisor_csr_map_
+  hgeip: {class: interrupt, volatile: true, on_mismatch: resynch_rd, exists_if: misa.H} # token "hgeip" + hypervisor_csr_map_
   mtopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "mtopi"
   stopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "stopi"
-  vstopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "vstopi" (RVTOOLS-3189)
+  vstopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd, exists_if: misa.H} # token "vstopi" (RVTOOLS-3189) + hypervisor_csr_map_
 
   # --- other interrupt CSRs (skip only, not in the resynch set) ---
   mvip: {on_mismatch: skip} # token "mvip"
-  hvip: {on_mismatch: skip} # token "hvip"
-  hviprio1: {on_mismatch: skip} # token "hvip" (substring accident, kept for parity — REVIEW)
-  hviprio2: {on_mismatch: skip} # token "hvip" (substring accident, kept for parity — REVIEW)
+  hvip: {on_mismatch: skip, exists_if: misa.H} # token "hvip" + hypervisor_csr_map_
+  hviprio1: {on_mismatch: skip, exists_if: misa.H} # token "hvip" (substring accident, kept for parity — REVIEW) + hypervisor_csr_map_
+  hviprio2: {on_mismatch: skip, exists_if: misa.H} # token "hvip" (substring accident, kept for parity — REVIEW) + hypervisor_csr_map_
 
   # --- AIA indirect access (Smcsrind adds *ireg2..6 in some specs) ---
   "mireg*": {on_mismatch: skip} # token "mireg"
@@ -95,7 +95,7 @@ policies:
   # --- IMSIC top external interrupt (permanent: interrupts) ---
   mtopei: {on_mismatch: skip} # token "mtopei"
   stopei: {on_mismatch: skip} # token "stopei"
-  vstopei: {on_mismatch: skip, may_not_exist: true} # token "vstopei" + MayPeekCSR_map_
+  vstopei: {on_mismatch: skip, may_not_exist: true, exists_if: misa.H} # token "vstopei" + MayPeekCSR_map_ + hypervisor_csr_map_
 
   # --- performance counters (permanent: PMC events) ---
   "hpmcounter*": {on_mismatch: skip} # token "hpmcounter"
@@ -123,3 +123,27 @@ policies:
 
   # --- entropy ---
   seed: {volatile: true, on_mismatch: skip} # token "seed"
+
+  # --- hypervisor CSR existence gating (bridge.h hypervisor_csr_map_) ---
+  # While misa.H is 0 these CSRs do not exist: no mirror updates, no checks,
+  # no whisper mask peeks. Field-level H masking on mstatus/medeleg/mideleg/
+  # mip/mie comes from the spec's MASKED_BY; this is the whole-CSR gate.
+  hedeleg: {exists_if: misa.H}
+  hideleg: {exists_if: misa.H}
+  htimedelta: {exists_if: misa.H}
+  hcounteren: {exists_if: misa.H}
+  hgeie: {exists_if: misa.H}
+  hvictl: {exists_if: misa.H}
+  htval: {exists_if: misa.H}
+  hgatp: {exists_if: misa.H}
+  htinst: {exists_if: misa.H}
+  mtval2: {exists_if: misa.H}
+  mtinst: {exists_if: misa.H}
+  vstvec: {exists_if: misa.H}
+  vsscratch: {exists_if: misa.H}
+  vsepc: {exists_if: misa.H}
+  vscause: {exists_if: misa.H}
+  vstval: {exists_if: misa.H}
+  vstimecmp: {exists_if: misa.H}
+  vsatp: {exists_if: misa.H}
+  hvien: {exists_if: misa.H}
