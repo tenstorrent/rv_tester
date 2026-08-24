@@ -506,8 +506,8 @@ sysmod::create_aplic() const {
   auto msiCallback = [axi_mst_loc](uint64_t addr, uint32_t data) {
     cvm::log(cvm::DEBUG, "Aplic sent IMSIC interrupt {:#x} (@ {:#x})\n", data, addr);
 
-    std::vector<uint8_t> data_vec(64, 0);
-    std::vector<bool> strb(64, false);
+    std::vector<uint8_t> data_vec(4, 0);
+    std::vector<bool> strb(4, false);
     for (int i = 0; i < 4; i++) {
       data_vec[i] = data & 0xff;
       strb[i] = true;
@@ -515,7 +515,7 @@ sysmod::create_aplic() const {
     }
 
     cvm::registry::messenger.signal(axi_mst_loc,
-                                    transactor::write_request_t{addr, 64, data_vec, strb, false});
+                                    transactor::write_request_t{addr, 4, data_vec, strb, false});
     return true;
   };
   aplic->setMsiCallback(msiCallback);
