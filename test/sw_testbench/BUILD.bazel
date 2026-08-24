@@ -87,3 +87,24 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+# CSRAL engine unit tests (Phase 2): real tables + mocked whisper, no bridge.
+cc_test(
+    name = "csral_test",
+    size = "small",
+    srcs = [
+        "csral_test.cpp",
+        "//src/cosim/csral:csral.cpp",
+        "//src/cosim/csral:csral.h",
+    ],
+    deps = [
+        ":sw_1c_rv_tester_csr_param_cc",
+        ":sw_1c_topology_cc",
+        "//src/cosim/whisper_if:whisper_if",
+        "@cvm//:logger",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@com_google_googletest//:gtest_main",
+        "@fmt//:fmt",
+    ],
+)

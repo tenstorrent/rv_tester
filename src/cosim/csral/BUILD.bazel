@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# CSRAL engine sources. Like the bridge, csral.cpp compiles against the
+# per-project generated csral_tables.hpp, so the library target is created
+# inside the rv_tester_gen/cosim_gen macros (and directly by unit tests).
+exports_files([
+    "csral.cpp",
+    "csral.h",
+])

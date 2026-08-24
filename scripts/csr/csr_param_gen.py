@@ -684,7 +684,7 @@ class CsralValidationError(ValueError):
 
 
 _ALLOWED_CSRAL_KEYS = {"compare_mask_source", "reset_check", "field_aliases", "policies"}
-_ALLOWED_POLICY_KEYS = {"check", "on_mismatch", "volatile", "class", "may_not_exist"}
+_ALLOWED_POLICY_KEYS = {"check", "on_mismatch", "volatile", "class", "may_not_exist", "exists_if"}
 _ON_MISMATCH_VALUES = ("error", "skip", "resynch_rd")
 _COMPARE_MASK_SOURCES = ("whisper", "spec", "both_warn")
 _RESET_CHECK_VALUES = ("error", "warn", "off")
@@ -772,6 +772,7 @@ class CsralModel:
         self._validate_spec()
         self._resolve_policies()
         self._derive_conditions()
+        self._resolve_exists_if()
         self._resolve_field_aliases()
         self._check_override_names()
         for w in self.warnings:
@@ -857,7 +858,42 @@ class CsralModel:
                 "volatile": bool(pol.get("volatile", False)),
                 "interrupt": pol.get("class") == "interrupt",
                 "may_not_exist": bool(pol.get("may_not_exist", False)),
+                # Whole-CSR existence gate: the CSR only exists while this
+                # condition is active (e.g. hypervisor CSRs behind misa.H).
+                # Resolved to a condition index after condition derivation.
+                "exists_if": str(pol.get("exists_if") or ""),
             }
+
+    def _resolve_exists_if(self):
+        """Map each policy's exists_if condition name to a condition index.
+
+        The name must be a condition DERIVED from this spec's MASKED_BY data;
+        a dangling name is an error when the project set it and a warning
+        when it came from the shared defaults (projects have different CSR
+        sets, so e.g. exists_if: misa.H is meaningless for a core without a
+        hypervisor gate)."""
+        cond_index = {c["name"]: i for i, c in enumerate(self.conditions)}
+        for name, pol in self.policy_by_csr.items():
+            cond_name = pol.pop("exists_if", "")
+            pol["exists_if_index"] = -1
+            if not cond_name:
+                continue
+            if cond_name in cond_index:
+                pol["exists_if_index"] = cond_index[cond_name]
+            else:
+                # Attribute severity to whoever supplied the winning pattern:
+                # the exact entry if there is one, else any matching project
+                # glob makes it the project's problem.
+                origin = "defaults"
+                if name in self.config.policies:
+                    origin = self.config.policies[name][1]
+                else:
+                    for pattern, (_pol2, pat_origin) in self.config.policies.items():
+                        if pattern != "default" and _is_glob(pattern) and fnmatch.fnmatchcase(name, pattern) and pat_origin != "defaults":
+                            origin = pat_origin
+                            break
+                msg = f"csral policy for '{name}': exists_if '{cond_name}' is not a condition derived from this spec"
+                (self.warnings if origin == "defaults" else self.errors).append(msg)
 
     def _check_override_names(self):
         names = set(self.csr_names)
@@ -1069,7 +1105,7 @@ class CsralModel:
             w(f"inline constexpr reset_check_t kResetCheck = reset_check_t::{self.config.reset_check};\n\n")
             w("struct policy_t {\n  bool check;\n  on_mismatch_t on_mismatch;\n  bool volatile_csr;\n  bool interrupt_class;\n  bool may_not_exist;\n};\n\n")
             w("struct field_t {\n  std::string_view name;\n  std::uint8_t msb;\n  std::uint8_t lsb;\n  std::uint64_t mask;\n  std::uint64_t reset;  // field-value, unshifted\n  std::uint16_t legal_first;\n  std::uint16_t legal_count;\n  std::string_view sw_type;\n};\n\n")
-            w("struct csr_t {\n  std::string_view name;\n  std::uint16_t address;\n  std::uint16_t size;\n  std::uint64_t reset;  // concatenated CSR reset\n  std::uint64_t spec_write_mask;\n  std::int16_t alias_of;  // index into kCsrs, -1 = none\n  policy_t policy;\n  std::uint16_t field_first;\n  std::uint16_t field_count;\n};\n\n")
+            w("struct csr_t {\n  std::string_view name;\n  std::uint16_t address;\n  std::uint16_t size;\n  std::uint64_t reset;  // concatenated CSR reset\n  std::uint64_t spec_write_mask;\n  std::int16_t alias_of;   // index into kCsrs, -1 = none\n  std::int16_t exists_if;  // index into kConditions gating this CSR's existence, -1 = always\n  policy_t policy;\n  std::uint16_t field_first;\n  std::uint16_t field_count;\n};\n\n")
             w("struct field_alias_t {\n  std::uint16_t csr;\n  std::uint8_t msb;\n  std::uint8_t lsb;\n  std::uint16_t alias_csr;\n  std::uint8_t alias_msb;\n  std::uint8_t alias_lsb;\n};\n\n")
             w("struct masked_target_t {\n  std::uint16_t csr;\n  std::uint64_t mask;\n};\n\n")
             w("struct condition_t {\n  std::string_view name;  // \"<gate_csr>.<gate_field>\", the +csral_save_restore token\n  std::uint16_t gate_csr;  // index into kCsrs\n  std::uint64_t gate_mask;\n  bool view_only;  // every target is an alias view: mask-only, never save/restore\n  std::uint16_t target_first;\n  std::uint16_t target_count;\n};\n\n")
@@ -1090,7 +1126,7 @@ class CsralModel:
             w(f"inline constexpr std::array<csr_t, {max(len(csr_rows), 1)}> kCsrs = {{{{\n")
             for r in (csr_rows or []):
                 p = r["policy"]
-                w(f"    {{\"{r['name']}\", 0x{r['address']:03X}, {r['size']}, 0x{r['reset']:016X}ULL, 0x{r['write_mask']:016X}ULL, {r['alias_of']}, "
+                w(f"    {{\"{r['name']}\", 0x{r['address']:03X}, {r['size']}, 0x{r['reset']:016X}ULL, 0x{r['write_mask']:016X}ULL, {r['alias_of']}, {p['exists_if_index']}, "
                   f"{{{b(p['check'])}, on_mismatch_t::{p['on_mismatch']}, {b(p['volatile'])}, {b(p['interrupt'])}, {b(p['may_not_exist'])}}}, "
                   f"{r['field_first']}, {r['field_count']}}},\n")
             w("}};\n\n")
