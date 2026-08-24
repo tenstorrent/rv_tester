@@ -319,7 +319,8 @@ private:
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        cvm::registry::callbacks.push(
+        // Run immediately with the right scope instead of queuing it.
+        cvm::registry::callbacks.call(
             loc_,
             [this]() {
               std::lock_guard<std::mutex> l(r_dpi_mutex_);

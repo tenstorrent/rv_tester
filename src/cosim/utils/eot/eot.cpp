@@ -13,8 +13,6 @@
 #include "src/sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"
 
-extern "C" void rv_tester_set_eot_addr(std::uint64_t addr);
-
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
@@ -57,13 +55,6 @@ void eot::configure() {
 
 void eot::init_tohost_addr() {
   resolve_tohost_addr();
-  // FIXME: stopgap. The real fix is flipping the direction so SV pulls the addr
-  // via a DPI import instead of this push, which also closes the delivery race.
-  // Follow up PR coming with that change once its validated on a rebuilt model.
-  // Skip this in offline replay (zdpiReport) since there is no SV side and the push just errors out and kills the replay.
-  if (!FLAGS_offline_dpi_replay) {
-    cvm::registry::callbacks.push(loc_, [&]() { rv_tester_set_eot_addr(tohost_addr_); });
-  }
 }
 
 void eot::resolve_tohost_addr() {
@@ -71,8 +62,7 @@ void eot::resolve_tohost_addr() {
   // Get tohost address from
   // 1. plusarg if provided
   if (FLAGS_tohost != 0x0) {
-    tohost_addr_ = FLAGS_tohost;
-    cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
+    cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", FLAGS_tohost);
     return;
   }
 
@@ -85,15 +75,14 @@ void eot::resolve_tohost_addr() {
     tohost_in_elf = true;
 
     try {
-      tohost_addr_ = std::stoul(addr_str, nullptr, 16);
-      FLAGS_tohost = tohost_addr_;
+      FLAGS_tohost = std::stoul(addr_str, nullptr, 16);
     } catch (...) {
       tohost_in_elf = false;
       if (FLAGS_eot == "tohost" || FLAGS_eot == "tohost_all") {
         cvm::log(cvm::NONE, "Warn: No tohost symbol in elf\n");
       }
     }
-    cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
+    cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, FLAGS_tohost);
   }
   if (tohost_in_elf)
     return;
@@ -104,16 +93,15 @@ void eot::resolve_tohost_addr() {
     cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
 
   if (m.count("htif") > 0) {
-    tohost_addr_ = m.at("htif").base;
-    FLAGS_tohost = tohost_addr_;
-    cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", tohost_addr_);
+    FLAGS_tohost = m.at("htif").base;
+    cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", FLAGS_tohost);
   } else {
-    cvm::log(cvm::ERROR, "Error: [eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
+    cvm::log(cvm::ERROR, "Error: [eot] tohost from memmap:: htif not found in memmap\n");
   }
 }
 
 std::uint64_t eot::get_tohost_addr() {
-  return tohost_addr_;
+  return FLAGS_tohost;
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {

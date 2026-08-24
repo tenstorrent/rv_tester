@@ -63,13 +63,18 @@ jobs:
         # plain smoke variant runs them.
         include:
           - name: smoke
+            targets: "//test/..."
             flags: ""
+          # The sanitizer variants also exclude the examples smoke: verilating
+          # two full cores with asan/tsan instrumentation is not worth the cost.
           - name: asan+ubsan
+            targets: "-- //test/... -//test/examples/..."
             flags: "--config=asan --config=ubsan --test_tag_filters=-no-sanitizer"
           - name: tsan
+            targets: "-- //test/... -//test/examples/..."
             flags: "--features=tsan --test_tag_filters=-no-sanitizer"
     name: test (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
       - name: bazel test //test/...
-        run: bazel-7 --output_user_root=./bazel_output_user_root test //test/... --config=bzlmod --build_tests_only ${{ matrix.flags }} --test_output=errors $BAZEL_OPTS
+        run: bazel-7 --output_user_root=./bazel_output_user_root test --config=bzlmod --build_tests_only ${{ matrix.flags }} --test_output=errors $BAZEL_OPTS ${{ matrix.targets }}

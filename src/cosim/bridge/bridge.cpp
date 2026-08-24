@@ -156,6 +156,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "vsie",
       "sie",   // RVDE-11840
       "vxsat", // Vectors RVDE-17338
+      "vcsr",  // Vectors RVDE-17338
+      "vxrm",  // Vectors RVDE-17338
       "srmcfg",
       "tselect",
       "tdata1",
@@ -887,7 +889,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && (!d.ucode || is_cracked_amocas(d.disasm)) && !d.opcode_modified && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !d.opcode_modified && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0, 7) == "illegal") && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) && !skip_de_until_debug_vector_) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
     bool skip_update_insn = false;
@@ -1501,7 +1503,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
+  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1548,7 +1550,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // Mem attributes
   // Disabling mem_attr checks for vectors currently
-  if (FLAGS_memattr_check && !(w_.trap || w.is_cancelled) && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_) && patch_mode_ == NO_PATCH) {
+  if (FLAGS_memattr_check && !(w_.trap || w.is_cancelled) && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_) && patch_mode_ == NO_PATCH) {
     bool valid;
     uint64_t first_pma;
     uint64_t second_pma;

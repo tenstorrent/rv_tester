@@ -457,6 +457,8 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
+        // Resolved by eot during rv_tester_build_registry above.
+        eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -1003,11 +1005,6 @@ end
 
   endfunction
   export "DPI-C" function rv_tester_set_address_map;
-
-  function automatic void rv_tester_set_eot_addr(longint unsigned addr);
-    eot_addr = addr;
-  endfunction
-  export "DPI-C" function rv_tester_set_eot_addr;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");

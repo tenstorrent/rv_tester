@@ -109,3 +109,11 @@ use_repo(
     "opensrc-nlohmann-json",
     "rules_hdl",
 )
+
+bazel_dep(name = "rv_tester_examples", version = "0.0.0", dev_dependency = True)
+archive_override(
+    module_name = "rv_tester_examples",
+    urls = ["https://github.com/tenstorrent/rv_tester_examples/archive/246cd95926b5fe97dda4c69235ceffb9c8caeeed.tar.gz"],
+    strip_prefix = "rv_tester_examples-246cd95926b5fe97dda4c69235ceffb9c8caeeed",
+    integrity = "sha256-XpxSeKyWbL8GghU2pacwRsuoDUSu1MKwfekXbz9tOc8=",
+)
