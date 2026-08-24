@@ -14,10 +14,29 @@ py_test(
     data = [
         "data/tiny_csr_spec.yaml",
         "data/tiny_project_override.yaml",
+        "data/tiny_csral_defaults.yaml",
         "golden/tiny_csr_param.hpp",
         "golden/tiny_csr_param.sv",
+        "golden/tiny_csral_tables.hpp",
         "golden/tiny_csr_param_no_override.hpp",
         "golden/tiny_csr_param_no_override.sv",
+    ],
+    deps = [
+        "//scripts/csr:csr_param_gen_lib",
+        "@rules_python//python/runfiles",
+    ],
+)
+
+# Generates from the real rv_tester spec + overrides + csral defaults, so a
+# spec/policy/generator regression fails here instead of in a simulation.
+py_test(
+    name = "real_spec_smoke_test",
+    size = "small",
+    srcs = ["real_spec_smoke_test.py"],
+    data = [
+        "//scripts/csr:csr_spec",
+        "//scripts/csr:csral_defaults",
+        "//scripts:project_overrides",
     ],
     deps = [
         "//scripts/csr:csr_param_gen_lib",
@@ -32,6 +51,7 @@ py_binary(
     data = [
         "data/tiny_csr_spec.yaml",
         "data/tiny_project_override.yaml",
+        "data/tiny_csral_defaults.yaml",
     ],
     deps = [
         "//scripts/csr:csr_param_gen_lib",

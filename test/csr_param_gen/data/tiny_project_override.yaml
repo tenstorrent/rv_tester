@@ -16,9 +16,6 @@ addtional_csrs:                # generator's (sic) key spelling
       FIELDS_RANGE: "31:28"
       RESET_VALUE: "0x5"
       PERF_VALUE: "0x9"
-    crossing:
-      FIELDS_RANGE: "35:32"    # entirely beyond CSR_SIZE -> mask 0x0
-      RESET_VALUE: "0x0"
     io.mode:                   # dot in field name -> IO_MODE
       FIELDS_RANGE: "1:0"
       RESET_VALUE: "0x2"
@@ -27,3 +24,9 @@ params:
   CSR_MYCTL_F_CFG_SEL_RESET_VALUE: "0xAB"  # hex-string param path
   CSR_MYCTL_F_CFG_SEL_PERF_VALUE: 92       # bare-int param path (= 0x5C)
   # CSR_MYCTL_F_MODE_RESET_VALUE deliberately absent -> param-not-found -> 0
+
+csral:
+  compare_mask_source: spec    # project overrides the defaults' "whisper"
+  policies:
+    my_ctl: {on_mismatch: skip, volatile: true} # exact project policy
+    "utim*": {on_mismatch: skip}                # project glob

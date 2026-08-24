@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# CSRAL policy defaults (docs/csral_plan.md §4.3). Merged by csr_param_gen.py
+# with the project's `csral:` section in project_override.yaml (project wins
+# per key/pattern). Save/restore enablement has NO YAML knob — it is
+# runtime-only via +csral_save_restore (default misa.H).
+#
+# Names match the lowercased spec key; globs are full-name anchored fnmatch,
+# NOT substrings. Unknown names here only warn (these defaults are shared
+# across projects with different CSR sets); unknown names in a project's own
+# csral: section are generation errors.
+
+compare_mask_source: whisper
+reset_check: error
+
+# Shifted field views that ALIAS_OF cannot express.
+field_aliases:
+  - {csr: fcsr, bits: "4:0", alias_of: fflags, alias_bits: "4:0"}
+  - {csr: fcsr, bits: "7:5", alias_of: frm, alias_bits: "2:0"}
+
+# Exact-name/glob expansion of the legacy cosim_resynch_csr_defaults
+# substring list (bridge.cpp:147-211), verified 2026-08-24 against both
+# rv_tester's csr_spec.yaml and riscv_cluster's csrs.yml (every exact name
+# exists in both; every glob matches in both). Trailing comments name the
+# legacy token each entry came from. Dead tokens dropped: mcontext,
+# minstreth (no such CSR in either spec), pma (spec-B-only; see note below).
+policies:
+  default: {check: true, on_mismatch: error}
+  "c_*": {check: false} # generator default: cac_check=false for c_*
+
+  # --- status family ---
+  sstatus: {on_mismatch: skip} # token "sstatus"
+  vsstatus: {on_mismatch: skip} # token "sstatus" (substring; now explicit)
+  mstatus: {on_mismatch: skip} # token "mstatus"
+  hstatus: {on_mismatch: skip} # token "hstatus"
+
+  # --- interrupt enables (RVDE-11840) ---
+  mie: {on_mismatch: skip} # token "mie"
+  hie: {on_mismatch: skip} # token "hie"
+  sie: {on_mismatch: skip} # token "sie"
+  vsie: {on_mismatch: skip} # token "vsie"
+
+  # --- vector (RVDE-17338; vtype permanent) ---
+  vxsat: {on_mismatch: skip} # token "vxsat"
+  vcsr: {on_mismatch: skip} # token "vcsr"
+  vxrm: {on_mismatch: skip} # token "vxrm"
+  vtype: {on_mismatch: skip} # token "vtype"
+
+  # --- misc config ---
+  srmcfg: {on_mismatch: skip} # token "srmcfg"
+  menvcfg: {on_mismatch: skip} # token "menvcfg"
+  senvcfg: {on_mismatch: skip} # token "senvcfg"
+  henvcfg: {on_mismatch: skip} # token "henvcfg" (FIXME: pointer masking)
+
+  # --- triggers (Sdtrig; tinfo RVDE-7518/RVTOOLS-3124) ---
+  tselect: {on_mismatch: skip} # token "tselect"
+  tdata1: {on_mismatch: skip} # token "tdata1"
+  tdata2: {on_mismatch: skip} # token "tdata2"
+  tdata3: {on_mismatch: skip} # token "tdata3"
+  tinfo: {on_mismatch: skip} # token "tinfo"
+
+  # --- floating point ---
+  fflags: {on_mismatch: skip} # token "fflags"
+  fcsr: {on_mismatch: skip} # token "fcsr" (unimplemented)
+
+  # --- PMP (FIXME: Performant NC change) ---
+  "pmpaddr*": {on_mismatch: skip} # token "pmp"
+  "pmpcfg*": {on_mismatch: skip} # token "pmp"
+  # token "pma" is dead here; in riscv_cluster it only bites c_pmacfg0..15
+  # (re-enabled by its cac_check_overrides), so the skip belongs in that
+  # project's own csral: section as "c_pmacfg*": {check: true, on_mismatch: skip}.
+
+  # --- interrupt-pending set (interrupt_csrs_to_resynch_, bridge.h:319) ---
+  mip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "mip"
+  sip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "sip"
+  hip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "hip"
+  vsip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "vsip"
+  hgeip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "hgeip"
+  mtopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "mtopi"
+  stopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "stopi"
+  vstopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # token "vstopi" (RVTOOLS-3189)
+
+  # --- other interrupt CSRs (skip only, not in the resynch set) ---
+  mvip: {on_mismatch: skip} # token "mvip"
+  hvip: {on_mismatch: skip} # token "hvip"
+  hviprio1: {on_mismatch: skip} # token "hvip" (substring accident, kept for parity — REVIEW)
+  hviprio2: {on_mismatch: skip} # token "hvip" (substring accident, kept for parity — REVIEW)
+
+  # --- AIA indirect access (Smcsrind adds *ireg2..6 in some specs) ---
+  "mireg*": {on_mismatch: skip} # token "mireg"
+  "sireg*": {on_mismatch: skip} # token "sireg"
+  "vsireg*": {on_mismatch: skip} # token "vsireg"
+
+  # --- IMSIC top external interrupt (permanent: interrupts) ---
+  mtopei: {on_mismatch: skip} # token "mtopei"
+  stopei: {on_mismatch: skip} # token "stopei"
+  vstopei: {on_mismatch: skip, may_not_exist: true} # token "vstopei" + MayPeekCSR_map_
+
+  # --- performance counters (permanent: PMC events) ---
+  "hpmcounter*": {on_mismatch: skip} # token "hpmcounter"
+  "mhpmcounter*": {on_mismatch: skip} # token "hpmcounter" (family intent, now explicit)
+  mcycle: {on_mismatch: skip} # token "mcycle"
+  minstret: {on_mismatch: skip} # token "minstret"
+  "mhpmevent*": {on_mismatch: skip} # token "mhpmevent" (RVDE-22160, OF bit)
+  scountovf: {on_mismatch: skip} # token "scountovf"
+
+  # --- debug (permanent: debug events) ---
+  dcsr: {on_mismatch: skip} # token "dcsr"
+  dpc: {on_mismatch: skip} # token "dpc"
+  dscratch0: {on_mismatch: skip} # token "dscratch0"
+  dscratch1: {on_mismatch: skip} # token "dscratch1"
+
+  # --- Smstateen ---
+  sstateen0: {on_mismatch: skip} # token "sstateen0"
+  sstateen1: {on_mismatch: skip} # token "sstateen1"
+  sstateen2: {on_mismatch: skip} # token "sstateen2"
+  sstateen3: {on_mismatch: skip} # token "sstateen3"
+  hstateen0: {on_mismatch: skip} # token "hstateen0"
+  hstateen1: {on_mismatch: skip} # token "hstateen1"
+  hstateen2: {on_mismatch: skip} # token "hstateen2"
+  hstateen3: {on_mismatch: skip} # token "hstateen3"
+
+  # --- entropy ---
+  seed: {volatile: true, on_mismatch: skip} # token "seed"

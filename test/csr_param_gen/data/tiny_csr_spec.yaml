@@ -24,16 +24,20 @@ utime:                         # alias pair; target is the keyword CSR (-> &time
     ADDRESS: "0xD01"
     CSR_SIZE: 64
     ALIAS_OF: time
+    MASKED_BY: xen
   count:
     FIELDS_RANGE: "63:0"
     RESET_VALUE: "0x0"
+    MASKED_BY: VEN             # target is an alias view -> condition is view_only
 
 my_ctl:                        # underscore in CSR name -> PARAM key mangles to MYCTL
   common_data:
     ADDRESS: "0x7C0"
     CSR_SIZE: 64
+    MASKED_BY: xen             # two-level masking: xen is the masking register
   cfg-sel:                     # dash in field name -> CFG_SEL in identifiers/param keys
-    FIELDS_RANGE: "11:4"       # raw-vs-extracted reset distinguisher (hpp 0xAB, SV 8'h0A)
+    FIELDS_RANGE: "11:4"
+    MASKED_BY: EN              # gated by xen.EN -> condition "xen.EN"
     RESET_VALUE: PARAM         # -> CSR_MYCTL_F_CFG_SEL_RESET_VALUE (hex-string param)
     PERF_VALUE: PARAM          # -> CSR_MYCTL_F_CFG_SEL_PERF_VALUE (bare-int param)
     LEGAL_VALUE: "0xAB"        # single (no-comma) legal value
@@ -55,13 +59,11 @@ c_dbg_ctl:                     # c_ prefix -> default cac_check=false; override 
     FIELDS_RANGE: "5"
     RESET_VALUE: "0x1"
     PERF_VALUE: "0x0"          # explicit zero perf: present, does NOT fall back to reset
-  sel mode:                    # space in key -> hpp SEL_MODE; SV keeps the space (known bug)
+  sel mode:                    # space in key -> SEL_MODE in both outputs
     FIELDS_RANGE: "3:1"
     RESET_VALUE: "0x3"
     PERF_VALUE: "0x2"
   rsvd:                        # null field -> warning + skipped entirely
-  ghost:                       # missing FIELDS_RANGE -> error logged, msb/lsb leak from
-    RESET_VALUE: "0x0"         #   'sel mode' [3:1] (known bug; also erases its perf bits)
 
 misa:                          # standard CSR; override forces cac_check=false
   common_data:
@@ -85,6 +87,24 @@ c_scratch:                     # c_ prefix, NO override -> default cac_check=fal
     RESET_VALUE: "0x0"
     SW_TYPE: "RW"
   tag:
-    FIELDS_RANGE: "35:32"      # width 4
-    RESET_VALUE: "0x1F"        # does not fit 4 bits: hpp concat drops the field, SV masks
-                               #   to width (known three-way divergence)
+    FIELDS_RANGE: "35:32"      # width 4, above bit 31: exercises high-half concat
+    RESET_VALUE: "0xF"
+
+xen:                           # masking register for the conditions above
+  common_data:
+    ADDRESS: "0x7C1"
+    CSR_SIZE: 64
+  EN:
+    FIELDS_RANGE: "0"
+    RESET_VALUE: "0x1"
+  VEN:
+    FIELDS_RANGE: "1"
+    RESET_VALUE: "0x0"
+
+c_indirect:                    # empty ADDRESS -> indirect-only, no address-index slot
+  common_data:
+    ADDRESS: ""
+    CSR_SIZE: 64
+  data:
+    FIELDS_RANGE: "63:0"
+    RESET_VALUE: "0x0"

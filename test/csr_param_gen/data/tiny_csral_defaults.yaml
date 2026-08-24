@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Tiny CSRAL defaults for the golden test (the real defaults are
+# scripts/csr/csral_defaults.yaml, covered by the real-spec smoke test).
+
+compare_mask_source: whisper
+reset_check: error
+
+field_aliases:
+  - {csr: my_ctl, bits: "3:2", alias_of: c_scratch, alias_bits: "1:0"}
+  # Names a CSR that only some specs have: defaults-tier -> warning, skipped.
+  - {csr: not_a_csr, bits: "1:0", alias_of: time, alias_bits: "1:0"}
+
+policies:
+  default: {check: true, on_mismatch: error}
+  "c_*": {check: false}
+  mip: {class: interrupt, volatile: true, on_mismatch: resynch_rd} # unknown here: defaults-tier warning
+  misa: {on_mismatch: skip}
