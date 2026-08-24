@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Tiny CSR spec for golden-testing scripts/csr/csr_param_gen.py.
+# Every entry exists to pin a specific generator behavior (including a few
+# known quirks, so that any change to them shows up as a golden diff).
+# All scalar values are deliberately quoted: unquoted YAML ints go through
+# str() and get re-parsed as HEX, and an unquoted int FIELDS_RANGE raises
+# TypeError in the generator.
+
+time:                          # C++ keyword -> hpp struct time__csr, instance time_
+  common_data:
+    ADDRESS: "0xC01"
+    CSR_SIZE: 64
+  count:
+    FIELDS_RANGE: "63:0"       # full-width field -> 64-bit mask
+    RESET_VALUE: "0x0"
+    # no LEGAL_VALUE -> generator default "0x0" -> legal list {0x0}, not {}
+    # no SW_TYPE    -> default "WARL"
+    # no PERF_VALUE -> perf falls back to reset
+
+utime:                         # alias pair; target is the keyword CSR (-> &time_)
+  common_data:
+    ADDRESS: "0xD01"
+    CSR_SIZE: 64
+    ALIAS_OF: time
+  count:
+    FIELDS_RANGE: "63:0"
+    RESET_VALUE: "0x0"
+
+my_ctl:                        # underscore in CSR name -> PARAM key mangles to MYCTL
+  common_data:
+    ADDRESS: "0x7C0"
+    CSR_SIZE: 64
+  cfg-sel:                     # dash in field name -> CFG_SEL in identifiers/param keys
+    FIELDS_RANGE: "11:4"       # raw-vs-extracted reset distinguisher (hpp 0xAB, SV 8'h0A)
+    RESET_VALUE: PARAM         # -> CSR_MYCTL_F_CFG_SEL_RESET_VALUE (hex-string param)
+    PERF_VALUE: PARAM          # -> CSR_MYCTL_F_CFG_SEL_PERF_VALUE (bare-int param)
+    LEGAL_VALUE: "0xAB"        # single (no-comma) legal value
+    SW_TYPE: "RW"
+  mode:
+    FIELDS_RANGE: "1:0"
+    RESET_VALUE: PARAM         # param NOT supplied in override -> resolves to 0
+    LEGAL_VALUE: "0x0,0x1,0x3" # comma list
+    SW_TYPE: "WARL"
+
+c_dbg_ctl:                     # c_ prefix -> default cac_check=false; override flips true
+  common_data:
+    ADDRESS: "0x1BC0"          # >12 bits -> truncated to 0xBC0 in both outputs
+    CSR_SIZE: 64
+  en:
+    FIELDS_RANGE: "0"          # single-number range, msb=lsb=0
+    RESET_VALUE: "0x1"
+  2nd_en:                      # leading digit -> _2ND_EN
+    FIELDS_RANGE: "5"
+    RESET_VALUE: "0x1"
+    PERF_VALUE: "0x0"          # explicit zero perf: present, does NOT fall back to reset
+  sel mode:                    # space in key -> hpp SEL_MODE; SV keeps the space (known bug)
+    FIELDS_RANGE: "3:1"
+    RESET_VALUE: "0x3"
+    PERF_VALUE: "0x2"
+  rsvd:                        # null field -> warning + skipped entirely
+  ghost:                       # missing FIELDS_RANGE -> error logged, msb/lsb leak from
+    RESET_VALUE: "0x0"         #   'sel mode' [3:1] (known bug; also erases its perf bits)
+
+misa:                          # standard CSR; override forces cac_check=false
+  common_data:
+    ADDRESS: "0x301"
+    CSR_SIZE: 64
+  mxl:
+    FIELDS_RANGE: "63:60"      # high-bit mask 0xF000000000000000
+    RESET_VALUE: "0x8"
+  extensions:
+    FIELDS_RANGE: "25:0"
+    RESET_VALUE: "0x141"
+    LEGAL_VALUE: "0x141, 0x1104"  # comma list with spaces
+    SW_TYPE:                   # explicit null -> forced back to "WARL"
+
+c_scratch:                     # c_ prefix, NO override -> default cac_check=false stays
+  common_data:
+    ADDRESS: "0x5C0"
+    CSR_SIZE: 64
+  data:
+    FIELDS_RANGE: "31:0"
+    RESET_VALUE: "0x0"
+    SW_TYPE: "RW"
+  tag:
+    FIELDS_RANGE: "35:32"      # width 4
+    RESET_VALUE: "0x1F"        # does not fit 4 bits: hpp concat drops the field, SV masks
+                               #   to width (known three-way divergence)

@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Override companion to tiny_csr_spec.yaml — exercises every override branch.
+
+cac_check_overrides:
+  c_dbg_ctl: true              # flip c_ default (false) -> true
+  misa: false                  # flip standard default (true) -> false
+
+addtional_csrs:                # generator's (sic) key spelling
+  addon_status:                # new key -> appended after all spec CSRs
+    common_data:
+      ADDRESS: "0xFC0"
+      CSR_SIZE: 32             # non-64 size -> bit masks capped at 32
+    flags:
+      FIELDS_RANGE: "31:28"
+      RESET_VALUE: "0x5"
+      PERF_VALUE: "0x9"
+    crossing:
+      FIELDS_RANGE: "35:32"    # entirely beyond CSR_SIZE -> mask 0x0
+      RESET_VALUE: "0x0"
+    io.mode:                   # dot in field name -> IO_MODE
+      FIELDS_RANGE: "1:0"
+      RESET_VALUE: "0x2"
+
+params:
+  CSR_MYCTL_F_CFG_SEL_RESET_VALUE: "0xAB"  # hex-string param path
+  CSR_MYCTL_F_CFG_SEL_PERF_VALUE: 92       # bare-int param path (= 0x5C)
+  # CSR_MYCTL_F_MODE_RESET_VALUE deliberately absent -> param-not-found -> 0

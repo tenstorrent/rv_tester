@@ -1,13 +1,22 @@
 load("@rv_tester_pypi//:requirements.bzl", "requirement")
 load(":csr_param_gen.bzl", "csr_param_gen")
 
-py_binary(
-    name = "csr_param_gen",
+# Importable form of the generator so tests can drive CsrMap directly.
+py_library(
+    name = "csr_param_gen_lib",
     srcs = ["csr_param_gen.py"],
+    imports = ["."],  # lets dependents `import csr_param_gen`
     deps = [
         requirement("pyyaml"),
         requirement("bitstring"),
     ],
+    visibility = ["//test/csr_param_gen:__pkg__"],
+)
+
+py_binary(
+    name = "csr_param_gen",
+    srcs = ["csr_param_gen.py"],
+    deps = [":csr_param_gen_lib"],
     visibility = ["//visibility:public"],
 )
 

@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# Golden tests for the CSR parameter generator (scripts/csr/csr_param_gen.py).
+# The tiny spec + override exercise every parsing/emission branch of the
+# generator; the goldens pin the exact emitted C++/SV text so any behavior
+# change is visible in review. Regenerate after an intentional change with:
+#   bazel-7 run //test/csr_param_gen:regen_goldens --config=bzlmod
+
+py_test(
+    name = "csr_param_gen_test",
+    size = "small",
+    srcs = ["csr_param_gen_test.py"],
+    data = [
+        "data/tiny_csr_spec.yaml",
+        "data/tiny_project_override.yaml",
+        "golden/tiny_csr_param.hpp",
+        "golden/tiny_csr_param.sv",
+        "golden/tiny_csr_param_no_override.hpp",
+        "golden/tiny_csr_param_no_override.sv",
+    ],
+    deps = [
+        "//scripts/csr:csr_param_gen_lib",
+        "@rules_python//python/runfiles",
+    ],
+)
+
+# Rewrites golden/ in the source tree from the current generator output.
+py_binary(
+    name = "regen_goldens",
+    srcs = ["regen_goldens.py"],
+    data = [
+        "data/tiny_csr_spec.yaml",
+        "data/tiny_project_override.yaml",
+    ],
+    deps = [
+        "//scripts/csr:csr_param_gen_lib",
+        "@rules_python//python/runfiles",
+    ],
+)

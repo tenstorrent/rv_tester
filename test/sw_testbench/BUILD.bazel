@@ -63,3 +63,16 @@ harnesses = ["sw_1c", "sw_2c"]
     ]
     for name in harnesses
 ]
+
+# Behavior-pinning tests for the bridge's CSR paths (CSRAL plan, Phase 0).
+# Real bridge + generated sw_1c topology, whisper fully mocked on the messenger.
+cc_test(
+    name = "bridge_csr_test",
+    size = "small",
+    srcs = ["bridge_csr_test.cpp"],
+    deps = [
+        ":sw_1c_rv_tester_cosim_bridge",
+        ":sw_1c_topology_cc",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
