@@ -76,3 +76,14 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+# Compile-and-sanity checks for the generated CSRAL tables (Phase 1).
+cc_test(
+    name = "csral_tables_test",
+    size = "small",
+    srcs = ["csral_tables_test.cpp"],
+    deps = [
+        ":sw_1c_rv_tester_csr_param_cc",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

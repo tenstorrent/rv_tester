@@ -48,7 +48,7 @@ struct time__csr : public csr_base {
         64,
         {63, 0},
         0x0000000000000000ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0xFFFFFFFFFFFFFFFFULL,
@@ -67,7 +67,7 @@ struct utime_csr : public csr_base {
         64,
         {63, 0},
         0x0000000000000000ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0xFFFFFFFFFFFFFFFFULL,
@@ -108,7 +108,7 @@ struct my_ctl_csr : public csr_base {
 struct c_dbg_ctl_csr : public csr_base {
     c_dbg_ctl_csr() : csr_base("c_dbg_ctl", 0xBC0, 64, false) {
         reset_val = 0x0000000000000027ULL;
-        perf_val = 0x0000000000000001ULL;
+        perf_val = 0x0000000000000005ULL;
     }
 
     field EN = {
@@ -116,7 +116,7 @@ struct c_dbg_ctl_csr : public csr_base {
         1,
         {0, 0},
         0x0000000000000001ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0x0000000000000001ULL,
@@ -127,7 +127,7 @@ struct c_dbg_ctl_csr : public csr_base {
         1,
         {5, 5},
         0x0000000000000001ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0x0000000000000020ULL,
@@ -138,22 +138,11 @@ struct c_dbg_ctl_csr : public csr_base {
         3,
         {3, 1},
         0x0000000000000003ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0x000000000000000EULL,
         0x0000000000000002ULL
-    };
-    field GHOST = {
-        "c_dbg_ctl.GHOST",
-        3,
-        {3, 1},
-        0x0000000000000000ULL,
-        {0x0000000000000000ULL},
-        "WARL",
-        "",
-        0x000000000000000EULL,
-        0x0000000000000000ULL
     };
 };
 
@@ -168,7 +157,7 @@ struct misa_csr : public csr_base {
         4,
         {63, 60},
         0x0000000000000008ULL,
-        {0x0000000000000000ULL},
+        {},
         "WARL",
         "",
         0xF000000000000000ULL,
@@ -189,8 +178,8 @@ struct misa_csr : public csr_base {
 
 struct c_scratch_csr : public csr_base {
     c_scratch_csr() : csr_base("c_scratch", 0x5C0, 64, false) {
-        reset_val = 0x0000000000000000ULL;
-        perf_val = 0x0000000000000000ULL;
+        reset_val = 0x0000000F00000000ULL;
+        perf_val = 0x0000000F00000000ULL;
     }
 
     field DATA = {
@@ -198,7 +187,7 @@ struct c_scratch_csr : public csr_base {
         32,
         {31, 0},
         0x0000000000000000ULL,
-        {0x0000000000000000ULL},
+        {},
         "RW",
         "",
         0x00000000FFFFFFFFULL,
@@ -208,11 +197,60 @@ struct c_scratch_csr : public csr_base {
         "c_scratch.TAG",
         4,
         {35, 32},
-        0x000000000000001FULL,
-        {0x0000000000000000ULL},
+        0x000000000000000FULL,
+        {},
         "WARL",
         "",
         0x0000000F00000000ULL,
+        0x0000000000000000ULL
+    };
+};
+
+struct xen_csr : public csr_base {
+    xen_csr() : csr_base("xen", 0x7C1, 64, true) {
+        reset_val = 0x0000000000000001ULL;
+        perf_val = 0x0000000000000001ULL;
+    }
+
+    field EN = {
+        "xen.EN",
+        1,
+        {0, 0},
+        0x0000000000000001ULL,
+        {},
+        "WARL",
+        "",
+        0x0000000000000001ULL,
+        0x0000000000000000ULL
+    };
+    field VEN = {
+        "xen.VEN",
+        1,
+        {1, 1},
+        0x0000000000000000ULL,
+        {},
+        "WARL",
+        "",
+        0x0000000000000002ULL,
+        0x0000000000000000ULL
+    };
+};
+
+struct c_indirect_csr : public csr_base {
+    c_indirect_csr() : csr_base("c_indirect", 0x000, 64, false) {
+        reset_val = 0x0000000000000000ULL;
+        perf_val = 0x0000000000000000ULL;
+    }
+
+    field DATA = {
+        "c_indirect.DATA",
+        64,
+        {63, 0},
+        0x0000000000000000ULL,
+        {},
+        "WARL",
+        "",
+        0xFFFFFFFFFFFFFFFFULL,
         0x0000000000000000ULL
     };
 };
@@ -224,6 +262,8 @@ extern my_ctl_csr my_ctl;
 extern c_dbg_ctl_csr c_dbg_ctl;
 extern misa_csr misa;
 extern c_scratch_csr c_scratch;
+extern xen_csr xen;
+extern c_indirect_csr c_indirect;
 
 // CSR instance definitions
 inline time__csr time_;
@@ -232,6 +272,8 @@ inline my_ctl_csr my_ctl;
 inline c_dbg_ctl_csr c_dbg_ctl;
 inline misa_csr misa;
 inline c_scratch_csr c_scratch;
+inline xen_csr xen;
+inline c_indirect_csr c_indirect;
 
 // Vector containing all CSR instances
 extern std::vector<csr_base*> csr_map;
@@ -243,7 +285,9 @@ inline std::vector<csr_base*> csr_map = {
     &my_ctl,
     &c_dbg_ctl,
     &misa,
-    &c_scratch
+    &c_scratch,
+    &xen,
+    &c_indirect
 };
 
 // Utility functions for CSR management

@@ -1426,7 +1426,6 @@ mconfigptr:
 menvcfg:
   common_data:
     ADDRESS: 30A
-    MASKED_BY: c_misa_rva23s64_M
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -1436,7 +1435,6 @@ menvcfg:
     FIELDS_RANGE: 63:63
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Sstc
     SW_TYPE: ''
     DESCRIPTION: Enables STimecmp for S-mode
   PBMTE:
@@ -1444,7 +1442,6 @@ menvcfg:
     FIELDS_RANGE: 62:62
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Svpbmt
     SW_TYPE: ''
     DESCRIPTION: Enables Svpbmt extension for S-mode and G-stage address translation
   HADE:
@@ -1517,7 +1514,6 @@ menvcfg:
 mseccfg:
   common_data:
     ADDRESS: '747'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -1534,7 +1530,6 @@ mseccfg:
     FIELDS_RANGE: '33:32'
     RESET_VALUE: '0'
     LEGAL_VALUE: 0, 2
-    MASKED_BY: Smmpm
     SW_TYPE: ''
     DESCRIPTION: Enables pointer masking for M-mode
   wpri_1:
@@ -1549,7 +1544,6 @@ mseccfg:
     FIELDS_RANGE: '9:9'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Zkr
     SW_TYPE: ''
     DESCRIPTION: Controls access to seed CSR in S or HS mode
   USEED:
@@ -1557,7 +1551,6 @@ mseccfg:
     FIELDS_RANGE: '8:8'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Zkr
     SW_TYPE: ''
     DESCRIPTION: Controls access to seed CSR in U mode
   wpri_0:
@@ -3468,7 +3461,6 @@ mtopi:
 mvien:
   common_data:
     ADDRESS: '308'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -3478,7 +3470,6 @@ mvien:
     FIELDS_RANGE: '13:13'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Sscofpmf
     SW_TYPE: ''
     DESCRIPTION: Enable virtual interrupts for local count overflow interrupts
   hard0_2:
@@ -3519,7 +3510,6 @@ mvien:
 mvip:
   common_data:
     ADDRESS: '309'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -3529,7 +3519,6 @@ mvip:
     FIELDS_RANGE: '13:13'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Sscofpmf
     SW_TYPE: ''
     DESCRIPTION: Machine virtual local count overflow interrupt pending
   hard0_3:
@@ -5916,7 +5905,6 @@ hedeleg:
 hideleg:
   common_data:
     ADDRESS: '603'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -5926,7 +5914,6 @@ hideleg:
     FIELDS_RANGE: '13:13'
     RESET_VALUE: '0'
     LEGAL_VALUE: '0'
-    MASKED_BY: Sscofpmf
     SW_TYPE: ''
     DESCRIPTION: Hardwired 0 -- Delegate Local Count Overflow Interrupt
   hard0_5:
@@ -5996,7 +5983,6 @@ hvip:
   common_data:
     ALIAS_OF: mip
     ADDRESS: '645'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -6006,7 +5992,6 @@ hvip:
     FIELDS_RANGE: '13:13'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Sscofpmf
     SW_TYPE: ''
     DESCRIPTION: Local Count Overflow Interrupt Pending
   hard0_5:
@@ -6715,7 +6700,6 @@ hgatp:
 hvien:
   common_data:
     ADDRESS: '608'
-    MASKED_BY: c_misa_rva23s64_O
     SW_WRITE: W
     SW_READ: R
     SW_TYPE: WARL
@@ -6725,7 +6709,6 @@ hvien:
     FIELDS_RANGE: '13:13'
     RESET_VALUE: '0'
     LEGAL_VALUE: ''
-    MASKED_BY: Sscofpmf
     SW_TYPE: ''
     DESCRIPTION: Local Count Overflow Interrupt
   hard0_0:

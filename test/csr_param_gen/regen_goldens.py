@@ -34,10 +34,14 @@ def main():
 
     spec = rloc(PKG + "/data/tiny_csr_spec.yaml")
     override = rloc(PKG + "/data/tiny_project_override.yaml")
+    defaults = rloc(PKG + "/data/tiny_csral_defaults.yaml")
 
     m = csr_param_gen.CsrMap(spec, override)
     m.generate_hpp_file(os.path.join(golden, "tiny_csr_param.hpp"))
     m.generate_sv_file(os.path.join(golden, "tiny_csr_param.sv"))
+    config = csr_param_gen.CsralConfig(defaults, m.override_data)
+    model = csr_param_gen.CsralModel(m, config)
+    model.generate_tables_hpp(os.path.join(golden, "tiny_csral_tables.hpp"))
 
     m = csr_param_gen.CsrMap(spec, None)
     m.generate_hpp_file(os.path.join(golden, "tiny_csr_param_no_override.hpp"))

@@ -25,3 +25,9 @@ filegroup(
     srcs = ["csr_spec.yaml"],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "csral_defaults",
+    srcs = ["csral_defaults.yaml"],
+    visibility = ["//visibility:public"],
+)
