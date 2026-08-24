@@ -9,8 +9,6 @@ module rv_tester_clkgen #(
                              output logic clk
                              );
 
-  // Emulator clock primitives below take an integer picosecond count; the
-  // simulation branch takes a time value.
   localparam int      CLOCK_PERIOD_PS = 1000000 / CLOCK_FREQ_MHZ;
   localparam realtime CLOCK_PERIOD    = CLOCK_PERIOD_PS * 1ps;
 
