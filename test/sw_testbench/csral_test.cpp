@@ -203,19 +203,24 @@ TEST_F(CsralTest, ResetSeedsSpecValues) {
 }
 
 TEST_F(CsralTest, InitCheckFlagsSpecWhisperDrift) {
-  // Whisper disagrees with the spec reset for exactly one CSR.
-  whisper_.value[addr_of("misa")] = 0x123;
+  // Whisper disagrees with the spec reset for exactly one CSR. (misa itself
+  // is check_reset-exempt — its reset encodes per-core whisper config — so
+  // this uses mscratch; misa drift is still ADOPTED, just not reported.)
+  whisper_.value[addr_of("mscratch")] = 0x123;
+  whisper_.value[addr_of("misa")] = reset_of("misa") ^ 0x2; // exempt: no report
   auto m = make();
   auto drift = m->init_check(0);
   ASSERT_EQ(drift.size(), 1u);
-  EXPECT_EQ(drift[0].csr_name, "misa");
-  EXPECT_EQ(drift[0].address, addr_of("misa"));
-  EXPECT_EQ(drift[0].spec, reset_of("misa"));
+  EXPECT_EQ(drift[0].csr_name, "mscratch");
+  EXPECT_EQ(drift[0].address, addr_of("mscratch"));
+  EXPECT_EQ(drift[0].spec, reset_of("mscratch"));
   EXPECT_EQ(drift[0].whisper, 0x123u);
   EXPECT_EQ(m->reset_check_severity(), csral::reset_check_t::error);
-  // Whisper is the run authority: both mirrors adopt its value.
-  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("misa")), 0x123u);
-  EXPECT_EQ(m->read(0, csral::src_t::iss, addr_of("misa")), 0x123u);
+  // Whisper is the run authority: both mirrors adopt its value — for the
+  // exempt CSR too.
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("mscratch")), 0x123u);
+  EXPECT_EQ(m->read(0, csral::src_t::iss, addr_of("mscratch")), 0x123u);
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("misa")), reset_of("misa") ^ 0x2);
 }
 
 // ---- DUT updates -----------------------------------------------------------
@@ -381,11 +386,8 @@ TEST_F(CsralTest, SetCheckEnableClasses) {
 TEST_F(CsralTest, ConditionMaskingExcludesInactiveBits) {
   constexpr std::uint64_t kMpvGva = 0x000000C000000000ull;
   auto m = make();
-  ASSERT_TRUE(m->condition_active(0, "misa.H"));
-  // Turn hypervisor off; drain the misa mismatch this write itself queues.
-  m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 100);
-  EXPECT_FALSE(m->condition_active(0, "misa.H"));
-  (void)m->check(0, 100);
+  // The sandbox spec resets with H=0; this flow only needs H off, which it is.
+  ASSERT_FALSE(m->condition_active(0, "misa.H"));
   // A DUT/ISS disagreement confined to H-masked bits compares clean.
   m->sw_write(0, addr_of("mstatus"), reset_of("mstatus") | kMpvGva, kAll, 3, 101);
   EXPECT_TRUE(m->check(0, 101).empty());
@@ -407,7 +409,7 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
     std::vector<std::uint32_t> restored;
     int count = 0;
   } fired;
-  m->on_condition_change([&](csral::hart_id_t, const CSRAL::condition_t& c, bool now_active, const std::vector<std::uint32_t>& restored) {
+  m->on_condition_change([&](csral::hart_id_t, const CSRAL::condition_t& c, bool now_active, const std::vector<std::uint32_t>& restored, std::uint64_t) {
     if (std::string_view(c.name) != "misa.H")
       return;
     fired.count++;
@@ -415,12 +417,19 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
     fired.restored = restored;
   });
 
+  // The spec resets H=0: enable hypervisor first (an on-edge with no valid
+  // stash — nothing to restore yet).
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 98);
+  ASSERT_TRUE(m->condition_active(0, "misa.H"));
+  EXPECT_EQ(fired.count, 1);
+  EXPECT_TRUE(fired.restored.empty());
+
   // Give the DUT mirror nonzero H-masked mip bits so the stash is observable.
   m->sw_write(0, addr_of("mip"), 0x1444, kAll, 3, 99);
   // Off-edge: stash captured.
   m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 100);
   EXPECT_FALSE(m->condition_active(0, "misa.H"));
-  EXPECT_EQ(fired.count, 1);
+  EXPECT_EQ(fired.count, 2);
   EXPECT_FALSE(fired.active);
 
   // Whisper loses the masked state while H is off.
@@ -428,9 +437,9 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
   int mip_pokes_before = pokes("mip");
 
   // On-edge: the stashed masked bits are poked back into whisper.
-  m->sw_write(0, addr_of("misa"), reset_of("misa"), kAll, 3, 101);
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 101);
   EXPECT_TRUE(m->condition_active(0, "misa.H"));
-  EXPECT_EQ(fired.count, 2);
+  EXPECT_EQ(fired.count, 3);
   EXPECT_TRUE(fired.active);
   EXPECT_EQ(fired.restored.size(), 5u); // mstatus, medeleg, mideleg, mip, mie
   EXPECT_NE(std::find(fired.restored.begin(), fired.restored.end(), addr_of("mip")), fired.restored.end());
@@ -445,21 +454,22 @@ TEST_F(CsralTest, SaveRestoreDisabledByEmptyPlusarg) {
 
   int fired = 0;
   std::vector<std::uint32_t> last_restored{1};
-  m->on_condition_change([&](csral::hart_id_t, const CSRAL::condition_t& c, bool, const std::vector<std::uint32_t>& restored) {
+  m->on_condition_change([&](csral::hart_id_t, const CSRAL::condition_t& c, bool, const std::vector<std::uint32_t>& restored, std::uint64_t) {
     if (std::string_view(c.name) == "misa.H") {
       fired++;
       last_restored = restored;
     }
   });
 
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 98);
   m->sw_write(0, addr_of("mip"), 0x1444, kAll, 3, 99);
   m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 100);
   int mip_pokes_before = pokes("mip");
-  m->sw_write(0, addr_of("misa"), reset_of("misa"), kAll, 3, 101);
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 101);
   // The condition still flips and the callback still fires, but nothing is
   // poked back: masking-only behavior, today's default for every condition
   // except misa.H (which this test disabled explicitly).
-  EXPECT_EQ(fired, 2);
+  EXPECT_EQ(fired, 3);
   EXPECT_TRUE(last_restored.empty());
   EXPECT_EQ(pokes("mip"), mip_pokes_before);
 }
@@ -516,10 +526,7 @@ TEST_F(CsralTest, HypervisorCsrsGatedByExistsIf) {
   // exists_if policy): while misa.H is 0, hstatus does not exist — no mirror
   // updates, no checks, and write_mask returns 0 without peeking whisper.
   auto m = make();
-  ASSERT_TRUE(m->condition_active(0, "misa.H")); // spec reset has H=1
-  m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 100);
-  ASSERT_FALSE(m->condition_active(0, "misa.H"));
-  (void)m->check(0, 100); // drain the (legitimate) misa mismatch this queued
+  ASSERT_FALSE(m->condition_active(0, "misa.H")); // sandbox spec resets H=0
 
   const std::uint64_t hstatus_before = m->read(0, csral::src_t::dut, addr_of("hstatus"));
   m->sw_write(0, addr_of("hstatus"), 0xDEAD, kAll, 3, 101);
@@ -528,8 +535,8 @@ TEST_F(CsralTest, HypervisorCsrsGatedByExistsIf) {
   m->iss_write(0, addr_of("hstatus"), 0xBEEF, 102);
   EXPECT_TRUE(m->check(0, 103).empty());
 
-  // With H back on, hstatus exists and updates flow again.
-  m->sw_write(0, addr_of("misa"), reset_of("misa"), kAll, 3, 104);
+  // With H turned on, hstatus exists and updates flow again.
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 104);
   ASSERT_TRUE(m->condition_active(0, "misa.H"));
   m->sw_write(0, addr_of("hstatus"), 0xDEAD, kAll, 3, 105);
   EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("hstatus")), 0xDEADull);

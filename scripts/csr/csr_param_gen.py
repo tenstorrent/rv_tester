@@ -684,7 +684,7 @@ class CsralValidationError(ValueError):
 
 
 _ALLOWED_CSRAL_KEYS = {"compare_mask_source", "reset_check", "field_aliases", "policies"}
-_ALLOWED_POLICY_KEYS = {"check", "on_mismatch", "volatile", "class", "may_not_exist", "exists_if"}
+_ALLOWED_POLICY_KEYS = {"check", "on_mismatch", "volatile", "class", "may_not_exist", "exists_if", "check_reset"}
 _ON_MISMATCH_VALUES = ("error", "skip", "resynch_rd")
 _COMPARE_MASK_SOURCES = ("whisper", "spec", "both_warn")
 _RESET_CHECK_VALUES = ("error", "warn", "off")
@@ -858,6 +858,9 @@ class CsralModel:
                 "volatile": bool(pol.get("volatile", False)),
                 "interrupt": pol.get("class") == "interrupt",
                 "may_not_exist": bool(pol.get("may_not_exist", False)),
+                # False exempts the CSR from the whisper-vs-spec reset check
+                # (for resets that encode per-core configuration, like misa).
+                "check_reset": bool(pol.get("check_reset", True)),
                 # Whole-CSR existence gate: the CSR only exists while this
                 # condition is active (e.g. hypervisor CSRs behind misa.H).
                 # Resolved to a condition index after condition derivation.
@@ -1103,7 +1106,7 @@ class CsralModel:
             w("enum class reset_check_t : std::uint8_t { error = 0, warn = 1, off = 2 };\n\n")
             w(f"inline constexpr compare_mask_source_t kCompareMaskSource = compare_mask_source_t::{self.config.compare_mask_source};\n")
             w(f"inline constexpr reset_check_t kResetCheck = reset_check_t::{self.config.reset_check};\n\n")
-            w("struct policy_t {\n  bool check;\n  on_mismatch_t on_mismatch;\n  bool volatile_csr;\n  bool interrupt_class;\n  bool may_not_exist;\n};\n\n")
+            w("struct policy_t {\n  bool check;\n  on_mismatch_t on_mismatch;\n  bool volatile_csr;\n  bool interrupt_class;\n  bool may_not_exist;\n  bool check_reset;\n};\n\n")
             w("struct field_t {\n  std::string_view name;\n  std::uint8_t msb;\n  std::uint8_t lsb;\n  std::uint64_t mask;\n  std::uint64_t reset;  // field-value, unshifted\n  std::uint16_t legal_first;\n  std::uint16_t legal_count;\n  std::string_view sw_type;\n};\n\n")
             w("struct csr_t {\n  std::string_view name;\n  std::uint16_t address;\n  std::uint16_t size;\n  std::uint64_t reset;  // concatenated CSR reset\n  std::uint64_t spec_write_mask;\n  std::int16_t alias_of;   // index into kCsrs, -1 = none\n  std::int16_t exists_if;  // index into kConditions gating this CSR's existence, -1 = always\n  policy_t policy;\n  std::uint16_t field_first;\n  std::uint16_t field_count;\n};\n\n")
             w("struct field_alias_t {\n  std::uint16_t csr;\n  std::uint8_t msb;\n  std::uint8_t lsb;\n  std::uint16_t alias_csr;\n  std::uint8_t alias_msb;\n  std::uint8_t alias_lsb;\n};\n\n")
@@ -1127,7 +1130,7 @@ class CsralModel:
             for r in (csr_rows or []):
                 p = r["policy"]
                 w(f"    {{\"{r['name']}\", 0x{r['address']:03X}, {r['size']}, 0x{r['reset']:016X}ULL, 0x{r['write_mask']:016X}ULL, {r['alias_of']}, {p['exists_if_index']}, "
-                  f"{{{b(p['check'])}, on_mismatch_t::{p['on_mismatch']}, {b(p['volatile'])}, {b(p['interrupt'])}, {b(p['may_not_exist'])}}}, "
+                  f"{{{b(p['check'])}, on_mismatch_t::{p['on_mismatch']}, {b(p['volatile'])}, {b(p['interrupt'])}, {b(p['may_not_exist'])}, {b(p['check_reset'])}}}, "
                   f"{r['field_first']}, {r['field_count']}}},\n")
             w("}};\n\n")
 

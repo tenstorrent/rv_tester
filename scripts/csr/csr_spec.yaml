@@ -636,7 +636,7 @@ misa:
   H:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '7:7'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: ''
     SW_WRITE: W
     SW_READ: R
@@ -690,7 +690,7 @@ misa:
   B:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '1:1'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: ''
     SW_READ: R
     SW_TYPE: Read-Only
@@ -1054,7 +1054,7 @@ mideleg:
   SGEIP:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '12:12'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: '1'
     MASKED_BY: H
     SW_READ: R
@@ -1071,7 +1071,7 @@ mideleg:
   VSEIP:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '10:10'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: '1'
     MASKED_BY: H
     SW_READ: R
@@ -1097,7 +1097,7 @@ mideleg:
   VSTIP:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '6:6'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: '1'
     MASKED_BY: H
     SW_READ: R
@@ -1123,7 +1123,7 @@ mideleg:
   VSSIP:
     FIELDS_WIDTH: '1'
     FIELDS_RANGE: '2:2'
-    RESET_VALUE: '1'
+    RESET_VALUE: '0'
     LEGAL_VALUE: '1'
     MASKED_BY: H
     SW_READ: R
