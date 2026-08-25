@@ -83,9 +83,9 @@ Responsibilities
 - **Step the ISS in lockstep with the DUT.** For each DUT-retired instruction it steps Whisper,
   collects the resulting state changes, and converts both sides into a common representation for
   comparison.
-- **Compare architectural state.** PC, GPR/FPR/vector registers, CSRs, privilege level, and memory
-  accesses are diffed via two CAC cores (``cac_`` for general state, ``csr_cac_`` for CSRs). Any
-  divergence is reported as a mismatch.
+- **Compare architectural state.** PC, GPR/FPR/vector registers, privilege level, and memory
+  accesses are diffed via a CAC core (``cac_``); CSRs are checked by **CSRAL**, the generated CSR
+  model (see the CSRAL guide). Any divergence is reported as a mismatch.
 - **Drive the ISS.** Wraps Whisper peek/poke/step/translate/page-table-walk and interrupt/NMI
   injection so DUT-observed events can be reflected into the ISS.
 - **Model timing-sensitive behavior.** Handles interrupt and NMI delivery and deferral,
@@ -107,12 +107,29 @@ Before stepping, the bridge may poke pending exceptions, LR/SC state, debug entr
 interrupts into the ISS; after stepping it checks NMI/interrupt/exception outcomes and handles
 SATP writes. This ordering is what keeps interrupt and trap timing aligned between DUT and ISS.
 
-Hypervisor CSR save/restore
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+CSRAL: the CSR model
+~~~~~~~~~~~~~~~~~~~~~
 
-In the DUT, when ``misa.H`` is cleared to zero the hypervisor-related CSRs are saved and then
-restored when ``misa.H`` goes back to one. To keep the ISS consistent, the bridge saves those
-hypervisor CSRs when ``misa.H`` becomes zero and restores them when ``misa.H`` is set again. This
-is controlled by the gflag ``hyp_save_restore_en`` (default ``true``). Disable it with
-``+hyp_save_restore_en=0`` if you want CSR values to reset when hypervisor mode is re-enabled
-instead of being restored from the saved snapshot.
+CSR state, checking, masking, and save/restore live in CSRAL (``src/cosim/csral/``), a CSR model
+generated from the project's CSR spec plus a policy YAML (``scripts/csr/csral_defaults.yaml``
+merged with the ``csral:`` section of the project override). Highlights:
+
+- Every whisper CSR poke/peek goes through the model, which keeps a per-hart DUT and ISS mirror
+  coherent by construction (pokes write through).
+- Checking policy is per CSR: ``check``, ``on_mismatch`` (``error``/``skip``/``resynch_rd``),
+  ``volatile`` (ISS side read live from whisper), ``exists_if`` (whole-CSR existence gates like
+  the hypervisor CSRs behind ``misa.H``), ``may_not_exist``, and ``check_reset``. Names are exact
+  or fnmatch globs — never substrings — and a name the spec doesn't know fails the build.
+- Field masking comes from the spec's two-level ``MASKED_BY`` (CSR-level names the masking
+  register, field-level the gate field), and masked fields compare only while their condition is
+  active.
+- **Masked-field save/restore** works for every condition: when a gate turns off the model
+  stashes the masked field values the DUT retains, and pokes them back into whisper when the gate
+  turns on. The enabled set is the plusarg ``+csral_save_restore`` (comma list of
+  ``<gate_csr>.<gate_field>`` names, default ``misa.H``; empty disables all).
+  ``+hyp_save_restore_en=0`` remains as an alias for removing ``misa.H`` from the set.
+- At reset the model seeds its mirrors from the spec and **checks whisper against the spec reset
+  values**; drift is an error by default (``+csral_reset_check=warn|off`` to downgrade). CSRs
+  whose reset encodes per-core configuration can opt out with ``check_reset: false`` (the shared
+  defaults exempt ``misa``).
+- ``+cosim_resynch_csr`` still adds runtime skip entries, now as exact spec names.
