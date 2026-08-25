@@ -284,8 +284,13 @@ private:
     if (!l.try_lock())
       return;
     int sent = 0;
-    while (r_dpi())
-      sent++;
+    cvm::registry::callbacks.call(
+      loc_, 
+      [this, &sent] {
+        while (r_dpi())
+          sent++;
+      }
+    );
     if (sent) {
       r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
     } else {
