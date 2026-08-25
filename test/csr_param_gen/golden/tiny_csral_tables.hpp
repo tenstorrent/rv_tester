@@ -20,6 +20,7 @@ struct policy_t {
   bool volatile_csr;
   bool interrupt_class;
   bool may_not_exist;
+  bool check_reset;
 };
 
 struct field_t {
@@ -101,15 +102,15 @@ inline constexpr std::array<field_t, 16> kFields = {{
 }};
 
 inline constexpr std::array<csr_t, 9> kCsrs = {{
-    {"time", 0xC01, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, -1, -1, {true, on_mismatch_t::error, false, false, false}, 0, 1},
-    {"utime", 0xD01, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, 0, -1, {true, on_mismatch_t::skip, false, false, false}, 1, 1},
-    {"my_ctl", 0x7C0, 64, 0x0000000000000AB0ULL, 0x0000000000000FF3ULL, -1, -1, {true, on_mismatch_t::skip, true, false, false}, 2, 2},
-    {"c_dbg_ctl", 0xBC0, 64, 0x0000000000000027ULL, 0x000000000000002FULL, -1, -1, {true, on_mismatch_t::error, false, false, false}, 4, 3},
-    {"misa", 0x301, 64, 0x8000000000000141ULL, 0xF000000003FFFFFFULL, -1, -1, {false, on_mismatch_t::skip, false, false, false}, 7, 2},
-    {"c_scratch", 0x5C0, 64, 0x0000000F00000000ULL, 0x0000000FFFFFFFFFULL, -1, -1, {false, on_mismatch_t::error, false, false, false}, 9, 2},
-    {"xen", 0x7C1, 64, 0x0000000000000001ULL, 0x0000000000000003ULL, -1, -1, {true, on_mismatch_t::error, false, false, false}, 11, 2},
-    {"c_indirect", 0xFFFF, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, -1, -1, {false, on_mismatch_t::error, false, false, false}, 13, 1},
-    {"addon_status", 0xFC0, 32, 0x0000000050000002ULL, 0x00000000F0000003ULL, -1, -1, {true, on_mismatch_t::error, false, false, false}, 14, 2},
+    {"time", 0xC01, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, -1, -1, {true, on_mismatch_t::error, false, false, false, true}, 0, 1},
+    {"utime", 0xD01, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, 0, -1, {true, on_mismatch_t::skip, false, false, false, true}, 1, 1},
+    {"my_ctl", 0x7C0, 64, 0x0000000000000AB0ULL, 0x0000000000000FF3ULL, -1, -1, {true, on_mismatch_t::skip, true, false, false, true}, 2, 2},
+    {"c_dbg_ctl", 0xBC0, 64, 0x0000000000000027ULL, 0x000000000000002FULL, -1, -1, {true, on_mismatch_t::error, false, false, false, true}, 4, 3},
+    {"misa", 0x301, 64, 0x8000000000000141ULL, 0xF000000003FFFFFFULL, -1, -1, {false, on_mismatch_t::skip, false, false, false, true}, 7, 2},
+    {"c_scratch", 0x5C0, 64, 0x0000000F00000000ULL, 0x0000000FFFFFFFFFULL, -1, -1, {false, on_mismatch_t::error, false, false, false, true}, 9, 2},
+    {"xen", 0x7C1, 64, 0x0000000000000001ULL, 0x0000000000000003ULL, -1, -1, {true, on_mismatch_t::error, false, false, false, true}, 11, 2},
+    {"c_indirect", 0xFFFF, 64, 0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL, -1, -1, {false, on_mismatch_t::error, false, false, false, true}, 13, 1},
+    {"addon_status", 0xFC0, 32, 0x0000000050000002ULL, 0x00000000F0000003ULL, -1, -1, {true, on_mismatch_t::error, false, false, false, true}, 14, 2},
 }};
 
 inline constexpr std::array<field_alias_t, 1> kFieldAliases = {{

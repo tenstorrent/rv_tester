@@ -85,7 +85,6 @@ DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire 
 DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
-DEFINE_bool(csral_shadow, true, "Compare the CSRAL mirrors against csr_cac_ at every group check and log divergence (Phase 3 dual-run)");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
 DEFINE_uint64(bridge_debug_cycle, 0, "enabled C debug messages at clock=<n>");
 DEFINE_uint64(cosim_period, 0, "COSIM periodic mode enable");
@@ -116,6 +115,24 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
   return dword_vec;
 }
 
+// +hyp_save_restore_en compat: equivalent to removing/keeping misa.H in the
+// +csral_save_restore enabled set. Runs before the csral member constructs
+// (which is when the set is parsed); returns num_harts so it can sit in the
+// member-init list.
+int bridge::apply_hyp_save_restore_compat(int num_harts) {
+  if (!FLAGS_hyp_save_restore_en) {
+    std::string set = FLAGS_csral_save_restore, out;
+    std::istringstream iss(set);
+    std::string token;
+    while (std::getline(iss, token, ',')) {
+      if (token != "misa.H" && !token.empty())
+        out += out.empty() ? token : ("," + token);
+    }
+    gflags::SetCommandLineOption("csral_save_restore", out.c_str());
+  }
+  return num_harts;
+}
+
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
     : sc_slice_base_([]() { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + 0x8; }()),
@@ -126,10 +143,43 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       xlen_(xlen),
       vlen_(vlen),
       cac_(CacCore(num_harts)),
-      csr_cac_(CacCore(num_harts)),
-      csral_(num_harts, cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) {
+      csral_(apply_hyp_save_restore_compat(num_harts), cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) {
 
   flags_bridge_log_ = FLAGS_bridge_log;
+  csral_.set_check_enable(csral::check_class_t::sw_write, FLAGS_csr_rd_check);
+  csral_.set_check_enable(csral::check_class_t::hw_update, FLAGS_csr_wr_check);
+
+  // misa.H transition side effects the model's generic save/restore does not
+  // know about (they are architecture behavior, not stashed state): the
+  // mideleg VS bits are hardware-forced to 1 with H on and to 0 with H off,
+  // medeleg's H-only causes clear with H off, and a restored mip refreshes
+  // the interrupt bookkeeping.
+  csral_.on_condition_change([this](csral::hart_id_t hart, const CSRAL::condition_t& cond, bool now, const std::vector<uint32_t>& restored, uint64_t cycle) {
+    if (std::string_view(cond.name) != "misa.H")
+      return;
+    uint64_t mideleg_mask = 0, medeleg_mask = 0;
+    for (std::size_t t = 0; t < cond.target_count; ++t) {
+      const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];
+      if (CSRAL::kCsrs[tgt.csr].name == "mideleg")
+        mideleg_mask = tgt.mask;
+      if (CSRAL::kCsrs[tgt.csr].name == "medeleg")
+        medeleg_mask = tgt.mask;
+    }
+    if (now) {
+      if (mideleg_mask != 0)
+        csral_.hw_update(hart, mideleg.address, mideleg_mask, mideleg_mask, cycle);
+      if (std::find(restored.begin(), restored.end(), static_cast<uint32_t>(mip.address)) != restored.end()) {
+        peek_mip(hart, cycle, tmp_mip_latest_);
+        tmp_mip_prev_ = tmp_mip_latest_;
+        bridge_log(cvm::MEDIUM, "<{}> misa.H restore refreshed mip bookkeeping: {:#x}\n", cycle, tmp_mip_latest_.to_ullong());
+      }
+    } else {
+      if (medeleg_mask != 0)
+        csral_.hw_update(hart, medeleg.address, 0, medeleg_mask, cycle);
+      if (mideleg_mask != 0)
+        csral_.hw_update(hart, mideleg.address, 0, mideleg_mask, cycle);
+    }
+  });
   if (FLAGS_cosim_period > 0) {
     print(cvm::MEDIUM, "[RVFI loc {} id{}] COSIM periodic-state-check mode enabled\n", loc_, id_);
     if (FLAGS_cosim_resynch) {
@@ -146,76 +196,18 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
   // Reset value
   hw_mip_age_ = FLAGS_mip_resynch_threshold;
 
-  cosim_resynch_csr_defaults = {
-
-      //"htval","mtval2", // RVDE-10043
-      //"mtinst","htinst", // RVDE-10005
-      "sstatus",
-      "mstatus",
-      "hstatus",
-      "mie",
-      "hie",
-      "vsie",
-      "sie",   // RVDE-11840
-      "vxsat", // Vectors RVDE-17338
-      "vcsr",  // Vectors RVDE-17338
-      "vxrm",  // Vectors RVDE-17338
-      "srmcfg",
-      "tselect",
-      "tdata1",
-      "tdata2",
-      "tdata3",
-      "mcontext",
-      "tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
-      "fflags",
-      "fcsr", // Unimplemented
-      "menvcfg",
-      "senvcfg",
-      "henvcfg", // FIXME: pointer masking change
-      "pma",
-      "pmp",   // FIXME: Performant NC change
-      "vtype", // Permanent: Vector vtype will not be implemented
-      "mip",
-      "mvip",
-      "hip",
-      "hgeip",
-      "vsip",
-      "hvip",
-      "sip",
-      "mireg",
-      "sireg",
-      "vsireg",
-      "mtopei",
-      "stopei",
-      "vstopei", // Permanent: Interrupts
-      "mtopi",
-      "stopi",
-      "vstopi", // RVTOOLS-3189
-      "hpmcounter",
-      "mcycle",
-      "minstret",
-      "minstreth", // Permanent: PMC events
-      "dcsr",
-      "dpc",
-      "dscratch0",
-      "dscratch1", // Permanent: Debug events
-      "sstateen0",
-      "sstateen1",
-      "sstateen2",
-      "sstateen3",
-      "hstateen0",
-      "hstateen1",
-      "hstateen2",
-      "hstateen3", // Smstateen CSRs
-      "seed",
-      "mhpmevent", // TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
-      "scountovf",
-  };
-
+  // +cosim_resynch_csr keeps working as a runtime addition to the policy
+  // skip set — exact spec names now, not substrings. A name the spec does
+  // not know is a startup error (a typo'd skip must not silently error runs).
   std::istringstream iss(FLAGS_cosim_resynch_csr);
   std::string token;
   while (std::getline(iss, token, ',')) {
-    cosim_resynch_csr_defaults.push_back(token);
+    if (token.empty())
+      continue;
+    if (const auto* row = CSRAL::find_by_name(token))
+      runtime_skip_addrs_.insert(row->address);
+    else
+      error("+cosim_resynch_csr: '{}' is not a CSR in the spec (exact names, not substrings)\n", token);
   }
   previous_cycle_ = 0;
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
@@ -323,25 +315,15 @@ void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data) {
 }
 
 void bridge::csr_init() {
-  // CSRAL: seed from the spec, adopt whisper values, and surface spec-vs-
-  // whisper reset drift. Phase 3 logs it; the Phase 4 cutover escalates per
-  // +csral_reset_check.
+  // Seed mirrors from the spec, adopt whisper values, and check them against
+  // each other: spec-vs-whisper reset drift is an error by default
+  // (docs/csral_plan.md decision 3; downgrade with +csral_reset_check).
   csral_.reset(id_);
   for (const auto& drift : csral_.init_check(id_)) {
-    print(cvm::MEDIUM, "[csral] Hart {}: reset drift on {}: spec={:#x} whisper={:#x}\n", id_, drift.csr_name, drift.spec, drift.whisper);
-  }
-
-  for (const auto* csr : csr_map) {
-    if (csr->reset_val != 0) {
-      bool ok = false;
-      uint64_t data = csral_.peek(id_, csr->address, &ok);
-      if (!ok && FLAGS_whisper_client_check)
-        error("Hart {}: Failed to peek csr : {:#x} in csr_int()\n", id_, csr->address);
-      uint64_t cac_mask = 0xffffffffffffffff;
-      update_csr(id_, src_t::dut, csr->address, data, cac_mask);
-      update_csr(id_, src_t::iss, csr->address, data, cac_mask);
-      csr_cac_.Step(id_, false);
-    }
+    if (csral_.reset_check_severity() == csral::reset_check_t::error)
+      error("Hart {}: CSR reset drift on {}: spec={:#x} whisper={:#x} (+csral_reset_check=warn to downgrade)\n", id_, drift.csr_name, drift.spec, drift.whisper);
+    else
+      print(cvm::MEDIUM, "[csral] Hart {}: reset drift on {}: spec={:#x} whisper={:#x}\n", id_, drift.csr_name, drift.spec, drift.whisper);
   }
 }
 
@@ -843,100 +825,33 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
   csral_.hw_update(hart, c.csr_addr, c.csr_wdata, c.csr_wmask, c.cycle);
-  uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
-  update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
-}
-
-// Phase 3 dual-run (+csral_shadow): csr_cac_ stays the authoritative CSR
-// checker while CSRAL runs alongside; every group boundary drains CSRAL's own
-// check queue (informational) and compares its mirrors against csr_cac_'s
-// stored values. Divergence is logged, never failed — the log IS the product:
-// it tells us where the model and the legacy checker disagree before the
-// Phase 4 cutover makes the model authoritative.
-void bridge::csral_shadow_compare(hart_id_t hart, uint64_t cycle) {
-  if (!FLAGS_csral_shadow)
-    return;
-
-  for (const auto& mm : csral_.check(hart, cycle)) {
-    print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} would be {} ({}): {}\n",
-          cycle, hart, mm.csr_name,
-          mm.action == CSRAL::on_mismatch_t::error ? "an ERROR" : (mm.action == CSRAL::on_mismatch_t::skip ? "skipped" : "a resynch"),
-          mm.check_class == csral::check_class_t::sw_write ? "sw" : "hw", mm.fields);
-  }
-
-  for (std::size_t i = 0; i < CSRAL::kNumCsrs; ++i) {
-    const auto& row = CSRAL::kCsrs[i];
-    if (row.address == CSRAL::kNoDirectAddress)
-      continue;
-    auto& log_count = csral_shadow_log_count_[row.address];
-    if (log_count >= 3)
-      continue; // this CSR's divergence is known; stop repeating it
-
-    resource_id_t rid{resource_t::csr_reg, row.address};
-    std::vector<bool> vec;
-    (void)csr_cac_.GetResource(hart, src_t::dut, rid, vec);
-    const uint64_t cac_dut = vec.empty() ? 0 : cac::CreateSizedVec<uint64_t>(vec)[0];
-    if (cac_dut != csral_.read(hart, csral::src_t::dut, row.address)) {
-      log_count++;
-      print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} DUT mirror diverges: cac={:#x} csral={:#x}\n",
-            cycle, hart, row.name, cac_dut, csral_.read(hart, csral::src_t::dut, row.address));
-      continue;
-    }
-    if (row.policy.volatile_csr)
-      continue; // the model reads these live; cac's stored ISS value is known-stale
-    vec.clear();
-    (void)csr_cac_.GetResource(hart, src_t::iss, rid, vec);
-    const uint64_t cac_iss = vec.empty() ? 0 : cac::CreateSizedVec<uint64_t>(vec)[0];
-    if (cac_iss != csral_.read(hart, csral::src_t::iss, row.address)) {
-      log_count++;
-      print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} ISS mirror diverges: cac={:#x} csral={:#x}\n",
-            cycle, hart, row.name, cac_iss, csral_.read(hart, csral::src_t::iss, row.address));
-    }
-  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
   if (patch_mode_)
     return;
+
+  // Always drain the model's queue so it cannot grow unbounded; reporting is
+  // gated below (parity: +csr_wr_check=0 suppressed all CSR write reporting).
+  auto mismatches = csral_.check(hart, d.cycle);
   if (!FLAGS_csr_wr_check)
     return;
 
-  csral_shadow_compare(hart, d.cycle);
-
-  const auto cac_status_verbosity = cvm::HIGH;
-  // Step csr cac
-  csr_cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
-  std::string status = csr_cac_.GetStatusStr(hart);
-  if (status != "")
-    bridge_log(cac_status_verbosity, "CSR {}", status);
-
-  // error on mismatch
-  if (!csr_cac_.GetStatus(hart)) {
-    std::string csr, dut, iss;
-    csr_cac_.GetResourceStr(hart, csr, dut, iss);
-    csr = get_csr_name(csr.substr(2));
-    csr_cac_.ResetStatus(hart);
-    if (resynch_csr_) {
-      bridge_log(cvm::MEDIUM, "<{}> CSR HW Resynch: Reason=[csr_sw_resynch?]\n", d.cycle);
-      resynch_csr_ = false;
-    } else {
-      for (const auto& token_csr : cosim_resynch_csr_defaults) {
-        if (csr.find(token_csr) != std::string::npos) {
-          bridge_log(cvm::FULL, "<{}> CSR HW Check Skip: Reason=[found in resynch_csr_defaults list]\n", d.cycle);
-          return;
-        }
-      }
-      for (auto& i : d.instrs)
-        print_instr_stdout(hart, i);
-      print(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      if (FLAGS_whisper_client_check) {
-        mismatch_res_ = csr, mismatch_dut_ = dut, mismatch_iss_ = iss;
-        if (dut == "")
-          dut = "none";
-        if (iss == "")
-          iss = "none";
-        error("Hart {}: CSR Write Mismatch - {} DUT: {} ISS: {}\n", hart, csr, dut, iss);
-      }
+  for (const auto& mm : mismatches) {
+    const bool runtime_skip = runtime_skip_addrs_.count(mm.address) != 0;
+    if (mm.action != CSRAL::on_mismatch_t::error || runtime_skip) {
+      bridge_log(cvm::FULL, "<{}> CSR HW Check Skip: Reason=[{}] {} DUT: {:#x} ISS: {:#x}\n", d.cycle,
+                 runtime_skip ? "+cosim_resynch_csr" : (mm.action == CSRAL::on_mismatch_t::resynch_rd ? "interrupt policy" : "policy skip"),
+                 mm.csr_name, mm.dut, mm.iss);
+      continue;
+    }
+    for (auto& i : d.instrs)
+      print_instr_stdout(hart, i);
+    if (FLAGS_whisper_client_check) {
+      mismatch_res_ = std::string(mm.csr_name);
+      mismatch_dut_ = fmt::format("{:#x}", mm.dut);
+      mismatch_iss_ = fmt::format("{:#x}", mm.iss);
+      error("Hart {}: CSR Write Mismatch - {} DUT: {:#x} ISS: {:#x} [{}]\n", hart, mm.csr_name, mm.dut, mm.iss, mm.fields);
     }
   }
 }
@@ -1772,108 +1687,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // CSR
   for (auto& c : d.csr) {
     csral_.sw_write(hart, c.csr_addr, c.csr_wdata, c.csr_wmask, d.priv, d.cycle);
-    uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata, d.priv);
-    uint64_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
-    if (FLAGS_csr_rd_check) {
-      if ((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
-      } else {
-        update_csr(hart, src_t::dut, c.csr_addr, data, mask);
-      }
-      if (patch_mode_ != NO_PATCH) {
-        bool valid;
-        uint64_t w_data, w_mask, w_poke_mask, w_read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, c.csr_addr, w_data, w_mask, w_poke_mask, w_read_mask, valid)) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in step()\n", hart, c.csr_addr);
-        }
-        update_csr(hart, src_t::iss, c.csr_addr, data, mask);
-      }
-      if (c.csr_addr == fflags.address)
-        update_csr(hart, src_t::dut, fcsr.address, data, mask);
-      else if (c.csr_addr == frm.address) {
-        data = data << 5;
-        mask = mask << 5;
-        update_csr(hart, src_t::dut, fcsr.address, data, mask, false, false);
-      } else if (c.csr_addr == fcsr.address) {
-        uint64_t mask_fcsr = mask;
-        mask = mask_fcsr & 0x1f;
-        update_csr(hart, src_t::dut, fflags.address, data, mask, false, false);
-        data = data >> 5;
-        mask = (mask_fcsr >> 5) & 0x7;
-        update_csr(hart, src_t::dut, frm.address, data, mask, false, false);
-      } else if (c.csr_addr == misa.address) { // misa.H update changes
-        if (c.csr_wmask & 0x80) {
-          if (c.csr_wdata & 0x80) {
-            if (!misa_h_) {
-              // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
-              if (FLAGS_hyp_save_restore_en) {
-                for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                  uint64_t peek_value = 0;
-                  uint64_t poke_value = 0;
-                  if (addr == mip.address || addr == mvip.address) {
-                    if (addr == mvip.address)
-                      continue;
-                    uint64_t mvip_value = get_csr(id_, src_t::dut, mvip.address);
-                    mask = 0xffffffffffffffffULL;
-                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                    update_csr(hart, src_t::iss, mvip.address, mvip_value, mask, false, false);
-                    std::bitset<64> mip_bits;
-                    peek_mip(hart, d.cycle, mip_bits);
-                    auto old_mvip = mvip_;
-                    poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
-                    mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
-                    poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
-                    tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
-                    bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
-
-                  } else {
-                    mask = 0xffffffffffffffffULL;
-                    update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                    bool peek_ok = false;
-                    peek_value = csral_.peek(hart, addr, &peek_ok);
-                    if (!peek_ok && FLAGS_whisper_client_check) {
-                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                      return;
-                    }
-                    poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
-                    if (!csral_.poke(hart, addr, poke_value, d.cycle) && FLAGS_whisper_client_check) {
-                      error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
-                      return;
-                    }
-                    if (addr == medeleg.address) {
-                      mask = 0xF00400;
-                      update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
-                    }
-                  }
-                }
-              }
-            }
-            misa_h_ = 1;
-            mask = 0x1444;
-            update_csr(hart, src_t::dut, mideleg.address, 0x1444, mask, false, false);
-          } else {
-            if (misa_h_) {
-              // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
-              if (FLAGS_hyp_save_restore_en) {
-                for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                  if (addr == mip.address)
-                    hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
-                  else
-                    hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
-                }
-              }
-            }
-            misa_h_ = 0;
-            mask = 0xF00400;
-            update_csr(hart, src_t::dut, medeleg.address, 0, mask, false, false);
-            mask = 0x1444;
-            update_csr(hart, src_t::dut, mideleg.address, 0, mask, false, false);
-          }
-        }
-      }
-      if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
-        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
-      }
-    }
+    if (patch_mode_ != NO_PATCH)
+      csral_.iss_refresh(hart, c.csr_addr);
   }
 }
 
@@ -1935,25 +1750,9 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
     }
     break;
   case 'c':
+    // The model applies the ISS change (locked PMP entries are skipped
+    // inside iss_write) and queues the cross-check.
     csral_.iss_write(hart, w.address & 0xfff, w.value, w.time);
-    if (FLAGS_csr_rd_check) {
-      // Check if PMP entry is locked
-      if (w.address >= pmpaddr0.address && w.address <= pmpaddr15.address) {
-        bool valid = false;
-        uint64_t pmpcfg, mask, reset, read_mask;
-        uint64_t i, pmp_cfg_reg, pmp_cfg_index;
-        // For PMP addresses, which bits of the pmpcfgs to look for
-        i = w.address - pmpaddr0.address;
-        pmp_cfg_reg = ((i * 8) / 64) * 2;
-        pmp_cfg_index = (i * 8) % 64;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pmpcfg0.address + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek CSR : PMACFG0\n", hart);
-        }
-        if ((pmpcfg >> (pmp_cfg_index + 7)) & 0x1)
-          break;
-      }
-      update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
-    }
     break;
   default:
     break;
@@ -2295,9 +2094,8 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
     return true;
   };
 
-  if (FLAGS_mip_resynch &&
-      std::any_of(interrupt_csrs_to_resynch_.begin(), interrupt_csrs_to_resynch_.end(),
-                  [csr_addr](csr_base* csr) { return csr->address == csr_addr; })) {
+  const auto* intr_row = csral::row(csr_addr);
+  if (FLAGS_mip_resynch && intr_row != nullptr && intr_row->policy.interrupt_class) {
     if (dut != "" && iss != "") {
       uint64_t dut_val = std::stoull(dut, nullptr, 16);
       uint64_t iss_val = std::stoull(iss, nullptr, 16);
@@ -2491,7 +2289,6 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   for (auto& csr : d.csr) {
     if (csr.valid) {
-      resynch_csr_ = true;
       csral_.note_resynch(hart);
       // Special case: Resynch for topei cases
       if (csr.csr_addr == stopei.address || csr.csr_addr == vstopei.address || csr.csr_addr == mtopei.address) {
@@ -2500,11 +2297,11 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       }
       bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
 
-      if ((hypervisor_csr_map_.find(csr.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
+      if (!csral_.exists(hart, csr.csr_addr)) {
         continue;
       } else {
-        if (std::any_of(interrupt_csrs_to_resynch_.begin(), interrupt_csrs_to_resynch_.end(),
-                        [&csr](csr_base* c) { return c->address == csr.csr_addr; })) {
+        const auto* row = csral::row(csr.csr_addr);
+        if (row != nullptr && row->policy.interrupt_class) {
           // only resynch the destination register, do not change the CSRs
         } else {
           if (!csral_.poke(hart, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), d.cycle) && FLAGS_whisper_client_check) {
@@ -3264,145 +3061,6 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
   debug_mode_ = false;
 }
 
-uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv) {
-  uint64_t result = data;
-  if (addr >= pmpaddr0.address && addr <= pmpaddr15.address) {
-    bool valid;
-    uint64_t pmpcfg, mask, reset, read_mask;
-    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
-    // For PMP addresses, which bits of the pmpcfgs to look for
-    i = addr - pmpaddr0.address;
-    pmp_cfg_reg = ((i * 8) / 64) * 2;
-    pmp_cfg_index = (i * 8) % 64;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pmpcfg0.address + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_data()\n", hart, (pmpaddr0.address + pmp_cfg_reg));
-    };
-    if ((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
-      result = data | 0x1ff;
-    } else {
-      result = data & 0xfffffffffffffc00;
-    }
-  }
-  for (size_t i = 0; i < 4; i++) {
-    if ((addr == hstateen0.address + i) || (addr == sstateen0.address + i)) {
-      bool valid;
-      uint64_t mstateen, mask_iss, reset, read_mask;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, mstateen0.address + i, mstateen, mask_iss, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek CSR : {:#x}\n", hart, mstateen0.address + i);
-      }
-      result &= mstateen;
-      if ((addr == sstateen0.address + i) && priv == VS) {
-        bool valid;
-        uint64_t hstateen, mask_iss, reset, read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, hstateen0.address + i, hstateen, mask_iss, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek CSR : {:#x}\n", hart, hstateen0.address + i);
-        }
-        result &= hstateen;
-      }
-      break;
-    }
-  }
-  return result;
-}
-
-uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask) {
-  uint64_t result = mask;
-  if (addr == vl.address)
-    result = mask;
-  else if ((hypervisor_csr_map_.find(addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
-    // Do not peek Hypervisor CSRs when MISA.H = 0
-  } else
-    result = mask & get_csr_mask(hart, addr);
-  if (addr >= pmpaddr0.address && addr <= pmpaddr15.address) {
-    bool valid;
-    uint64_t pmpcfg, mask_iss, reset, read_mask;
-    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
-    // For PMP addresses, which bits of the pmpcfgs to look for
-    i = addr - pmpaddr0.address;
-    pmp_cfg_reg = ((i * 8) / 64) * 2;
-    pmp_cfg_index = (i * 8) % 64;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, pmpaddr0.address + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid)) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_mask()\n", hart, (pmpaddr0.address + pmp_cfg_reg));
-    }
-    if ((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
-      result = result | 0x1ff;
-    } else {
-      result = result | 0x3ff;
-    }
-  }
-  if (addr == hgatp.address) {
-    uint64_t mode = (data & mask) >> 60;
-    bool valid_mode = false;
-    for (uint16_t hgatp_valid_mode : hgatp_valid_modes) {
-      if (mode == hgatp_valid_mode) {
-        valid_mode = true;
-        break;
-      }
-    }
-    if (!valid_mode) {
-      result = result & 0xfffffffffffffffULL;
-    } else {
-      uint64_t mode_mask = get_csr(id_, src_t::dut, hgatp.address) >> 60 | mode;
-      result = result & ((mode_mask << 60) | 0xfffffffffffffffULL);
-    }
-  }
-
-  // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10, rvde-19017
-  if ((addr == mseccfg.address) || (addr == menvcfg.address) || (addr == henvcfg.address) || (addr == senvcfg.address) || (addr == hstatus.address)) {
-    bool pmm_legal = false;
-    if (addr == hstatus.address) {
-      uint16_t pmm = (((data & result) >> pmm_hstatus_mask_lo) & ((1 << pmm_mask_size) - 1));
-      for (uint16_t pmm_legal_value : pmm_legal_values) {
-        if (pmm == pmm_legal_value) {
-          pmm_legal = true;
-          break;
-        }
-      }
-      if (!pmm_legal) {
-        uint64_t bitmask = ((1ULL << pmm_mask_size) - 1) << pmm_hstatus_mask_lo; // Create a mask for bits to clear
-        result = result & ~bitmask;
-      }
-    } else {
-      uint16_t pmm = (((data & result) >> pmm_cfgs_mask_lo) & ((1 << pmm_mask_size) - 1));
-      for (uint16_t pmm_legal_value : pmm_legal_values) {
-        if (pmm == pmm_legal_value) {
-          pmm_legal = true;
-          break;
-        }
-      }
-      if (!pmm_legal) {
-        uint64_t bitmask = ((1ULL << pmm_mask_size) - 1) << pmm_cfgs_mask_lo; // Create a mask for bits to clear
-        result = result & ~bitmask;
-      }
-    }
-  }
-
-  // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10
-  if ((addr == mseccfg.address) || (addr == menvcfg.address) || (addr == henvcfg.address) || (addr == senvcfg.address) || (addr == hstatus.address)) {
-    if (addr == hstatus.address) {
-      uint16_t pmm = (((data & result) >> 48) & 0x3);
-      if (!(pmm == 0 || pmm == 2)) {
-        result = result & 0xfffcffffffffffffULL;
-      }
-    } else {
-      uint16_t pmm = (((data & result) >> 32) & 0x3);
-      if (!(pmm == 0 || pmm == 2)) {
-        result = result & 0xfffffffcffffffffULL;
-      }
-    }
-  }
-
-  if (addr == srmcfg.address) {
-    uint64_t eff_data = data & mask;
-    result = 0xfff0fff;
-    if (!(((eff_data & result) & 0xFFF) <= 0xF) || (((eff_data & result) & 0xFFF0000) != 0x0)) {
-      result = 0x0;
-    } else
-      result = result & get_csr_mask(hart, addr); // Similar to HGATP handling
-  }
-  return result;
-}
-
 bool bridge::is_custom_csr(uint64_t addr) {
   return ((addr >= 0x5C0 && addr <= 0x5FF) ||
           (addr >= 0x6C0 && addr <= 0x6FF) ||
@@ -3433,85 +3091,9 @@ bool bridge::is_mtime_mmr(uint64_t addr) {
   return (addr == mtime_mmr());
 }
 
-void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {
-
-  bool check = false;
-  if (auto* csr = CSR::find_csr_by_address(static_cast<std::uint16_t>(addr)); csr && csr->cac_check)
-    check = check_en;
-
-  resource_id_t csr_resource = resource_id_t{
-      .resource = resource_t::csr_reg,
-      .offset = addr};
-  cac::mask_t mask = cac::CreateBitVec<uint64_t>(std::numeric_limits<uint64_t>::max());
-  if (mask_ref != std::nullopt) {
-    mask = cac::CreateBitVec<uint64_t>(mask_ref.value());
-  }
-  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<uint64_t>({data})), mask, check)) {
-    error("Hart {}: CAC: Failed to SetResource {}\n", hart, csr_resource.ToString());
-  }
-
-  // Also update shadow csr if applicable ex: mstatus/sstatus
-  if (!shadow_csr) {
-    if (auto* csr = CSR::find_csr_by_address(static_cast<std::uint16_t>(addr)); csr && csr->alias_of) {
-      uint64_t alias_addr = csr->alias_of->address;
-      uint64_t alias_mask;
-      if (src == src_t::dut) {
-        if (mask_ref)
-          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, alias_addr);
-        else
-          alias_mask = get_csr_poke_mask(hart, alias_addr);
-      } else {
-        uint64_t mask, poke_mask, read_mask;
-        bool valid;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, alias_addr, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in update_csr()\n", hart, alias_addr);
-        }
-        alias_mask = get_csr_poke_mask(hart, alias_addr);
-      }
-      update_csr(hart, src, alias_addr, data, alias_mask, true);
-    }
-  }
-}
-
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
-
-  // Special handling for mip
-  if ((addr == mip.address || addr == mvip.address) && (src == src_t::iss)) {
-    std::bitset<64> mip;
-    peek_mip(hart, uint64_t(0), mip);
-    if (addr == mvip.address)
-      return mvip_;
-    return mip.to_ullong();
-  }
-
-  std::vector<bool> bool_vec;
-  std::vector<uint64_t> dword_vec;
-  resource_id_t csr_resource = resource_id_t{
-      .resource = resource_t::csr_reg,
-      .offset = addr};
-  assert(csr_cac_.GetResource(hart, src, csr_resource, bool_vec));
-  dword_vec = cac::CreateSizedVec<uint64_t>(bool_vec);
-  return dword_vec[0];
-}
-
-uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
-  bool valid;
-  uint64_t data, mask, poke_mask, read_mask;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, addr, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, addr);
-  }
-  if (debug_mode_ && addr == dcsr.address)
-    return poke_mask;
-  return mask & read_mask;
-}
-
-uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
-  bool valid;
-  uint64_t data, mask, poke_mask, read_mask;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, addr, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to peek csr : {:#x} in get_csr_poke_mask()\n", hart, addr);
-  }
-  return poke_mask;
+  // The model reads volatile CSRs (mip/mvip/...) live from whisper.
+  return csral_.read(hart, src == src_t::dut ? csral::src_t::dut : csral::src_t::iss, static_cast<uint32_t>(addr));
 }
 
 void bridge::peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data) {
@@ -3556,17 +3138,6 @@ void bridge::poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned si
     error("Hart {}: Failed to poke memory [addr={:#x} data={:#x}]\n", id_, addr, data);
     return;
   }
-}
-
-std::string bridge::get_csr_name(const std::string& csr_addr) {
-  unsigned int addr;
-  try {
-    addr = std::stoul(csr_addr, nullptr, 16);
-  } catch (...) {
-    return csr_addr;
-  }
-  auto* csr = find_csr_by_address(addr);
-  return csr != nullptr ? csr->name : csr_addr;
 }
 
 void bridge::final_phase() {
@@ -3666,8 +3237,7 @@ void bridge::report_metrics() {
   // Whisper csr values
   for (const auto* csr : csr_map) {
     uint64_t csr_data;
-    if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
-    } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
+    if (!csral_.exists(id_, csr->address)) {
     } else {
       bool ok = false;
       csr_data = csral_.peek(id_, csr->address, &ok);
@@ -3730,9 +3300,4 @@ void bridge::report_metrics() {
   // Regression level metrics from hart 0
   if (id_ == 0)
     print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc); // Average ipc
-}
-
-bool bridge::may_peek_csr(uint64_t& data, uint64_t addr) {
-  bool valid;
-  return ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', addr, data, valid) || !valid) && FLAGS_whisper_client_check);
 }

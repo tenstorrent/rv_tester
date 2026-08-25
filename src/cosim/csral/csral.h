@@ -23,8 +23,13 @@
 #include <string_view>
 #include <vector>
 
+#include <gflags/gflags.h>
+
 #include "csral_tables.hpp"
 #include "cvm/topology.hpp"
+
+DECLARE_string(csral_save_restore);
+DECLARE_string(csral_reset_check);
 
 class csral {
 public:
@@ -147,7 +152,7 @@ public:
   // Fires after a condition flips. On the off->on edge CSRAL has already
   // poked the stashed masked field values back into whisper; restored_addrs
   // lists those CSRs so the bridge can refresh interrupt bookkeeping.
-  using condition_cb = std::function<void(hart_id_t, const CSRAL::condition_t&, bool now_active, const std::vector<std::uint32_t>& restored_addrs)>;
+  using condition_cb = std::function<void(hart_id_t, const CSRAL::condition_t&, bool now_active, const std::vector<std::uint32_t>& restored_addrs, std::uint64_t cycle)>;
   void on_condition_change(condition_cb cb) { condition_cb_ = std::move(cb); }
 
   // ---- behavioral hooks (cross-CSR WARL the spec cannot express) ----------
@@ -169,6 +174,9 @@ public:
   // corresponding pmpcfg (peeked live from whisper). Used by the default PMP
   // legalize hook and by the ISS-update skip, both ports of bridge behavior.
   bool pmp_locked(hart_id_t hart, std::uint32_t addr);
+  // False only for a CSR whose exists_if condition is currently inactive
+  // (e.g. hypervisor CSRs while misa.H=0). Unknown addresses return true.
+  bool exists(hart_id_t hart, std::uint32_t addr) const;
   // A[1] of the entry's pmpcfg byte: NAPOT, driving granularity read-back.
   bool pmp_napot(hart_id_t hart, std::uint32_t addr);
 

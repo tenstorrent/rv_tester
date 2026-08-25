@@ -27,6 +27,11 @@ field_aliases:
 # minstreth (no such CSR in either spec), pma (spec-B-only; see note below).
 policies:
   default: {check: true, on_mismatch: error}
+  # misa's reset value encodes which extensions a core's whisper config
+  # enables — inherently per-core, so the shared default spec cannot pin it.
+  # Runtime misa checking is unaffected. A project whose spec and whisper
+  # config are both its own should re-enable this in its csral: section.
+  misa: {check_reset: false}
   "c_*": {check: false} # generator default: cac_check=false for c_*
 
   # --- status family ---
@@ -82,7 +87,7 @@ policies:
   vstopi: {class: interrupt, volatile: true, on_mismatch: resynch_rd, exists_if: misa.H} # token "vstopi" (RVTOOLS-3189) + hypervisor_csr_map_
 
   # --- other interrupt CSRs (skip only, not in the resynch set) ---
-  mvip: {on_mismatch: skip} # token "mvip"
+  mvip: {volatile: true, on_mismatch: skip} # token "mvip" (paired with mip pokes; mirror can be stale)
   hvip: {on_mismatch: skip, exists_if: misa.H} # token "hvip" + hypervisor_csr_map_
   hviprio1: {on_mismatch: skip, exists_if: misa.H} # token "hvip" (substring accident, kept for parity — REVIEW) + hypervisor_csr_map_
   hviprio2: {on_mismatch: skip, exists_if: misa.H} # token "hvip" (substring accident, kept for parity — REVIEW) + hypervisor_csr_map_

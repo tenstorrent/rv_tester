@@ -157,13 +157,7 @@ private:
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
   void update_mem_attr(hart_id_t hart, src_t src, uint32_t data, uint32_t offset = 0);
-  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
-  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
-  uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
-  uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
-  uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
-  std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
   bool is_csr_allowlist(uint64_t addr);
   bool is_csr_allowlist(const std::string& csr_name);
@@ -242,84 +236,13 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
-  bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
   void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev = false, bool seip_new = false, bool consider_seip = false);
 
 private:
   const uint64_t sc_slice_base_;
 
-  // CSRs where some bits are masked by misa.H
-  std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
-      {0x300, "mstatus"},
-      {0x302, "medeleg"},
-      {0x303, "mideleg"},
-      {0x344, "mip"},
-      {0x309, "mvip"},
-      {0x304, "mie"},
-      {0x244, "sip"},
-      // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
-      // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
-      {0x30C, "mstateen0"},
-      // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
-      {0x10C, "sstateen0"}};
-
-  // Bit masks for fields that are masked by misa.H in each CSR
-  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
-      {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
-      {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
-      {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
-      {0x244, 0x0000000000001444}, // sip: same as mip (alias)
-      {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
-      {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
-  };
-
-  std::map<uint64_t, std::string> hypervisor_csr_map_ = {
-      {0x600, "hstatus"},    // Hypervisor status register -
-      {0x602, "hedeleg"},    // Hypervisor exception delegation register -
-      {0x603, "hideleg"},    // Hypervisor interrupt delegation register -
-      {0x604, "hie"},        // Hypervisor interrupt-enable register -
-      {0x605, "htimedelta"}, // Hypervisor time delta register -
-      {0x606, "hcounteren"}, // Hypervisor counter-enable register -
-      {0x607, "hgeie"},      // Hypervisor guest external interrupt-enable register -
-      //{0x608, "hvien"}, -> hvip is defined by H extension whereas mvien and hvien are defined by Smaia/SSaia
-      {0x609, "hvictl"},
-      {0x60A, "henvcfg"},   // Hypervisor Environment Configuration regsiter -
-      {0x643, "htval"},     // Hypervisor Trap Value register -
-      {0x644, "hip"},       // -
-      {0x645, "hvip"},      // Hypervisor virtual interrupt pending -
-      {0x646, "hviprio1"},  //
-      {0x647, "hviprio2"},  //
-      {0x680, "hgatp"},     // Hypervisor trap value register -
-      {0x64A, "htinst"},    // Hypervisor trap instruction register -
-      {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
-      {0x34B, "mtval2"},    // Machine Trap Value register -
-      {0x34A, "mtinst"},    // Machine Trap Instruction register -
-      {0x200, "vsstatus"},  // -
-      {0x204, "vsie"},      // -
-      {0x205, "vstvec"},    // -
-      {0x240, "vsscratch"}, // -
-      {0x241, "vsepc"},     // -
-      {0x242, "vscause"},   // -
-      {0x243, "vstval"},    // -
-      {0x24D, "vstimecmp"},
-      {0x244, "vsip"},    // -
-      {0x280, "vsatp"},   // -
-      {0x25C, "vstopei"}, // Virtual Supervisor Top External Interrupt
-      {0xEB0, "vstopi"},  // Virtual Supervisor Top Interrupt
-  };
-
   // MCM order map needed for periodic cosim
   std::unordered_map<uint64_t, int> mcm_orders_;
-
-  std::map<uint64_t, std::string> MayPeekCSR_map_ = {
-      {0x25C, "vstopei"} // Virtual Supervisor Top External Interrupt
-  };
-
-  std::unordered_set<csr_base*> interrupt_csrs_to_resynch_ = {&mip, &sip, &hip, &vsip, &hgeip, &mtopi, &vstopi, &stopi};
-  // TODO: Add interrupt CSRs for check
-  // std::unordered_set<csr_base*> interrupt_csrs_for_check_ = {&mvip, &sip, &hip, &vsip, &mie, &sie, &vsie, &hie, &mstatus, &sstatus, &hstatus, &vsstatus, &mnstatus, &mideleg, &mvien, &hideleg, &hvien};
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -329,13 +252,13 @@ private:
   int xlen_ = 0;
   int vlen_ = 0;
   CacCore cac_;
-  CacCore csr_cac_;
-  // The CSR model (docs/csral_plan.md). Phase 3: it owns every whisper CSR
-  // poke/peek (write-through mirrors) and shadows csr_cac_, which remains
-  // the authoritative checker until the Phase 4 cutover.
+  // The CSR model (docs/csral_plan.md): owns every whisper CSR poke/peek
+  // (write-through mirrors), the CSR write checks, masked-by conditions, and
+  // masked-field save/restore.
   csral csral_;
-  void csral_shadow_compare(hart_id_t hart, uint64_t cycle);
-  std::unordered_map<uint32_t, uint32_t> csral_shadow_log_count_;
+  static int apply_hyp_save_restore_compat(int num_harts);
+  // +cosim_resynch_csr runtime additions to the skip policy (exact names).
+  std::unordered_set<uint32_t> runtime_skip_addrs_;
 
   uint64_t order_ = 0;
   uint64_t prev_dut_trap_cause_ = 0;
@@ -379,7 +302,6 @@ private:
   hart_id_t dummy_hart_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
-  bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
   bool vstimecmppoked_ = false;
@@ -439,7 +361,6 @@ private:
 
   uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
-  std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false, end_mcm_ = false, metrics_reported_ = false;
   bool check_nmi_at_patch_exit_ = false;
@@ -459,8 +380,6 @@ private:
   parser::map<uint32_t, uint32_t> cosim_remap_opcode_{};
   bool cosim_remap_opcode_enabled_{false};
 
-  std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
-  bool misa_h_ = true;
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;

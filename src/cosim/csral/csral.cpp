@@ -177,8 +177,15 @@ std::vector<csral::reset_mismatch_t> csral::init_check(hart_id_t hart) {
     std::uint64_t value, wmask, pmask, rmask;
     if (!whisper_peek_csr(hart, row.address, value, wmask, pmask, rmask, row.policy.may_not_exist))
       continue;
-    if (reset_check_ != reset_check_t::off && value != row.reset)
-      mismatches.push_back({row.name, row.address, row.reset, value});
+    if (reset_check_ != reset_check_t::off && value != row.reset) {
+      // Drift severity follows the CSR's own policy: a CSR whose runtime
+      // mismatches are skipped (vtype, dcsr, ...) should not fail reset
+      // either — its drift is logged, not returned.
+      if (row.policy.check && row.policy.check_reset && row.policy.on_mismatch == CSRAL::on_mismatch_t::error)
+        mismatches.push_back({row.name, row.address, row.reset, value});
+      else
+        cvm::log(cvm::MEDIUM, "[csral] reset drift on '{}' (policy-demoted): spec={:#x} whisper={:#x}\n", row.name, row.reset, value);
+    }
     // Whisper is the authority for the run; the check above exists to catch
     // spec-vs-whisper drift at time zero, not to overrule whisper.
     h.entries[i].dut = value;
@@ -190,6 +197,11 @@ std::vector<csral::reset_mismatch_t> csral::init_check(hart_id_t hart) {
 }
 
 // ---- mirror plumbing ---------------------------------------------------------
+
+bool csral::exists(hart_id_t hart, std::uint32_t addr) const {
+  const auto* row = CSRAL::find_by_address(addr);
+  return row == nullptr || csr_exists(hart, static_cast<std::uint16_t>(CSRAL::index_of(*row)));
+}
 
 bool csral::csr_exists(hart_id_t hart, std::uint16_t csr_index) const {
   const auto exists_if = CSRAL::kCsrs[csr_index].exists_if;
@@ -348,7 +360,7 @@ void csral::evaluate_conditions(hart_id_t hart, std::uint16_t gate_csr_index, st
           worklist.push_back(tgt.csr);
       }
       if (condition_cb_)
-        condition_cb_(hart, cond, now, restored);
+        condition_cb_(hart, cond, now, restored, cycle);
     }
   }
 }

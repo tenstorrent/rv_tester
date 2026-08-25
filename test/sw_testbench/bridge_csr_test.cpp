@@ -99,6 +99,12 @@ protected:
   void SetUp() override {
     cvm::registry::messenger.clear();
     whisper_ = MockWhisper{};
+    // Baseline: whisper agrees with every spec reset value, so the (now
+    // error-severity) reset check starts clean; tests override per CSR.
+    for (const auto& row : CSRAL::kCsrs) {
+      if (row.address != CSRAL::kNoDirectAddress)
+        whisper_.value[row.address] = row.reset;
+    }
     g_whisper = &whisper_;
     g_error_count = 0;
 
@@ -159,11 +165,11 @@ protected:
 };
 
 TEST_F(BridgeCsrTest, CsrInitIsSelfConsistent) {
-  whisper_.value[misa.address] = 0x8000000000141101ull;
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
+  // Whisper agrees with every spec reset (SetUp baseline): no drift errors,
+  // both mirrors seeded identically, next group check clean.
   EXPECT_EQ(g_error_count, 0);
-  // csr_init seeded both sides identically, so the next group check is clean.
   EXPECT_EQ(check_group(b), 0);
 }
 
@@ -215,21 +221,23 @@ TEST_F(BridgeCsrTest, CustomCsrCheckDisabledByDefault) {
   EXPECT_EQ(check_group(b), 0);
 }
 
-TEST_F(BridgeCsrTest, CsrInitSeedsFromWhisperNotSpec) {
-  // Today csr_init copies whisper's live value into both mirrors; the spec
-  // reset value is only a nonzero gate. CSRAL Phase 4 will change this to
-  // seed from the spec and *check* whisper against it.
-  ASSERT_NE(misa.reset_val, 0u);
-  whisper_.value[misa.address] = 0x123; // disagrees with the spec reset value
+TEST_F(BridgeCsrTest, CsrInitChecksWhisperAgainstSpecReset) {
+  // csr_init seeds from the spec and CHECKS whisper against it: drift is an
+  // error by default (docs/csral_plan.md decision 3), and whisper's value is
+  // then adopted into both mirrors as the run authority. (misa itself is
+  // check_reset-exempt — its reset encodes per-core whisper configuration —
+  // so this uses mscratch.)
+  whisper_.value[mscratch.address] = 0x123; // disagrees with the spec reset (0)
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
-  EXPECT_EQ(g_error_count, 0); // no reset check exists today
+  EXPECT_EQ(g_error_count, 1); // exactly the mscratch drift
+  g_error_count = 0;
   // Mirrors hold whisper's value: a DUT update matching whisper is clean...
-  csr_t match = make_csr(misa.address, 0x123, ~0ull);
+  csr_t match = make_csr(mscratch.address, 0x123, ~0ull);
   b.process_dut_csr_hw_update(0, match);
   EXPECT_EQ(check_group(b), 0);
   // ...and one matching the spec reset value instead is a mismatch.
-  csr_t spec = make_csr(misa.address, misa.reset_val, ~0ull);
+  csr_t spec = make_csr(mscratch.address, 0x0, ~0ull);
   b.process_dut_csr_hw_update(0, spec);
   EXPECT_EQ(check_group(b), 1);
 }
