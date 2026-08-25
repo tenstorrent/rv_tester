@@ -85,6 +85,7 @@ DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire 
 DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
+DEFINE_bool(csral_shadow, true, "Compare the CSRAL mirrors against csr_cac_ at every group check and log divergence (Phase 3 dual-run)");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
 DEFINE_uint64(bridge_debug_cycle, 0, "enabled C debug messages at clock=<n>");
 DEFINE_uint64(cosim_period, 0, "COSIM periodic mode enable");
@@ -125,7 +126,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       xlen_(xlen),
       vlen_(vlen),
       cac_(CacCore(num_harts)),
-      csr_cac_(CacCore(num_harts)) {
+      csr_cac_(CacCore(num_harts)),
+      csral_(num_harts, cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) {
 
   flags_bridge_log_ = FLAGS_bridge_log;
   if (FLAGS_cosim_period > 0) {
@@ -321,11 +323,19 @@ void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data) {
 }
 
 void bridge::csr_init() {
-  bool valid;
-  uint64_t data, mask, poke_mask, read_mask;
+  // CSRAL: seed from the spec, adopt whisper values, and surface spec-vs-
+  // whisper reset drift. Phase 3 logs it; the Phase 4 cutover escalates per
+  // +csral_reset_check.
+  csral_.reset(id_);
+  for (const auto& drift : csral_.init_check(id_)) {
+    print(cvm::MEDIUM, "[csral] Hart {}: reset drift on {}: spec={:#x} whisper={:#x}\n", id_, drift.csr_name, drift.spec, drift.whisper);
+  }
+
   for (const auto* csr : csr_map) {
     if (csr->reset_val != 0) {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, csr->address, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check)
+      bool ok = false;
+      uint64_t data = csral_.peek(id_, csr->address, &ok);
+      if (!ok && FLAGS_whisper_client_check)
         error("Hart {}: Failed to peek csr : {:#x} in csr_int()\n", id_, csr->address);
       uint64_t cac_mask = 0xffffffffffffffff;
       update_csr(id_, src_t::dut, csr->address, data, cac_mask);
@@ -832,8 +842,57 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
+  csral_.hw_update(hart, c.csr_addr, c.csr_wdata, c.csr_wmask, c.cycle);
   uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
   update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+}
+
+// Phase 3 dual-run (+csral_shadow): csr_cac_ stays the authoritative CSR
+// checker while CSRAL runs alongside; every group boundary drains CSRAL's own
+// check queue (informational) and compares its mirrors against csr_cac_'s
+// stored values. Divergence is logged, never failed — the log IS the product:
+// it tells us where the model and the legacy checker disagree before the
+// Phase 4 cutover makes the model authoritative.
+void bridge::csral_shadow_compare(hart_id_t hart, uint64_t cycle) {
+  if (!FLAGS_csral_shadow)
+    return;
+
+  for (const auto& mm : csral_.check(hart, cycle)) {
+    print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} would be {} ({}): {}\n",
+          cycle, hart, mm.csr_name,
+          mm.action == CSRAL::on_mismatch_t::error ? "an ERROR" : (mm.action == CSRAL::on_mismatch_t::skip ? "skipped" : "a resynch"),
+          mm.check_class == csral::check_class_t::sw_write ? "sw" : "hw", mm.fields);
+  }
+
+  for (std::size_t i = 0; i < CSRAL::kNumCsrs; ++i) {
+    const auto& row = CSRAL::kCsrs[i];
+    if (row.address == CSRAL::kNoDirectAddress)
+      continue;
+    auto& log_count = csral_shadow_log_count_[row.address];
+    if (log_count >= 3)
+      continue; // this CSR's divergence is known; stop repeating it
+
+    resource_id_t rid{resource_t::csr_reg, row.address};
+    std::vector<bool> vec;
+    (void)csr_cac_.GetResource(hart, src_t::dut, rid, vec);
+    const uint64_t cac_dut = vec.empty() ? 0 : cac::CreateSizedVec<uint64_t>(vec)[0];
+    if (cac_dut != csral_.read(hart, csral::src_t::dut, row.address)) {
+      log_count++;
+      print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} DUT mirror diverges: cac={:#x} csral={:#x}\n",
+            cycle, hart, row.name, cac_dut, csral_.read(hart, csral::src_t::dut, row.address));
+      continue;
+    }
+    if (row.policy.volatile_csr)
+      continue; // the model reads these live; cac's stored ISS value is known-stale
+    vec.clear();
+    (void)csr_cac_.GetResource(hart, src_t::iss, rid, vec);
+    const uint64_t cac_iss = vec.empty() ? 0 : cac::CreateSizedVec<uint64_t>(vec)[0];
+    if (cac_iss != csral_.read(hart, csral::src_t::iss, row.address)) {
+      log_count++;
+      print(cvm::MEDIUM, "[csral-shadow] <{}> Hart {}: {} ISS mirror diverges: cac={:#x} csral={:#x}\n",
+            cycle, hart, row.name, cac_iss, csral_.read(hart, csral::src_t::iss, row.address));
+    }
+  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -841,6 +900,8 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     return;
   if (!FLAGS_csr_wr_check)
     return;
+
+  csral_shadow_compare(hart, d.cycle);
 
   const auto cac_status_verbosity = cvm::HIGH;
   // Step csr cac
@@ -1446,8 +1507,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
           return;
         }
         bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: SATP write, don't apply till sfence.vma\n", w.time, step_);
-        bool valid = false;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', satp.address, satp_, false, false, valid)) && FLAGS_whisper_client_check) {
+        if (!csral_.poke(hart, satp.address, satp_, d.cycle) && FLAGS_whisper_client_check) {
           error("Hart {}: Failed to poke SATP\n", hart);
           return;
         }
@@ -1461,8 +1521,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
 
     satp_ = new_satp_;
     bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: sfence.vma, apply SATP write\n", w.time, step_);
-    bool valid = false;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, 'c', satp.address, new_satp_, false, false, valid)) && FLAGS_whisper_client_check) {
+    if (!csral_.poke(hart, satp.address, new_satp_, w.time) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to poke new SATP\n", hart);
       return;
     }
@@ -1712,6 +1771,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
   // CSR
   for (auto& c : d.csr) {
+    csral_.sw_write(hart, c.csr_addr, c.csr_wdata, c.csr_wmask, d.priv, d.cycle);
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata, d.priv);
     uint64_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
@@ -1747,7 +1807,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
               // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
               if (FLAGS_hyp_save_restore_en) {
                 for (const auto& [addr, value] : hypervisor_masked_csrs_) {
-                  bool valid = false;
                   uint64_t peek_value = 0;
                   uint64_t poke_value = 0;
                   if (addr == mip.address || addr == mvip.address) {
@@ -1769,12 +1828,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                   } else {
                     mask = 0xffffffffffffffffULL;
                     update_csr(hart, src_t::iss, addr, value, mask, false, false);
-                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', addr, peek_value, valid)) && FLAGS_whisper_client_check) {
+                    bool peek_ok = false;
+                    peek_value = csral_.peek(hart, addr, &peek_ok);
+                    if (!peek_ok && FLAGS_whisper_client_check) {
                       error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
                       return;
                     }
                     poke_value = (peek_value & ~hypervisor_mask_map_[addr]) | (value & hypervisor_mask_map_[addr]);
-                    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, poke_value, false, false, valid)) && FLAGS_whisper_client_check) {
+                    if (!csral_.poke(hart, addr, poke_value, d.cycle) && FLAGS_whisper_client_check) {
                       error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
                       return;
                     }
@@ -1874,6 +1935,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
     }
     break;
   case 'c':
+    csral_.iss_write(hart, w.address & 0xfff, w.value, w.time);
     if (FLAGS_csr_rd_check) {
       // Check if PMP entry is locked
       if (w.address >= pmpaddr0.address && w.address <= pmpaddr15.address) {
@@ -2430,6 +2492,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   for (auto& csr : d.csr) {
     if (csr.valid) {
       resynch_csr_ = true;
+      csral_.note_resynch(hart);
       // Special case: Resynch for topei cases
       if (csr.csr_addr == stopei.address || csr.csr_addr == vstopei.address || csr.csr_addr == mtopei.address) {
         topei_resynch(hart, d, csr);
@@ -2444,7 +2507,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
                         [&csr](csr_base* c) { return c->address == csr.csr_addr; })) {
           // only resynch the destination register, do not change the CSRs
         } else {
-          if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), false, false, valid)) && FLAGS_whisper_client_check) {
+          if (!csral_.poke(hart, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), d.cycle) && FLAGS_whisper_client_check) {
             error("Hart {}: Failed to resynch CSRs\n", hart);
             return;
           }
@@ -2476,13 +2539,12 @@ void bridge::topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr
 }
 
 void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
-  bool valid = false;
   for (auto& csr : d.csrs) {
     if (csr.valid) {
       bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,
                  csr.csr_wdata);
 
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, false, false, valid)) && FLAGS_whisper_client_check) {
+      if (!csral_.poke(hart, csr.csr_addr, csr.csr_wdata, d.cycle) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
@@ -3102,25 +3164,25 @@ void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
 void bridge::poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip_val) {
   bridge_log(cvm::MEDIUM, "<{}> Whisper poke: mip={:#x} mvip={:#x}\n", time, mip_val.to_ullong(), mvip_);
 
-  bool valid;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', mip.address, mip_val.to_ullong(), false, false, valid)) && FLAGS_whisper_client_check) {
+  if (!csral_.poke(hart, mip.address, mip_val.to_ullong(), time) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke mip csr\n", hart);
     return;
   }
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', mvip.address, mvip_, false, false, valid)) && FLAGS_whisper_client_check) {
+  if (!csral_.poke(hart, mvip.address, mvip_, time) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke mvip csr\n", hart);
     return;
   }
 }
 
 void bridge::peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip_val) {
-  bool valid;
-  uint64_t w_mip;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', mip.address, w_mip, valid)) && FLAGS_whisper_client_check) {
+  bool ok = false;
+  uint64_t w_mip = csral_.peek(hart, mip.address, &ok);
+  if (!ok && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek mip\n", hart);
     return;
   }
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', mvip.address, mvip_, valid)) && FLAGS_whisper_client_check) {
+  mvip_ = csral_.peek(hart, mvip.address, &ok);
+  if (!ok && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek mvip\n", hart);
     return;
   }
@@ -3456,8 +3518,10 @@ void bridge::peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_
   bool valid;
   bool check_condition;
   if (resource == 'c') {
-    // For resource 'c', only check the RPC call result, not the valid flag
-    check_condition = !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, resource, addr, data, valid);
+    // CSRs go through the model so its ISS mirror stays current.
+    bool ok = false;
+    data = csral_.peek(hart, addr, &ok);
+    check_condition = !ok;
   } else {
     // For other resources, check both RPC call result and valid flag
     check_condition = (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, resource, addr, data, valid) || !valid);
@@ -3473,8 +3537,8 @@ void bridge::poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64
   bool valid;
   bool check_condition;
   if (resource == 'c') {
-    // For resource 'c', only check the RPC call result, not the valid flag
-    check_condition = !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, cycle, resource, addr, data, false, false, valid);
+    // CSR pokes go through the model: write-through keeps the mirror honest.
+    check_condition = !csral_.poke(hart, addr, data, cycle);
   } else {
     // For other resources, check both RPC call result and valid flag
     check_condition = (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, cycle, resource, addr, data, false, false, valid) || !valid);
@@ -3600,13 +3664,14 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
 
   // Whisper csr values
-  bool valid;
   for (const auto* csr : csr_map) {
     uint64_t csr_data;
     if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
     } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
     } else {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
+      bool ok = false;
+      csr_data = csral_.peek(id_, csr->address, &ok);
+      if (!ok && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
       }
       print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);

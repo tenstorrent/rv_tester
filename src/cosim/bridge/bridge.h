@@ -21,6 +21,7 @@
 
 #include "whisper_client.h"
 #include "rv_tester_structs.h"
+#include "src/cosim/csral/csral.h"
 #include "cvm/registry.hpp"
 #include <fmt/format.h>
 #include "csr_param.hpp"
@@ -329,6 +330,12 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
+  // The CSR model (docs/csral_plan.md). Phase 3: it owns every whisper CSR
+  // poke/peek (write-through mirrors) and shadows csr_cac_, which remains
+  // the authoritative checker until the Phase 4 cutover.
+  csral csral_;
+  void csral_shadow_compare(hart_id_t hart, uint64_t cycle);
+  std::unordered_map<uint32_t, uint32_t> csral_shadow_log_count_;
 
   uint64_t order_ = 0;
   uint64_t prev_dut_trap_cause_ = 0;

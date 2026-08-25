@@ -68,9 +68,11 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
     hdrs     = [
                 "@rv_tester//src/cosim/bridge:bridge_base.h",
                 "@rv_tester//src/cosim/bridge:bridge.h",
+                "@rv_tester//src/cosim/csral:csral.h",
     ],
     srcs     = [
                 "@rv_tester//src/cosim/bridge:bridge.cpp",
+                "@rv_tester//src/cosim/csral:csral.cpp",
     ],
      deps    = [
                 csr_param + "_cc",
