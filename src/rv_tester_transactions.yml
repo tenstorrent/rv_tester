@@ -85,20 +85,14 @@ cosim:
 
     m_steps:
         domain: 1
-        num: 1 
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
-            n_retire:
-                width: 32
             cycle:
                 width: 64
-            steps:
-                width: 64
-            skips:
-                width: 64
-            final_steps:
+            order:
                 width: 64
 
     m_rvfi:
