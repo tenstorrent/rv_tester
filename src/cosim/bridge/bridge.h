@@ -53,7 +53,7 @@ public:
   //   - Exceptions/interrupt
   virtual void process_dut_excp(hart_id_t hart, uint64_t cause, uint64_t order, uint64_t vec_cmode_first_tag);
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
-  virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
+  virtual void process_steps(hart_id_t hart, uint64_t cycle, uint64_t order) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
   virtual void process_counter_overflow(csr_t& c) override;
@@ -309,8 +309,8 @@ private:
       {0xEB0, "vstopi"},  // Virtual Supervisor Top Interrupt
   };
 
-  // MCM order map needed for periodic cosim
-  std::unordered_map<uint64_t, int> mcm_orders_;
+  // DUT instruction orders the periodic step stream failed to reproduce
+  uint64_t psc_tag_gaps_ = 0;
 
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
       {0x25C, "vstopei"} // Virtual Supervisor Top External Interrupt

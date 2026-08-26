@@ -106,11 +106,9 @@ std::uint64_t eot::get_tohost_addr() {
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
 
-  // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
-  if (m_steps.steps > 0) {
-    instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps + m_steps.final_steps;
-    previous_cycle_ = m_steps.cycle;
-  }
+  // Each step message carries one instruction the periodic state check method dropped
+  instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + 1;
+  previous_cycle_ = m_steps.cycle;
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {

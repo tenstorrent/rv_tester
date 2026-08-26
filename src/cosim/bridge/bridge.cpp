@@ -136,9 +136,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if (FLAGS_cosim_resynch_instr != "") {
       error("COSIM periodic-state-check mode enabled with cosim_resynch_instr being used\n");
     }
-    //if (FLAGS_mcm == 1) {
-    //error("COSIM periodic-state-check mode enabled with mcm=1 .. not yet validated\n");
-    //}
   }
 
   // Reset value
@@ -428,24 +425,13 @@ void bridge::process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::
 }
 
 // DUT interface callback: Step Whisper
-void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) {
+void bridge::process_steps(hart_id_t hart, uint64_t cycle, uint64_t order) {
 
-  print(cvm::HIGH, "process_steps:: hart={}, cycle={}, steps={}, skips={}, final_steps={}\n", hart, cycle, steps, skips, final_steps);
+  print(cvm::HIGH, "process_steps:: hart={}, cycle={}, order={}\n", hart, cycle, order);
 
   psc_stepping_ = false;
 
-  if (((skips >> 63) & 0x1) == 1) {
-    skips = 0;
-  }
-
-  whisper_state_t w{
-      .tag = pw_.tag,
-      .time = pw_.time,
-  };
-
   end_time_ = std::chrono::high_resolution_clock::now();
-  if (first_call_ == false) {
-  }
   if (first_call_) {
     start_of_test_ = end_time_;
   }
@@ -453,79 +439,25 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   previous_cycle_ = cycle;
   first_call_ = false;
 
-  //----------------------------------------------------------------------
-  // Process the MISSING (or dropped steps accumulated so far)
-  //----------------------------------------------------------------------
-  for (uint64_t s = 0; s < steps; s++) {
-    uint64_t t;
-    w.tag++;
-    t = w.tag;
-    if (FLAGS_mcm) {
-      print(cvm::HIGH, "process_steps:: hart={}: MCM enabled ... checking tag={} \n", hart, t);
-      while (mcm_orders_.find(t) != mcm_orders_.end()) { // MCM sent this order
-        print(cvm::HIGH, "process_steps:: hart={}: need to skip tag={} as it has an mcm tag associated with it\n", hart, t);
-        w.tag++; // skip it so we don't confuse whisper
-        t = w.tag;
-        if (skips > 0) {
-          skips--; // decrement the skip count
-        }
-      }
-    }
-    //----------------------------------------------------------------------------------------------------------------------------------------
-    // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag
-    // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
-    //     We dont' know the real timestamps as that was lost
-    //----------------------------------------------------------------------------------------------------------------------------------------
-    if ((s % n_retire) == 0) {
-      w.time++;
-    }
+  if (!FLAGS_whisper_exec)
+    return;
 
-    if (FLAGS_whisper_exec) {
-      auto stime = std::chrono::high_resolution_clock::now();
-      step(hart, w);
-      auto etime = std::chrono::high_resolution_clock::now();
-      whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
-    }
-
-    // Increment step count
-    step_++;
+  if ((pw_.tag > 0) && (order <= pw_.tag)) {
+    error("Hart {}: PSC step order {} does not advance past the last cosim tag {}\n", hart, order, pw_.tag);
+    return;
   }
 
-  //-------------------------------------------------------
-  // Add skips caused by out-of-order tag bits
-  //-------------------------------------------------------
-  w.tag += skips;
+  whisper_state_t w{
+      .tag = order,
+      .time = cycle,
+  };
 
-  //------------------------------------------------------
-  // now set time to current sim time
-  //------------------------------------------------------
-  w.time = cycle;
+  auto stime = std::chrono::high_resolution_clock::now();
+  step(hart, w);
+  auto etime = std::chrono::high_resolution_clock::now();
+  whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
 
-  //------------------------------------------------------
-  // Process FINAL steps of the RVFI packet if needed
-  //------------------------------------------------------
-  for (uint64_t s = 0; s < final_steps; s++) {
-    w.tag++;
-    //----------------------------------------------------------------------------------------------------------------------------------------
-    // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag
-    // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
-    //     We dont' know the real timestamps as that was lost
-    //----------------------------------------------------------------------------------------------------------------------------------------
-    if ((s % n_retire) == 0) {
-      w.time++;
-    }
-
-    if (FLAGS_whisper_exec) {
-      auto stime = std::chrono::high_resolution_clock::now();
-      step(hart, w);
-      auto etime = std::chrono::high_resolution_clock::now();
-      //print(cvm::HIGH, "process_steps:: hart={}, cycle={}, FINAL STEP: w.tag={}  w.time={}{\n", hart,cycle,w.tag,w.time);
-      whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
-    }
-
-    // Increment step count
-    step_++;
-  }
+  step_++;
 
   ppw_ = pw_;
   pw_ = w;
@@ -561,9 +493,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   is_priv_debug_mode_ = ((d.priv == PRIV_DEBUG_ROM) || (d.priv == PRIV_DEBUG_PROGBUF));
 
-  if (FLAGS_mcm & (FLAGS_cosim_period > 0))
-    mcm_orders_.erase(d.tag);
-
   twoStage_ = false;
 
   whisper_state_t w{
@@ -578,6 +507,17 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   if (!FLAGS_whisper_exec)
     return;
+
+  if ((FLAGS_cosim_period > 0) && (pw_.tag > 0) && (d.tag < pw_.tag)) {
+    print(cvm::NONE, "[RVFI loc {} id{}] PSC tag regression: hart={} cycle={} dut_tag={} cosim_tag={}\n",
+          loc_, id_, hart, d.cycle, d.tag, pw_.tag);
+    if (FLAGS_mcm) {
+      error("Hart {}: PSC step stream regressed from tag {} to {}: MCM tag lookups are no longer aligned\n",
+            hart, pw_.tag, d.tag);
+      return;
+    }
+  }
+
   w.tag = d.tag;
   w.time = d.cycle;
 
@@ -2496,13 +2436,6 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m, bool cache) {
     return;
 
   bool valid = false;
-  if (FLAGS_cosim_period > 0) {
-    if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
-      print(cvm::HIGH, "process_dut_mcm_read: [Hart={} adding tag={} to mcm_orders\n", hart, m.tag);
-      mcm_orders_.insert(std::pair<uint64_t, int>(m.tag, 1));
-    }
-  }
-
   if (debug_mode_ || (m.pa >= sep_base_ && ((m.pa + m.size) < sep_end_))) {
     if (m.v_ext) {
       // For vector operations, use data_vec and split into chunks
@@ -2546,12 +2479,6 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
     return;
 
   bool valid = false;
-  if (FLAGS_cosim_period > 0) {
-    if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
-      print(cvm::HIGH, "process_dut_mcm_insert: [Hart={} adding tag={} to mcm_orders\n", hart, m.tag);
-      mcm_orders_.insert(std::pair<uint64_t, int>(m.tag, 1));
-    }
-  }
   if (m.v_ext) {
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecInsertRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, valid) || !valid) && FLAGS_whisper_client_check) {
@@ -2575,13 +2502,6 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
     return;
 
   bool valid = false;
-  if (FLAGS_cosim_period > 0) {
-    if (mcm_orders_.find(m.tag) == mcm_orders_.end()) {
-      print(cvm::HIGH, "process_dut_mcm_bypass: [Hart={} adding tag={} to mcm_orders\n", hart, m.tag);
-      mcm_orders_.insert(std::pair<uint64_t, int>(m.tag, 1));
-    }
-  }
-
   // Route AMOCAS.Q (>8B) through the vec bypass path; cbo.zero stays scalar.
   if (m.v_ext || (m.amo && m.size > 8)) {
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);

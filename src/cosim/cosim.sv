@@ -23,9 +23,10 @@
 //                     - Exceptions
 //                     - PC==debug_entry_pc or PC==debug_exit_c (or ANY instruction in between)
 //                     - if any of the above cause a POKE.. but last_uop=0...then POKE again when last_uop=1 for that 'order'
-//          - sends STEP packets to push the COSIM model along when needed:
-//                - when an RVFI has to be sent and step count > 0
-//                - when instruction orders 'skip' values
+//          - sends a STEP packet per dropped instruction to push the COSIM model along
+//                - carries the DUT rvfi order, which becomes the COSIM tag for that step
+//                - the order space is sparse and whisper binds its instruction counter to the tag
+//                  supplied with each step under MCM, so orders cannot be reconstructed from counts
 //          - sends GP/FP/VP registers for comparison
 //                - sent when # of retired instructions > 'cosim_period'  AND
 //                - when there are no retiring instructions with last_uop=0  AND
@@ -35,7 +36,6 @@
 //          - Feature cannot be used with any mode requiring every instruction to be sent
 //                - emulate_debug_mode=1
 //                - cosim_resynch=1
-//                - mcm=1   (not yet validated for MCM testing)
 //
 //==============================================================================================================================
 module cosim_reg_bank
@@ -203,19 +203,6 @@ module cosim
     /* verilator lint_on WIDTH */
   endfunction
 
-  //----------------------------------------------------------
-  // Function to return the highest valid order bits
-  //----------------------------------------------------------
-  function automatic [63:0] max_order(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
-    max_order = 0;
-    /* verilator lint_off WIDTH */
-    for(int i=NRET-1;i>=0;i=i-1) begin
-      if (valid[i] == 1) begin
-        return(order[i]);
-      end
-    end
-    /* verilator lint_on WIDTH */
-  endfunction
 
   //----------------------------------------------------------------------------
   // function memmap_decode: compares address to memory map ranges
@@ -315,16 +302,9 @@ module cosim
   bit [NRET-1:0][11:0]   rvfi_csr_addr;
 
   bit                    rvfi_multi_uop;
-  bit [63:0]             rvmax_order;
-  bit [63:0]             rvfi_steps;
   bit [63:0]             rvfi_step_cnt;
-  bit [63:0]             rvfi_skips;
-  bit [63:0]             rvfi_exp_order;
   bit                    rvfi_skip;
-  bit                    order_skip;
   bit                    send_steps;
-  bit                    rvfi_first_valid;
-  bit [63:0]             val0_order;
   logic                    rvgp_valids[NRET];
   bit [NRET-1:0]         gp_loadn[NGP_REGS-1:0];
   bit                    gp_load[NGP_REGS-1:0];
@@ -1076,72 +1056,32 @@ end
 
   assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_clr_patch != '0) | (rvfi_patch_mode != '0);
 
-
-  //---------------------------------------------------------------
-  // Keep track of number of instructions we did NOT send to cosim
-  //  steps will be used to advance the Whisper model
-  //
-  //  we send a STEP msg to whisper under 2 conditions:
-  //       - a POKE event occurred (send_rvfi)
-  //       - an instruction order was OUT-of-order...
-  //---------------------------------------------------------------
-
   /* verilator lint_off WIDTHTRUNC */
   assign valid_cnt   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,NRET);    // count of valid-unique rvfi orders
   /* verilator lint_on WIDTHTRUNC */
-  assign rvmax_order = max_order(rvfi_valids, rvfi_orders);                 // highest order valid-unique rvfi
 
-  //----------------------------------------------------------------------
-  // order skip is when either order[0] does not equal expected-order  OR
-  // when the orders in current RVFI packets is not sequential
-  //----------------------------------------------------------------------
-  //assign order_skip  = (mcm_enabled & ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid)) ? 1'b1 : 1'b0;
-  assign order_skip  = 1'b0;
+  assign send_steps = ~send_rvfi & rvfi_valid;
 
-  assign val0_order   = rvfi_orders[0];
-  assign rvfi_skips   = (rvfi_exp_order != rvfi_orders[0]) & ((val0_order > rvfi_exp_order)) ? val0_order - rvfi_exp_order - 1 : '0;               // number of missing orders
-
-
-  //---------------------------------------------------------------------------------------------------
-  // Send steps if:
-  //     ARE sending rvfi AND  accumulated-steps > 0
-  // OR
-  //     NOT sending rvfi AND  we detected an out-of-order RVFI order
-  //
-  // m_step sequence on the bridge:
-  //   - execute steps (increment tag and cycle as needed)
-  //   - add skips to tag value
-  //   - execute final_steps (only needed if no RVFI packet is being sent)
-  //---------------------------------------------------------------------------------------------------
-  //assign send_steps   = (send_rvfi & (rvfi_steps != '0)) & rvfi_valid | order_skip | ((poke_event_in & ~poke_event_out) & (rvfi_steps != '0));
-  assign send_steps   = (send_rvfi & (rvfi_steps != '0)) ;
-
-  assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_core_reset & send_steps & PSC_enabled;
-  assign m_stepss[0].data.location    = location;
-  assign m_stepss[0].data.n_retire    = NRET;
-  assign m_stepss[0].data.hart        = NUM;
-  assign m_stepss[0].data.cycle       = clocks;
-  assign m_stepss[0].data.steps       = rvfi_steps;
-  assign m_stepss[0].data.skips       = rvfi_skips;
-  assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : 64'(valid_cnt);        // No final steps IF rvfi is being sent too
+  for (genvar n = 0; n < NRET; n++) begin : gen_steps
+    assign m_stepss[n].valid         = RVFI_EN & rvfi_enabled & ~dut_core_reset & PSC_enabled &
+                                       send_steps & rvfi_valids[n] & rvfi_luops[n];
+    assign m_stepss[n].data.location = location;
+    assign m_stepss[n].data.hart     = NUM;
+    assign m_stepss[n].data.cycle    = clocks;
+    assign m_stepss[n].data.order    = rvfi_orders[n];
+  end
 
   always @(posedge clk) begin
     if (dut_core_reset) begin
-      rvfi_steps      <= '0;
       rvfi_scheck_cnt <= '0;
-      rvfi_exp_order  <= '0;
-      rvfi_first_valid  <= 1'b1;
       instruction_cnt <= '0;
       cycles_since_retire <= '0;
     end
     else begin
       cycles_since_retire <= cycles_since_retire + 1;
-      //if (rvfi_valids[0] & rvfi_luops[0]) begin                                    // instruction(s) retiring
       if (rvfi_valid) begin                                    // instruction(s) retiring
         cycles_since_retire <= 0;
         instruction_cnt <= instruction_cnt + 64'(valid_cnt);
-        rvfi_first_valid  <= 1'b0;
-        rvfi_exp_order <= rvmax_order + 1;                   // compute next clocks rvfi order start to find dropped instruction orders
       end
 
       if (send_regs)
@@ -1149,12 +1089,6 @@ end
       else
         if (rvfi_valid)
           rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);
-
-      if (rvfi_valid & ~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper
-        rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
-      else
-        if (send_steps)
-          rvfi_steps <= 0;                                 // we sent the step-count to whisper .... reset the step counter
 
     end
   end

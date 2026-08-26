@@ -852,7 +852,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
     return;
   if (!FLAGS_cosim)
     return;
-  bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
+  bridge_->process_steps(m_steps.hart, m_steps.cycle, m_steps.order);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
