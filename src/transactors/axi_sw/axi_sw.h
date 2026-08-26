@@ -285,12 +285,11 @@ private:
       return;
     int sent = 0;
     cvm::registry::callbacks.call(
-      loc_, 
-      [this, &sent] {
-        while (r_dpi())
-          sent++;
-      }
-    );
+        loc_,
+        [this, &sent] {
+          while (r_dpi())
+            sent++;
+        });
     if (sent) {
       r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
     } else {
