@@ -756,7 +756,10 @@ end
 
   `RV_TESTER_TRANSACTIONS_DOMAIN(1, dut_clk[CORE_CLK_IDX]);
   `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
+  // domain_3 is generated only when a DOMAIN-3 messenger exists (SMC_AXI_MST).
+`ifdef RV_TESTER_TRANSACTIONS_SMC_AXI_MST_SOURCE_PARAMS
   `RV_TESTER_TRANSACTIONS_DOMAIN(3, dut_clk[SOC_CLK_IDX]);
+`endif
 
   // Writeback logic
   logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances

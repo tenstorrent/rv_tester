@@ -136,6 +136,7 @@ def rv_tester_gen(
         packet = name  + "_transactions",
         topology = topology,
         harness = name + "_harness",
+        axi_defines = name + "_axi_interfaces_defines",
         cc_attrs = cc_attrs,
     )
     triggers_gen(

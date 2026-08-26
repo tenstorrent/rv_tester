@@ -321,6 +321,19 @@ class AXIInterfaceGenerator:
         for name, intf in self.axi_sw_mst_interfaces.items():
             lines.append(f"#define {name.upper()}_IDX {intf['INDEX']}")
             lines.append(f"#define {name.upper()}_PATH \"{self.axi_sw_mst_topo}[{intf['INDEX']}]\"")
+        if self.axi_sw_mst_interfaces:
+            first_name = next(iter(self.axi_sw_mst_interfaces))
+            ns = f"rv_tester_transactions::{first_name}"
+            lines.append('')
+            lines.append('#include "axi_sw_mst.h"')
+            lines.append('#include "rv_tester_transactions.hpp"')
+            lines.append('')
+            lines.append('using platform_axi_mst_t = axi_sw_mst<')
+            lines.append(f'    {ns}::b<>,')
+            lines.append(f'    {ns}::r<>,')
+            lines.append(f'    {ns}::ar_q_ptr<>,')
+            lines.append(f'    {ns}::aw_q_ptr<>,')
+            lines.append(f'    {ns}::w_q_ptr<>>;')
         lines.append('')
         return '\n'.join(lines)
 

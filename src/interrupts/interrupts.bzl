@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def interrupts_gen(name, packet, topology, harness, axi_defines, visibility = None, cc_attrs = {}, **kwargs):
 
     interrupts_dpi = name + "_dpi"
     interrupts_sv = name + "_sv"
@@ -25,6 +25,7 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
             "@rv_tester//src/cosim/bridge:bridge_plusargs",
             "@rv_tester//src/common:transactor",
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst",
+            axi_defines,
             "@rv_tester//src:structs",
             "@rv_tester//src:device_handler",
             packet + "_cc",
