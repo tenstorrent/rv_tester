@@ -3,7 +3,6 @@
 COMMON_VOPTS = [
     "--default-language",
     "1800-2017",
-    "+define+TB_EXTERNAL_CLOCK",
     "-Wall",
     "-Wpedantic",
     "-Wno-UNUSEDSIGNAL",
@@ -19,6 +18,7 @@ COMMON_VOPTS = [
     "-Wno-SYNCASYNCNET",
     "-Wno-BLKSEQ",
     "-Wno-EOFNEWLINE",
+    "--timing",
 ]
 
 SW_TESTBENCH_VOPTS = COMMON_VOPTS + [

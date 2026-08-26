@@ -18,12 +18,6 @@ verilog_library(
     visibility = ["//visibility:public"],
 )
 
-# Replaces bzsim's verilog_unit (multi-simulator builder) with the cvm-style
-# native verilator binary. Same pattern as
-# //test/sw_testbench/verilator:sw_1c_tb_verilator. TB_EXTERNAL_CLOCK gates
-# out the in-testbench `forever #5` clock generator + bare `#100`/`#100000`
-# delays — the C++ driver in rv_tester_delay_resp_tb_top.cpp feeds vclk +
-# vrst_ni externally, so Verilator never sees the timing-dependent code.
 verilator_cc_library(
     name = "rv_tester_delay_resp_tb_veri_lib",
     module = ":rv_tester_delay_resp_tb",
