@@ -226,7 +226,6 @@ private:
   bool field_alias_pair(std::uint16_t a, std::uint16_t b) const;
   bool pmp_cfg_bit(hart_id_t hart, std::uint32_t addr, unsigned bit);
   bool csr_exists(hart_id_t hart, std::uint16_t csr_index) const;
-  void refresh_inactive_stashes(hart_id_t hart, std::uint16_t csr_index);
   bool whisper_peek_csr(hart_id_t hart, std::uint32_t addr, std::uint64_t& value, std::uint64_t& wmask, std::uint64_t& pmask, std::uint64_t& rmask, bool quiet);
   std::string field_diff(std::uint16_t csr_index, std::uint64_t dut, std::uint64_t iss, std::uint64_t mask) const;
   void register_default_hooks();
