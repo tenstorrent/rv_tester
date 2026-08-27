@@ -167,7 +167,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     }
     if (now) {
       if (mideleg_mask != 0)
-        csral_.hw_update(hart, mideleg.address, mideleg_mask, mideleg_mask, cycle);
+        csral_.dut_force(hart, mideleg.address, mideleg_mask, mideleg_mask, cycle);
       if (std::find(restored.begin(), restored.end(), static_cast<uint32_t>(mip.address)) != restored.end()) {
         peek_mip(hart, cycle, tmp_mip_latest_);
         tmp_mip_prev_ = tmp_mip_latest_;
@@ -175,9 +175,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       }
     } else {
       if (medeleg_mask != 0)
-        csral_.hw_update(hart, medeleg.address, 0, medeleg_mask, cycle);
+        csral_.dut_force(hart, medeleg.address, 0, medeleg_mask, cycle);
       if (mideleg_mask != 0)
-        csral_.hw_update(hart, mideleg.address, 0, mideleg_mask, cycle);
+        csral_.dut_force(hart, mideleg.address, 0, mideleg_mask, cycle);
     }
   });
   if (FLAGS_cosim_period > 0) {

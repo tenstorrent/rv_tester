@@ -419,6 +419,18 @@ void csral::hw_update(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, s
   queue_check(hart, idx, check_class_t::hw_update);
 }
 
+void csral::dut_force(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, std::uint64_t wmask, std::uint64_t cycle) {
+  const auto* row = CSRAL::find_by_address(addr);
+  if (row == nullptr) {
+    cvm::log(cvm::HIGH, "[csral] dut force to CSR {:#x} not in the spec; not modeled\n", addr);
+    return;
+  }
+  const auto idx = static_cast<std::uint16_t>(CSRAL::index_of(*row));
+  if (!csr_exists(hart, idx))
+    return;
+  apply(hart, src_t::dut, idx, wdata, wmask, cycle);
+}
+
 void csral::iss_write(hart_id_t hart, std::uint32_t addr, std::uint64_t value, std::uint64_t cycle) {
   const auto* row = CSRAL::find_by_address(addr);
   if (row == nullptr)

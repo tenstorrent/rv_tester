@@ -101,6 +101,13 @@ public:
   void sw_write(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, std::uint64_t wmask, std::uint8_t priv, std::uint64_t cycle);
   // csri implicit hardware update: masked by whisper's poke mask.
   void hw_update(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, std::uint64_t wmask, std::uint64_t cycle);
+  // Bridge-forced DUT mirror update for hardware-forced architectural side
+  // effects (e.g. the mideleg VS bits on a misa.H edge). Applies the RAW
+  // mask (no poke-mask AND), fans out to aliases and re-evaluates masking
+  // conditions, but queues NO check — port of the legacy
+  // update_csr(..., check_en=false) forced writes: the ISS is not expected
+  // to mirror these bits until its own change report arrives.
+  void dut_force(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, std::uint64_t wmask, std::uint64_t cycle);
 
   // ---- ISS-side updates ---------------------------------------------------
   // Whisper step change report ('c'): full-value mirror update + alias
