@@ -47,7 +47,7 @@ def pmu_gen(
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",
-            "@cvm//:registry",
+            topology + "_registry",
             "@rv_tester//src/sysmod:sysmod_plusargs",
             fragments_name + "_cc",  # Add generated headers
          ],

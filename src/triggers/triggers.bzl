@@ -21,7 +21,7 @@ def triggers_gen(name, packet, topology, harness, visibility = None, cc_attrs = 
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:logger",
-            "@cvm//:registry",
+            topology + "_registry",
          ],
         alwayslink = True,
         visibility = visibility,

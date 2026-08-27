@@ -195,7 +195,7 @@ def rv_tester_gen(
             "@rv_tester//scripts/preload_axi_llc:preload_axi_llc",
             "@cvm//:plusargs",
             "@cvm//:random",
-            "@cvm//:registry",
+            topology + "_registry",
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
