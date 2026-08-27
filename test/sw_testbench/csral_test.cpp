@@ -251,6 +251,22 @@ TEST_F(CsralTest, HwUpdateGatedByPokeMask) {
   EXPECT_TRUE(m->check(0, 100).empty());
 }
 
+TEST_F(CsralTest, DutForceAppliesRawMaskAndQueuesNoCheck) {
+  // Port of legacy update_csr(..., check_en=false): the bridge's misa.H glue
+  // forces the mideleg VS bits into the DUT mirror without a DUT-vs-ISS
+  // compare (whisper is not expected to hold those bits until its own change
+  // report arrives). Routing these through hw_update queued a check and
+  // produced "mideleg DUT: 0x1444 ISS: 0x0" in the cluster smokes. mscratch
+  // stands in for mideleg here because its full compare mask means a queued
+  // check WOULD report (mideleg's VS bits are compare-masked while H=0).
+  whisper_.poke_mask[addr_of("mscratch")] = 0x0; // the raw mask must bypass this
+  auto m = make();
+  m->dut_force(0, addr_of("mscratch"), 0x1444, 0x1444, 100);
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("mscratch")), 0x1444u);
+  EXPECT_EQ(m->read(0, csral::src_t::iss, addr_of("mscratch")), 0u);
+  EXPECT_TRUE(m->check(0, 100).empty());
+}
+
 // ---- alias fan-out ---------------------------------------------------------
 
 TEST_F(CsralTest, AliasFanOutCsrLevel) {
