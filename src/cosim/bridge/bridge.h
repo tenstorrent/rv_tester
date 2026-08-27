@@ -252,9 +252,7 @@ private:
   int xlen_ = 0;
   int vlen_ = 0;
   CacCore cac_;
-  // The CSR model (docs/csral_plan.md): owns every whisper CSR poke/peek
-  // (write-through mirrors), the CSR write checks, masked-by conditions, and
-  // masked-field save/restore.
+  // The CSR model: whisper CSR pokes/peeks, write checks, masking, save/restore.
   csral csral_;
   static int apply_hyp_save_restore_compat(int num_harts);
   // +cosim_resynch_csr runtime additions to the skip policy (exact names).

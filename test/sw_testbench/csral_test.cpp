@@ -1,11 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Unit tests for the CSRAL engine (src/cosim/csral/csral.{h,cpp}) against the
-// sw_1c generation of the tables (default csr_spec.yaml + project_overrides
-// + csral_defaults.yaml). No simulator, no bridge: whisper is three mocked
-// RPCs on the cvm messenger, and every expectation below pins a behavior the
-// CSRAL plan (docs/csral_plan.md §4.2-4.4) promises.
+// Unit tests for the CSRAL engine against the sw_1c tables; whisper is mocked RPCs.
 
 #include <gtest/gtest.h>
 
@@ -22,23 +18,17 @@
 #include "src/cosim/csral/csral.h"
 #include "whisper_client.h"
 
-// cvm's registry_dpi.o (alwayslink) references the simulator-provided
-// svGetScope; there is no simulator here.
+// Stub for cvm's registry_dpi.o reference to the simulator-provided svGetScope.
 extern "C" svScope svGetScope() {
   return nullptr;
 }
 
-// cvm's plusargs .so references the simulator-provided VPI entry point; the
-// tests never call cvm::plusargs::parse().
+// Stub for cvm's plusargs reference to the simulator-provided VPI entry point.
 extern "C" int vpi_get_vlog_info(void*) {
   return 0;
 }
 
-// Flags DECLAREd in headers the bridge closure includes, but DEFINEd in
-// production .cpps that are deliberately not linked into this test
-// (rv_tester.cpp, rvfi.cpp, eot.cpp, mcmi.cpp, sysmod.cpp,
-// external_interrupt_sequence.cpp). Values mirror the production defaults
-// the bridge paths under test depend on.
+// Flags DEFINEd in production .cpps not linked here; values mirror production defaults.
 DEFINE_bool(monitor, true, "test stub");
 DEFINE_string(eot, "tohost", "test stub");
 DEFINE_uint64(tohost, 0, "test stub");
@@ -82,9 +72,7 @@ using WC = whisperClient<uint64_t>;
 
 constexpr std::uint64_t kAll = ~0ull;
 
-// Whisper stand-in: per-address CSR values and masks. Values fall back to the
-// spec reset from the CSRAL tables, so a "whisper that agrees with the spec"
-// is the default and tests only state their deltas.
+// Whisper stand-in; values default to the spec resets, tests state only their deltas.
 struct MockWhisper {
   std::map<std::uint64_t, std::uint64_t> value;
   std::map<std::uint64_t, std::uint64_t> write_mask;
@@ -203,9 +191,7 @@ TEST_F(CsralTest, ResetSeedsSpecValues) {
 }
 
 TEST_F(CsralTest, InitCheckFlagsSpecWhisperDrift) {
-  // Whisper disagrees with the spec reset for exactly one CSR. (misa itself
-  // is check_reset-exempt — its reset encodes per-core whisper config — so
-  // this uses mscratch; misa drift is still ADOPTED, just not reported.)
+  // mscratch, not misa: misa is check_reset-exempt (drift adopted but unreported).
   whisper_.value[addr_of("mscratch")] = 0x123;
   whisper_.value[addr_of("misa")] = reset_of("misa") ^ 0x2; // exempt: no report
   auto m = make();
@@ -216,8 +202,7 @@ TEST_F(CsralTest, InitCheckFlagsSpecWhisperDrift) {
   EXPECT_EQ(drift[0].spec, reset_of("mscratch"));
   EXPECT_EQ(drift[0].whisper, 0x123u);
   EXPECT_EQ(m->reset_check_severity(), csral::reset_check_t::error);
-  // Whisper is the run authority: both mirrors adopt its value — for the
-  // exempt CSR too.
+  // Whisper is the run authority: both mirrors adopt its value.
   EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("mscratch")), 0x123u);
   EXPECT_EQ(m->read(0, csral::src_t::iss, addr_of("mscratch")), 0x123u);
   EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("misa")), reset_of("misa") ^ 0x2);
@@ -233,8 +218,7 @@ TEST_F(CsralTest, SwWriteAppliesWhisperWriteMask) {
 }
 
 TEST_F(CsralTest, VlBypassesWhisperMask) {
-  // Port of modify_csr_mask's vl special case: whisper's write mask does not
-  // gate vl updates.
+  // vl special case: whisper's write mask does not gate vl updates.
   whisper_.write_mask[addr_of("vl")] = 0x0;
   auto m = make();
   m->sw_write(0, addr_of("vl"), 0x5, kAll, 3, 100);
@@ -242,8 +226,7 @@ TEST_F(CsralTest, VlBypassesWhisperMask) {
 }
 
 TEST_F(CsralTest, HwUpdateGatedByPokeMask) {
-  // Bits outside whisper's poke mask are dropped from csri hardware updates
-  // (parity with process_dut_csr_hw_update).
+  // Bits outside whisper's poke mask are dropped from csri hardware updates.
   whisper_.poke_mask[addr_of("mscratch")] = 0xFF;
   auto m = make();
   m->hw_update(0, addr_of("mscratch"), 0xDE00, kAll, 100);
@@ -252,13 +235,7 @@ TEST_F(CsralTest, HwUpdateGatedByPokeMask) {
 }
 
 TEST_F(CsralTest, DutForceAppliesRawMaskAndQueuesNoCheck) {
-  // Port of legacy update_csr(..., check_en=false): the bridge's misa.H glue
-  // forces the mideleg VS bits into the DUT mirror without a DUT-vs-ISS
-  // compare (whisper is not expected to hold those bits until its own change
-  // report arrives). Routing these through hw_update queued a check and
-  // produced "mideleg DUT: 0x1444 ISS: 0x0" in the cluster smokes. mscratch
-  // stands in for mideleg here because its full compare mask means a queued
-  // check WOULD report (mideleg's VS bits are compare-masked while H=0).
+  // Forced writes apply the raw mask and never compare (mscratch: a queued check WOULD report).
   whisper_.poke_mask[addr_of("mscratch")] = 0x0; // the raw mask must bypass this
   auto m = make();
   m->dut_force(0, addr_of("mscratch"), 0x1444, 0x1444, 100);
@@ -279,8 +256,7 @@ TEST_F(CsralTest, AliasFanOutCsrLevel) {
 }
 
 TEST_F(CsralTest, FieldAliasFanOut) {
-  // fcsr[4:0] <-> fflags[4:0] and fcsr[7:5] <-> frm[2:0] (shifted views the
-  // CSR-level ALIAS_OF cannot express; from csral_defaults.yaml).
+  // Shifted views from field_aliases: fcsr[4:0]<->fflags, fcsr[7:5]<->frm[2:0].
   auto m = make();
   m->sw_write(0, addr_of("fflags"), 0x1F, kAll, 3, 100);
   EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("fcsr")) & 0x1F, 0x1Fu);
@@ -433,8 +409,7 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
     fired.restored = restored;
   });
 
-  // The spec resets H=0: enable hypervisor first (an on-edge with no valid
-  // stash — nothing to restore yet).
+  // H resets 0: the first on-edge has no valid stash, nothing to restore.
   m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 98);
   ASSERT_TRUE(m->condition_active(0, "misa.H"));
   EXPECT_EQ(fired.count, 1);
@@ -464,14 +439,10 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
 }
 
 TEST_F(CsralTest, SaveRestoreStashIsStickyWhileOff) {
-  // Cluster csr_test regression: writes during the OFF period must not touch
-  // the stash. The mirror's masked bits read as forced values while off
-  // (mideleg VS bits = 0), so a stash refreshed from them poked zeros into
-  // whisper's mideleg on the H on-edge and its next csrr read 0.
+  // Writes during the off period must not touch the stash (mideleg zero-poke regression).
   auto m = make();
 
-  // 1) Writes to targets while the condition is off (H=0 from reset) must
-  //    not validate the stash: the first on-edge restores NOTHING.
+  // 1) Inactive-period writes must not validate the stash: first on-edge restores nothing.
   m->sw_write(0, addr_of("mideleg"), 0x333, kAll, 3, 97);
   m->sw_write(0, addr_of("mip"), 0x20, kAll, 3, 98);
   int mideleg_pokes_before = pokes("mideleg");
@@ -485,8 +456,7 @@ TEST_F(CsralTest, SaveRestoreStashIsStickyWhileOff) {
   EXPECT_TRUE(restored.empty());
   EXPECT_EQ(pokes("mideleg"), mideleg_pokes_before);
 
-  // 2) The off-edge snapshot survives the bridge glue's forced clear and any
-  //    further writes while off.
+  // 2) The off-edge snapshot survives forced clears and further writes while off.
   m->sw_write(0, addr_of("mip"), 0x1444, kAll, 3, 100);
   m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 101); // off-edge: stash mip=0x1444
   m->dut_force(0, addr_of("mip"), 0, 0x1444, 101);                            // glue-style forced clear
@@ -515,9 +485,7 @@ TEST_F(CsralTest, SaveRestoreDisabledByEmptyPlusarg) {
   m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 100);
   int mip_pokes_before = pokes("mip");
   m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 101);
-  // The condition still flips and the callback still fires, but nothing is
-  // poked back: masking-only behavior, today's default for every condition
-  // except misa.H (which this test disabled explicitly).
+  // The condition still flips and the callback fires, but nothing is poked back.
   EXPECT_EQ(fired, 3);
   EXPECT_TRUE(last_restored.empty());
   EXPECT_EQ(pokes("mip"), mip_pokes_before);
@@ -529,8 +497,7 @@ TEST_F(CsralTest, PlusargUnknownConditionThrows) {
 }
 
 TEST_F(CsralTest, PlusargViewOnlyConditionThrows) {
-  // mideleg.SSIP gates only the sip delegation view: mask-only by
-  // construction, save/restore is meaningless.
+  // mideleg.SSIP gates only the sip delegation view: mask-only, no save/restore.
   gflags::SetCommandLineOption("csral_save_restore", "misa.H,mideleg.SSIP");
   EXPECT_THROW(csral(1, wloc_), std::invalid_argument);
 }
@@ -538,11 +505,7 @@ TEST_F(CsralTest, PlusargViewOnlyConditionThrows) {
 // ---- default legalize hooks ---------------------------------------------------
 
 TEST_F(CsralTest, PmpGranularityHookKeysOnNapot) {
-  // Port of modify_csr_data (bridge.cpp:3216): the low-bit read-back
-  // adjustment is PMP granularity behavior keyed on pmpcfg A[1] (NAPOT bit 4
-  // of the entry's byte) — NOT the lock bit. A NAPOT entry reads its low 9
-  // bits as ones; TOR/OFF reads its low 10 bits as zeros, lock state
-  // regardless (the lock bit only gates ISS-side updates).
+  // Granularity read-back keys on pmpcfg A[1] (NAPOT), not the lock bit.
   whisper_.value[addr_of("pmpcfg0")] = 0x18; // A=NAPOT, unlocked
   auto m = make();
   m->sw_write(0, addr_of("pmpaddr0"), 0x12345, kAll, 3, 100);
@@ -571,9 +534,7 @@ TEST_F(CsralTest, IssWriteUpdatesIssMirrorOnly) {
 }
 
 TEST_F(CsralTest, HypervisorCsrsGatedByExistsIf) {
-  // Whole-CSR existence gating (bridge.h hypervisor_csr_map_ parity via the
-  // exists_if policy): while misa.H is 0, hstatus does not exist — no mirror
-  // updates, no checks, and write_mask returns 0 without peeking whisper.
+  // exists_if: while misa.H=0 hstatus has no updates, no checks, write_mask 0.
   auto m = make();
   ASSERT_FALSE(m->condition_active(0, "misa.H")); // sandbox spec resets H=0
 

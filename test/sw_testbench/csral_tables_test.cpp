@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Compile-and-sanity test for the generated CSRAL tables (csral_tables.hpp,
-// emitted by csr_param_gen alongside csr_param.hpp). Most guarantees are
-// static_asserts: they hold for the sw_1c generation of the default spec +
-// project overrides, at compile time.
+// Compile-and-sanity checks for the generated CSRAL tables (mostly static_asserts).
 
 #include <gtest/gtest.h>
 
@@ -31,8 +28,7 @@ static_assert(CSRAL::field_insert(kTestField, 0xF00F, 0xAB) == 0xFABF);
 static_assert(CSRAL::field_insert(kTestField, 0x0, 0xAB) == 0xAB0);
 
 TEST(CsralTablesTest, AddressIndexMatchesLegacyMap) {
-  // Every directly-addressed CSR in the legacy csr_map is findable in the
-  // CSRAL tables under the same name, and vice versa.
+  // The legacy csr_map and the CSRAL tables agree on directly-addressed CSRs.
   for (const auto* legacy : CSR::csr_map) {
     const auto* row = CSRAL::find_by_address(legacy->address);
     ASSERT_NE(row, nullptr) << legacy->name;
@@ -49,8 +45,7 @@ TEST(CsralTablesTest, ResetsMatchLegacyHeader) {
 }
 
 TEST(CsralTablesTest, PoliciesReflectCacCheck) {
-  // cac_check in the legacy header and CSRAL's policy.check come from the
-  // same YAML inputs; they must agree.
+  // Legacy cac_check and CSRAL policy.check come from the same YAML: must agree.
   for (const auto* legacy : CSR::csr_map) {
     const auto* row = CSRAL::find_by_address(legacy->address);
     ASSERT_NE(row, nullptr) << legacy->name;
@@ -67,8 +62,7 @@ TEST(CsralTablesTest, MisaHConditionIsDerived) {
       EXPECT_EQ(CSRAL::kCsrs[c.gate_csr].name, "misa");
       EXPECT_EQ(c.gate_mask, 0x80u);
       EXPECT_FALSE(c.view_only);
-      // The spec-derived mstatus mask is MPV|GVA; bridge.h's hand literal
-      // (0x0000000300000000, which is UXL) is a known bug this replaces.
+      // Spec-derived mstatus mask is MPV|GVA (bridge.h's UXL literal was a bug).
       bool saw_mstatus = false;
       for (std::size_t t = 0; t < c.target_count; ++t) {
         const auto& tgt = CSRAL::kMaskedTargets[c.target_first + t];

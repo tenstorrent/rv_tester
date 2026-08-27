@@ -13,13 +13,7 @@
 #include "cvm/registry.hpp"
 #include "whisper_client.h"
 
-// The complete set of masking conditions with save/restore enabled, as a
-// comma list of "<gate_csr>.<gate_field>" names (the plusarg IS the enabled
-// set — there is deliberately no YAML knob; docs/csral_plan.md decision 10).
-// Empty disables save/restore everywhere. Unknown names and view-only
-// conditions (delegation views have no storage to restore) are startup errors.
 DEFINE_string(csral_save_restore, "misa.H", "Masking conditions with save/restore enabled, e.g. misa.H,menvcfg.STCE. Empty = none.");
-// Runtime override of the generated kResetCheck severity (error|warn|off).
 DEFINE_string(csral_reset_check, "", "Override the reset-check severity: error, warn, or off. Empty = use the generated default.");
 
 namespace {
@@ -67,8 +61,7 @@ csral::csral(int num_harts, cvm::topology::loc_t whisper_loc)
     }
   }
 
-  // Per-CSR union of declared field bits: the value a view exposes of its
-  // alias target, and the default alias-propagation mask.
+  // Per-CSR union of declared field bits; the alias-propagation mask.
   view_bits_cache_.resize(CSRAL::kNumCsrs);
   for (std::size_t i = 0; i < CSRAL::kNumCsrs; ++i) {
     std::uint64_t bits = 0;
@@ -178,16 +171,13 @@ std::vector<csral::reset_mismatch_t> csral::init_check(hart_id_t hart) {
     if (!whisper_peek_csr(hart, row.address, value, wmask, pmask, rmask, row.policy.may_not_exist))
       continue;
     if (reset_check_ != reset_check_t::off && value != row.reset) {
-      // Drift severity follows the CSR's own policy: a CSR whose runtime
-      // mismatches are skipped (vtype, dcsr, ...) should not fail reset
-      // either — its drift is logged, not returned.
+      // Drift severity follows the CSR's own policy: skipped CSRs only log.
       if (row.policy.check && row.policy.check_reset && row.policy.on_mismatch == CSRAL::on_mismatch_t::error)
         mismatches.push_back({row.name, row.address, row.reset, value});
       else
         cvm::log(cvm::MEDIUM, "[csral] reset drift on '{}' (policy-demoted): spec={:#x} whisper={:#x}\n", row.name, row.reset, value);
     }
-    // Whisper is the authority for the run; the check above exists to catch
-    // spec-vs-whisper drift at time zero, not to overrule whisper.
+    // Whisper is the authority for the run: adopt its values into both mirrors.
     h.entries[i].dut = value;
     h.entries[i].iss = value;
     h.entries[i].dut_valid = h.entries[i].iss_valid = true;
@@ -229,11 +219,7 @@ void csral::fan_out_aliases(hart_id_t hart, src_t src, std::uint16_t csr_index, 
   const auto& e = harts_.at(hart).entries[csr_index];
   const std::uint64_t value = (src == src_t::dut) ? e.dut : e.iss;
 
-  // CSR-level aliases are same-position views: a view propagates its declared
-  // bits to its target and a target refreshes every view of it. Pairs that a
-  // field alias connects are SHIFTED views (frm[2:0] lives at fcsr[7:5]);
-  // there the field-alias rows are authoritative and the same-position
-  // fan-out must stay out of the way.
+  // CSR-level aliases are same-position views; skip pairs a field alias covers (those are shifted).
   const auto& row = CSRAL::kCsrs[csr_index];
   if (row.alias_of >= 0 && !field_alias_pair(csr_index, static_cast<std::uint16_t>(row.alias_of)))
     apply(hart, src, static_cast<std::uint16_t>(row.alias_of), value, view_bits_cache_[csr_index], cycle, false);
@@ -285,8 +271,7 @@ std::uint64_t csral::inactive_condition_mask(hart_id_t hart, std::uint16_t csr_i
 }
 
 std::uint64_t csral::effective_dut_value(hart_id_t hart, std::uint16_t csr_index) const {
-  // Gate values are read through the model's masked view: a gate behind an
-  // off upstream gate reads 0 (the generator validated the graph is a DAG).
+  // A gate behind an off upstream gate reads 0 (the gate graph is a DAG).
   return harts_.at(hart).entries[csr_index].dut & ~inactive_condition_mask(hart, csr_index);
 }
 
@@ -305,14 +290,7 @@ void csral::evaluate_conditions(hart_id_t hart, std::uint16_t gate_csr_index, st
       cs.active = now;
       std::vector<std::uint32_t> restored;
       if (!now) {
-        // Off-edge: capture the masked field bits the DUT will retain. The
-        // snapshot is STICKY until the next off-edge — while the condition is
-        // off the masked bits are inaccessible to software (that is what
-        // masked means), so writes during the off period must not touch the
-        // stash (legacy kept the saved masked bits sticky the same way; a
-        // stash refreshed from while-off mirror values restores the forced-0
-        // reads instead of the retained state, which zeroed whisper's mideleg
-        // VS bits after an H on-edge).
+        // Off-edge snapshot, sticky while off: masked bits are inaccessible until the gate returns.
         if (save_restore_enabled_[c]) {
           for (std::size_t t = 0; t < cond.target_count; ++t) {
             const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];
@@ -321,11 +299,7 @@ void csral::evaluate_conditions(hart_id_t hart, std::uint16_t gate_csr_index, st
           }
         }
       } else if (save_restore_enabled_[c]) {
-        // On-edge: put the stashed bits back into whisper (write-through, so
-        // the ISS mirror stays coherent by construction). Targets never
-        // captured (the condition has been off since reset with no writes)
-        // stay untouched — the legacy save/restore restored only saved
-        // entries too.
+        // On-edge: poke the stashed bits back into whisper; never-captured targets stay untouched.
         for (std::size_t t = 0; t < cond.target_count; ++t) {
           const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];
           const auto& row = CSRAL::kCsrs[tgt.csr];
@@ -339,8 +313,7 @@ void csral::evaluate_conditions(hart_id_t hart, std::uint16_t gate_csr_index, st
             restored.push_back(row.address);
         }
       }
-      // A flipped condition changes the effective value of its targets, which
-      // may themselves gate further conditions (menvcfg -> henvcfg chains).
+      // Targets may themselves gate further conditions (menvcfg -> henvcfg chains).
       for (std::size_t t = 0; t < cond.target_count; ++t) {
         const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];
         if (!conditions_by_gate_[tgt.csr].empty())
@@ -373,14 +346,12 @@ bool csral::save_restore_enabled(std::string_view condition_name) const {
 void csral::sw_write(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, std::uint64_t wmask, std::uint8_t priv, std::uint64_t cycle) {
   const auto* row = CSRAL::find_by_address(addr);
   if (row == nullptr) {
-    // Not a spec CSR: legacy parity is to store nothing and never compare
-    // (update_csr left the check disabled when the address lookup missed).
+    // Not a spec CSR: store nothing, never compare.
     cvm::log(cvm::HIGH, "[csral] sw write to CSR {:#x} not in the spec; not modeled\n", addr);
     return;
   }
   std::uint64_t data = wdata;
-  // vl is exempt from whisper's write mask (port of modify_csr_mask's
-  // special case: the DUT-reported mask applies as-is).
+  // vl is exempt from whisper's write mask: the DUT-reported mask applies as-is.
   std::uint64_t mask = (vl_addr_ != 0 && addr == vl_addr_) ? wmask : (wmask & write_mask(hart, addr));
   for (const auto& [hook_addr, hook] : hooks_) {
     if (hook_addr == addr)
@@ -388,7 +359,7 @@ void csral::sw_write(hart_id_t hart, std::uint32_t addr, std::uint64_t wdata, st
   }
   const auto idx = static_cast<std::uint16_t>(CSRAL::index_of(*row));
   if (!csr_exists(hart, idx))
-    return; // parity: the bridge dropped updates to hypervisor CSRs while misa.H=0
+    return; // updates to non-existent CSRs (gate off) are dropped
   apply(hart, src_t::dut, idx, data, mask, cycle);
   queue_check(hart, idx, check_class_t::sw_write);
 }
@@ -425,8 +396,7 @@ void csral::iss_write(hart_id_t hart, std::uint32_t addr, std::uint64_t value, s
   const auto idx = static_cast<std::uint16_t>(CSRAL::index_of(*row));
   if (!csr_exists(hart, idx))
     return;
-  // Parity with the bridge: whisper's change reports on locked PMP entries
-  // are skipped (bridge.cpp:1877-1889).
+  // Whisper change reports on locked PMP entries are skipped.
   if (pmp_locked(hart, addr))
     return;
   apply(hart, src_t::iss, idx, value, ~0ull, cycle);
@@ -512,13 +482,13 @@ std::uint64_t csral::read_field(hart_id_t hart, src_t src, std::uint32_t addr, s
 std::uint64_t csral::write_mask(hart_id_t hart, std::uint32_t addr) {
   const auto* row = CSRAL::find_by_address(addr);
   if (row != nullptr && !csr_exists(hart, static_cast<std::uint16_t>(CSRAL::index_of(*row))))
-    return 0; // parity: the bridge never peeked hypervisor CSRs while misa.H=0
+    return 0; // never peek non-existent CSRs
   if (CSRAL::kCompareMaskSource == CSRAL::compare_mask_source_t::spec)
     return row != nullptr ? row->spec_write_mask : ~0ull;
   std::uint64_t value, wmask, pmask, rmask;
   if (!whisper_peek_csr(hart, addr, value, wmask, pmask, rmask, row != nullptr && row->policy.may_not_exist))
-    return row != nullptr ? row->spec_write_mask : 0; // fail CLOSED, never all-ones
-  // Port of bridge::get_csr_mask: dcsr in debug mode uses the poke mask.
+    return row != nullptr ? row->spec_write_mask : 0; // fail closed, never all-ones
+  // dcsr in debug mode uses the poke mask.
   std::uint64_t result = (debug_mode_ && row != nullptr && row->name == "dcsr") ? pmask : (wmask & rmask);
   if (CSRAL::kCompareMaskSource == CSRAL::compare_mask_source_t::both_warn && row != nullptr && result != row->spec_write_mask)
     cvm::log(cvm::HIGH, "[csral] CSR '{}': whisper write mask {:#x} != spec write mask {:#x}\n", row->name, result, row->spec_write_mask);
@@ -567,8 +537,7 @@ std::vector<csral::mismatch_t> csral::check(hart_id_t hart, std::uint64_t cycle)
   auto& h = harts_.at(hart);
   std::vector<mismatch_t> out;
   if (h.resynch_pending) {
-    // The bridge just resynched this hart; today's checker swallows the
-    // whole group after a resynch, so drain quietly once.
+    // The bridge just resynched this hart: drain quietly once.
     h.resynch_pending = false;
     for (const auto& q : h.queue)
       h.queued[q.csr_index] = false;
@@ -583,13 +552,11 @@ std::vector<csral::mismatch_t> csral::check(hart_id_t hart, std::uint64_t cycle)
     if (!csr_exists(hart, q.csr_index))
       continue; // the CSR stopped existing (its gate turned off) before the check ran
     const auto& e = h.entries[q.csr_index];
-    // Masked-by fields compare only while their condition is active; the
-    // masks were applied at update time, so this is the only compare mask.
+    // Masked-by fields compare only while their condition is active.
     const std::uint64_t mask = ~inactive_condition_mask(hart, q.csr_index);
     std::uint64_t diff = (e.dut ^ e.iss) & mask;
     if (diff != 0 && row.policy.volatile_csr && row.address != CSRAL::kNoDirectAddress) {
-      // A volatile CSR's mirror may be stale (whisper moves it between our
-      // updates); re-read live before reporting a resynch-worthy mismatch.
+      // A volatile mirror may be stale: re-peek live before reporting.
       bool ok = false;
       (void)peek(hart, row.address, &ok);
       if (ok)
@@ -619,7 +586,7 @@ void csral::dump(hart_id_t hart, const std::function<void(std::string_view, std:
     emit(CSRAL::kCsrs[i].name, h.entries[i].dut, h.entries[i].iss);
 }
 
-// ---- default legalize hooks (ports of modify_csr_data / modify_csr_mask) -------------
+// ---- default legalize hooks -----------------------------------------------------------
 
 void csral::register_legalize_hook(std::uint32_t addr, legalize_hook hook) {
   hooks_.emplace_back(addr, std::move(hook));
@@ -631,16 +598,13 @@ bool csral::pmp_cfg_bit(hart_id_t hart, std::uint32_t addr, unsigned bit) {
   const std::uint64_t i = addr - pmpaddr0_;
   const std::uint64_t cfg_reg = ((i * 8) / 64) * 2;
   const std::uint64_t cfg_index = (i * 8) % 64;
-  // The bridge's mask path peeked a pmpaddr register here by mistake
-  // (bridge.cpp:3262); the config lives in pmpcfg, as its data path used.
   std::uint64_t cfg, wmask, pmask, rmask;
   if (!whisper_peek_csr(hart, static_cast<std::uint32_t>(pmpcfg0_ + cfg_reg), cfg, wmask, pmask, rmask, false))
     return false;
   return (cfg >> (cfg_index + bit)) & 0x1;
 }
 
-// pmpcfg byte: R=0 W=1 X=2 A=[4:3] L=7. The lock bit gates ISS-side updates;
-// A[1] (NAPOT) drives the granularity read-back adjustment in the hook.
+// pmpcfg byte layout: R=0 W=1 X=2 A=[4:3] L=7.
 bool csral::pmp_locked(hart_id_t hart, std::uint32_t addr) {
   return pmp_cfg_bit(hart, addr, 7);
 }
@@ -659,16 +623,11 @@ void csral::register_default_hooks() {
   pmpaddr0_ = addr_of("pmpaddr0");
   pmpcfg0_ = addr_of("pmpcfg0");
 
-  // PMP address entries: a locked entry (pmpcfgX bit 7 of its byte) forces
-  // the NAPOT low bits; an unlocked one clears them (bridge.cpp:3205-3221,
-  // 3252-3268).
+  // pmpaddr granularity read-back (G=10), keyed on the entry's NAPOT bit.
   if (pmpaddr0_ != 0 && pmpcfg0_ != 0) {
     for (std::uint32_t k = 0; k < 16; ++k) {
       register_legalize_hook(pmpaddr0_ + k, [](csral& m, hart_id_t hart, std::uint32_t addr, std::uint8_t, std::uint64_t, std::uint64_t& data, std::uint64_t& mask) {
-        // Granularity read-back (G=10): a NAPOT entry reads its low 9 bits
-        // as ones, TOR/OFF reads its low 10 bits as zeros. Keyed on
-        // pmpcfg A[1] exactly like modify_csr_data (bridge.cpp:3216); the
-        // L bit only gates ISS updates.
+        // NAPOT reads its low 9 bits as ones; TOR/OFF reads its low 10 bits as zeros.
         if (m.pmp_napot(hart, addr)) {
           data |= 0x1ff;
           mask |= 0x1ff;
@@ -680,8 +639,7 @@ void csral::register_default_hooks() {
     }
   }
 
-  // Smstateen hierarchy: hstateenX/sstateenX writes are ANDed with
-  // mstateenX (and hstateenX for VS-mode sstateen writes) — bridge.cpp:3222-3240.
+  // Smstateen hierarchy: hstateenX/sstateenX writes AND with mstateenX (and hstateenX in VS mode).
   for (std::uint32_t k = 0; k < 4; ++k) {
     const std::uint32_t mst = addr_of(fmt::format("mstateen{}", k));
     const std::uint32_t hst = addr_of(fmt::format("hstateen{}", k));
@@ -707,11 +665,9 @@ void csral::register_default_hooks() {
       register_legalize_hook(sst, stateen_hook);
   }
 
-  // hgatp: only modes {0,8,9,10} are legal; an illegal mode write leaves the
-  // mode bits unwritten (bridge.cpp:3269-3284).
+  // hgatp: an illegal mode write (not in {0,8,9,10}) leaves the mode bits unwritten.
   if (const std::uint32_t hgatp = addr_of("hgatp"); hgatp != 0) {
     register_legalize_hook(hgatp, [hgatp](csral& m, hart_id_t hart, std::uint32_t, std::uint8_t, std::uint64_t raw_wmask, std::uint64_t& data, std::uint64_t& mask) {
-      // The mode read uses the DUT's raw write mask (bridge.cpp:3272).
       const std::uint64_t mode = (data & raw_wmask) >> 60;
       const bool valid_mode = mode == 0 || mode == 8 || mode == 9 || mode == 10;
       if (!valid_mode) {
@@ -723,9 +679,7 @@ void csral::register_default_hooks() {
     });
   }
 
-  // Pointer-masking PMM fields accept only {0,2}; an illegal value leaves the
-  // field unwritten (bridge.cpp:3286-3329). hstatus holds PMM at [49:48], the
-  // cfg registers at [33:32].
+  // Pointer-masking PMM fields accept only {0,2}; an illegal value leaves the field unwritten.
   auto pmm_hook = [](std::uint32_t lo) {
     return [lo](csral&, hart_id_t, std::uint32_t, std::uint8_t, std::uint64_t, std::uint64_t& data, std::uint64_t& mask) {
       const std::uint64_t pmm = ((data & mask) >> lo) & 0x3;
@@ -740,10 +694,9 @@ void csral::register_default_hooks() {
   if (const std::uint32_t a = addr_of("hstatus"); a != 0)
     register_legalize_hook(a, pmm_hook(48));
 
-  // srmcfg: RCID/MCID legality (bridge.cpp:3331-3338).
+  // srmcfg: RCID/MCID legality, judged on the DUT's raw write.
   if (const std::uint32_t srmcfg = addr_of("srmcfg"); srmcfg != 0) {
     register_legalize_hook(srmcfg, [](csral& m, hart_id_t hart, std::uint32_t addr, std::uint8_t, std::uint64_t raw_wmask, std::uint64_t& data, std::uint64_t& mask) {
-      // Legality is judged on the DUT's raw write (bridge.cpp:3332-3336).
       const std::uint64_t eff = data & raw_wmask;
       std::uint64_t result = 0xfff0fffull;
       if (!(((eff & result) & 0xFFF) <= 0xF) || (((eff & result) & 0xFFF0000ull) != 0x0))

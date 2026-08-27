@@ -115,10 +115,7 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
   return dword_vec;
 }
 
-// +hyp_save_restore_en compat: equivalent to removing/keeping misa.H in the
-// +csral_save_restore enabled set. Runs before the csral member constructs
-// (which is when the set is parsed); returns num_harts so it can sit in the
-// member-init list.
+// +hyp_save_restore_en compat: removes/keeps misa.H in the +csral_save_restore set before csral constructs.
 int bridge::apply_hyp_save_restore_compat(int num_harts) {
   if (!FLAGS_hyp_save_restore_en) {
     std::string set = FLAGS_csral_save_restore, out;
@@ -149,11 +146,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
   csral_.set_check_enable(csral::check_class_t::sw_write, FLAGS_csr_rd_check);
   csral_.set_check_enable(csral::check_class_t::hw_update, FLAGS_csr_wr_check);
 
-  // misa.H transition side effects the model's generic save/restore does not
-  // know about (they are architecture behavior, not stashed state): the
-  // mideleg VS bits are hardware-forced to 1 with H on and to 0 with H off,
-  // medeleg's H-only causes clear with H off, and a restored mip refreshes
-  // the interrupt bookkeeping.
+  // misa.H side effects beyond save/restore: hardware-forced mideleg/medeleg bits and mip bookkeeping.
   csral_.on_condition_change([this](csral::hart_id_t hart, const CSRAL::condition_t& cond, bool now, const std::vector<uint32_t>& restored, uint64_t cycle) {
     if (std::string_view(cond.name) != "misa.H")
       return;
@@ -196,9 +189,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
   // Reset value
   hw_mip_age_ = FLAGS_mip_resynch_threshold;
 
-  // +cosim_resynch_csr keeps working as a runtime addition to the policy
-  // skip set — exact spec names now, not substrings. A name the spec does
-  // not know is a startup error (a typo'd skip must not silently error runs).
+  // +cosim_resynch_csr: runtime skip additions, exact spec names; unknown names are startup errors.
   std::istringstream iss(FLAGS_cosim_resynch_csr);
   std::string token;
   while (std::getline(iss, token, ',')) {
@@ -315,9 +306,6 @@ void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data) {
 }
 
 void bridge::csr_init() {
-  // Seed mirrors from the spec, adopt whisper values, and check them against
-  // each other: spec-vs-whisper reset drift is an error by default
-  // (docs/csral_plan.md decision 3; downgrade with +csral_reset_check).
   csral_.reset(id_);
   for (const auto& drift : csral_.init_check(id_)) {
     if (csral_.reset_check_severity() == csral::reset_check_t::error)
@@ -831,8 +819,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
   if (patch_mode_)
     return;
 
-  // Always drain the model's queue so it cannot grow unbounded; reporting is
-  // gated below (parity: +csr_wr_check=0 suppressed all CSR write reporting).
+  // Always drain the model's queue so it cannot grow unbounded; reporting is gated below.
   auto mismatches = csral_.check(hart, d.cycle);
   if (!FLAGS_csr_wr_check)
     return;
@@ -1750,8 +1737,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
     }
     break;
   case 'c':
-    // The model applies the ISS change (locked PMP entries are skipped
-    // inside iss_write) and queues the cross-check.
+    // The model applies the ISS change and queues the cross-check.
     csral_.iss_write(hart, w.address & 0xfff, w.value, w.time);
     break;
   default:
@@ -3092,7 +3078,6 @@ bool bridge::is_mtime_mmr(uint64_t addr) {
 }
 
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
-  // The model reads volatile CSRs (mip/mvip/...) live from whisper.
   return csral_.read(hart, src == src_t::dut ? csral::src_t::dut : csral::src_t::iss, static_cast<uint32_t>(addr));
 }
 
@@ -3100,7 +3085,6 @@ void bridge::peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_
   bool valid;
   bool check_condition;
   if (resource == 'c') {
-    // CSRs go through the model so its ISS mirror stays current.
     bool ok = false;
     data = csral_.peek(hart, addr, &ok);
     check_condition = !ok;
@@ -3119,7 +3103,6 @@ void bridge::poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64
   bool valid;
   bool check_condition;
   if (resource == 'c') {
-    // CSR pokes go through the model: write-through keeps the mirror honest.
     check_condition = !csral_.poke(hart, addr, data, cycle);
   } else {
     // For other resources, check both RPC call result and valid flag

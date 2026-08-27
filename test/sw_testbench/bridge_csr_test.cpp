@@ -1,19 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Behavior-pinning tests for the bridge's CSR paths (CSRAL plan, Phase 0).
-//
-// Constructs the real `bridge` against the sw_1c generated topology with every
-// whisper RPC mocked on the cvm messenger, then drives the public CSR entry
-// points (csr_init, process_dut_csr_hw_update, process_dut_instr_group_retire)
-// and asserts which sequences do / do not raise a cosim error. These tests pin
-// today's csr_cac_ behavior so the CSRAL cutover (plan Phase 4) has a baseline
-// to diff against.
-//
-// No simulator is involved: topology comes from //test/sw_testbench:sw_1c_topology_cc
-// (link-time static tables), whisper RPCs are lambdas registered at the same
-// messenger location the bridge dispatches to, and errors are observed via the
-// bridge::error_loc signal the bridge emits on its own location.
+// Behavior-pinning tests for the bridge's CSR paths: real bridge, mocked whisper RPCs.
 
 #include <gtest/gtest.h>
 
@@ -23,24 +11,17 @@
 #include "src/cosim/bridge/bridge.h"
 #include "whisper_client.h"
 
-// cvm's registry_dpi.o (alwayslink) references the simulator-provided
-// svGetScope; there is no simulator here.
+// Stub for cvm's registry_dpi.o reference to the simulator-provided svGetScope.
 extern "C" svScope svGetScope() {
   return nullptr;
 }
 
-// cvm's plusargs .so references the simulator-provided VPI entry point; the
-// test never calls cvm::plusargs::parse(), so a failing stub is enough to
-// satisfy the dynamic linker.
+// Stub for cvm's plusargs reference to the simulator-provided VPI entry point.
 extern "C" int vpi_get_vlog_info(void*) {
   return 0;
 }
 
-// Flags DECLAREd in headers the bridge closure includes, but DEFINEd in
-// production .cpps that are deliberately not linked into this test
-// (rv_tester.cpp, rvfi.cpp, eot.cpp, mcmi.cpp, sysmod.cpp,
-// external_interrupt_sequence.cpp). Values mirror the production defaults
-// the bridge paths under test depend on.
+// Flags DEFINEd in production .cpps not linked here; values mirror production defaults.
 DEFINE_bool(monitor, true, "test stub");
 DEFINE_string(eot, "tohost", "test stub");
 DEFINE_uint64(tohost, 0, "test stub");
@@ -77,8 +58,7 @@ namespace {
 
 using WC = whisperClient<uint64_t>;
 
-// Trivial whisper stand-in: per-address CSR values and masks served to the
-// bridge's peeks; pokes write through to values.
+// Whisper stand-in: per-address values and masks; pokes write through.
 struct MockWhisper {
   std::map<uint64_t, uint64_t> value;
   std::map<uint64_t, uint64_t> write_mask;
@@ -99,8 +79,7 @@ protected:
   void SetUp() override {
     cvm::registry::messenger.clear();
     whisper_ = MockWhisper{};
-    // Baseline: whisper agrees with every spec reset value, so the (now
-    // error-severity) reset check starts clean; tests override per CSR.
+    // Baseline: whisper agrees with every spec reset; tests override per CSR.
     for (const auto& row : CSRAL::kCsrs) {
       if (row.address != CSRAL::kNoDirectAddress)
         whisper_.value[row.address] = row.reset;
@@ -113,8 +92,7 @@ protected:
     ASSERT_NE(platform_, cvm::topology::null);
     ASSERT_NE(wloc_, cvm::topology::null);
 
-    // The bridge signals bridge::error_loc on its own location for every
-    // error() / print(ERROR); count them instead of scraping logs.
+    // Count bridge::error_loc signals instead of scraping logs.
     cvm::registry::messenger.connect<bridge::error_loc>(platform_, [](const bridge::error_loc&) { g_error_count++; });
 
     cvm::registry::messenger.procedure<WC::whisperConnectRPC>(wloc_, []() -> int { return 0; });
@@ -167,8 +145,7 @@ protected:
 TEST_F(BridgeCsrTest, CsrInitIsSelfConsistent) {
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
-  // Whisper agrees with every spec reset (SetUp baseline): no drift errors,
-  // both mirrors seeded identically, next group check clean.
+  // SetUp baseline: no drift errors, mirrors identical, group check clean.
   EXPECT_EQ(g_error_count, 0);
   EXPECT_EQ(check_group(b), 0);
 }
@@ -176,8 +153,7 @@ TEST_F(BridgeCsrTest, CsrInitIsSelfConsistent) {
 TEST_F(BridgeCsrTest, HwUpdateMatchingIssIsClean) {
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
-  // ISS mirror for a never-seeded CSR is all zeros; a DUT hw update writing
-  // zeros therefore matches.
+  // A never-seeded ISS mirror is zeros; a DUT hw update writing zeros matches.
   csr_t c = make_csr(mscratch.address, 0x0, ~0ull);
   b.process_dut_csr_hw_update(0, c);
   EXPECT_EQ(check_group(b), 0);
@@ -194,8 +170,7 @@ TEST_F(BridgeCsrTest, HwUpdateMismatchErrors) {
 TEST_F(BridgeCsrTest, HwUpdateIsGatedByWhisperPokeMask) {
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
-  // Bits outside whisper's poke mask are dropped from the DUT-side update, so
-  // a write that only touches masked-out bits leaves the mirror unchanged.
+  // Bits outside whisper's poke mask are dropped from the DUT-side update.
   whisper_.poke_mask[mscratch.address] = 0xFF;
   csr_t c = make_csr(mscratch.address, 0xDE00, ~0ull);
   b.process_dut_csr_hw_update(0, c);
@@ -214,19 +189,14 @@ TEST_F(BridgeCsrTest, SkipListSuppressesMismatch) {
 TEST_F(BridgeCsrTest, CustomCsrCheckDisabledByDefault) {
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
-  // c_fecfg2 has cac_check=false (c_ prefix default), so mismatches are never
-  // even queued for comparison.
+  // c_fecfg2 has check=false (c_* default): mismatches are never queued.
   csr_t c = make_csr(c_fecfg2.address, 0xDEAD, ~0ull);
   b.process_dut_csr_hw_update(0, c);
   EXPECT_EQ(check_group(b), 0);
 }
 
 TEST_F(BridgeCsrTest, CsrInitChecksWhisperAgainstSpecReset) {
-  // csr_init seeds from the spec and CHECKS whisper against it: drift is an
-  // error by default (docs/csral_plan.md decision 3), and whisper's value is
-  // then adopted into both mirrors as the run authority. (misa itself is
-  // check_reset-exempt — its reset encodes per-core whisper configuration —
-  // so this uses mscratch.)
+  // Reset drift errors by default and whisper's value is adopted (mscratch: misa is exempt).
   whisper_.value[mscratch.address] = 0x123; // disagrees with the spec reset (0)
   bridge b(1, 64, 256, platform_, 0);
   b.csr_init();
