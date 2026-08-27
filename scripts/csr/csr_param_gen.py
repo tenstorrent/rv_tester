@@ -14,8 +14,7 @@ class Field:
         self.legal_value = legal_value
         self.sw_type = sw_type
         self.perf_val = perf_val
-        # Field-level MASKED_BY: names the gate FIELD inside the CSR-level
-        # masking register (see CSR.masked_by_reg). Empty when unmasked.
+        # Field-level MASKED_BY: the gate field inside the CSR-level masking register.
         self.masked_by = masked_by
 
 class CSR:
@@ -27,8 +26,7 @@ class CSR:
         self.alias_of = alias_of
         self.reset_val = "0x0"  # Initialize with default value
         self.perf_val = "0x0"  # Initialize with default value
-        # CSR-level MASKED_BY: names the masking REGISTER whose fields gate
-        # this CSR's masked fields. Empty when the CSR has no masked fields.
+        # CSR-level MASKED_BY: the masking register whose fields gate this CSR.
         self.masked_by_reg = ""
         # Whole-CSR SW_TYPE from common_data (e.g. "Read-Only" on counters).
         self.common_sw_type = ""
@@ -130,10 +128,7 @@ class CsrMap:
                 field_range = field_data.get("FIELDS_RANGE")
                 reset_val = field_data.get("RESET_VALUE", "0x0")
 
-                # Parse MSB and LSB from FIELDS_RANGE ("63:0", or a single bit
-                # number). A missing or malformed range is a spec error: the
-                # generated masks would be garbage (historically the previous
-                # field's range silently leaked in here).
+                # A missing or malformed FIELDS_RANGE is a spec error, not a fallback.
                 field_range = "" if field_range is None else str(field_range)
                 try:
                     if ":" in field_range:
@@ -147,8 +142,7 @@ class CsrMap:
                     raise ValueError(f"CSR '{csr_name}' field '{field_name}': FIELDS_RANGE {field_range!r} has msb < lsb")
 
                 width = msb - lsb + 1
-                # No LEGAL_VALUE means the field is unconstrained (empty list),
-                # not "only 0 is legal".
+                # No LEGAL_VALUE means unconstrained, not "only 0 is legal".
                 legal_value = field_data.get("LEGAL_VALUE") or ""
                 sw_type = field_data.get("SW_TYPE", "WARL")
                 if not sw_type:
@@ -578,8 +572,7 @@ class CsrMap:
                     f.write(f"parameter int {prefix}_LSB = {lsb};\n")
                     f.write(f"parameter int {prefix}_WIDTH = {width};\n")
                     
-                    # Field reset value: the spec gives the field's own value,
-                    # masked here to the field width (matching the C++ header).
+                    # Field reset value, masked to the field width.
                     field_reset_val = self.resolve_param_reset_value(field.reset_val, csr_name, field_name) & ((1 << width) - 1)
 
                     f.write(f"parameter logic [{width-1}:0] {prefix}_RESET = {width}'h{field_reset_val:0{(width+3)//4}X};\n")
@@ -666,14 +659,8 @@ class CsrMap:
 
 
 # ============================================================================
-# CSRAL: generated tables for the runtime CSR model (docs/csral_plan.md).
-#
-# Everything below derives pure DATA from the spec + the csral policy YAML:
-# per-CSR/field tables, masked-by conditions (two-level MASKED_BY semantics,
-# matching gen-csr's m_mask RDL property: CSR-level names the masking
-# REGISTER, field-level names the gate FIELD inside it), alias links, checking
-# policies, and an O(1) address index. Validation runs here so a bad spec or a
-# typo'd policy fails the BUILD, never a simulation.
+# CSRAL: generated tables for the runtime CSR model; validation fails the
+# build, never a simulation. See docs/source/user_guides/cosim.rst.
 # ============================================================================
 
 import fnmatch
@@ -702,7 +689,7 @@ class CsralConfig:
         for origin, data in (("defaults", defaults), ("project override", project)):
             unknown = set(data.keys()) - _ALLOWED_CSRAL_KEYS
             if "save_restore" in unknown:
-                raise CsralValidationError(f"csral {origin}: 'save_restore' is not a YAML knob; the enabled set is runtime-only via +csral_save_restore (docs/csral_plan.md decision 10)")
+                raise CsralValidationError(f"csral {origin}: 'save_restore' is not a YAML knob; the enabled set is runtime-only via +csral_save_restore")
             if unknown:
                 raise CsralValidationError(f"csral {origin}: unknown keys {sorted(unknown)} (allowed: {sorted(_ALLOWED_CSRAL_KEYS)})")
 
@@ -719,9 +706,10 @@ class CsralConfig:
             if fa not in self.field_aliases:
                 self.field_aliases.append(fa)
 
-        # policies: {pattern: (policy_dict, origin)}. Project wins per pattern.
+        # policies: {lower-cased pattern: (policy_dict, origin)}. Project wins per pattern.
         self.policies = {}
         for origin, data in (("defaults", defaults), ("project", project)):
+            seen = {}
             for pattern, pol in (data.get("policies") or {}).items():
                 pol = dict(pol or {})
                 unknown = set(pol.keys()) - _ALLOWED_POLICY_KEYS
@@ -731,24 +719,38 @@ class CsralConfig:
                     raise CsralValidationError(f"csral policy {pattern!r} ({origin}): on_mismatch {pol.get('on_mismatch')!r} not in {_ON_MISMATCH_VALUES}")
                 if pol.get("class") not in (None, "interrupt"):
                     raise CsralValidationError(f"csral policy {pattern!r} ({origin}): class {pol.get('class')!r} (only 'interrupt' is defined)")
-                self.policies[str(pattern)] = (pol, origin)
+                key = str(pattern).lower()
+                if key in seen:
+                    raise CsralValidationError(f"csral policies ({origin}): {pattern!r} and {seen[key]!r} differ only by case")
+                seen[key] = str(pattern)
+                self.policies[key] = (pol, origin)
 
     def resolve_policy(self, csr_name):
-        """Exact name beats glob beats 'default'. Two different globs matching
-        the same CSR with different policies is ambiguous -> error."""
-        if csr_name in self.policies:
-            return dict(self.policies[csr_name][0])
-        glob_hits = [(pat, pol) for pat, (pol, _origin) in self.policies.items()
-                     if pat != "default" and pat != csr_name and _is_glob(pat) and fnmatch.fnmatchcase(csr_name, pat)]
+        return dict(self._resolve(csr_name)[0])
+
+    def policy_origin(self, csr_name):
+        """'project' when the winning pattern came from the project's csral: section."""
+        return self._resolve(csr_name)[1]
+
+    def _resolve(self, csr_name):
+        """Exact name beats glob beats 'default'; names match without regard to
+        case. Two different globs matching the same CSR with different policies
+        is ambiguous -> error."""
+        name = csr_name.lower()
+        if name in self.policies:
+            return self.policies[name]
+        glob_hits = [(pat, pol, origin) for pat, (pol, origin) in self.policies.items()
+                     if pat != "default" and _is_glob(pat) and fnmatch.fnmatchcase(name, pat)]
         if glob_hits:
             first = glob_hits[0][1]
-            for pat, pol in glob_hits[1:]:
+            for _pat, pol, _origin in glob_hits[1:]:
                 if pol != first:
-                    raise CsralValidationError(f"csral policies: CSR '{csr_name}' matches globs {sorted(p for p, _ in glob_hits)} with different policies; add an exact entry to disambiguate")
-            return dict(first)
+                    raise CsralValidationError(f"csral policies: CSR '{csr_name}' matches globs {sorted(p for p, _, _ in glob_hits)} with different policies; add an exact entry to disambiguate")
+            origin = "project" if any(o == "project" for _, _, o in glob_hits) else "defaults"
+            return first, origin
         if "default" in self.policies:
-            return dict(self.policies["default"][0])
-        return {}
+            return self.policies["default"]
+        return {}, "defaults"
 
 
 def _is_glob(pattern):
@@ -769,6 +771,12 @@ class CsralModel:
         # Ordered rows, spec order (dict order is insertion order).
         self.csr_names = list(csr_map.csr_property_dict.keys())
         self.csr_index = {n: i for i, n in enumerate(self.csr_names)}
+        # Policy, alias and condition names match spec names without regard to case.
+        self._spec_name_lc = {}
+        for n in self.csr_names:
+            other = self._spec_name_lc.setdefault(n.lower(), n)
+            if other != n:
+                self.errors.append(f"CSR names '{other}' and '{n}' differ only by case")
         self._validate_spec()
         self._resolve_policies()
         self._derive_conditions()
@@ -781,9 +789,7 @@ class CsralModel:
             msg = "\n  ".join(self.errors)
             raise CsralValidationError(f"csral validation failed ({len(self.errors)} error(s)):\n  {msg}")
 
-    # kNoDirectAddress sentinel: CSRs with an empty ADDRESS are indirect-only
-    # (reached via miselect/mireg-style selectors, gen-csr's no_direct_sw_addr);
-    # they have no slot in the address index.
+    # Empty ADDRESS = indirect-only CSR: this sentinel, no address-index slot.
     NO_DIRECT_ADDRESS = 0xFFFF
 
     # -- helpers -------------------------------------------------------------
@@ -858,12 +864,9 @@ class CsralModel:
                 "volatile": bool(pol.get("volatile", False)),
                 "interrupt": pol.get("class") == "interrupt",
                 "may_not_exist": bool(pol.get("may_not_exist", False)),
-                # False exempts the CSR from the whisper-vs-spec reset check
-                # (for resets that encode per-core configuration, like misa).
+                # False exempts the CSR from the whisper-vs-spec reset check.
                 "check_reset": bool(pol.get("check_reset", True)),
-                # Whole-CSR existence gate: the CSR only exists while this
-                # condition is active (e.g. hypervisor CSRs behind misa.H).
-                # Resolved to a condition index after condition derivation.
+                # Whole-CSR existence gate; resolved to a condition index later.
                 "exists_if": str(pol.get("exists_if") or ""),
             }
 
@@ -875,43 +878,30 @@ class CsralModel:
         when it came from the shared defaults (projects have different CSR
         sets, so e.g. exists_if: misa.H is meaningless for a core without a
         hypervisor gate)."""
-        cond_index = {c["name"]: i for i, c in enumerate(self.conditions)}
+        cond_index = {c["name"].lower(): i for i, c in enumerate(self.conditions)}
         for name, pol in self.policy_by_csr.items():
             cond_name = pol.pop("exists_if", "")
             pol["exists_if_index"] = -1
             if not cond_name:
                 continue
-            if cond_name in cond_index:
-                pol["exists_if_index"] = cond_index[cond_name]
+            if cond_name.lower() in cond_index:
+                pol["exists_if_index"] = cond_index[cond_name.lower()]
             else:
-                # Attribute severity to whoever supplied the winning pattern:
-                # the exact entry if there is one, else any matching project
-                # glob makes it the project's problem.
-                origin = "defaults"
-                if name in self.config.policies:
-                    origin = self.config.policies[name][1]
-                else:
-                    for pattern, (_pol2, pat_origin) in self.config.policies.items():
-                        if pattern != "default" and _is_glob(pattern) and fnmatch.fnmatchcase(name, pattern) and pat_origin != "defaults":
-                            origin = pat_origin
-                            break
+                # Attribute severity to whoever supplied the winning pattern.
                 msg = f"csral policy for '{name}': exists_if '{cond_name}' is not a condition derived from this spec"
-                (self.warnings if origin == "defaults" else self.errors).append(msg)
+                (self.warnings if self.config.policy_origin(name) == "defaults" else self.errors).append(msg)
 
     def _check_override_names(self):
         names = set(self.csr_names)
-        # Policy patterns must resolve against the spec: typos in the project
-        # override are errors; defaults are shared across projects with
-        # different CSR sets, so theirs only warn.
+        # Unresolved policy patterns: project override errors, shared defaults warn.
         for pattern, (_pol, origin) in self.config.policies.items():
             if pattern == "default":
                 continue
-            hit = pattern in names if not _is_glob(pattern) else any(fnmatch.fnmatchcase(n, pattern) for n in names)
+            hit = pattern in self._spec_name_lc if not _is_glob(pattern) else any(fnmatch.fnmatchcase(n, pattern) for n in self._spec_name_lc)
             if not hit:
                 msg = f"csral policy pattern {pattern!r} matches no CSR in this spec"
                 (self.warnings if origin == "defaults" else self.errors).append(msg)
-        # cac_check_overrides historically ignored unknown names silently; a
-        # typo'd override disables nothing, so make it an error.
+        # An unknown cac_check_overrides name is an error (a typo disables nothing).
         for name in self.csr_map.cac_check_overrides:
             if name not in names:
                 self.errors.append(f"cac_check_overrides: '{name}' is not a CSR in this spec")
@@ -958,8 +948,7 @@ class CsralModel:
                 "targets": [(t, targets[t]) for t in self.csr_names if t in targets],
             })
 
-        # The masked-by graph must be a DAG (henvcfg <- menvcfg <- c_misa_*
-        # chains are fine; a cycle would make effective-gate reads circular).
+        # The masked-by gate graph must be a DAG.
         edges = {}
         for cond in self.conditions:
             for target, _mask in cond["targets"]:
@@ -1001,17 +990,19 @@ class CsralModel:
             except ValueError:
                 self.errors.append(f"csral field_aliases entry {fa!r}: bits must be 'msb:lsb'")
                 continue
+            names = []
             for which, cname in (("csr", fa["csr"]), ("alias_of", fa["alias_of"])):
-                if cname not in self.csr_map.csr_property_dict:
-                    # Defaults are shared across projects; a missing CSR there
-                    # is only a warning, matching policy-name severity.
+                spec_name = self._spec_name_lc.get(str(cname).lower())
+                if spec_name is None:
+                    # Shared defaults only warn on a missing CSR.
                     self.warnings.append(f"csral field_aliases: {which} '{cname}' is not a CSR in this spec; entry {fa!r} skipped")
                     break
+                names.append(spec_name)
             else:
                 if msb - lsb != amsb - alsb:
                     self.errors.append(f"csral field_aliases entry {fa!r}: widths differ")
                     continue
-                self.field_alias_rows.append((fa["csr"], msb, lsb, fa["alias_of"], amsb, alsb))
+                self.field_alias_rows.append((names[0], msb, lsb, names[1], amsb, alsb))
 
     # -- emission ---------------------------------------------------------------
     def spec_write_mask(self, csr):
@@ -1097,8 +1088,7 @@ class CsralModel:
         with open(output_file, "w") as f:
             w = f.write
             w("#pragma once\n")
-            w("// Generated by csr_param_gen.py — CSRAL tables (docs/csral_plan.md).\n")
-            w("// Pure data derived from the CSR spec and the csral policy YAML.\n")
+            w("// Generated by csr_param_gen.py — CSRAL tables from the CSR spec + csral policy YAML.\n")
             w("#include <array>\n#include <cstdint>\n#include <string_view>\n\n")
             w("namespace CSRAL {\n\n")
             w("enum class on_mismatch_t : std::uint8_t { error = 0, skip = 1, resynch_rd = 2 };\n")

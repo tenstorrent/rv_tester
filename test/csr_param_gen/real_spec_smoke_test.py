@@ -38,11 +38,7 @@ class RealSpecSmokeTest(unittest.TestCase):
         self.model.generate_tables_hpp(os.path.join(out, "real_tables.hpp"))
 
     def test_misa_h_condition_matches_spec(self):
-        # The misa.H condition must exist and carry the SPEC-derived masks.
-        # Note: these deliberately differ from two buggy hand-coded literals
-        # in bridge.h (mstatus 0x0000000300000000 masks UXL, medeleg 0xF1000
-        # disagrees with its own comment); the spec values below are the
-        # architecturally correct ones (MPV|GVA, medeleg_3|medeleg_masked_0).
+        # misa.H must carry the spec-derived masks (legacy bridge.h literals were buggy).
         cond = {c["name"]: c for c in self.model.conditions}
         self.assertIn("misa.H", cond)
         h = cond["misa.H"]
@@ -67,6 +63,10 @@ class RealSpecSmokeTest(unittest.TestCase):
         self.assertTrue(pol["vstopei"]["may_not_exist"])
         self.assertFalse(pol["c_fecfg2"]["check"])  # c_* default
         self.assertEqual(pol["mscratch"]["on_mismatch"], "error")  # untouched default
+        # The real spec spells these two keys in upper case; the policy must still bind.
+        self.assertEqual(pol["DSCRATCH0"]["on_mismatch"], "skip")
+        self.assertEqual(pol["DSCRATCH1"]["on_mismatch"], "skip")
+        self.assertFalse(any("dscratch" in w.lower() for w in self.model.warnings), self.model.warnings)
 
     def test_field_aliases_resolved(self):
         # fcsr <-> fflags/frm shifted views from the defaults.

@@ -199,6 +199,84 @@ csral:
 """)
         self.assertTrue(any("matches no CSR" in w for w in model.warnings))
 
+    # Spec keys are not uniformly cased (the cores spell DSCRATCH0/1 in upper
+    # case), so every name lookup MUST ignore case or a policy silently misses.
+    UPPER_SPEC = """
+DSCRATCH0:
+  common_data: {ADDRESS: "0x7B2", CSR_SIZE: 64}
+  f: {FIELDS_RANGE: "63:0", RESET_VALUE: "0x0"}
+dpc:
+  common_data: {ADDRESS: "0x7B1", CSR_SIZE: 64}
+  f: {FIELDS_RANGE: "63:0", RESET_VALUE: "0x0"}
+"""
+
+    def test_defaults_policy_binds_regardless_of_case(self):
+        model = self._run(spec_yaml=self.UPPER_SPEC, defaults_yaml=self.BASE_DEFAULTS + """
+  dscratch0: {on_mismatch: skip}
+""")
+        self.assertEqual(model.policy_by_csr["DSCRATCH0"]["on_mismatch"], "skip")
+        self.assertFalse(any("matches no CSR" in w for w in model.warnings), model.warnings)
+
+    def test_project_glob_binds_regardless_of_case(self):
+        model = self._run(spec_yaml=self.UPPER_SPEC, override_yaml="""
+csral:
+  policies:
+    "dscr*": {on_mismatch: skip}
+    DPC: {volatile: true}
+""")
+        self.assertEqual(model.policy_by_csr["DSCRATCH0"]["on_mismatch"], "skip")
+        self.assertTrue(model.policy_by_csr["dpc"]["volatile"])
+
+    def test_policy_patterns_differing_only_by_case_rejected(self):
+        with self.assertRaisesRegex(csr_param_gen.CsralValidationError, "differ only by case"):
+            self._run(spec_yaml=self.UPPER_SPEC, override_yaml="""
+csral:
+  policies:
+    dpc: {on_mismatch: skip}
+    DPC: {volatile: true}
+""")
+
+    def test_spec_names_differing_only_by_case_rejected(self):
+        self._expect("differ only by case", spec_yaml=self.UPPER_SPEC + """
+Dpc:
+  common_data: {ADDRESS: "0x7B4", CSR_SIZE: 64}
+  f: {FIELDS_RANGE: "63:0", RESET_VALUE: "0x0"}
+""")
+
+    def test_field_alias_names_bind_regardless_of_case(self):
+        model = self._run(spec_yaml=self.UPPER_SPEC, defaults_yaml=self.BASE_DEFAULTS + """
+field_aliases:
+  - {csr: dscratch0, bits: "3:0", alias_of: DPC, alias_bits: "3:0"}
+""")
+        self.assertEqual(model.field_alias_rows, [("DSCRATCH0", 3, 0, "dpc", 3, 0)])
+        self.assertFalse(any("field_aliases" in w for w in model.warnings), model.warnings)
+
+    def test_exists_if_condition_binds_regardless_of_case(self):
+        model = self._run(spec_yaml="""
+GATE:
+  common_data: {ADDRESS: "0x101", CSR_SIZE: 64}
+  en: {FIELDS_RANGE: "0", RESET_VALUE: "0x0"}
+dep:
+  common_data: {ADDRESS: "0x100", CSR_SIZE: 64, MASKED_BY: GATE}
+  f: {FIELDS_RANGE: "0", RESET_VALUE: "0x0", MASKED_BY: en}
+""", override_yaml="""
+csral:
+  policies:
+    dep: {exists_if: gate.EN}
+""")
+        self.assertEqual(model.policy_by_csr["dep"]["exists_if_index"], 0)
+
+    def test_real_defaults_exempt_per_hart_reset(self):
+        # mhartid resets to the hart index; the spec holds one value, so the
+        # whisper-vs-spec reset check MUST skip it or every hart > 0 fails at init.
+        model = self._run(spec_yaml=self.BASE_SPEC + """
+mhartid:
+  common_data: {ADDRESS: "0xF14", CSR_SIZE: 64}
+  f: {FIELDS_RANGE: "63:0", RESET_VALUE: "0x0"}
+""", defaults_yaml=read(rloc("scripts/csr/csral_defaults.yaml")))
+        self.assertFalse(model.policy_by_csr["mhartid"]["check_reset"])
+        self.assertTrue(model.policy_by_csr["good"]["check_reset"])
+
     def test_cac_check_override_unknown_name(self):
         self._expect("cac_check_overrides", override_yaml="cac_check_overrides:\n  not_a_csr: true\n")
 

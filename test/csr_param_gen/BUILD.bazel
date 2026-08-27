@@ -20,6 +20,7 @@ py_test(
         "golden/tiny_csral_tables.hpp",
         "golden/tiny_csr_param_no_override.hpp",
         "golden/tiny_csr_param_no_override.sv",
+        "//scripts/csr:csral_defaults",
     ],
     deps = [
         "//scripts/csr:csr_param_gen_lib",
