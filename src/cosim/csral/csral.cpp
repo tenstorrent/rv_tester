@@ -214,7 +214,6 @@ void csral::apply(hart_id_t hart, src_t src, std::uint16_t csr_index, std::uint6
     e.dut = (e.dut & ~mask) | (data & mask);
     e.dut_valid = true;
     e.last_dut_cycle = cycle;
-    refresh_inactive_stashes(hart, csr_index);
   } else {
     e.iss = (e.iss & ~mask) | (data & mask);
     e.iss_valid = true;
@@ -253,25 +252,6 @@ void csral::fan_out_aliases(hart_id_t hart, src_t src, std::uint16_t csr_index, 
     if (fa.alias_csr == csr_index) {
       const std::uint64_t bits = (value & positioned_mask(fa.alias_msb, fa.alias_lsb)) >> fa.alias_lsb;
       apply(hart, src, fa.csr, bits << fa.lsb, positioned_mask(fa.msb, fa.lsb), cycle, false);
-    }
-  }
-}
-
-void csral::refresh_inactive_stashes(hart_id_t hart, std::uint16_t csr_index) {
-  // Plan §4.4: while a condition is off, DUT writes that land in its masked
-  // bits update the STASH (the DUT hardware retains them), so the eventual
-  // on-edge restore carries the latest value, not the off-edge snapshot.
-  auto& h = harts_.at(hart);
-  for (std::size_t c = 0; c < CSRAL::kNumConditions; ++c) {
-    if (h.conds[c].active || !save_restore_enabled_[c])
-      continue;
-    const auto& cond = CSRAL::kConditions[c];
-    for (std::size_t t = 0; t < cond.target_count; ++t) {
-      const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];
-      if (tgt.csr != csr_index)
-        continue;
-      h.conds[c].stash[t] = h.entries[csr_index].dut & tgt.mask;
-      h.conds[c].stash_valid[t] = true;
     }
   }
 }
@@ -325,7 +305,14 @@ void csral::evaluate_conditions(hart_id_t hart, std::uint16_t gate_csr_index, st
       cs.active = now;
       std::vector<std::uint32_t> restored;
       if (!now) {
-        // Off-edge: capture the masked field bits the DUT will retain.
+        // Off-edge: capture the masked field bits the DUT will retain. The
+        // snapshot is STICKY until the next off-edge — while the condition is
+        // off the masked bits are inaccessible to software (that is what
+        // masked means), so writes during the off period must not touch the
+        // stash (legacy kept the saved masked bits sticky the same way; a
+        // stash refreshed from while-off mirror values restores the forced-0
+        // reads instead of the retained state, which zeroed whisper's mideleg
+        // VS bits after an H on-edge).
         if (save_restore_enabled_[c]) {
           for (std::size_t t = 0; t < cond.target_count; ++t) {
             const auto& tgt = CSRAL::kMaskedTargets[cond.target_first + t];

@@ -463,6 +463,39 @@ TEST_F(CsralTest, SaveRestoreRoundTrip) {
   EXPECT_EQ(whisper_.last_poke[addr_of("mip")] & 0x1444, 0x1444u);
 }
 
+TEST_F(CsralTest, SaveRestoreStashIsStickyWhileOff) {
+  // Cluster csr_test regression: writes during the OFF period must not touch
+  // the stash. The mirror's masked bits read as forced values while off
+  // (mideleg VS bits = 0), so a stash refreshed from them poked zeros into
+  // whisper's mideleg on the H on-edge and its next csrr read 0.
+  auto m = make();
+
+  // 1) Writes to targets while the condition is off (H=0 from reset) must
+  //    not validate the stash: the first on-edge restores NOTHING.
+  m->sw_write(0, addr_of("mideleg"), 0x333, kAll, 3, 97);
+  m->sw_write(0, addr_of("mip"), 0x20, kAll, 3, 98);
+  int mideleg_pokes_before = pokes("mideleg");
+  std::vector<std::uint32_t> restored{1};
+  m->on_condition_change([&](csral::hart_id_t, const CSRAL::condition_t& c, bool now_active, const std::vector<std::uint32_t>& r, std::uint64_t) {
+    if (std::string_view(c.name) == "misa.H" && now_active)
+      restored = r;
+  });
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 99);
+  ASSERT_TRUE(m->condition_active(0, "misa.H"));
+  EXPECT_TRUE(restored.empty());
+  EXPECT_EQ(pokes("mideleg"), mideleg_pokes_before);
+
+  // 2) The off-edge snapshot survives the bridge glue's forced clear and any
+  //    further writes while off.
+  m->sw_write(0, addr_of("mip"), 0x1444, kAll, 3, 100);
+  m->sw_write(0, addr_of("misa"), reset_of("misa") & ~0x80ull, kAll, 3, 101); // off-edge: stash mip=0x1444
+  m->dut_force(0, addr_of("mip"), 0, 0x1444, 101);                            // glue-style forced clear
+  m->sw_write(0, addr_of("mip"), 0x20, kAll, 3, 102);                         // write during the off period
+  whisper_.value[addr_of("mip")] = 0;
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 103);
+  EXPECT_EQ(whisper_.last_poke[addr_of("mip")] & 0x1444, 0x1444u);
+}
+
 TEST_F(CsralTest, SaveRestoreDisabledByEmptyPlusarg) {
   gflags::SetCommandLineOption("csral_save_restore", "");
   auto m = make();
