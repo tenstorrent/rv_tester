@@ -25,38 +25,38 @@
 // format macros; derive VERILATOR_WAVES purely from the format actually present.
 #undef VERILATOR_WAVES
 #if defined(VERILATOR_FSDB)
-#  include "verilated_fsdb_c.h"
+#include "verilated_fsdb_c.h"
 using VltTraceFile = VerilatedFsdbC;
 static constexpr char TRACE_FILE_NAME[] = "dump.fsdb";
-#  define VERILATOR_WAVES
+#define VERILATOR_WAVES
 #elif defined(VERILATOR_FST)
-#  include "verilated_fst_c.h"
+#include "verilated_fst_c.h"
 using VltTraceFile = VerilatedFstC;
 static constexpr char TRACE_FILE_NAME[] = "dump.fst";
-#  define VERILATOR_WAVES
+#define VERILATOR_WAVES
 #elif defined(VERILATOR_VCD)
-#  include "verilated_vcd_c.h"
+#include "verilated_vcd_c.h"
 using VltTraceFile = VerilatedVcdC;
 static constexpr char TRACE_FILE_NAME[] = "dump.vcd";
-#  define VERILATOR_WAVES
+#define VERILATOR_WAVES
 #elif defined(VERILATOR_SAIF)
-#  include "verilated_saif_c.h"
+#include "verilated_saif_c.h"
 using VltTraceFile = VerilatedSaifC;
 static constexpr char TRACE_FILE_NAME[] = "dump.saif";
-#  define VERILATOR_WAVES
+#define VERILATOR_WAVES
 #endif
 
 int main(int argc, char** argv) {
-    VerilatedContext context;
-    context.debug(0);
-    context.threads(1);
-    // Must run before constructing the model so $value$plusargs sees args.
-    context.commandArgs(argc, argv);
+  VerilatedContext context;
+  context.debug(0);
+  context.threads(1);
+  // Must run before constructing the model so $value$plusargs sees args.
+  context.commandArgs(argc, argv);
 
-    // Passing the empty string as instance name suppresses tracing
-    // of the top level wrapper, which is what we want to match other
-	// simulators.
-    Vtop top{&context, ""};
+  // Passing the empty string as instance name suppresses tracing
+  // of the top level wrapper, which is what we want to match other
+  // simulators.
+  Vtop top{&context, ""};
 
   // Simulation timescale
   const int timeunit = context.timeunit();           // between 0 (1s) .. -15 (1fs)
@@ -131,46 +131,47 @@ int main(int argc, char** argv) {
   }
 #endif
 
-    // A dump at time t is emitted only while dump_on <= t <= dump_off.
-    auto dump_at = [&](uint64_t t) {
+  // A dump at time t is emitted only while dump_on <= t <= dump_off.
+  auto dump_at = [&](uint64_t t) {
 #ifdef VERILATOR_WAVES
-        if (dumping && t >= dump_on && t <= dump_off) tfp->dump(t);
+    if (dumping && t >= dump_on && t <= dump_off)
+      tfp->dump(t);
 #else
-        (void)t;
+    (void)t;
 #endif
-    };
+  };
 
-    // First eval before registering the trace: with a partitioned model the
-    // partition instances are only created/added to the context after the first
-    // eval (Verilator behavior), so trace callbacks must be registered after it.
+  // First eval before registering the trace: with a partitioned model the
+  // partition instances are only created/added to the context after the first
+  // eval (Verilator behavior), so trace callbacks must be registered after it.
+  top.eval();
+#ifdef VERILATOR_WAVES
+  if (dumping) {
+    context.trace(tfp.get(), 99, 0);
+    tfp->open(TRACE_FILE_NAME);
+  }
+#endif
+  dump_at(context.time());
+
+  // Timing event loop: advance to the next scheduled event until $finish.
+  while (!context.gotFinish() && top.eventsPending()) {
+    context.time(top.nextTimeSlot());
     top.eval();
-#ifdef VERILATOR_WAVES
-    if (dumping) {
-        context.trace(tfp.get(), 99, 0);
-        tfp->open(TRACE_FILE_NAME);
-    }
-#endif
     dump_at(context.time());
+  }
 
-    // Timing event loop: advance to the next scheduled event until $finish.
-    while (!context.gotFinish() && top.eventsPending()) {
-        context.time(top.nextTimeSlot());
-        top.eval();
-        dump_at(context.time());
-    }
-
-    if (!context.gotFinish()) {
-        VL_PRINTF("%%Warning: top: no $finish - ran out of events\n");
-    }
+  if (!context.gotFinish()) {
+    VL_PRINTF("%%Warning: top: no $finish - ran out of events\n");
+  }
 
 #ifdef VERILATOR_WAVES
-    if (dumping) {
-        tfp->flush();
-        tfp->close();
-    }
+  if (dumping) {
+    tfp->flush();
+    tfp->close();
+  }
 #endif
-    top.final();
-    return 0;
+  top.final();
+  return 0;
 }
 
 extern "C" void assert_on_dpi() {
