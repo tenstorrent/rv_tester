@@ -284,8 +284,12 @@ private:
     if (!l.try_lock())
       return;
     int sent = 0;
-    while (r_dpi())
-      sent++;
+    cvm::registry::callbacks.call(
+        loc_,
+        [this, &sent] {
+          while (r_dpi())
+            sent++;
+        });
     if (sent) {
       r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
     } else {
@@ -319,8 +323,7 @@ private:
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
-        // Run immediately with the right scope instead of queuing it.
-        cvm::registry::callbacks.call(
+        cvm::registry::callbacks.push(
             loc_,
             [this]() {
               std::lock_guard<std::mutex> l(r_dpi_mutex_);
