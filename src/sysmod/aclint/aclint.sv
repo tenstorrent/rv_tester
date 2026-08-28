@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // ACLINT timer model (SV side; the C++ side is src/sysmod/aclint/aclint.cpp).
-//   - mtime is a single 64-bit MMR: it free-runs +10 per reference-clock edge
-//     and is overwritten directly on a SW mtime write (DPI set_mtime), so the
-//     immediately following C++ read/broadcast observes the written value.
+//   - mtime is a single 64-bit MMR: it free-runs +10 per reference-clock edge.
+//     A SW mtime write (DPI set_mtime) is staged and committed synchronously on
+//     the next reference edge so mtime_q has a single driver; get_mtime returns
+//     the staged value in the meantime, so the C++ read/broadcast still observes
+//     the written value.
 //   - MTIP per hart is the compare mtime >= mtimecmp.
 //   - aclint_ref_pulse is a single-cycle reference strobe (one per reference
 //     edge) broadcast to the cores.
@@ -27,6 +29,8 @@ module aclint_model #(
   );
 
   logic [63:0] mtime_q              = '0;
+  logic [63:0] mtime_dpi            = '0;
+  logic        mtime_dpi_pending    = 1'b0;
   logic [63:0] mtimecmp [NHARTS-1:0] = '{default: '1};
 
   assign mtime = mtime_q;
@@ -37,12 +41,13 @@ module aclint_model #(
   export "DPI-C" function sysmod_aclint_set_mtimecmp;
 
   function void sysmod_aclint_set_mtime (longint unsigned val);
-    mtime_q = val;
+    mtime_dpi         = val;
+    mtime_dpi_pending = 1'b1;
   endfunction
   export "DPI-C" function sysmod_aclint_set_mtime;
 
   function longint unsigned sysmod_aclint_get_mtime ();
-    return mtime_q;
+    return mtime_dpi_pending ? mtime_dpi : mtime_q;
   endfunction
   export "DPI-C" function sysmod_aclint_get_mtime;
 
@@ -62,10 +67,17 @@ module aclint_model #(
   import "DPI-C" context function void sysmod_aclint_register_scope ();
   initial sysmod_aclint_register_scope();
 
-  // mtime advances +10 per reference-clock edge, matching the RTL ACLINT.
+  // mtime advances +10 per reference-clock edge, matching the RTL ACLINT. A
+  // staged SW write commits here so mtime_q keeps a single synchronous driver.
   always @(posedge aclint_ref_clk) begin
-    if (aclint_ref_reset) mtime_q <= '0;
-    else                  mtime_q <= mtime_q + 64'd10;
+    if (aclint_ref_reset) begin
+      mtime_q <= '0;
+    end else if (mtime_dpi_pending) begin
+      mtime_q           <= mtime_dpi;
+      mtime_dpi_pending <= 1'b0;
+    end else begin
+      mtime_q <= mtime_q + 64'd10;
+    end
   end
 
   // aclint_ref_pulse is a single-cycle strobe aligned to the aclint_ref_clk
