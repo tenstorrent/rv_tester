@@ -14,7 +14,12 @@
 #include "src/sysmod/device.h"
 #include "src/sysmod/clint/clint.h"
 #include "cvm/registry.hpp"
+#include "cvm/plusargs.hpp"
 #include "transactor.h"
+
+DECLARE_uint64(aclint_mtime_offset);
+DECLARE_uint64(aclint_timesync_offset);
+DECLARE_uint64(aclint_mtimecmp0_offset);
 
 // Define a core local interruptor (aClint) at the given address
 // and for the given hart count. The size will be 48k bytes.

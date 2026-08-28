@@ -9,12 +9,6 @@
 #include "cvm/logger.hpp"
 #include "svdpi.h"
 
-// ACLINT MMR offsets (relative to device base). Defined on the cluster side
-// (risc-p-cores/dv/core/tb/gflags/gflags.cpp) so the addresses are owned there.
-DECLARE_uint64(aclint_mtime_offset);
-DECLARE_uint64(aclint_timesync_offset);
-DECLARE_uint64(aclint_mtimecmp0_offset);
-
 // -----------------------------------------------------------------------------
 // SV side of the aclint model (src/sysmod/sysmod.sv). mtime, the MTIP compare
 // and the reference pulse live in SV; here we only read/write/broadcast.
