@@ -15,12 +15,16 @@ module sysmod
     )(
       input clk,
       input reset,
+      input aclint_ref_clk,
+      input aclint_ref_reset,
       input dut_reset_req,
       input dut_core_reset,
       output logic trace_quiesced,
       //output logic jtag_quiesced,
       output rv_tester_params::bootstrap_t bootstrap,
       output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
+      output logic aclint_ref_pulse,
+      output logic aclint_time_sync,
       output rv_tester_pkg::dm_write_t  dmi_write,
       input  event_trigger_intf_t event_triggers [NHARTS-1:0],
       //output rv_tester_pkg::jtag_if_t  jtag_req,
@@ -119,6 +123,23 @@ module sysmod
   endfunction
   export "DPI-C" function sysmod_timer_interrupt;
 
+  // ACLINT timer model (SV in src/sysmod/aclint/aclint.sv, C++ in aclint.cpp).
+  // The model owns mtime (single MMR), the per-hart MTIP compare, the reference
+  // pulse and the TimeSync strobe; it is OR'd into the hart interrupt below.
+  logic [63:0]         aclint_mtime;
+  logic [NHARTS-1:0]   aclint_mtip;
+
+  aclint_model #(.NHARTS(NHARTS)) u_aclint (
+    .clk              (clk),
+    .reset            (reset),
+    .aclint_ref_clk   (aclint_ref_clk),
+    .aclint_ref_reset (aclint_ref_reset),
+    .aclint_ref_pulse (aclint_ref_pulse),
+    .aclint_time_sync (aclint_time_sync),
+    .mtime            (aclint_mtime),
+    .mtip             (aclint_mtip)
+  );
+
   function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
     interrupt_d[hartid].msi = val[0];
   endfunction
@@ -150,7 +171,13 @@ module sysmod
 
 
   always @(posedge clk) begin
-    interrupt_q <= interrupt_d;
+    for (int h = 0; h < NHARTS; h++) begin
+      interrupt_q[h]     <= interrupt_d[h];
+      // MTIP = clint DPI (legacy) OR aclint model compare (mtime >= mtimecmp).
+      interrupt_q[h].mti <= interrupt_d[h].mti | aclint_mtip[h];
+      // Expose the modelled mtime so the TB can poke it to the ISS time CSR.
+      interrupt_q[h].mtime <= aclint_mtime;
+    end
     if (reset) begin
       dmi_write   <= '0;
     end

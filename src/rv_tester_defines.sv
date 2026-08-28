@@ -299,8 +299,11 @@ package rv_tester_params;
   input  rv_tester_params::bootstrap_t     bootstrap,                                             \
   input  rv_tester_pkg::nmi_t              nmi                [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
+  input  logic                             mtip               [rv_tester_params::NHARTS-1:0],     \
   input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
+  input  logic                             aclint_ref_pulse,                                      \
+  input  logic                             aclint_time_sync,                                      \
   output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
   output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
   output logic                             MTIP               [rv_tester_params::NHARTS-1:0],     \
@@ -374,8 +377,11 @@ package rv_tester_params;
   rv_tester_params::bootstrap_t            bootstrap;                                             \
   rv_tester_pkg::nmi_t                     nmi             [rv_tester_params::NHARTS-1:0];        \
   rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
+  logic                                    mtip            [rv_tester_params::NHARTS-1:0];        \
   rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
   rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+  logic                                    aclint_ref_pulse;                                      \
+  logic                                    aclint_time_sync;                                      \
   rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
   logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
   logic                                    MTIP            [rv_tester_params::NHARTS-1:0];        \

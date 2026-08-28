@@ -60,6 +60,9 @@ DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
+// Core CTIME MMR target for the ACLINT mtime broadcast. Owned on the cluster
+// side (risc-p-cores/dv/core/tb/gflags/gflags.cpp).
+DECLARE_uint64(aclint_ctime_addr);
 //core harvesting
 DEFINE_uint32(num_harts, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could ie 0x18. Should match num_harts.");
@@ -619,10 +622,11 @@ void sysmod::compose() {
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
 
       } else if (type == "aclint") {
-        device = std::make_unique<aclint>(tag, base, nharts, loc_);
-        cvm::registry::messenger.connect<clint::timer_t>(
-            loc_,
-            [&](clint::timer_t t) { return this->timer_interrupt(t); });
+        // Core CTIME MMR target for the mtime time-broadcast (AXI master write
+        // on MTIME/TIMESYNC writes). Owned by the cluster gflag aclint_ctime_addr.
+        device = std::make_unique<aclint>(tag, base, nharts, loc_, masters[0], FLAGS_aclint_ctime_addr);
+        // MTIP is generated in SV (sysmod.sv aclint model), not via the C++
+        // timer_interrupt messenger path, so no clint::timer_t connect here.
       } else if (type == "mmr_txn_router") {
         device = std::make_unique<mmr_txn_router>(tag, base, size, loc_, masters[0]);
 

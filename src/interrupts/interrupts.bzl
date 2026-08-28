@@ -10,11 +10,13 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
         srcs = [
             "@rv_tester//src/interrupts:interrupts.cpp",
             "@rv_tester//src/interrupts:nmi_sequence.cpp",
+            "@rv_tester//src/interrupts:mti_sequence.cpp",
             "@rv_tester//src/interrupts:external_interrupt_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//src/interrupts:interrupts.hpp",
             "@rv_tester//src/interrupts:nmi_sequence.hpp",
+            "@rv_tester//src/interrupts:mti_sequence.hpp",
             "@rv_tester//src/interrupts:external_interrupt_sequence.hpp",
         ],
         deps = [

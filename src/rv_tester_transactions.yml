@@ -842,6 +842,9 @@ interrupts:
     m_nmi_assert_tick:
         domain: 2
         num: 1
+    m_mti_assert_tick:
+        domain: 2
+        num: 1
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
