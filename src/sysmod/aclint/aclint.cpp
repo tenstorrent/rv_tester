@@ -184,7 +184,7 @@ void aclint::broadcastTime() {
   uint64_t t;
   {
     scope_guard g(g_aclint_sv_scope);
-    t = sysmod_aclint_get_mtime(); // live mtime from SV.
+    t = sysmod_aclint_get_mtime();  // live mtime from SV.
     sysmod_aclint_pulse_timesync(); // pulse DUT cl_time_sync on broadcast.
   }
 

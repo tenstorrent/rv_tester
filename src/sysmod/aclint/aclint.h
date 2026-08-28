@@ -79,8 +79,8 @@ private:
   std::vector<uint32_t> soft_;        // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_; // mtimecmp mirror (MMR reads); one per hart.
 
-  cvm::topology::loc_t axiMstLoc_;    // AXI master used for time broadcast.
-  uint64_t ctimeAddr_ = 0;            // Core CTIME MMR target (0 = disabled).
+  cvm::topology::loc_t axiMstLoc_; // AXI master used for time broadcast.
+  uint64_t ctimeAddr_ = 0;         // Core CTIME MMR target (0 = disabled).
 
   std::mutex mutex_;
 };

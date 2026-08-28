@@ -76,7 +76,7 @@ static bool check_called;
 class logger_instrument {
 
 public:
-  logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc) {};
+  logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc){};
 
   void configure() {
     clock = 0;

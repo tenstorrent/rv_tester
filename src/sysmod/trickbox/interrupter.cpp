@@ -55,7 +55,7 @@ void interrupter::write(uint64_t addr, size_t, const data_t& data,
   const uint64_t nmi_deassert_base = interrupter_base + 0x5000;
   const uint64_t nmi_stride = 0x100;
   const uint64_t mti_deassert_base = interrupter_base + 0x6000;
-  const uint64_t mti_stride = 0x100;  //256-byte stride per hart
+  const uint64_t mti_stride = 0x100; //256-byte stride per hart
 
   if (addr == interrupter_base) {
     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
@@ -86,8 +86,7 @@ void interrupter::write(uint64_t addr, size_t, const data_t& data,
     auto target_loc = cvm::topology::get_from_type("INTERRUPTS", hart_id);
     cvm::registry::messenger.signal<uint16_t>(target_loc, 0);
     cvm::log(cvm::HIGH, "[Trickbox] MTI deassert for hart {} at addr {:#x}\n", hart_id, addr);
-  }
-  else {
+  } else {
     cvm::log(cvm::ERROR, "Error:[Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
   }
 }

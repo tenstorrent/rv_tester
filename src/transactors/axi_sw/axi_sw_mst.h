@@ -40,7 +40,7 @@ public:
     lock_t() = delete;
     lock_t(const lock_t&) = delete;
     lock_t& operator=(const lock_t&) = delete;
-    lock_t(bool* ptr) : lock_(ptr) {};
+    lock_t(bool* ptr) : lock_(ptr){};
 
     ~lock_t() {
       release();
