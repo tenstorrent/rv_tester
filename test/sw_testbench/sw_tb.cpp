@@ -195,6 +195,13 @@ int main(int argc, char** argv) {
     VL_PRINTF("%%Warning: top: no $finish - ran out of events\n");
   }
 
+#ifdef VERILATOR_WAVES
+  if (dumping && tfp->isOpen()) {
+    tfp->flush();
+    tfp->close();
+  }
+#endif
+
   top.final();
   return 0;
 }
