@@ -67,10 +67,19 @@ int main(int argc, char** argv) {
   //------------------------------------------------------------
   // Clock configuration
 
-  // Figure out clock half periods
+  // Figure out clock half periods. Accommodate testbenches that don't specify
+  // a clock in topology too.
   const auto loc = cvm::topology::get_from_type("CLKI", 0);
-  const size_t nclks = static_cast<size_t>(cvm::topology::attr(loc, "NCLKS").second);
-  const std::vector<uint32_t> freq_mhz = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ").second;
+  const auto nclks_attr = cvm::topology::attr(loc, "NCLKS");
+  const auto freq_attr = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ");
+  const auto tb_clk_idx_attr = cvm::topology::attr(loc, "TB_CLK_IDX");
+  const size_t nclks = nclks_attr.first ? static_cast<size_t>(nclks_attr.second) : 0;
+  const std::vector<uint32_t>& freq_mhz = freq_attr.second;
+  if (nclks > freq_mhz.size()) {
+    cvm::log(cvm::ERROR, "Error: topology declares NCLKS={} but only {} CLOCK_FREQ_MHZ entries\n", nclks,
+             freq_mhz.size());
+    exit(1);
+  }
   std::vector<uint64_t> half_period(nclks, 0);
   std::vector<uint64_t> toggles(nclks, 0);
   // Numerator to compute period for a MHz frequency at the current timeprecision
@@ -82,8 +91,23 @@ int main(int argc, char** argv) {
       exit(1);
     }
   }
-  const size_t tb_clk_idx = cvm::topology::attr(loc, "TB_CLK_IDX").second;
-  const uint64_t tb_clk_period = 2 * half_period[tb_clk_idx];
+  const size_t tb_clk_idx = tb_clk_idx_attr.first ? static_cast<size_t>(tb_clk_idx_attr.second) : 0;
+  if (nclks && tb_clk_idx >= nclks) {
+    cvm::log(cvm::ERROR, "Error: topology TB_CLK_IDX={} is out of range for NCLKS={}\n", tb_clk_idx, nclks);
+    exit(1);
+  }
+  const uint64_t tb_clk_period = nclks ? 2 * half_period[tb_clk_idx] : 0;
+
+  // Cycle-based dump plusargs need that period; the time-based ones do not.
+  const auto cycles_to_time = [tb_clk_period](const char* valp) {
+    if (!tb_clk_period) {
+      cvm::log(cvm::ERROR,
+               "Error: cycle-based dump plusargs need a CLKI node in the topology; "
+               "use the time-based (+*_dump_on/off) form instead\n");
+      exit(1);
+    }
+    return std::stoull(valp) * tb_clk_period;
+  };
 
   //------------------------------------------------------------
   // Dump configuration
@@ -92,12 +116,12 @@ int main(int argc, char** argv) {
   bool dumping = true;
   uint64_t dump_on = 0;
   if (const char* const valp = vl_mc_scan_plusargs("fsdb_cycle_on=")) {
-    dump_on = std::stoull(valp) * tb_clk_period;
+    dump_on = cycles_to_time(valp);
   } else if (const char* const valp = vl_mc_scan_plusargs("fsdb_dump_on=")) {
     dump_on = std::stoull(valp) * timeUnit2Prec;
   } else if (const char* const valp = vl_mc_scan_plusargs("vcd_cycle_on=")) {
     // Accept vcd_cycle_on for backward compatibility
-    dump_on = std::stoull(valp) * tb_clk_period;
+    dump_on = cycles_to_time(valp);
   } else {
     dumping = false;
   }
@@ -105,12 +129,12 @@ int main(int argc, char** argv) {
   // Figure out when to turn off dumping
   uint64_t dump_off = std::numeric_limits<uint64_t>::max();
   if (const char* const valp = vl_mc_scan_plusargs("fsdb_cycle_off=")) {
-    dump_off = std::stoull(valp) * tb_clk_period;
+    dump_off = cycles_to_time(valp);
   } else if (const char* const valp = vl_mc_scan_plusargs("fsdb_dump_off=")) {
     dump_off = std::stoull(valp) * timeUnit2Prec;
   } else if (const char* const valp = vl_mc_scan_plusargs("vcd_cycle_off=")) {
     // Accept vcd_cycle_off for backward compatibility
-    dump_off = std::stoull(valp) * tb_clk_period;
+    dump_off = cycles_to_time(valp);
   }
 
   // Make sure we are not doing something stupid, the time queue assumes this

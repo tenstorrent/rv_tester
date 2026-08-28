@@ -3,7 +3,6 @@ load("@rules_verilator//verilator:defs.bzl", _verilator_cc_library = "verilator_
 _default_vopts = [
     "--default-language",
     "1800-2017",
-    "+define+TB_EXTERNAL_CLOCK",
     "-Wall",
     "-Wpedantic",
     "-Wno-UNUSEDSIGNAL",

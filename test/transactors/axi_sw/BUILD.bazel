@@ -48,7 +48,7 @@ verilog_library(
         topology + "_sv",
         name + "_axi_sw_sv",
     ],
-    top_module = "tb",
+    top_module = "top",
 )
 
 # Replaces bzsim's verilog_dpi_library (just cc_library + alwayslink + svdpi).
@@ -72,7 +72,7 @@ verilator_cc_library(
 
 cc_binary(
     name = name + "_verilator",
-    srcs = ["top.cpp"],
+    srcs = ["//test/sw_testbench:sw_tb.cpp"],
     deps = [
         ":" + name + "_veri_lib",
         ":" + name + "_dpi",
