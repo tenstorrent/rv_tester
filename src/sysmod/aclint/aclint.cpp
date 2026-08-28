@@ -9,6 +9,14 @@
 #include "cvm/logger.hpp"
 #include "svdpi.h"
 
+// ACLINT MMR offsets and CTIME broadcast target. Defined here (default 0) so
+// standalone rv_tester TBs link without an external definition; the cluster
+// integration sets the real values via core_dv.flagfile.
+DEFINE_uint64(aclint_mtime_offset, 0, "ACLINT mtime MMR offset from device base");
+DEFINE_uint64(aclint_timesync_offset, 0, "ACLINT timesync MMR offset from device base");
+DEFINE_uint64(aclint_mtimecmp0_offset, 0, "ACLINT mtimecmp0 MMR offset from device base (stride 8 per hart)");
+DEFINE_uint64(aclint_ctime_addr, 0, "Core CTIME MMR absolute address for ACLINT time broadcast");
+
 // -----------------------------------------------------------------------------
 // SV side of the aclint model (src/sysmod/sysmod.sv). mtime, the MTIP compare
 // and the reference pulse live in SV; here we only read/write/broadcast.
