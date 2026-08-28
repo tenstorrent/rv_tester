@@ -134,8 +134,15 @@ int main(int argc, char** argv) {
   // A dump at time t is emitted only while dump_on <= t <= dump_off.
   auto dump_at = [&](uint64_t t) {
 #ifdef VERILATOR_WAVES
-    if (dumping && t >= dump_on && t <= dump_off)
-      tfp->dump(t);
+    if (dumping) {
+      if (t >= dump_on && t <= dump_off) {
+        tfp->dump(t);
+      }
+      if (tfp->isOpen() && t >= dump_off) {
+        tfp->flush();
+        tfp->close();
+      }
+    }
 #else
     (void)t;
 #endif
@@ -164,12 +171,6 @@ int main(int argc, char** argv) {
     VL_PRINTF("%%Warning: top: no $finish - ran out of events\n");
   }
 
-#ifdef VERILATOR_WAVES
-  if (dumping) {
-    tfp->flush();
-    tfp->close();
-  }
-#endif
   top.final();
   return 0;
 }

@@ -48,20 +48,16 @@ module rv_tester_delay_resp_tb_top #(
     output logic test_passed
 );
     // Internal clock and reset signals for DUT connections
-    logic clk;
-    logic rst_ni;
+    logic clk = '0;
+    logic rst_ni ='0;
 
     // Clock generation
-    initial begin
-        clk = 1'b0;
-        forever #5 clk = ~clk;
-    end
+    initial forever #5 clk = ~clk;
 
     // Reset generation - separate initial block to avoid race condition
     initial begin
-        rst_ni = 1'b0;
         #25;
-        rst_ni = 1'b1;
+        rst_ni = '1;
     end
 
     // Test timeout and completion monitoring
