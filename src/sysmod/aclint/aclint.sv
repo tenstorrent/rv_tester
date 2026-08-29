@@ -30,7 +30,8 @@ module aclint_model #(
 
   logic [63:0] mtime_q              = '0;
   logic [63:0] mtime_dpi            = '0;
-  logic        mtime_dpi_pending    = 1'b0;
+  int unsigned mtime_wr_req         = 0;
+  int unsigned mtime_wr_ack         = 0;
   logic [63:0] mtimecmp [NHARTS-1:0] = '{default: '1};
 
   assign mtime = mtime_q;
@@ -41,13 +42,13 @@ module aclint_model #(
   export "DPI-C" function sysmod_aclint_set_mtimecmp;
 
   function void sysmod_aclint_set_mtime (longint unsigned val);
-    mtime_dpi         = val;
-    mtime_dpi_pending = 1'b1;
+    mtime_dpi = val;
+    mtime_wr_req++;
   endfunction
   export "DPI-C" function sysmod_aclint_set_mtime;
 
   function longint unsigned sysmod_aclint_get_mtime ();
-    return mtime_dpi_pending ? mtime_dpi : mtime_q;
+    return (mtime_wr_req != mtime_wr_ack) ? mtime_dpi : mtime_q;
   endfunction
   export "DPI-C" function sysmod_aclint_get_mtime;
 
@@ -69,12 +70,16 @@ module aclint_model #(
 
   // mtime advances +10 per reference-clock edge, matching the RTL ACLINT. A
   // staged SW write commits here so mtime_q keeps a single synchronous driver.
+  // The write is handed off via a req/ack counter pair (same idiom as the
+  // timesync strobe below) so no variable mixes blocking and non-blocking
+  // assignments, which verilator rejects (BLKANDNBLK).
   always @(posedge aclint_ref_clk) begin
     if (aclint_ref_reset) begin
-      mtime_q <= '0;
-    end else if (mtime_dpi_pending) begin
-      mtime_q           <= mtime_dpi;
-      mtime_dpi_pending <= 1'b0;
+      mtime_q      <= '0;
+      mtime_wr_ack <= mtime_wr_req;
+    end else if (mtime_wr_req != mtime_wr_ack) begin
+      mtime_q      <= mtime_dpi;
+      mtime_wr_ack <= mtime_wr_req;
     end else begin
       mtime_q <= mtime_q + 64'd10;
     end
