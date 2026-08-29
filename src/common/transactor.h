@@ -56,7 +56,7 @@ public:
   transactor(cvm::topology::loc_t loc, const std::string& tag)
       : loc_(loc), tag_(tag),
         resp_channel_(cvm::registry::messenger.channel<read_response_t>(loc_)),
-        wresp_channel_(cvm::registry::messenger.channel<write_response_t>(loc_)){};
+        wresp_channel_(cvm::registry::messenger.channel<write_response_t>(loc_)) {};
 
   virtual ~transactor() = default;
 

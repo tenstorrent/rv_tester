@@ -20,6 +20,6 @@ public:
     uint32_t data;
   };
 
-  pm_common(){};
-  virtual ~pm_common(){};
+  pm_common() {};
+  virtual ~pm_common() {};
 };

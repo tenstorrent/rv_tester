@@ -138,15 +138,15 @@ public:
 
   virtual void backdoor_read(uint64_t, size_t, data_t&) {};
 
-  virtual void tick(uint64_t){};
+  virtual void tick(uint64_t) {};
   virtual void is_dut_reset_req(bool, uint64_t, uint64_t) {};
-  virtual void jtag_tick(uint64_t){};
-  virtual void overlay_tick(uint64_t){};
+  virtual void jtag_tick(uint64_t) {};
+  virtual void overlay_tick(uint64_t) {};
 
   virtual void reset() {};
 
   device(std::string tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)
-      : tag_(tag), addr_(addr), size_(size), loc_(loc){};
+      : tag_(tag), addr_(addr), size_(size), loc_(loc) {};
 
   template <typename W, typename R, typename V>
   device(std::string tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, W write, R read, V* dev)
@@ -157,7 +157,7 @@ public:
     };
   };
 
-  virtual ~device(){};
+  virtual ~device() {};
 
   void configure() {
     if (configure_)
