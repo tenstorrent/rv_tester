@@ -55,7 +55,7 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibili
           "@rv_tester//src/pmu:pmu_plusargs",
           "@cvm//:plusargs",
           "@cvm//:topology",
-          topology + "_registry",
+          topology,
           "@rv_tester//src/sysmod:sysmod_params",
           packet + "_cc",
           csr_param + "_cc",

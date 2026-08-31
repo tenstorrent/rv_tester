@@ -31,7 +31,7 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:logger",
-            topology + "_registry",
+            topology,
             "@cvm//:topology",
          ],
         alwayslink = True,
