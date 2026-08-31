@@ -65,7 +65,6 @@ cc_library(
       "debugger.cpp",
       "evt_trigger.cpp",
       "uc_helper.cpp",
-      "io_coh_helper.cpp",
       "ras_helper.cpp",
       "dma.cpp",
       "post_si_pcietc_helper.cpp",
@@ -108,5 +107,5 @@ cc_library(
 )
 
  
-exports_files(["ras_helper.h", "trickbox/interrupter.h"])
+exports_files(["ras_helper.h", "trickbox/interrupter.h", "io_coh_helper.cpp"])
 
