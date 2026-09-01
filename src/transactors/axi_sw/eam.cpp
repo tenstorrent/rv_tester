@@ -4,6 +4,7 @@
 #include "src/transactors/axi_sw/eam.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/random.hpp"
+#include "device_address_map/device_address_map.h"
 #include "rv_tester_plusargs.h"
 #include "svdpi.h"
 
@@ -23,6 +24,7 @@ extern "C" void eam_register_scope() {
 
 DEFINE_int32(eam_decline_excl_pct, 0, "Percentage of exclusive reads (ARLOCK) the EAM declines: no reservation is taken and OKAY is returned instead of EXOKAY");
 DEFINE_string(eam_pass_invalidate_ratio, "1:0", "Exclusive write (AWLOCK) pass/fail pattern in format 'n:e': n exclusive writes succeed, then e are failed (reservation invalidated), repeating");
+DEFINE_string(eam_unsupported_addr, "", "Comma separated list of inclusive address ranges ('first-last', hex or decimal) that the EAM treats as unsupported targets for exclusive accesses; an exclusive transaction to any of them is flagged as an error");
 DEFINE_uint64(eam_reservation_ttl, 0, "Reservation time-to-live in TB clock cycles: an exclusive write (AWLOCK) is failed and its reservation invalidated if at least this many cycles elapsed since the exclusive read that took it. 0 disables the check");
 
 eam& eam::instance() {
@@ -54,8 +56,81 @@ eam::eam() {
     pattern_fail_ = 0;
   }
 
-  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}, reservation_ttl={}\n",
-           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_, FLAGS_eam_reservation_ttl);
+  parse_unsupported_addr();
+
+  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}, reservation_ttl={}, unsupported_addr='{}'\n",
+           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_, FLAGS_eam_reservation_ttl,
+           FLAGS_eam_unsupported_addr);
+}
+
+// +eam_unsupported_addr = "first-last[,first-last]*", bounds inclusive and
+// accepted in hex (0x...) or decimal.
+void eam::parse_unsupported_addr() {
+  const std::string& s = FLAGS_eam_unsupported_addr;
+  size_t pos = 0;
+  while (pos < s.size()) {
+    const size_t comma = s.find(',', pos);
+    const std::string range = s.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+    pos = (comma == std::string::npos) ? s.size() : comma + 1;
+    if (range.empty())
+      continue;
+
+    const size_t dash = range.find('-');
+    if (dash == std::string::npos) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not in 'first-last' format\n", range);
+      continue;
+    }
+
+    uint64_t first = 0, last = 0;
+    try {
+      first = std::stoull(range.substr(0, dash), nullptr, 0);
+      last = std::stoull(range.substr(dash + 1), nullptr, 0);
+    } catch (const std::exception&) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not a valid address pair\n", range);
+      continue;
+    }
+
+    if (first > last) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' has first greater than last\n", range);
+      continue;
+    }
+
+    unsupported_ranges_.emplace_back(first, last);
+    cvm::log(cvm::HIGH, "[eam] unsupported address range: [{:#x}, {:#x}]\n", first, last);
+  }
+}
+
+// MMR: mask off the region offset bits and compare against the MMR base. Die
+// id bits are cleared first so that a transaction targeting a remote die still
+// decodes as MMR.
+// SP: plain range check against [sp_base, sp_base + sp_size - 1].
+bool eam::addr_in_mmr_or_sp(axi::addr_t addr) {
+  uint64_t a = uint64_t(addr);
+
+  const uint32_t die_id_width = device_address_map_die_id_width();
+  if (die_id_width != 0) {
+    const uint32_t die_id_start_bit = device_address_map_die_id_start_bit();
+    const uint64_t die_mask = ((uint64_t(1) << die_id_width) - 1) << die_id_start_bit;
+    a &= ~die_mask;
+  }
+
+  const uint64_t mmr_base = device_address_map_mmr_base_addr();
+  const uint64_t mmr_mask = ~((uint64_t(1) << mmr_base) - 1);
+  if ((a & mmr_mask) == mmr_base)
+    return true;
+
+  const uint64_t sp_base = device_address_map_sp_base_addr();
+  const uint64_t sp_size = device_address_map_sp_size();
+  return sp_size != 0 && a >= sp_base && a <= sp_base + sp_size - 1;
+}
+
+bool eam::addr_unsupported_by_arg(axi::addr_t addr) const {
+  const uint64_t a = uint64_t(addr);
+  for (const auto& r : unsupported_ranges_) {
+    if (a >= r.first && a <= r.second)
+      return true;
+  }
+  return false;
 }
 
 eam::~eam() {
@@ -206,6 +281,10 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   if (a.lock && a.atop.transaction != axi::NON_ATOMIC) {
     cvm::log(cvm::ERROR, "Error: [eam] exclusive access combined with an atomic transaction is not supported: id={}, addr={:#x}\n",
              a.id, a.addr);
+  }
+
+  if (a.lock && (addr_in_mmr_or_sp(a.addr) || addr_unsupported_by_arg(a.addr))) {
+    cvm::log(cvm::ERROR, "Error: [eam] Exclusive access to address :{:#x} not expected: id={}\n", a.addr, a.id);
   }
 
   if (!a.w) {

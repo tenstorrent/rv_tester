@@ -19,6 +19,7 @@ cc_library(
     deps = [
         "@rv_tester//src/common:transactor",
         "@rv_tester//src/common:svdpi",
+        "@rv_tester//src/common/device_address_map:device_address_map",
         "@rv_tester//src:plusargs",
         "@cvm//:plusargs",
         "@cvm//:topology",

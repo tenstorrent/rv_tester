@@ -6,12 +6,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
+#include <vector>
 #include "cvm/plusargs.hpp"
 #include "src/transactors/axi_sw/axi.h"
 
 DECLARE_int32(eam_decline_excl_pct);
 DECLARE_string(eam_pass_invalidate_ratio);
 DECLARE_uint64(eam_reservation_ttl);
+DECLARE_string(eam_unsupported_addr);
 
 // AXI Exclusive Access Monitor (EAM).
 //
@@ -98,6 +101,17 @@ private:
   // +eam_reservation_ttl cycles and must therefore fail the exclusive write.
   bool ttl_expired(const eam_entry& e, uint64_t now);
 
+  // Returns true if the transaction address falls in the MMR or the scratchpad
+  // (SP) region, i.e. a region for which exclusive accesses are not supported.
+  static bool addr_in_mmr_or_sp(axi::addr_t addr);
+
+  // Returns true if the transaction address falls in one of the ranges listed
+  // by +eam_unsupported_addr.
+  bool addr_unsupported_by_arg(axi::addr_t addr) const;
+
+  // Parses +eam_unsupported_addr into unsupported_ranges_.
+  void parse_unsupported_addr();
+
   static std::size_t index(axi::id_t id) { return id % NUM_ENTRIES; }
   static axi::addr_t rsv_base(axi::addr_t addr) { return addr & ~(RSV_BYTES - 1); }
   static bool fields_match(const eam_entry& e, const axi::a_t& a);
@@ -114,6 +128,10 @@ private:
   unsigned pattern_pass_ = 1;
   unsigned pattern_fail_ = 0;
   unsigned excl_wr_count_ = 0;
+
+  // +eam_unsupported_addr: inclusive [first, last] address ranges the EAM must
+  // flag as illegal targets for exclusive accesses.
+  std::vector<std::pair<uint64_t, uint64_t>> unsupported_ranges_;
 
   // Programmed by the trickbox eam_helper subdevice.
   uint64_t tb_fail_addr_ = 0;

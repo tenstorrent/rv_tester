@@ -184,6 +184,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
         ],
         deps = [
           "@rv_tester//src/common:common",
+          "@rv_tester//src/common/device_address_map:device_address_map",
           "@rv_tester//src:plusargs",
           "@cvm//:plusargs",
           "@cvm//:topology",
