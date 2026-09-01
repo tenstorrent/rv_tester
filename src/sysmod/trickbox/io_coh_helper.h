@@ -114,7 +114,7 @@ protected:
   std::vector<axi_txns> txns_vec;
 
 private:
-  static bool is_mmr_window(uint64_t addr);
+  bool is_mmr_window(uint64_t addr) const;
   cvm::topology::loc_t mst_for_addr(uint64_t addr) const;
   cvm::messenger::pool<axi::b_t>::channel_info b_channel_for(cvm::topology::loc_t loc) const;
   cvm::messenger::pool<axi::r_t>::channel_info r_channel_for(cvm::topology::loc_t loc) const;

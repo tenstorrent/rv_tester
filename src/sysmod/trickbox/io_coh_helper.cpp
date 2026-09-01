@@ -11,12 +11,9 @@
 
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");
 
-bool io_coh_helper::is_mmr_window(uint64_t addr) {
-  constexpr unsigned kMmrAddrLsb = 27;
-  uint64_t mmr_base = device_address_map_mmr_base_addr();
-  if (mmr_base == 0)
-    mmr_base = 0x40000000ULL;
-  return (addr >> kMmrAddrLsb) == (mmr_base >> kMmrAddrLsb);
+bool io_coh_helper::is_mmr_window(uint64_t addr) const {
+  unsigned lsb = device_address_map_priv_level_start_bit() + device_address_map_priv_level_width();
+  return (addr >> lsb) == (device_address_map_mmr_base_addr() >> lsb);
 }
 
 cvm::topology::loc_t io_coh_helper::mst_for_addr(uint64_t addr) const {
@@ -171,7 +168,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   }
 
   w_txn.last = 1;
-  uint32_t wresp_id = aw_txn.id;
+  auto wresp_id = aw_txn.id;
   cvm::registry::messenger.signal(axi_loc, w_txn);
   //cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
 
@@ -272,7 +269,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
            unsigned(ar_txn.size), unsigned(ar_txn.burst), ar_txn.len);
   cvm::registry::messenger.signal(axi_loc, ar_txn);
 
-  uint32_t rresp_id = ar_txn.id;
+  auto rresp_id = ar_txn.id;
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(
       r_channel_for(axi_loc),
       [&rresp_id](const axi::r_t& r) { return r.id == rresp_id; });
@@ -327,7 +324,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
              a_txn.id, a_txn.addr, unsigned(a_txn.size), unsigned(a_txn.burst), a_txn.len);
     cvm::registry::messenger.signal(axi_loc, a_txn);
     if (txns_vec[i].r0_w1 == 0) {
-      uint32_t rresp_id = a_txn.id;
+      auto rresp_id = a_txn.id;
       auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(
           r_channel_for(axi_loc),
           [&rresp_id](const axi::r_t& r) { return r.id == rresp_id; });
@@ -373,7 +370,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
       //co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
 
       /////-----------------------------
-      uint32_t wresp_id = a_txn.id;
+      auto wresp_id = a_txn.id;
       //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
       if (blocking_mode) {
         axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
