@@ -118,7 +118,6 @@ def rv_tester_gen(
         csr_param = name + "_csr_param",
         topology = topology,
         project_overrides_cc = name + "_project_overrides",
-        axi_defines = name + "_axi_interfaces_defines",
         cc_attrs = cc_attrs,
     )
 

@@ -7,7 +7,6 @@
 #include "sysmod_plusargs.h"
 #include "bridge_plusargs.h"
 #include "rv_tester_plusargs.h"
-#include "axi_defines.h"
 #include "device_address_map/device_address_map.h"
 
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");
@@ -36,16 +35,12 @@ io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cv
     : subdevice(tag, addr, 0x1000, loc), m_(m_) {
   rng.seed(FLAGS_seed);
   io_coh_helper_base = addr;
-#ifdef AXI_RING_MST_PATH
-  axi_loc_mmr_ = cvm::topology::get_from_hierarchy(AXI_RING_MST_PATH, 0);
-#else
-  axi_loc_mmr_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-#endif
-#ifdef IOC_AXI_MST_PATH
-  axi_loc_ioc_ = cvm::topology::get_from_hierarchy(IOC_AXI_MST_PATH, 0);
-#else
-  axi_loc_ioc_ = axi_loc_mmr_;
-#endif
+  auto plat = cvm::topology::get_from_type("PLATFORM", 0);
+  auto def = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  auto mmr_attr = cvm::topology::attr(plat, "IO_COH_MMR_MST");
+  auto ioc_attr = cvm::topology::attr(plat, "IO_COH_IOC_MST");
+  axi_loc_mmr_ = mmr_attr.first ? cvm::topology::loc_t(mmr_attr.second) : def;
+  axi_loc_ioc_ = ioc_attr.first ? cvm::topology::loc_t(ioc_attr.second) : axi_loc_mmr_;
   reset();
   checkUsage();
 }

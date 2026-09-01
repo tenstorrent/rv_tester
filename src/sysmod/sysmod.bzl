@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, axi_defines, visibility = None, cc_attrs = {}, **kwargs):
+def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibility = None, cc_attrs = {}, **kwargs):
 
     sysmod_dpi = name + "_dpi"
     sysmod_sv = name + "_sv"
@@ -27,8 +27,6 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, axi_defi
         name = sysmod_dpi,
         srcs = [
           "@rv_tester//src/sysmod:sysmod.cpp",
-          # Compiled here so axi_defines.h (per-TB PATH macros) is on the include path.
-          "@rv_tester//src/sysmod/trickbox:io_coh_helper.cpp",
         ],
         hdrs = [
           "@rv_tester//src/sysmod:sysmod.h",
@@ -42,11 +40,6 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, axi_defi
           "@rv_tester//src/sysmod/clint:clint",
           "@rv_tester//src/sysmod/aclint:aclint",
           "@rv_tester//src/sysmod/trickbox:trickbox",
-          "@rv_tester//src/common/device_address_map:device_address_map",
-          "@rv_tester//src/common:transactor",
-          "@rv_tester//src/transactors/axi_sw:axi_sw_h",
-          "@rv_tester//src/cosim/whisper_if:whisper_if",
-          "@mem_manager//:mem_manager",
           "@rv_tester//src/sysmod/sep_entropy_fifo:sep_entropy_fifo",
           "@rv_tester//src/sysmod/htif:htif",
           "@rv_tester//src/sysmod/aplic:aplic_device",
@@ -66,12 +59,9 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, axi_defi
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",
-          "@cvm//:random",
-          "@cvm//:bitmanip",
           "@rv_tester//src/sysmod:sysmod_params",
           packet + "_cc",
           csr_param + "_cc",
-          axi_defines,
         ],
         alwayslink = True,
         visibility = ["//visibility:public"],

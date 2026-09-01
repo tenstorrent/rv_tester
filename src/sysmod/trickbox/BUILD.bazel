@@ -65,6 +65,7 @@ cc_library(
       "debugger.cpp",
       "evt_trigger.cpp",
       "uc_helper.cpp",
+      "io_coh_helper.cpp",
       "ras_helper.cpp",
       "dma.cpp",
       "post_si_pcietc_helper.cpp",
@@ -85,6 +86,7 @@ cc_library(
     deps = [
              "//src/transactors/axi_sw:axi_sw_h",
              "//src/common:common",
+             "//src/common/device_address_map:device_address_map",
              "//src/sysmod:device",
              "//src/cosim/whisper_if:whisper_if",
              "@rv_tester//src/sysmod:sysmod_plusargs",
@@ -107,5 +109,5 @@ cc_library(
 )
 
  
-exports_files(["ras_helper.h", "trickbox/interrupter.h", "io_coh_helper.cpp"])
+exports_files(["ras_helper.h", "trickbox/interrupter.h"])
 
