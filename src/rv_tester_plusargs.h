@@ -28,6 +28,7 @@ DECLARE_string(axi_resp_slverr_pattern);
 DECLARE_string(axi_resp_decerr_pattern);
 DECLARE_string(test_start_label);
 DECLARE_uint64(pa_mask);
+DECLARE_uint64(aclint_ctime_addr);
 // FIXME Temporary solution; need to revisit
 DECLARE_bool(vip);
 DECLARE_bool(vip_axi_dpi);

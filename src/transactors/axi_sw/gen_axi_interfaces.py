@@ -329,12 +329,14 @@ class AXIInterfaceGenerator:
             '#include "axi_sw.h"',
             '#include "rv_tester_transactions.hpp"',
             '#include "axi_defines.h"',
+            '#include "cvm/topology_defs.hpp"',
             '',
         ]
         mst_lines = [
             '#include "axi_sw_mst.h"',
             '#include "rv_tester_transactions.hpp"',
             '#include "axi_defines.h"',
+            '#include "cvm/topology_defs.hpp"',
             '',
         ]
 
