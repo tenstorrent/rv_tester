@@ -1,3 +1,5 @@
+exports_files(["whisper_client_register.cpp"])
+
 cc_library(
     name     = "whisper_if",
     hdrs     = [

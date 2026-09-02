@@ -11,6 +11,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/topology_defs.hpp"
 #include "cvm/logger.hpp"
 #include <fmt/ranges.h>
 #include "cvm/random.hpp"

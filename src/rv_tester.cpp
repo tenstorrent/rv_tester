@@ -8,6 +8,7 @@
 #include "rv_tester_crash_handler.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/topology_defs.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/random.hpp"

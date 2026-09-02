@@ -5,6 +5,7 @@
 #include "sysmod_plusargs.h"
 #include "rv_tester_plusargs.h"
 #include "trickbox/interrupter.h"
+#include "cvm/topology_defs.hpp"
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 

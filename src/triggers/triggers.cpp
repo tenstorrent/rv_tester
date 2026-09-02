@@ -5,7 +5,7 @@
 #include "cvm/random.hpp"
 #include "cvm/topology_defs.hpp"
 
-CVM_REGISTRY_register(triggers, TRIGGERS, cvm::registry::all);
+REGISTRY_register(triggers, TRIGGERS, cvm::registry::all);
 
 extern "C" {
 

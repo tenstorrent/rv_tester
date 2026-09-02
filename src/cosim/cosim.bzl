@@ -119,10 +119,30 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
         visibility = visibility,
     )
 
+    # whisper_client registration resolves against the concrete topology, so
+    # it is compiled here per topology rather than inside the shared
+    # whisper_if library.
+    native.cc_library(
+        name = name + "_whisper_client_register",
+        srcs = ["@rv_tester//src/cosim/whisper_if:whisper_client_register.cpp"],
+        deps = [
+            "@rv_tester//src/cosim/whisper_if:whisper_if",
+            topology,
+        ],
+        # Must match whisper_if's local_defines: WdRiscv::Args has an
+        # LZ4_COMPRESS-conditional member, so a mismatched define changes
+        # sizeof(whisperClient) between the TU that news it here and the
+        # out-of-line constructor in whisper_if.
+        local_defines = ["LZ4_COMPRESS"],
+        alwayslink = True,
+        visibility = visibility,
+    )
+
     native.cc_library(
         name = cosim_dpi,
         deps = [
             name + "_rvfi",
+            name + "_whisper_client_register",
             "@cvm//:plusargs",
             packet + "_cc",
          ],

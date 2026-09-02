@@ -155,6 +155,7 @@ def rv_tester_gen(
     memdump_gen(
         name = name + "_memdump",
         packet = name + "_transactions",
+        topology = topology,
         cc_attrs = cc_attrs,
     )
 
