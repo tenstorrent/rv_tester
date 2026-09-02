@@ -92,6 +92,12 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
     co_return axi::RESP_DECERR;
   }
 
+  // Drain orphans from recycled AXI ids. Any orphan in the queue is from
+  // a prior transaction; we drop it so the wait only matches this transaction's
+  // own completion. This is a simpler/safer alternative to token tagging when
+  // response structures cannot be extended.
+  cvm::registry::messenger.clear_channel<transactor::read_response_t>(read_resp_channel_);
+
   auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(
       read_resp_channel_,
       [&axi_id](const transactor::read_response_t& rr) { return rr.id == axi_id; });
@@ -131,6 +137,12 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
     cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for write addr={:#x} len={}\n", addr, length);
     co_return axi::RESP_DECERR;
   }
+
+  // Drain orphans from recycled AXI ids. Any orphan in the queue is from
+  // a prior transaction; we drop it so the wait only matches this transaction's
+  // own completion. This is a simpler/safer alternative to token tagging when
+  // response structures cannot be extended.
+  cvm::registry::messenger.clear_channel<transactor::write_response_t>(write_resp_channel_);
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(
       write_resp_channel_,
