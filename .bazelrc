@@ -60,3 +60,12 @@ build:asan --linkopt=--driver-mode=g++
 build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
 build:clang-tidy --output_groups=report
 build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy_config
+
+# FIXME delete after upgrading to verilator >= 5.050
+# Verilator < 5.050 vendors GTKWave's fstapi.c + lz4.c and textually includes both
+# into include/verilated_fst_c.cpp, so verilated_fst_c.o exports the whole LZ4_*
+# surface. That collides at link time with @lz4//:lz4 (reached via cvm and
+# mem_manager, see bazel/mem_manager_use_bcr_lz4.patch) whenever both objects get
+# pulled into one binary -- which `timing = True` in //test:verilator.bzl made
+# happen by ordering verilator's runtime ahead of @lz4 in the link line.
+build --per_file_copt=external/verilator.*@-DLZ4LIB_VISIBILITY=static,-DLZ4_PUBLISH_STATIC_FUNCTIONS,-DLZ4_compress_destSize_extState=vlt_LZ4_compress_destSize_extState,-DLZ4_compress_forceExtDict=vlt_LZ4_compress_forceExtDict,-DLZ4_decompress_safe_forceExtDict=vlt_LZ4_decompress_safe_forceExtDict,-DLZ4_decompress_safe_partial_forceExtDict=vlt_LZ4_decompress_safe_partial_forceExtDict

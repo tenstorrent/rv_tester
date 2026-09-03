@@ -21,10 +21,9 @@ module rv_tester_clkgen #(
  `ifdef ZEBU_CLOCK_DELAY_PORT
   clockDelayPort #(CLOCK_PERIOD_PS/2,CLOCK_PERIOD_PS/2,0) ClockPort(clk);
  `else
-  initial begin
-    clk = '0;
-    forever  #(CLOCK_PERIOD_PS*1ps/2) clk = ~clk;
-  end
+     logic c = '0;
+     initial forever  #(CLOCK_PERIOD_PS*1ps/2) c = ~c;
+     assign clk = c;
  `endif
 `endif
 

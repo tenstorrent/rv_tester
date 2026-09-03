@@ -1,11 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module tb(
-`ifdef VERILATOR
-          input vclk
-`endif
-	  );
+module top();
 
   localparam cvm_topology_gen::topology_t topology = cvm_topology_gen::mods;
 
@@ -80,17 +76,9 @@ module tb(
   logic             axi_slv_ar_ready;
   logic             axi_slv_w_ready;
 
-  logic clk, reset_n;
+  logic clk = '0, reset_n;
 
-`ifdef VERILATOR
-  assign clk = vclk;
-`endif
-`ifdef VCS
-  initial begin
-    clk = '0;
-    forever #5 clk = ~clk;
-  end
-`endif
+  initial forever #5 clk = ~clk;
 
   `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk);
 
