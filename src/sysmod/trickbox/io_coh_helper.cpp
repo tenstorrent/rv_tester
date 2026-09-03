@@ -3,25 +3,51 @@
 
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
-#include "src/sysmod/trickbox/io_coh_helper.h"
+#include "trickbox/io_coh_helper.h"
 #include "sysmod_plusargs.h"
 #include "bridge_plusargs.h"
 #include "rv_tester_plusargs.h"
+#include "device_address_map/device_address_map.h"
 
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");
+
+bool io_coh_helper::is_mmr_window(uint64_t addr) const {
+  unsigned lsb = device_address_map_priv_level_start_bit() + device_address_map_priv_level_width();
+  return (addr >> lsb) == (device_address_map_mmr_base_addr() >> lsb);
+}
+
+cvm::topology::loc_t io_coh_helper::mst_for_addr(uint64_t addr) const {
+  return is_mmr_window(addr) ? axi_loc_mmr_ : axi_loc_ioc_;
+}
+
+cvm::messenger::pool<axi::b_t>::channel_info io_coh_helper::b_channel_for(cvm::topology::loc_t loc) const {
+  return loc == axi_loc_mmr_ ? b_channel_mmr_ : b_channel_ioc_;
+}
+
+cvm::messenger::pool<axi::r_t>::channel_info io_coh_helper::r_channel_for(cvm::topology::loc_t loc) const {
+  return loc == axi_loc_mmr_ ? r_channel_mmr_ : r_channel_ioc_;
+}
 
 io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager& m_)
     : subdevice(tag, addr, 0x1000, loc), m_(m_) {
   rng.seed(FLAGS_seed);
   io_coh_helper_base = addr;
-  axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  auto plat = cvm::topology::get_from_type("PLATFORM", 0);
+  auto def = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  auto mmr_attr = cvm::topology::attr(plat, "IO_COH_MMR_MST");
+  auto ioc_attr = cvm::topology::attr(plat, "IO_COH_IOC_MST");
+  axi_loc_mmr_ = mmr_attr.first ? cvm::topology::loc_t(mmr_attr.second) : def;
+  axi_loc_ioc_ = ioc_attr.first ? cvm::topology::loc_t(ioc_attr.second) : axi_loc_mmr_;
   reset();
   checkUsage();
 }
 
 void io_coh_helper::configure() {
   subdevice::configure();
-  wresp_channel = cvm::registry::messenger.channel<axi::b_t>(axi_mst_loc_l);
+  b_channel_mmr_ = cvm::registry::messenger.channel<axi::b_t>(axi_loc_mmr_);
+  b_channel_ioc_ = cvm::registry::messenger.channel<axi::b_t>(axi_loc_ioc_);
+  r_channel_mmr_ = cvm::registry::messenger.channel<axi::r_t>(axi_loc_mmr_);
+  r_channel_ioc_ = cvm::registry::messenger.channel<axi::r_t>(axi_loc_ioc_);
 }
 
 cvm::messenger::task<void>
@@ -127,7 +153,11 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
 
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
-  cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
+  cvm::topology::loc_t axi_loc = mst_for_addr(addr);
+  cvm::log(cvm::HIGH, "[io_coh_helper] overlay AW master={} mmr={} id={} addr={:#x} size={} burst={} len={}\n",
+           cvm::topology::name(axi_loc), is_mmr_window(addr), aw_txn.id, aw_txn.addr,
+           unsigned(aw_txn.size), unsigned(aw_txn.burst), aw_txn.len);
+  cvm::registry::messenger.signal(axi_loc, aw_txn);
   axi::w_t w_txn;
   std::vector<uint8_t> data_vec;
   std::vector<bool> strb_vec;
@@ -138,8 +168,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   }
 
   w_txn.last = 1;
-  uint32_t wresp_id = aw_txn.id;
-  cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
+  auto wresp_id = aw_txn.id;
+  cvm::registry::messenger.signal(axi_loc, w_txn);
   //cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
 
   write_in_flight = true;
@@ -154,8 +184,9 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   //co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
 
   axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
-      wresp_channel,
+      b_channel_for(axi_loc),
       [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; });
+  cvm::log(cvm::HIGH, "[io_coh_helper] overlay B id={} resp={}\n", wresp.id, uint8_t(wresp.resp));
 
   if (!aw_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
     cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
@@ -232,9 +263,17 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   read_in_flight = true;
   rdata_byte_vec = {};
 
-  cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
+  cvm::topology::loc_t axi_loc = mst_for_addr(r.addr);
+  cvm::log(cvm::HIGH, "[io_coh_helper] overlay AR master={} mmr={} id={} addr={:#x} size={} burst={} len={}\n",
+           cvm::topology::name(axi_loc), is_mmr_window(r.addr), ar_txn.id, ar_txn.addr,
+           unsigned(ar_txn.size), unsigned(ar_txn.burst), ar_txn.len);
+  cvm::registry::messenger.signal(axi_loc, ar_txn);
 
-  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+  auto rresp_id = ar_txn.id;
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(
+      r_channel_for(axi_loc),
+      [&rresp_id](const axi::r_t& r) { return r.id == rresp_id; });
+  cvm::log(cvm::HIGH, "[io_coh_helper] overlay R id={} resp={} last={}\n", resp.id, uint8_t(resp.resp), resp.last);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
   backdoor_read_data = 0;
@@ -279,10 +318,16 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
     read_in_flight = true;
     rdata_byte_vec = {};
 
-    cvm::registry::messenger.signal(axi_mst_loc_l, a_txn);
+    cvm::topology::loc_t axi_loc = mst_for_addr(txns_vec[i].addr);
+    cvm::log(cvm::HIGH, "[io_coh_helper] overlay {} master={} mmr={} id={} addr={:#x} size={} burst={} len={}\n",
+             txns_vec[i].r0_w1 ? "AW" : "AR", cvm::topology::name(axi_loc), is_mmr_window(txns_vec[i].addr),
+             a_txn.id, a_txn.addr, unsigned(a_txn.size), unsigned(a_txn.burst), a_txn.len);
+    cvm::registry::messenger.signal(axi_loc, a_txn);
     if (txns_vec[i].r0_w1 == 0) {
-      //READ
-      auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+      auto rresp_id = a_txn.id;
+      auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(
+          r_channel_for(axi_loc),
+          [&rresp_id](const axi::r_t& r) { return r.id == rresp_id; });
       cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
       backdoor_read_data = 0;
       read_counter = 0;
@@ -321,15 +366,15 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
       }
 
       w_txn.last = 1;
-      cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
+      cvm::registry::messenger.signal(axi_loc, w_txn);
       //co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
 
       /////-----------------------------
-      uint32_t wresp_id = a_txn.id;
+      auto wresp_id = a_txn.id;
       //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
       if (blocking_mode) {
         axi::b_t wresp = co_await cvm::registry::messenger.wait<axi::b_t>(
-            wresp_channel,
+            b_channel_for(axi_loc),
             [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; });
 
         if (!a_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {

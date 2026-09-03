@@ -114,8 +114,16 @@ protected:
   std::vector<axi_txns> txns_vec;
 
 private:
-  cvm::topology::loc_t axi_mst_loc_l;
-  cvm::messenger::pool<axi::b_t>::channel_info wresp_channel;
+  bool is_mmr_window(uint64_t addr) const;
+  cvm::topology::loc_t mst_for_addr(uint64_t addr) const;
+  cvm::messenger::pool<axi::b_t>::channel_info b_channel_for(cvm::topology::loc_t loc) const;
+  cvm::messenger::pool<axi::r_t>::channel_info r_channel_for(cvm::topology::loc_t loc) const;
+  cvm::topology::loc_t axi_loc_mmr_;
+  cvm::topology::loc_t axi_loc_ioc_;
+  cvm::messenger::pool<axi::b_t>::channel_info b_channel_mmr_;
+  cvm::messenger::pool<axi::b_t>::channel_info b_channel_ioc_;
+  cvm::messenger::pool<axi::r_t>::channel_info r_channel_mmr_;
+  cvm::messenger::pool<axi::r_t>::channel_info r_channel_ioc_;
   uint64_t io_coh_helper_base = 0x9000000;
   uint64_t tx_status = 0;
   uint64_t tx_addr = 0x90a0000;

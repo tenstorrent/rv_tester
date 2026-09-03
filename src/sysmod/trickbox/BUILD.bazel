@@ -86,6 +86,7 @@ cc_library(
     deps = [
              "//src/transactors/axi_sw:axi_sw_h",
              "//src/common:common",
+             "//src/common/device_address_map:device_address_map",
              "//src/sysmod:device",
              "//src/cosim/whisper_if:whisper_if",
              "@rv_tester//src/sysmod:sysmod_plusargs",
