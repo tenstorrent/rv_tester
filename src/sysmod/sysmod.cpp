@@ -221,7 +221,7 @@ void sysmod::configure() {
             transactor::write_t w_pkt;
             w_pkt = w;
             w_pkt.addr = w.addr & ~FLAGS_pa_mask; // STEE : RVDE-24052
-            cvm::registry::messenger.signal<device::write_t>(this->loc_, {w_pkt});
+            cvm::registry::messenger.signal<device::write_t>(this->loc_, {w_pkt, source});
           }
         });
     cvm::registry::messenger.connect<transactor::read_t>(
@@ -281,7 +281,7 @@ void sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
   cvm::log(cvm::FULL, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
   if (this->dev(wt.addr))
-    cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
+    cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt, this->loc_});
 }
 
 void sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
@@ -506,8 +506,8 @@ sysmod::create_aplic() const {
   auto msiCallback = [axi_mst_loc](uint64_t addr, uint32_t data) {
     cvm::log(cvm::DEBUG, "Aplic sent IMSIC interrupt {:#x} (@ {:#x})\n", data, addr);
 
-    std::vector<uint8_t> data_vec(64, 0);
-    std::vector<bool> strb(64, false);
+    std::vector<uint8_t> data_vec(4, 0);
+    std::vector<bool> strb(4, false);
     for (int i = 0; i < 4; i++) {
       data_vec[i] = data & 0xff;
       strb[i] = true;
@@ -515,7 +515,7 @@ sysmod::create_aplic() const {
     }
 
     cvm::registry::messenger.signal(axi_mst_loc,
-                                    transactor::write_request_t{addr, 64, data_vec, strb, false});
+                                    transactor::write_request_t{addr, 4, data_vec, strb, false});
     return true;
   };
   aplic->setMsiCallback(msiCallback);
@@ -619,10 +619,11 @@ void sysmod::compose() {
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
 
       } else if (type == "aclint") {
-        device = std::make_unique<aclint>(tag, base, nharts, loc_);
-        cvm::registry::messenger.connect<clint::timer_t>(
-            loc_,
-            [&](clint::timer_t t) { return this->timer_interrupt(t); });
+        // Core CTIME MMR target for the mtime time-broadcast (AXI master write
+        // on MTIME/TIMESYNC writes). Owned by the cluster gflag aclint_ctime_addr.
+        device = std::make_unique<aclint>(tag, base, nharts, loc_, masters[0], FLAGS_aclint_ctime_addr);
+        // MTIP is generated in SV (sysmod.sv aclint model), not via the C++
+        // timer_interrupt messenger path, so no clint::timer_t connect here.
       } else if (type == "mmr_txn_router") {
         device = std::make_unique<mmr_txn_router>(tag, base, size, loc_, masters[0]);
 

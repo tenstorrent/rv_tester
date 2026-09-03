@@ -25,6 +25,7 @@ public:
   // need to create a new type, no way to define new type and we dynamically elaborate devices
   struct write_t {
     transactor::write_t w;
+    cvm::topology::loc_t source;
   };
   struct read_t {
     transactor::read_t r;
@@ -38,8 +39,9 @@ private:
   const cvm::topology::loc_t loc_;
   std::function<void()> configure_ = nullptr;
 
+  // Sync void write handler: ack with OKAY so transactor::write can complete.
   template <typename U, typename V>
-    requires std::invocable<U, V, transactor::write_t>
+    requires requires(U write, V* dev, transactor::write_t w) {{ std::invoke(write, dev, w) } -> std::same_as<void>; }
   inline void spawn_write_thread(U write, V* dev) {
     cvm::registry::messenger.connect<write_t>(
         loc_,
@@ -51,9 +53,28 @@ private:
               s += fmt::format("{:01x}", w.w.strb[i] ? 1 : 0);
             }
           cvm::log(cvm::FULL, "[device] tag={}: aw/w: addr={:#x}, len={}, strb={}, data={}\n", dev->tag(), w.w.addr, w.w.length, s, d);
-          return std::invoke(write, dev, w.w);
+          std::invoke(write, dev, w.w);
+          cvm::registry::messenger.signal(w.source, transactor::write_response_t{w.w.id, 0});
         },
         [dev](const auto& w) { return dev->has_addr(w.w.addr); });
+  }
+
+  // Async write handler returning the B-channel resp (e.g. mmr_txn_router
+  // reroute DECERR); ack with that resp so it reaches the DUT's store response.
+  template <typename U, typename V>
+    requires requires(U write, V* dev, transactor::write_t w) {{ std::invoke(write, dev, w) } -> std::same_as<cvm::messenger::task<std::uint8_t>>; }
+  inline void spawn_write_thread(U write, V* dev) {
+    auto* l = +[](cvm::topology::loc_t loc_, U write, V* dev) -> cvm::messenger::task<void> {
+      auto channel = cvm::registry::messenger.channel<write_t>(loc_);
+
+      while (1) {
+        auto w = co_await cvm::registry::messenger.wait<write_t>(channel, [dev](const auto& w) { return dev->has_addr(w.w.addr); });
+        uint8_t resp = co_await std::invoke(write, dev, w.w);
+        cvm::registry::messenger.signal(w.source, transactor::write_response_t{w.w.id, resp});
+      }
+      co_return;
+    };
+    cvm::registry::messenger.fork(l, loc_, std::forward<U>(write), std::forward<V*>(dev));
   }
 
   template <typename U, typename V>
@@ -85,6 +106,23 @@ private:
         data_t data(r.r.length, 0);
         co_await std::invoke(read, dev, r.r, data);
         cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
+      }
+      co_return;
+    };
+    cvm::registry::messenger.fork(l, loc_, std::forward<U>(read), std::forward<V*>(dev));
+  }
+
+  template <typename U, typename V>
+    requires requires(U read, V* dev, read_t r, device::data_t d) {{ std::invoke(read, dev, r, d) } -> std::same_as<cvm::messenger::task<std::uint8_t>>; }
+  inline void spawn_read_thread(U read, V* dev) {
+    auto* l = +[](cvm::topology::loc_t loc_, U read, V* dev) -> cvm::messenger::task<void> {
+      auto channel = cvm::registry::messenger.channel<read_t>(loc_);
+
+      while (1) {
+        auto r = co_await cvm::registry::messenger.wait<read_t>(channel, [dev](const auto& r) { return dev->has_addr(r.r.addr); });
+        data_t data(r.r.length, 0);
+        uint8_t resp = co_await std::invoke(read, dev, r, data);
+        cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data), resp});
       }
       co_return;
     };

@@ -284,9 +284,18 @@ private:
     if (!l.try_lock())
       return;
     int sent = 0;
-    while (r_dpi())
-      sent++;
-    if (sent) {
+    cvm::registry::callbacks.call(
+        loc_,
+        [this, &sent] {
+          while (r_dpi())
+            sent++;
+        });
+    // A device-attribute (MMR/IO) access completes via a sysmod round trip
+    // (possibly through the DUT), so its latency is not governed by the
+    // memory read-latency model; reporting success keeps the SV-side
+    // fixed-latency policing from flagging it as a violation.
+    const bool device_access_pending = sent == 0 && axi_->device_accesses_in_flight() > 0;
+    if (sent || device_access_pending) {
       r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
     } else {
       r_q_rptr_blocking_update_consecutive_spurious_calls_++;
@@ -295,7 +304,7 @@ private:
     if (FLAGS_axi_sw_read_consecutive_spurious_calls_allowed >= 0 && r_q_rptr_blocking_update_consecutive_spurious_calls_ > FLAGS_axi_sw_read_consecutive_spurious_calls_allowed) {
       cvm::log(cvm::ERROR, "[axi_sw] Error: no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
     }
-    *r_q_ptr.successful = sent != 0;
+    *r_q_ptr.successful = sent != 0 || device_access_pending;
   }
 
   cvm::messenger::task<void> process(const axi_sw_defs::reorder_q_flush_t&) {

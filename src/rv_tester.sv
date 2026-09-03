@@ -457,6 +457,8 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
+        // Resolved by eot during rv_tester_build_registry above.
+        eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -785,12 +787,16 @@ end
            ) sysmod (
                      .clk(dut_clk[AXI_CLK_IDX]),
                      .reset(sys_reset[AXI_CLK_IDX]),
+                     .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
+                     .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
                      .dut_reset_req,
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .bootstrap,
                      .dmi_write(dmi_write),
                      .event_triggers(event_triggers),
                      .interrupt,
+                     .aclint_ref_pulse(aclint_ref_pulse),
+                     .aclint_time_sync(aclint_time_sync),
                      .terminate(sysmod_terminate),
                      `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
                      );
@@ -896,6 +902,13 @@ end
     /* verilator lint_on ASSIGNIN */
   end
 
+  // MTI injection (random/uarch) from the interrupts block; kept internal and
+  // OR'd with the sysmod-ACLINT compare to form the MTIP driven to the DUT.
+  logic mti [NHARTS-1:0];
+  for (genvar c = 0; c < NHARTS; c++) begin: gen_mtip_or
+    assign mtip[c] = mti[c] | interrupt[c].mti;
+  end
+
   for (genvar c = 0; c < NHARTS; c++) begin: interrupts
     interrupts #(
                  .NUM(c),
@@ -908,6 +921,7 @@ end
                                .clocks,
                                .boot_done(boot_done[c]),
                                .nmi(nmi[c].nmi),
+                               .mti(mti[c]),
                                `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
                                );
   end
@@ -1003,11 +1017,6 @@ end
 
   endfunction
   export "DPI-C" function rv_tester_set_address_map;
-
-  function automatic void rv_tester_set_eot_addr(longint unsigned addr);
-    eot_addr = addr;
-  endfunction
-  export "DPI-C" function rv_tester_set_eot_addr;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");

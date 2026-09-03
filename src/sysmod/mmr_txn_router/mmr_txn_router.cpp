@@ -8,10 +8,25 @@
 
 namespace {
 
-axi::a_no_id_t make_ar(uint64_t addr, size_t length) {
+bool is_hardware_axi_source(cvm::topology::loc_t source) {
+  static const auto sources = [] {
+    std::vector<cvm::topology::loc_t> locs;
+    for (const auto& loc : cvm::topology::get_from_type("PLATFORM_TRANSACTOR"))
+      locs.push_back(loc);
+    return locs;
+  }();
+  return std::find(sources.begin(), sources.end(), source) != sources.end();
+}
+
+axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow) {
   axi::a_no_id_t ar(false, addr, 0);
+  // ms_mmr rejects ring AR with AXI size < 32b. Upsize narrow non-hardware
+  // reads on the reroute path; hardware reads stay narrow so ms_mmr can DECERR.
+  size_t axi_length = length;
+  if (upsize_narrow && axi_length > 0 && axi_length < 4)
+    axi_length = 4;
   // Mirror axi_sw_mst::a_wrapper burst sizing for power-of-two lengths.
-  switch (length) {
+  switch (axi_length) {
   case 1:
     ar.size = 0;
     ar.len = 0;
@@ -58,16 +73,23 @@ mmr_txn_router::mmr_txn_router(const std::string& tag, uint64_t addr, size_t siz
 void mmr_txn_router::configure() {
   device::configure();
   read_resp_channel_ = cvm::registry::messenger.channel<transactor::read_response_t>(axi_mst_loc_l);
+  write_resp_channel_ = cvm::registry::messenger.channel<transactor::write_response_t>(axi_mst_loc_l);
 }
 
-cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, data_t& data) {
+cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t& data) {
+  const auto& r = dr.r;
   auto& addr = r.addr;
   auto& length = r.length;
 
+  const bool hardware_read = is_hardware_axi_source(dr.source);
+  axi::a_no_id_t ar = make_ar(addr, length, !hardware_read);
+  if (hardware_read)
+    ar.allow_decerr_resp = true;
+
   axi::id_t axi_id;
-  if (!cvm::registry::messenger.call<axi_sw_mst_push_ar_no_id_rpc>(axi_mst_loc_l, make_ar(addr, length), axi_id)) {
+  if (!cvm::registry::messenger.call<axi_sw_mst_push_ar_no_id_rpc>(axi_mst_loc_l, ar, axi_id)) {
     cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for read addr={:#x} len={}\n", addr, length);
-    co_return;
+    co_return axi::RESP_DECERR;
   }
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(
@@ -87,18 +109,33 @@ cvm::messenger::task<void> mmr_txn_router::read(const transactor::read_t& r, dat
       data.resize(length);
   }
 
-  cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr read back to overlay: Addr = {:#x}\n", addr);
-  co_return;
+  cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr read back to overlay: src={} hw={} addr={:#x} resp={}\n",
+           dr.source, hardware_read, addr, resp.resp);
+  co_return resp.resp;
 }
 
-void mmr_txn_router::write(const transactor::write_t& w) {
+cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write_t& w) {
   uint64_t addr = w.addr;
   size_t length = w.length;
-  uint32_t value;
   auto& data = w.data;
   auto& strb = w.strb;
-  deserializeInt(w.data, value);
   cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr write back to overlay: Addr = {:#x}\n", addr);
-  //re route mmr write
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+  // Allow + propagate the B-channel resp: a DUT MMR store may legitimately
+  // DECERR (chicken bit / unmapped), which the DUT turns into the async DERR
+  // interrupt. Mirrors the read reroute path.
+  transactor::write_request_t req{addr, length, data, strb};
+  req.allow_decerr_resp = true;
+
+  axi::id_t axi_id;
+  if (!cvm::registry::messenger.call<axi_sw_mst_push_write_request_rpc>(axi_mst_loc_l, req, axi_id)) {
+    cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for write addr={:#x} len={}\n", addr, length);
+    co_return axi::RESP_DECERR;
+  }
+
+  auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(
+      write_resp_channel_,
+      [&axi_id](const transactor::write_response_t& wr) { return wr.id == axi_id; });
+
+  cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr write back to overlay: addr={:#x} resp={}\n", addr, resp.resp);
+  co_return resp.resp;
 }

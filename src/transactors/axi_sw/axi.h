@@ -5,6 +5,7 @@
 #include <string>
 #include <cinttypes>
 #include "safe_queue.h"
+#include <atomic>
 #include <iostream>
 #include <functional>
 #include <unordered_map>
@@ -224,6 +225,11 @@ private:
   int num_decerr_resp_{0};
   bool error_en_{true};
 
+  // Device-attribute (MMR/IO) accesses route through sysmod devices and can
+  // round-trip through the DUT, so their completion time is not bounded by
+  // the memory model's read latency contract.
+  std::atomic<int> device_accesses_in_flight_{0};
+
 public:
   axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag);
   axi(axi&&) = delete;
@@ -243,6 +249,7 @@ public:
 
   data_width_t data_width() const { return data_width_; }
   strobe_width_t strobe_width() const { return data_width() / 8; }
+  int device_accesses_in_flight() const { return device_accesses_in_flight_.load(std::memory_order_relaxed); }
 
   cvm::messenger::task<void> a(const a_t&);
   cvm::messenger::task<void> w(w_t&&);
