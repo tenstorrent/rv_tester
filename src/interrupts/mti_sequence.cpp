@@ -4,6 +4,7 @@
 #include "mti_sequence.hpp"
 #include "sysmod_plusargs.h"
 #include "rv_tester_plusargs.h"
+#include "cvm/topology_defs.hpp"
 
 REGISTRY_register(mti_sequence, INTERRUPTS, cvm::registry::all);
 

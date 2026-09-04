@@ -155,6 +155,7 @@ def rv_tester_gen(
     memdump_gen(
         name = name + "_memdump",
         packet = name + "_transactions",
+        topology = topology,
         cc_attrs = cc_attrs,
     )
 
@@ -195,7 +196,7 @@ def rv_tester_gen(
             "@rv_tester//scripts/preload_axi_llc:preload_axi_llc",
             "@cvm//:plusargs",
             "@cvm//:random",
-            "@cvm//:registry",
+            topology,
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
@@ -204,7 +205,6 @@ def rv_tester_gen(
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",
             name + "_axi_interfaces_cc",
-            topology + "_cc",
             name + "_cosim_dpi",
         ],
         alwayslink = True,

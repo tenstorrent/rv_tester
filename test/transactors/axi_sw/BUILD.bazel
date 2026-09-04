@@ -58,7 +58,7 @@ cc_library(
     deps = [
         name + "_axi_sw_dpi",
         name + "_axi_interfaces_cc",
-        topology + "_cc",
+        topology,
         "@rules_verilator//verilator:verilated_runtime",
     ],
     alwayslink = True,

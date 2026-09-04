@@ -1,4 +1,4 @@
-def memdump_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
+def memdump_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     memdump_dpi = name + "_dpi"
 
@@ -19,9 +19,9 @@ def memdump_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//src:structs",
             "@cvm//:plusargs",
             "@cvm//:logger",
-            "@cvm//:registry",
             "@cvm//:topology",
             "@cvm//:messenger",
+            topology,
         ],
         alwayslink = True,
         visibility = visibility,

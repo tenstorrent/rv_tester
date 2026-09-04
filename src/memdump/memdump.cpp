@@ -13,6 +13,7 @@
 
 #include "cvm/logger.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/topology_defs.hpp"
 #include "src/sysmod/htif/htif.h"
 #include "sysmod_plusargs.h"
 #include "src/sysmod/sysmod_rpc.h"

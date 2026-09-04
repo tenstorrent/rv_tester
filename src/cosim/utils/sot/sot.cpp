@@ -10,6 +10,7 @@
 #include "rv_tester_structs.h"
 #include "rv_tester_plusargs.h"
 #include "sysmod_plusargs.h"
+#include "cvm/topology_defs.hpp"
 
 REGISTRY_register(sot, TOP.PLATFORM, cvm::registry::all);
 
