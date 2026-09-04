@@ -1,4 +1,5 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@rv_tester//src/cosim/whisper_if:whisper_if.bzl", "whisper_client_register_gen")
 
 def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, visibility = None, cc_attrs = {}, **kwargs):
 
@@ -119,22 +120,9 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
         visibility = visibility,
     )
 
-    # whisper_client registration resolves against the concrete topology, so
-    # it is compiled here per topology rather than inside the shared
-    # whisper_if library.
-    native.cc_library(
+    whisper_client_register_gen(
         name = name + "_whisper_client_register",
-        srcs = ["@rv_tester//src/cosim/whisper_if:whisper_client_register.cpp"],
-        deps = [
-            "@rv_tester//src/cosim/whisper_if:whisper_if",
-            topology,
-        ],
-        # Must match whisper_if's local_defines: WdRiscv::Args has an
-        # LZ4_COMPRESS-conditional member, so a mismatched define changes
-        # sizeof(whisperClient) between the TU that news it here and the
-        # out-of-line constructor in whisper_if.
-        local_defines = ["LZ4_COMPRESS"],
-        alwayslink = True,
+        topology = topology,
         visibility = visibility,
     )
 

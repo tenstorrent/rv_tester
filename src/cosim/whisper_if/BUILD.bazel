@@ -1,3 +1,5 @@
+load(":whisper_if.bzl", "WHISPER_LOCAL_DEFINES")
+
 exports_files(["whisper_client_register.cpp"])
 
 cc_library(
@@ -34,7 +36,7 @@ cc_library(
     }),
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",
-    local_defines = ["LZ4_COMPRESS"],
+    local_defines = WHISPER_LOCAL_DEFINES,
 )
 
 cc_library(

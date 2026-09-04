@@ -48,46 +48,37 @@ module rv_tester_delay_resp_tb_top #(
     output logic test_passed
 );
     // Internal clock and reset signals for DUT connections
-    logic clk;
-    logic rst_ni;
+    logic clk = '0;
+    logic rst_ni ='0;
 
-    `ifdef TB_EXTERNAL_CLOCK
-        assign clk = vclk;
-        assign rst_ni = vrst_ni;
-    `else
-        // For VCS - generate clock and reset internally
-        // Clock generation
-        initial begin
-            clk = 1'b0;
-            forever #5 clk = ~clk;
-        end
+    // Clock generation
+    initial forever #5 clk = ~clk;
 
-        // Reset generation - separate initial block to avoid race condition
-        initial begin
-            rst_ni = 1'b0;
-            #25;
-            rst_ni = 1'b1;
-        end
+    // Reset generation - separate initial block to avoid race condition
+    initial begin
+        #25;
+        rst_ni = '1;
+    end
 
-        // Test timeout and completion monitoring
-        initial begin
-            #100000; // 100k time units timeout
-            $display("[%0t] ERROR: Test timeout!", $time);
+    // Test timeout and completion monitoring
+    initial begin
+        #100000; // 100k time units timeout
+        $display("[%0t] ERROR: Test timeout!", $time);
+        $finish;
+    end
+
+    always @(posedge clk) begin
+        if (test_done) begin
+            if (test_passed) begin
+                $display("SUCCESS: All tests passed! %d/%d", test_count, NUM_TESTS);
+            end else begin
+                $display("FAILURE: Some tests failed! %d/%d", test_count, NUM_TESTS);
+            end
+            #100; // Wait a bit before finishing
             $finish;
         end
+    end
 
-        always @(posedge clk) begin
-            if (test_done) begin
-                if (test_passed) begin
-                    $display("SUCCESS: All tests passed! %d/%d", test_count, NUM_TESTS);
-                end else begin
-                    $display("FAILURE: Some tests failed! %d/%d", test_count, NUM_TESTS);
-                end
-                #100; // Wait a bit before finishing
-                $finish;
-            end
-        end
-    `endif
     // Test state machine
     typedef enum logic [3:0] {
         TEST_RESET = 4'd0,
