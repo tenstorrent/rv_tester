@@ -38,7 +38,7 @@ public:
   // Destructor.
   virtual ~trickbox();
 
-  void configure();
+  void configure() override;
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size

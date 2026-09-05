@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
 #include <iostream>
 #include <thread>
 #include <unordered_map>
@@ -109,6 +110,8 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     : loc_(loc), id_(id) {
   // Whisper client location
   wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+  // Registered at construction so that project components may call it from configure() regardless of registry order
+  cvm::registry::messenger.procedure<sysmod_add_device>(loc_, [this](std::shared_ptr<device> d) { this->add_device(std::move(d)); });
 }
 sysmod::~sysmod() {
 }
@@ -644,6 +647,8 @@ void sysmod::compose() {
 
       } else if (type == "aplic_domain") {
         device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
+      } else if (type == sysmod_external_device_type) {
+        cvm::log(cvm::MEDIUM, "[sysmod] external device range reserved: tag={} base={:#x} size={:#x}\n", tag, base, size);
       } else {
         cvm::log(cvm::ERROR, "Error: [sysmod] unknown sysmod type {} \n", type);
       }
@@ -653,14 +658,7 @@ void sysmod::compose() {
           [&](rv_tester_transactions::cosim::m_rvfi<> i) { return this->load_prog_easy(i); });
 
       if (device) {
-        if (auto* r = dynamic_cast<mmr_txn_router*>(device.get()))
-          r->configure();
-        else if (auto* d = dynamic_cast<dm*>(device.get()))
-          d->configure();
-        else if (auto* t = dynamic_cast<trickbox*>(device.get()))
-          t->configure();
-        else
-          device->configure();
+        device->configure();
         devices_.emplace_back(std::move(device));
       }
     }
@@ -689,11 +687,8 @@ sysmod::dev(uint64_t addr) {
     if (addr & FLAGS_pa_mask)
       addr = addr & ~FLAGS_pa_mask;
   }
-  for (auto& d : devices_) {
-    if (d->has_addr(addr)) {
-      return d.get();
-    }
-  }
+  if (auto* d = find_device([addr](const device& d) { return d.has_addr(addr); }))
+    return d;
   cvm::log(cvm::ERROR, "Error: [sysmod] Address not mapped: {:#x}\n", addr);
   return fallback_null_dev_.get();
 }
@@ -701,12 +696,34 @@ sysmod::dev(uint64_t addr) {
 device*
 sysmod::dev(const std::string& tag) {
 
-  for (auto& d : devices_) {
-    if (d->tag() == tag)
-      return d.get();
-  }
+  if (auto* d = find_device([&tag](const device& d) { return d.tag() == tag; }))
+    return d;
   cvm::log(cvm::ERROR, "Error: [sysmod] Tag not mapped: {}\n", tag);
   return nullptr;
+}
+
+void sysmod::add_device(std::shared_ptr<device> d) {
+  if (!d) {
+    cvm::log(cvm::ERROR, "Error: [sysmod] add_device called with a null device\n");
+    return;
+  }
+  if (find_device([&d](const device& x) { return x.tag() == d->tag(); })) {
+    cvm::log(cvm::ERROR, "Error: [sysmod] add_device: tag already mapped: {}\n", d->tag());
+    return;
+  }
+  if (d->size() > 0) {
+    // The crossbar address rules are generated from the memmap, so an unreserved range never reaches sysmod
+    std::map<std::string, memmap_entry_t> m;
+    memmap::instance().get(m);
+    const bool reserved = std::any_of(m.begin(), m.end(), [&d](const auto& e) {
+      return e.second.type == sysmod_external_device_type && e.second.base <= d->addr() && (d->addr() + d->size()) <= (e.second.base + e.second.size);
+    });
+    if (!reserved)
+      cvm::log(cvm::LOW, "Warning: [sysmod] add_device: no memmap entry of type \"{}\" covers tag={} base={:#x} size={:#x}\n", sysmod_external_device_type, d->tag(), d->addr(), d->size());
+  }
+  cvm::log(cvm::MEDIUM, "[sysmod] add_device: tag={} base={:#x} size={:#x}\n", d->tag(), d->addr(), d->size());
+  d->configure();
+  external_devices_.push_back(std::move(d));
 }
 
 void sysmod::load_io(const std::string& io) {
@@ -921,27 +938,25 @@ void sysmod::tick(uint64_t advance) {
     ticks_ = rem;
   }
   if (advance)
-    for (auto& d : devices_) {
-      if (!cosim_init_ && d->tag() == "trickbox")
-        continue; // when in cosim mode, do not initialize ticks of trickbox until Whisper client is set.
-      d->tick(advance);
-    }
+    for_each_device([this, advance](device& d) {
+      if (!cosim_init_ && d.tag() == "trickbox")
+        return; // when in cosim mode, do not initialize ticks of trickbox until Whisper client is set.
+      d.tick(advance);
+    });
 }
 
 void sysmod::is_dut_reset_req(bool dut_reset_req, uint64_t clocks, uint64_t divisor) {
 
   cvm::log(cvm::FULL, "Value of dut_reset_req in sysmod is : {}\n", dut_reset_req);
   if (dut_reset_req)
-    for (auto& d : devices_)
-      d->is_dut_reset_req(dut_reset_req, clocks, divisor);
+    for_each_device([&](device& d) { d.is_dut_reset_req(dut_reset_req, clocks, divisor); });
 }
 
 void sysmod::jtag_tick(uint64_t advance) {
 
   jtag_ticks_ += advance;
   if (advance)
-    for (auto& d : devices_)
-      d->jtag_tick(advance);
+    for_each_device([advance](device& d) { d.jtag_tick(advance); });
 }
 
 void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
@@ -960,8 +975,7 @@ void sysmod::overlay_tick(uint64_t advance) {
 
   overlay_ticks_ += advance;
   if (advance)
-    for (auto& d : devices_)
-      d->overlay_tick(advance);
+    for_each_device([advance](device& d) { d.overlay_tick(advance); });
 }
 
 void sysmod::configure_uninit_read_callbacks() {
@@ -1023,13 +1037,12 @@ void sysmod::configure_uninit_read_callbacks() {
   }
 
   // Apply callback to all memory devices
-  for (auto& device : devices_) {
-    auto* mem_device = dynamic_cast<sysmod_mem*>(device.get());
-    if (mem_device) {
+  for_each_device([&callback](device& d) {
+    if (auto* mem_device = dynamic_cast<sysmod_mem*>(&d)) {
       mem_device->uninitialized_read_data_cb(callback);
       cvm::log(cvm::MEDIUM, "[sysmod] Configured uninitialized read callback for memory device: {}\n", mem_device->tag());
     }
-  }
+  });
 }
 
 extern "C" {

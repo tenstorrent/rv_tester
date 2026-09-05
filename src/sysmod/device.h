@@ -159,7 +159,7 @@ public:
 
   virtual ~device() {};
 
-  void configure() {
+  virtual void configure() {
     if (configure_)
       configure_();
   }
