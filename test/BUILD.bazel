@@ -15,3 +15,20 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "sysmod_add_device_test",
+    srcs = ["sysmod_add_device_test.cpp"],
+    data = ["//test/sw_testbench:memmap.json"],
+    deps = [
+        "//src/common:common",
+        "//src/sysmod:device",
+        "//src/sysmod:sysmod_params",
+        "//test/sw_testbench:sw_1c_rv_tester_sysmod_dpi",
+        "//test/sw_testbench:sw_1c_topology_cc",
+        "@com_google_googletest//:gtest_main",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@cvm//:topology",
+    ],
+)

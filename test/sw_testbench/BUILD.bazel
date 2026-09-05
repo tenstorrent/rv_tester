@@ -46,6 +46,7 @@ harnesses = ["sw_1c", "sw_2c"]
                 "@rv_tester//src:rv_tester_topology",
                 name + "_topology.yml",
             ],
+            visibility = ["//test:__pkg__"],
         ),
 
         rv_tester_gen(
