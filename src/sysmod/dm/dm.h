@@ -32,7 +32,7 @@ public:
   // add max mem size
   dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
-  void configure();
+  void configure() override;
 
   /// Initialize memory with elf file.
   bool init_elf(const std::string& path);
