@@ -58,6 +58,8 @@ public:
   void load_io(const std::string& io);
   void store_dm_rand();
 
+  void add_device(std::shared_ptr<device> d);
+
   device* dev(uint64_t addr);
   device* dev(const std::string& tag);
 
@@ -107,7 +109,28 @@ private:
   unsigned id_;
   unsigned id() { return id_; }
   std::vector<std::unique_ptr<device>> devices_;
+  // Project devices registered through sysmod_add_device; owned separately so compose() does not drop them
+  std::vector<std::shared_ptr<device>> external_devices_;
   std::unique_ptr<device> fallback_null_dev_;
+
+  template <typename F>
+  void for_each_device(F&& f) {
+    for (auto& d : devices_)
+      f(*d);
+    for (auto& d : external_devices_)
+      f(*d);
+  }
+
+  template <typename P>
+  device* find_device(P&& pred) {
+    for (auto& d : devices_)
+      if (pred(*d))
+        return d.get();
+    for (auto& d : external_devices_)
+      if (pred(*d))
+        return d.get();
+    return nullptr;
+  }
   std::map<std::string, memmap_entry_t> memmap_;
 
   uint64_t ticks_ = 0;

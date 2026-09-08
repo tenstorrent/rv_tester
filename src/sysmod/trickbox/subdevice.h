@@ -10,7 +10,7 @@ public:
   subdevice(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
       : device(tag, addr, hartCount, loc) {};
 
-  virtual void configure() {
+  void configure() override {
     device::configure();
   }
 
