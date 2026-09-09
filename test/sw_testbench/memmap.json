@@ -5,6 +5,7 @@
   { "tag" : "htif" , "type" : "htif" , "base" : "0x70000000", "size" : "0x00000010" },
   { "tag" : "boot" , "type" : "memory" , "base" : "0x0000000000000000", "size" : "0x0000000000000010" },
   { "tag" : "io2" , "type" : "memory" , "base" : "0x000000000020c000", "size" : "0x00000000000010" },
-  { "tag" : "io3" , "type" : "memory" , "base" : "0x0000000070001000", "size" : "0x0000000000000010" }
+  { "tag" : "io3" , "type" : "memory" , "base" : "0x0000000070001000", "size" : "0x0000000000000010" },
+  { "tag" : "external0" , "type" : "external" , "base" : "0x0000000060000000", "size" : "0x0000000000001000" }
 ]
 
