@@ -211,6 +211,11 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
 }
 
 cvm::messenger::task<void> axi::a(const a_t& p) {
+  // Device-attribute transactions are exempt from read-latency policing from
+  // acceptance, not just while awaited: a device write queued ahead of a read
+  // (waiting for W beats) already gates response production for that read.
+  if (p.cache <= DEV_BUF)
+    device_accesses_in_flight_.fetch_add(1, std::memory_order_relaxed);
   a_q_.enqueue(p);
   co_await (*this)();
   co_return;
@@ -290,21 +295,11 @@ cvm::messenger::task<void> axi::operator()() {
         addr_t start = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
         addr_t len = upper_byte_lane - lower_byte_lane + 1;
 
-        // Device-attribute (MMR/IO) accesses can round-trip through the DUT
-        // via sysmod routing, so their completion time is not bounded by the
-        // memory model's read latency contract; track them so the read-latency
-        // policing can be suppressed while one is in flight.
-        const bool device_access = a.cache <= DEV_BUF;
-
         axi::data_t read_data;
         uint8_t sysmod_read_resp = RESP_OKAY;
         if (!a.w || a.atop.transaction != NON_ATOMIC) {
           cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
-          if (device_access)
-            device_accesses_in_flight_.fetch_add(1, std::memory_order_relaxed);
           auto read_result = co_await transactor::read(start, len);
-          if (device_access)
-            device_accesses_in_flight_.fetch_sub(1, std::memory_order_relaxed);
           read_data = std::move(read_result.data);
           sysmod_read_resp = read_result.resp;
           read_data.resize(data_bus_bytes, 0);
@@ -333,15 +328,11 @@ cvm::messenger::task<void> axi::operator()() {
           // Await the write so the sysmod/overlay B-channel resp (e.g. DECERR
           // from a rerouted MMR store) propagates back into the DUT's store
           // response. Give error responses priority via OR (DECERR over SLVERR).
-          if (device_access)
-            device_accesses_in_flight_.fetch_add(1, std::memory_order_relaxed);
           auto wresp = co_await transactor::write(
               start,
               len,
               w.data,
               w.strb);
-          if (device_access)
-            device_accesses_in_flight_.fetch_sub(1, std::memory_order_relaxed);
           write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(wresp.resp));
 
           // Check and increment counters for error injection policies
@@ -432,5 +423,8 @@ cvm::messenger::task<void> axi::operator()() {
       b_q_.enqueue(b_t(a.id, write_resp));
       cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
     }
+
+    if (a.cache <= DEV_BUF)
+      device_accesses_in_flight_.fetch_sub(1, std::memory_order_relaxed);
   }
 }
