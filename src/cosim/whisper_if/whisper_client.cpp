@@ -166,6 +166,10 @@ template <typename URV>
 bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& session, std::shared_ptr<WdRiscv::System<URV>>& system, WdRiscv::Args& args, uint16_t ncores, bool standalone, std::string logfile) {
   std::vector<std::string> args_str = {"whisper"};
   auto config_file = overrideWhisperJson(standalone);
+  if (config_file == "") {
+    cvm::log(cvm::ERROR, "Error: Unable to parse whisper json from +whisper_json_path\n");
+    return false;
+  }
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
   args_str.insert(args_str.end(), {"--config", config_file});
   args_str.insert(args_str.end(), {"--cores", std::to_string(ncores)});
@@ -330,8 +334,10 @@ int whisperClient<URV>::whisperConnect() {
   if (FLAGS_standalone) {
     cvm::log(cvm::MEDIUM, "Running Whisper standalone\n");
     args_ = WdRiscv::Args();
-    if (!constructSystem(session_, system_, args_, FLAGS_num_harts, true, "iss_standalone.log"))
+    if (!constructSystem(session_, system_, args_, FLAGS_num_harts, true, "iss_standalone.log")) {
       cvm::log(cvm::ERROR, "Error: could not construct system\n");
+      return 1;
+    }
     int failed = whisperStandalone();
     if (failed)
       return failed;
@@ -1208,6 +1214,7 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
     ifs.close();
   } catch (...) {
     cvm::log(cvm::ERROR, "Error: Unable to parse whisper json from +whisper_json_path\n");
+    return "";
   }
 
   if (standalone)
