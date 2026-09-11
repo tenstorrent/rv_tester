@@ -433,6 +433,9 @@ private:
   int num_exceptions_late_st_hwerr_fault_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
+  const std::vector<std::string> amocas_widths_ = {"w", "d", "q"};
+  std::unordered_map<std::string, int> num_amocas_pass_{};
+  std::unordered_map<std::string, int> num_amocas_fail_{};
 
   uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
