@@ -1600,12 +1600,14 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
     }
   }
 
-  if (!w.is_cancelled && is_vector(w.disasm) && !is_vset(w.disasm)) {
-    num_vector_++;
-    if (w_.trap)
+  if (is_vector(w.disasm) && !is_vset(w.disasm)) {
+    if (w_.trap) {
+      num_vector_++;
       num_vector_excp_++;
-    else
+    } else if (!w.is_cancelled) {
+      num_vector_++;
       num_vector_by_vtype_[vtype_str(vtype_)]++;
+    }
   }
 
   // Mem attributes
@@ -2164,6 +2166,8 @@ bool bridge::is_vset(const std::string& instr) {
 
 std::string bridge::vtype_str(uint64_t vtype_val) {
   static const std::map<int, std::string> lmul_names = {{0, "1"}, {1, "2"}, {2, "4"}, {3, "8"}, {5, "f8"}, {6, "f4"}, {7, "f2"}};
+  if (vtype_val >> 63)
+    return "vill";
   int sew = 8 << ((vtype_val & 0x38) >> 3);
   int lmul_enc = vtype_val & 0x7;
   auto lmul = lmul_names.find(lmul_enc);
