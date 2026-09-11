@@ -1588,6 +1588,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
       update_regs(hart, w);
+      if (c.csr_addr == vtype.address)
+        vtype_ = w.value;
     }
     if (w.resource == 'm') {
       w_.mem_write.valid = true;
@@ -1595,6 +1597,16 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       w_.mem_write.data = w.value;
       if ((w.address < device_address_map_sp_base_addr() + device_address_map_sp_size()) && (w.address >= device_address_map_sp_base_addr()))
         num_sp_accesses_++;
+    }
+  }
+
+  if (is_vector(w.disasm) && !is_vset(w.disasm)) {
+    if (w_.trap) {
+      num_vector_++;
+      num_vector_excp_++;
+    } else if (!w.is_cancelled) {
+      num_vector_++;
+      num_vector_by_vtype_[vtype_str(vtype_)]++;
     }
   }
 
@@ -2146,6 +2158,20 @@ bool bridge::is_cracked_csr(const std::string& instr) {
 
 bool bridge::is_cracked_amocas(const std::string& instr) {
   return instr.find("amocas") != std::string::npos;
+}
+
+bool bridge::is_vset(const std::string& instr) {
+  return instr.substr(0, 4) == "vset";
+}
+
+std::string bridge::vtype_str(uint64_t vtype_val) {
+  static const std::map<int, std::string> lmul_names = {{0, "1"}, {1, "2"}, {2, "4"}, {3, "8"}, {5, "f8"}, {6, "f4"}, {7, "f2"}};
+  if (vtype_val >> 63)
+    return "vill";
+  int sew = 8 << ((vtype_val & 0x38) >> 3);
+  int lmul_enc = vtype_val & 0x7;
+  auto lmul = lmul_names.find(lmul_enc);
+  return fmt::format("e{}_m{}", sew, lmul != lmul_names.end() ? lmul->second : "rsvd");
 }
 
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
@@ -3643,6 +3669,10 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs\": {}}}\n", id_, num_vector_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_excp\": {}}}\n", id_, num_vector_excp_);
+  for (const auto& [vtype_name, count] : num_vector_by_vtype_)
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_{}\": {}}}\n", id_, vtype_name, count);
 
   // Whisper csr values
   bool valid;
