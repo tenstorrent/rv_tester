@@ -209,6 +209,7 @@ private:
 
   cvm::messenger::task<void> operator()();
   void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
+  bool atop_compare_write_data(data_t& read_data, data_t& write_data, strb_t& write_strb, const len_t& op_bytes, const data_width_t& swap_index);
   void setup_error_lists();
 
   enum access_type : size_t {

@@ -311,8 +311,14 @@ module axi_sw #(
   logic aw_history_full;
   logic read_latency_requirement_met;
 
+  // AtomicLoad/AtomicSwap/AtomicCompare (AWATOP[5]) complete on the R channel,
+  // so they are tracked in ar_history alongside plain reads; AR yields in the
+  // cycle such an AW is accepted because the history FIFO has one push port.
+  logic aw_atomic_returns_data;
+  assign aw_atomic_returns_data = axi_mst_aw_valid && axi_slv_aw_ready && axi_mst_aw_atop[5];
+
   assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : (aw_ready_random & !aw_history_full);
-  assign axi_slv_ar_ready = ar_ready_random & !ar_history_full;
+  assign axi_slv_ar_ready = ar_ready_random & !ar_history_full & !aw_atomic_returns_data;
   assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : (w_ready_random & !aw_history_full);
 
   shortint unsigned axi_slv_b_delay = '0;
@@ -453,7 +459,7 @@ module axi_sw #(
   ) ar_history (
     .clk,
     .reset_n,
-    .push(axi_mst_ar_valid && axi_slv_ar_ready),
+    .push((axi_mst_ar_valid && axi_slv_ar_ready) || aw_atomic_returns_data),
     .d(CW'(clocks)),
     .pop (axi_slv_r_valid  && axi_mst_r_ready && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
     .q(ar_history_q),
