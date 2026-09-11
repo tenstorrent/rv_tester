@@ -12,6 +12,7 @@
 #include "rv_tester_plusargs.h"
 #include "src/sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"
+#include "cvm/topology_defs.hpp"
 
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
 

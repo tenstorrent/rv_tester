@@ -1,4 +1,5 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@rv_tester//src/cosim/whisper_if:whisper_if.bzl", "whisper_client_register_gen")
 
 def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, visibility = None, cc_attrs = {}, **kwargs):
 
@@ -37,7 +38,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",
-            "@cvm//:registry",
+            topology,
          ],
         alwayslink = True,
         visibility = visibility,
@@ -119,10 +120,17 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
         visibility = visibility,
     )
 
+    whisper_client_register_gen(
+        name = name + "_whisper_client_register",
+        topology = topology,
+        visibility = visibility,
+    )
+
     native.cc_library(
         name = cosim_dpi,
         deps = [
             name + "_rvfi",
+            name + "_whisper_client_register",
             "@cvm//:plusargs",
             packet + "_cc",
          ],

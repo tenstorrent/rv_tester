@@ -3,6 +3,7 @@
 
 #include "triggers.hpp"
 #include "cvm/random.hpp"
+#include "cvm/topology_defs.hpp"
 
 REGISTRY_register(triggers, TRIGGERS, cvm::registry::all);
 

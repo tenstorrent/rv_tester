@@ -7,6 +7,7 @@
 #include "whisper_client.h"
 #include "bridge_plusargs.h"
 #include "device_address_map/device_address_map.h"
+#include "cvm/topology_defs.hpp"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 

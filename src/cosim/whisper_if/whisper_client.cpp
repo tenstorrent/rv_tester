@@ -57,8 +57,6 @@ DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can b
 DEFINE_uint32(derr_interrupt_num_default, 23, "DERR interrupt default number");
 #include "iss_utils.h"
 
-REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
-
 extern void (*__tracerExtension)(void*);
 
 uint64_t
