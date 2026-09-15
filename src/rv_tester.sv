@@ -854,7 +854,7 @@ end
                      .interrupt_pend(interrupt_pend[c]),
                      .mtime(mtime),
                      .timeCsr(timeCsr[c]),
-                     .MTIP(MTIP[c]),
+                     .MTIP(mtip_pend[c]),
                      .imsic_msi(imsic_msi[c]),
                      .debug_mode(debug_mode[c]),
                      .haltreq(DM_DebugReq_Valids[c]),
