@@ -1603,6 +1603,7 @@ end
   logic        max_cycle_timeout_detect;
   logic [63:0] updated_max_cycle;
   logic        max_cycle_update_valid;
+  logic        max_cycle_update_sent;
   logic        max_stall_cycle_timeout_detect;
   logic [63:0] updated_max_stall_cycle;
   logic        max_stall_cycle_update_valid;
@@ -1612,11 +1613,14 @@ end
     if (reset) begin
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
-    end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+      max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
+    end else if (!max_cycle_update_sent && max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_cycle_timeout_detect <= 1;
       if (timeout_scale_en) begin
         updated_max_cycle       <= get_max_cycle();
         max_cycle_update_valid  <= 1;
+        max_cycle_update_sent   <= 1;
       end
     end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_stall_cycle_timeout_detect <= 1;
@@ -1628,6 +1632,7 @@ end
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
       max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
       max_stall_cycle_update_valid <= 0;
     end
   end
