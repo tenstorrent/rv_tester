@@ -230,6 +230,13 @@ private:
   // the memory model's read latency contract.
   std::atomic<int> device_accesses_in_flight_{0};
 
+  bool fast_write_response_ = false;
+  bool wait_for_device_write_response_ = false;
+
+  bool sv_posts_write_b(cache_mem_attr_t cache) const {
+    return fast_write_response_ && !(wait_for_device_write_response_ && cache <= DEV_BUF);
+  }
+
 public:
   axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag);
   axi(axi&&) = delete;
@@ -250,6 +257,11 @@ public:
   data_width_t data_width() const { return data_width_; }
   strobe_width_t strobe_width() const { return data_width() / 8; }
   int device_accesses_in_flight() const { return device_accesses_in_flight_.load(std::memory_order_relaxed); }
+
+  void set_write_b_policy(bool fast_write_response, bool wait_for_device_write_response) {
+    fast_write_response_ = fast_write_response;
+    wait_for_device_write_response_ = wait_for_device_write_response;
+  }
 
   cvm::messenger::task<void> a(const a_t&);
   cvm::messenger::task<void> w(w_t&&);

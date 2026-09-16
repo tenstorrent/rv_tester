@@ -233,7 +233,54 @@ module axi_sw #(
     end
   end
 
-  logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
+  logic fast_b_response, wait_for_device_write_response;
+  logic fast_b_queue_full, fast_b_queue_empty;
+  logic mixed_b_mode;
+  logic is_device_aw;
+  logic aw_takes_fast_b;
+  logic w_uses_fast_b;
+  logic use_fast_b;
+  logic aw_w_tag_q, aw_w_tag_empty, aw_w_tag_full;
+  logic b_head_is_fast, b_path_empty, b_path_full;
+
+  localparam int unsigned WRITE_TAG_Q_MAX = 128;
+
+  // DEV_NBUF=0 / DEV_BUF=1 in axi::cache_mem_attr_t
+  assign is_device_aw     = axi_mst_aw_cache <= cache_t'(1);
+  assign mixed_b_mode     = fast_b_response && wait_for_device_write_response;
+  assign aw_takes_fast_b  = fast_b_response && !(wait_for_device_write_response && is_device_aw);
+  assign w_uses_fast_b    = mixed_b_mode ? (aw_w_tag_empty ? aw_takes_fast_b : aw_w_tag_q) : fast_b_response;
+  assign use_fast_b       = mixed_b_mode ? (!b_path_empty && b_head_is_fast) : fast_b_response;
+
+  // Outstanding AW path tags keep B in AW order when fast and DPI responses are mixed
+  rv_tester_fifo #(
+    .D         (WRITE_TAG_Q_MAX),
+    .T         (logic)
+  ) aw_w_is_fast (
+    .clk         (clk),
+    .reset_n     (reset_n),
+    .full        (aw_w_tag_full),
+    .empty       (aw_w_tag_empty),
+    .d           (aw_takes_fast_b),
+    .push        (axi_mst_aw_valid && axi_slv_aw_ready && mixed_b_mode),
+    .q           (aw_w_tag_q),
+    .pop         (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && mixed_b_mode)
+  );
+
+  rv_tester_fifo #(
+    .D         (WRITE_TAG_Q_MAX),
+    .T         (logic)
+  ) b_path_is_fast (
+    .clk         (clk),
+    .reset_n     (reset_n),
+    .full        (b_path_full),
+    .empty       (b_path_empty),
+    .d           (aw_takes_fast_b),
+    .push        (axi_mst_aw_valid && axi_slv_aw_ready && mixed_b_mode),
+    .q           (b_head_is_fast),
+    .pop         (axi_slv_b_valid && axi_mst_b_ready && mixed_b_mode)
+  );
+
   id_t fast_axi_slv_b_id;
   logic [1:0] fast_axi_slv_b_resp;
   rv_tester_fifo #(
@@ -245,9 +292,9 @@ module axi_sw #(
     .full        (fast_b_queue_full                        ),
     .empty       (fast_b_queue_empty                       ),
     .d           ({axi_mst_aw_id, axi_mst_aw_lock? RESP_EXOKAY : RESP_OKAY}    ),
-    .push        (axi_mst_aw_valid && axi_slv_aw_ready && fast_b_response),
+    .push        (axi_mst_aw_valid && axi_slv_aw_ready && aw_takes_fast_b),
     .q           ({fast_axi_slv_b_id , fast_axi_slv_b_resp}    ),
-    .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
+    .pop         (axi_slv_b_valid && axi_mst_b_ready && use_fast_b)
   );
 
   logic w_last_queue_full, w_last_queue_empty;
@@ -260,9 +307,9 @@ module axi_sw #(
     .full        (w_last_queue_full                                   ),
     .empty       (w_last_queue_empty                                  ),
     .d           (1'b1                                                ),
-    .push        (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && fast_b_response),
+    .push        (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && w_uses_fast_b),
     .q           (                                                    ),
-    .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
+    .pop         (axi_slv_b_valid && axi_mst_b_ready && use_fast_b)
   );
 
   always_comb begin
@@ -270,8 +317,8 @@ module axi_sw #(
     axi_slv_b_resp = 'X;
 
     if (axi_slv_b_valid) begin
-      axi_slv_b_id    = fast_b_response ? fast_axi_slv_b_id : b.id  ;
-      axi_slv_b_resp  = fast_b_response ? fast_axi_slv_b_resp : b.resp;
+      axi_slv_b_id    = use_fast_b ? fast_axi_slv_b_id : b.id  ;
+      axi_slv_b_resp  = use_fast_b ? fast_axi_slv_b_resp : b.resp;
     end
   end
 
@@ -311,20 +358,25 @@ module axi_sw #(
   logic aw_history_full;
   logic read_latency_requirement_met;
 
-  assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : (aw_ready_random & !aw_history_full);
+  assign axi_slv_aw_ready = (aw_takes_fast_b ? !fast_b_queue_full : (aw_ready_random & !aw_history_full))
+                            && !(mixed_b_mode && (aw_w_tag_full || b_path_full));
   assign axi_slv_ar_ready = ar_ready_random & !ar_history_full;
-  assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : (w_ready_random & !aw_history_full);
+  assign axi_slv_w_ready  = w_uses_fast_b ? (!axi_mst_w_last || !w_last_queue_full) : (w_ready_random & !aw_history_full);
 
   shortint unsigned axi_slv_b_delay = '0;
   shortint unsigned axi_slv_r_delay = '0;
 
-  assign axi_slv_b_valid  = reset_n ? fast_b_response ? (!fast_b_queue_empty && !w_last_queue_empty) : (!b_queue_empty && (axi_slv_b_delay == 0)): '0;
+  assign axi_slv_b_valid  = reset_n ? (mixed_b_mode
+                                        ? (!b_path_empty && (b_head_is_fast ? (!fast_b_queue_empty && !w_last_queue_empty)
+                                                                            : (!b_queue_empty && (axi_slv_b_delay == 0))))
+                                        : (fast_b_response ? (!fast_b_queue_empty && !w_last_queue_empty)
+                                                           : (!b_queue_empty && (axi_slv_b_delay == 0)))) : '0;
   assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met && (axi_slv_r_delay == 0)) : '0;
 
   logic b_queue_rptr_incremented;
   logic [$clog2(B_Q_MAX+1)-1:0] b_queue_rptr;
   b_t b;
-  `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready, b_queue_rptr_incremented, b_queue_empty, b, b_queue_rptr)
+  `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready && !use_fast_b, b_queue_rptr_incremented, b_queue_empty, b, b_queue_rptr)
 
   function automatic void axi_sw_b(int unsigned id, byte unsigned resp, shortint unsigned latency);
     b_t bd = '{id: id_t'(id), resp: 2'(resp), latency: 16'(latency)};
@@ -333,7 +385,8 @@ module axi_sw #(
   export "DPI-C" function axi_sw_b;
 
   always @(posedge clk) begin
-    axi_slv_b_delay <= (axi_slv_b_delay != 0) ? axi_slv_b_delay - 1 : b.latency;
+    if (!use_fast_b)
+      axi_slv_b_delay <= (axi_slv_b_delay != 0) ? axi_slv_b_delay - 1 : b.latency;
     axi_slv_r_delay <= (axi_slv_r_delay != 0) ? axi_slv_r_delay - 1 : r.latency;
   end
 
@@ -432,6 +485,7 @@ module axi_sw #(
       reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
       reorder_window                 = cvm_plusargs::get_int("axi_sw_reorder_window") != 0;
       fast_b_response                = cvm_plusargs::get_bool("axi_sw_fast_write_response") != 0;
+      wait_for_device_write_response = cvm_plusargs::get_bool("axi_sw_wait_for_device_write_response") != 0;
       read_latency       = (axi_sw_read_latency_fixed != 0) ? axi_sw_read_latency_fixed : axi_sw_read_latency_max;
       read_latency_fixed = axi_sw_read_latency_fixed != 0;
       /* verilator lint_on BLKSEQ */
@@ -472,9 +526,9 @@ module axi_sw #(
   ) aw_history (
     .clk,
     .reset_n,
-    .push(axi_mst_aw_valid && axi_slv_aw_ready && !fast_b_response),
+    .push(axi_mst_aw_valid && axi_slv_aw_ready && !aw_takes_fast_b),
     .d(CW'(clocks)),
-    .pop (axi_slv_b_valid  && axi_mst_b_ready && !fast_b_response), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+    .pop (axi_slv_b_valid  && axi_mst_b_ready && !use_fast_b), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
     .q(aw_history_q),
     .full(aw_history_full),
     .size(aw_history_size),

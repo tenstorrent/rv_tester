@@ -419,7 +419,9 @@ cvm::messenger::task<void> axi::operator()() {
     }
 
     // We should only generate a single B response regardless of burst length.
-    if (a.w) {
+    // SV posts B for cacheable writes when +axi_sw_fast_write_response is set;
+    // device writes still enqueue here if +axi_sw_wait_for_device_write_response.
+    if (a.w && !sv_posts_write_b(a.cache)) {
       b_q_.enqueue(b_t(a.id, write_resp));
       cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
     }

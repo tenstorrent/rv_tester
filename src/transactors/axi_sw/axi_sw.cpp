@@ -14,6 +14,7 @@ DEFINE_uint32(axi_sw_reorder_window, 0, "If reorder window > 1, will randomly at
 DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt to flush transaction every N cycles while window is not drained (prevent stalls).");
 
 DEFINE_bool(axi_sw_fast_write_response, false, "If fast write response, SV will immediately return write response without going through DPI.");
+DEFINE_bool(axi_sw_wait_for_device_write_response, false, "With +axi_sw_fast_write_response, wait for the DPI B on device writes (AxCACHE <= DEV_BUF). Cacheable writes still get the posted SV B.");
 
 DEFINE_uint32(axi_sw_lfsr_seed_aw_rdy, 0, "LFSR seed for aw ready toggling.");
 DEFINE_uint32(axi_sw_lfsr_mask_aw_rdy, 0, "LFSR mask for aw ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");

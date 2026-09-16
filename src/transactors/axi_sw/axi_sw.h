@@ -339,7 +339,7 @@ private:
   }
 
   void b_resp() {
-    if (FLAGS_axi_sw_fast_write_response)
+    if (FLAGS_axi_sw_fast_write_response && !FLAGS_axi_sw_wait_for_device_write_response)
       return;
 
     while ((b_dpi_fifo_.wptr_ - b_dpi_fifo_.rptr_) < b_dpi_fifo_.max_) {
@@ -482,6 +482,7 @@ public:
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, name_);
+    axi_->set_write_b_policy(FLAGS_axi_sw_fast_write_response, FLAGS_axi_sw_wait_for_device_write_response);
     cvm::registry::messenger.connect<axi_sw_reset_t>(
         loc_,
         [this](const auto&) { return this->reset_ptrs(); });
@@ -495,7 +496,7 @@ public:
     if (FLAGS_axi_sw_read_latency_max and random_latency)
       cvm::log(cvm::ERROR, "Error: can't specify both max latency and randomized latency options (add response latency, reorder window)");
 
-    if (FLAGS_axi_sw_fast_write_response and random_latency)
+    if (FLAGS_axi_sw_fast_write_response and random_latency and !FLAGS_axi_sw_wait_for_device_write_response)
       cvm::log(cvm::ERROR, "Error: can't specify both fast write response and randomized latency options (add response latency, reorder window)");
 
     connect_task<W, AW, AR, axi_sw_defs::reorder_q_flush_t>();

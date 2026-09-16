@@ -14,6 +14,7 @@ DECLARE_int32(axi_sw_read_consecutive_spurious_calls_allowed);
 DECLARE_uint32(axi_sw_reorder_window);
 DECLARE_uint32(axi_sw_reorder_timeout);
 DECLARE_bool(axi_sw_fast_write_response);
+DECLARE_bool(axi_sw_wait_for_device_write_response);
 DECLARE_uint32(axi_sw_lfsr_seed_aw_rdy);
 DECLARE_uint32(axi_sw_lfsr_mask_aw_rdy);
 DECLARE_uint32(axi_sw_lfsr_seed_ar_rdy);
