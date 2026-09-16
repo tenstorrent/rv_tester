@@ -793,6 +793,7 @@ end
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .bootstrap,
                      .dmi_write(dmi_write),
+                     .debug_req_vld(DebugReqVld_ANY),
                      .event_triggers(event_triggers),
                      .interrupt,
                      .aclint_ref_pulse(aclint_ref_pulse),

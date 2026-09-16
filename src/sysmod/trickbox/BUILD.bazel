@@ -27,6 +27,7 @@ cc_library(
       "subdevice.h",
       "interrupter.h",
       "debugger.h",
+      "debug_req_vld.h",
       "evt_trigger.h",
       "uc_helper.h",
       "io_coh_helper.h",
@@ -63,6 +64,7 @@ cc_library(
     srcs = [
       "interrupter.cpp",
       "debugger.cpp",
+      "debug_req_vld.cpp",
       "evt_trigger.cpp",
       "uc_helper.cpp",
       "io_coh_helper.cpp",
@@ -75,6 +77,7 @@ cc_library(
       "subdevice.h",
       "interrupter.h",
       "debugger.h",
+      "debug_req_vld.h",
       "evt_trigger.h",
       "uc_helper.h",
       "io_coh_helper.h",
