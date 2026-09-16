@@ -41,3 +41,5 @@ DEFINE_uint32(mmr_s, 0x0, "MMR supervisor privilege level");
 
 DEFINE_uint32(patch_ram_start_offset, 0x0, "Patch RAM start offset");
 DEFINE_uint32(patch_ram_size, 0x0, "Patch RAM size");
+DEFINE_uint32(cpl_ras_mmr_start_offset, 0x0, "CPL RAS MMR start offset");
+DEFINE_uint32(cpl_ras_mmr_end_offset, 0x0, "CPL RAS MMR end offset");
