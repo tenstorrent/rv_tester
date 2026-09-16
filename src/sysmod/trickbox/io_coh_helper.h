@@ -124,6 +124,7 @@ private:
   cvm::messenger::pool<axi::b_t>::channel_info b_channel_ioc_;
   cvm::messenger::pool<axi::r_t>::channel_info r_channel_mmr_;
   cvm::messenger::pool<axi::r_t>::channel_info r_channel_ioc_;
+  uint32_t cluster_id_ = 0;
   uint64_t io_coh_helper_base = 0x9000000;
   uint64_t tx_status = 0;
   uint64_t tx_addr = 0x90a0000;

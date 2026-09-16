@@ -12,8 +12,7 @@
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");
 
 bool io_coh_helper::is_mmr_window(uint64_t addr) const {
-  unsigned lsb = device_address_map_priv_level_start_bit() + device_address_map_priv_level_width();
-  return (addr >> lsb) == (device_address_map_mmr_base_addr() >> lsb);
+  return is_internal_device(addr, cluster_id_);
 }
 
 cvm::topology::loc_t io_coh_helper::mst_for_addr(uint64_t addr) const {
@@ -31,6 +30,7 @@ cvm::messenger::pool<axi::r_t>::channel_info io_coh_helper::r_channel_for(cvm::t
 io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager& m_)
     : subdevice(tag, addr, 0x1000, loc), m_(m_) {
   rng.seed(FLAGS_seed);
+  cluster_id_ = 0;
   io_coh_helper_base = addr;
   auto plat = cvm::topology::get_from_type("PLATFORM", 0);
   auto def = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
@@ -149,7 +149,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.region = 0;
   aw_txn.atop = 0;
   aw_txn.user = io_coh_user_bits | 8;
-  aw_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
+  aw_txn.allow_decerr_resp = (aw_txn.addr & 0x3) || (aw_txn.size == 0 || aw_txn.size == 1) || ((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
+  aw_txn.exp_err_rsp = FLAGS_io_coherency_disable && !is_internal_device(aw_txn.addr, cluster_id_);
 
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
@@ -188,7 +189,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
       [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; });
   cvm::log(cvm::HIGH, "[io_coh_helper] overlay B id={} resp={}\n", wresp.id, uint8_t(wresp.resp));
 
-  if (!aw_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
+  if (!(aw_txn.allow_decerr_resp || aw_txn.exp_err_rsp) && wresp.resp != axi::RESP_OKAY) {
     cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
     co_return;
   }
@@ -256,7 +257,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   ar_txn.region = 0;
   ar_txn.atop = 0;
   ar_txn.user = io_coh_user_bits;
-  ar_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+  ar_txn.allow_decerr_resp = (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+  ar_txn.exp_err_rsp = FLAGS_io_coherency_disable && !is_internal_device(ar_txn.addr, cluster_id_);
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
 
@@ -311,7 +313,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
     a_txn.region = 0;
     a_txn.atop = 0;
     a_txn.user = io_coh_user_bits;
-    a_txn.allow_decerr_resp = FLAGS_io_coherency_disable || (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
+    a_txn.allow_decerr_resp = (a_txn.addr & 0x3) || (a_txn.size == 0 || a_txn.size == 1) || ((a_txn.addr & 0x7) == 4 && a_txn.size >= 3);
+    a_txn.exp_err_rsp = FLAGS_io_coherency_disable && !is_internal_device(a_txn.addr, cluster_id_);
 
     cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
 
@@ -377,7 +380,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
             b_channel_for(axi_loc),
             [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; });
 
-        if (!a_txn.allow_decerr_resp && wresp.resp != axi::RESP_OKAY) {
+        if (!(a_txn.allow_decerr_resp || a_txn.exp_err_rsp) && wresp.resp != axi::RESP_OKAY) {
           cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
           co_return;
         }
