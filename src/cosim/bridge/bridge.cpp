@@ -1600,6 +1600,18 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
     }
   }
 
+  // Whisper only performs the AMOCAS store when the compare matches
+  if (!w_.trap && !w.is_cancelled && is_cracked_amocas(w.disasm)) {
+    for (const auto& width : amocas_widths_) {
+      if (w.disasm.find("amocas." + width) != std::string::npos) {
+        if (w_.mem_write.valid)
+          num_amocas_pass_[width]++;
+        else
+          num_amocas_fail_[width]++;
+      }
+    }
+  }
+
   if (is_vector(w.disasm) && !is_vset(w.disasm)) {
     if (w_.trap) {
       num_vector_++;
@@ -3669,6 +3681,10 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
+  for (const auto& width : amocas_widths_) {
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_amocas_{}_pass\": {}}}\n", id_, width, num_amocas_pass_[width]);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_amocas_{}_fail\": {}}}\n", id_, width, num_amocas_fail_[width]);
+  }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs\": {}}}\n", id_, num_vector_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_excp\": {}}}\n", id_, num_vector_excp_);
   for (const auto& [vtype_name, count] : num_vector_by_vtype_)
