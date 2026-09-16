@@ -12,7 +12,8 @@
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");
 
 bool io_coh_helper::is_mmr_window(uint64_t addr) const {
-  return is_internal_device(addr, cluster_id_);
+  unsigned lsb = device_address_map_priv_level_start_bit() + device_address_map_priv_level_width();
+  return (addr >> lsb) == (device_address_map_mmr_base_addr() >> lsb);
 }
 
 cvm::topology::loc_t io_coh_helper::mst_for_addr(uint64_t addr) const {
@@ -30,7 +31,6 @@ cvm::messenger::pool<axi::r_t>::channel_info io_coh_helper::r_channel_for(cvm::t
 io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager& m_)
     : subdevice(tag, addr, 0x1000, loc), m_(m_) {
   rng.seed(FLAGS_seed);
-  cluster_id_ = 0;
   io_coh_helper_base = addr;
   auto plat = cvm::topology::get_from_type("PLATFORM", 0);
   auto def = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);

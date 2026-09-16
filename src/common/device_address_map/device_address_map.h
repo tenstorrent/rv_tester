@@ -45,11 +45,5 @@ uint64_t generate_axisw_device_addr(uint32_t cluster_id);
 
 // Helper functions
 uint64_t extract_mmr_offset(uint64_t addr);
-
-// Composite cluster id: upper die id (if die_id_width > 0) in high bits, MMR or IMSIC
-// cluster index in low cluster_id_width bits (matches generate_device_addr encoding).
 uint32_t extract_cluster_id_from_address(uint64_t addr);
-
-// True when addr is in the MMR/IMSIC region (per mmr_base + alignment mask) and the
-// encoded cluster id in addr matches cluster_id.
 bool is_internal_device(uint64_t addr, uint32_t cluster_id);
