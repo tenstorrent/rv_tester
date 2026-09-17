@@ -88,6 +88,11 @@ rv_tester: &rv_tester
       type:
         - snoop_gen
 
+    coherent_snoop_gen:
+      count: 1
+      type:
+        - coherent_snoop_gen
+
     trace:
       count: 1
       type:
