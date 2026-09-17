@@ -16,6 +16,7 @@
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
+#include "trickbox/debug_req_vld.h"
 #include "cvm/topology.hpp"
 #include "rv_tester_structs.h"
 #include "sysmod_params.hpp"
@@ -88,6 +89,7 @@ protected:
   void timer_interrupt(clint::timer_t t);
   void sw_interrupt(clint::sw_t s);
   void dmi_write(debugger::dmi_data_t s);
+  void debug_req(debug_req_vld::request_t r);
   void eot_backdoor_write(transactor::write_t& w);
   void tboxtrig_updatemem(uint64_t addr, uint64_t data);
   void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);

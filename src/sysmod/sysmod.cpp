@@ -102,6 +102,7 @@ extern "C" {
 void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
 void sysmod_sw_interrupt(unsigned hartid, unsigned val);
 void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
+void sysmod_debug_req_vld(unsigned hartid, unsigned val);
 void sysmod_jtag_req(unsigned cmd, unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
 void sysmod_terminate();
 }
@@ -422,6 +423,15 @@ void sysmod::dmi_write(debugger::dmi_data_t i) {
       });
 }
 
+void sysmod::debug_req(debug_req_vld::request_t r) {
+  cvm::registry::callbacks.push(
+      loc_,
+      [r]() {
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox::debug_req_vld hart = {}, set = {}\n", r.hart, r.set);
+        sysmod_debug_req_vld(r.hart, r.set);
+      });
+}
+
 void sysmod::terminate(htif::terminate_t t) {
   // fast path for handlers which want to be notified immediately
   cvm::registry::messenger.signal<rv_tester::terminate_called_fast>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_fast{});
@@ -633,6 +643,9 @@ void sysmod::compose() {
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
+        cvm::registry::messenger.connect<debug_req_vld::request_t>(
+            loc_,
+            [&](debug_req_vld::request_t r) { return this->debug_req(r); });
         // cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
         //     loc_,
         //     [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });
