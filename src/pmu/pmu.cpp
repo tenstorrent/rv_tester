@@ -3,6 +3,7 @@
 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/topology_defs.hpp"
 #include "pmu.hpp"
 #include "sysmod_plusargs.h"
 
