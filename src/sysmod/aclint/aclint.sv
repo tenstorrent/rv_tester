@@ -28,16 +28,33 @@ module aclint_model #(
     output logic [NHARTS-1:0] mtip
   );
 
+  // mtimecmp0-7 (8 physical cores) plus mtimecmp8 (cluster wakeup) are always
+  // implemented, independent of how many harts are populated. MTIP is still
+  // only driven for the populated harts.
+  localparam int NUM_MTIMECMP = 9;
+
+  // ACLINT_MTIMECMP_RESET (cluster/dv/aclint/sv/env/aclint_defines.svh).
+  localparam logic [63:0] MTIMECMP_RESET = 64'h00000000_FFFFFFFF;
+
   logic [63:0] mtime_q              = '0;
   logic [63:0] mtime_dpi            = '0;
   int unsigned mtime_wr_req         = 0;
   int unsigned mtime_wr_ack         = 0;
-  logic [63:0] mtimecmp [NHARTS-1:0] = '{default: '1};
+  logic [63:0] mtimecmp [NUM_MTIMECMP-1:0] = '{default: MTIMECMP_RESET};
 
   assign mtime = mtime_q;
 
+  // Compare writes are staged per register and committed on the reference edge
+  // below, so mtimecmp keeps a single non-blocking driver and can be reset
+  // there. Per-register req/ack pairs keep writes to distinct registers from
+  // collapsing when they land within one reference period.
+  logic [63:0] mtimecmp_dpi     [NUM_MTIMECMP-1:0] = '{default: MTIMECMP_RESET};
+  int unsigned mtimecmp_wr_req  [NUM_MTIMECMP-1:0] = '{default: 0};
+  int unsigned mtimecmp_wr_ack  [NUM_MTIMECMP-1:0] = '{default: 0};
+
   function void sysmod_aclint_set_mtimecmp (int unsigned hartid, longint unsigned val);
-    mtimecmp[hartid] = val;
+    mtimecmp_dpi[hartid] = val;
+    mtimecmp_wr_req[hartid]++;
   endfunction
   export "DPI-C" function sysmod_aclint_set_mtimecmp;
 
@@ -82,6 +99,18 @@ module aclint_model #(
       mtime_wr_ack <= mtime_wr_req;
     end else begin
       mtime_q <= mtime_q + 64'd10;
+    end
+  end
+
+  always @(posedge aclint_ref_clk) begin
+    for (int i = 0; i < NUM_MTIMECMP; i++) begin
+      if (aclint_ref_reset) begin
+        mtimecmp[i]        <= MTIMECMP_RESET;
+        mtimecmp_wr_ack[i] <= mtimecmp_wr_req[i];
+      end else if (mtimecmp_wr_req[i] != mtimecmp_wr_ack[i]) begin
+        mtimecmp[i]        <= mtimecmp_dpi[i];
+        mtimecmp_wr_ack[i] <= mtimecmp_wr_req[i];
+      end
     end
   end
 
