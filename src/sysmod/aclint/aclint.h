@@ -25,6 +25,14 @@ DECLARE_uint64(aclint_mtimecmp0_offset);
 // and for the given hart count. The size will be 48k bytes.
 class aclint : public device {
 public:
+  // mtimecmp0-7 (8 physical cores) plus mtimecmp8 (cluster wakeup) occupy a
+  // contiguous stride-8 window and are implemented regardless of how many
+  // harts are populated, so the MMR array is not sized from hartCount.
+  static constexpr unsigned NUM_MTIMECMP = 9;
+
+  // ACLINT_MTIMECMP_RESET; kept in step with MTIMECMP_RESET in aclint.sv.
+  static constexpr uint64_t MTIMECMP_RESET = 0x00000000ffffffffULL;
+
   /// Define a aCLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
   /// axiMstLoc / ctimeAddr are used to broadcast mtime to the core CTIME MMR
@@ -77,7 +85,7 @@ private:
   unsigned hartCount_ = 1;
 
   std::vector<uint32_t> soft_;        // Software interrupt: one per hart.
-  std::vector<uint64_t> timeCompare_; // mtimecmp mirror (MMR reads); one per hart.
+  std::vector<uint64_t> timeCompare_; // mtimecmp mirror (MMR reads); NUM_MTIMECMP entries.
 
   cvm::topology::loc_t axiMstLoc_; // AXI master used for time broadcast.
   uint64_t ctimeAddr_ = 0;         // Core CTIME MMR target (0 = disabled).
