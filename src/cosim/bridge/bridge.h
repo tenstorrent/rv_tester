@@ -220,6 +220,8 @@ private:
   bool is_ucode(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool is_cracked_amocas(const std::string& instr);
+  bool is_vset(const std::string& instr);
+  std::string vtype_str(uint64_t vtype_val);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
@@ -436,6 +438,10 @@ private:
   const std::vector<std::string> amocas_widths_ = {"w", "d", "q"};
   std::unordered_map<std::string, int> num_amocas_pass_{};
   std::unordered_map<std::string, int> num_amocas_fail_{};
+  uint64_t vtype_ = 0;
+  int num_vector_ = 0;
+  int num_vector_excp_ = 0;
+  std::map<std::string, int> num_vector_by_vtype_{};
 
   uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
