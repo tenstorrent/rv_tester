@@ -99,17 +99,17 @@ module pmu
           end
 
           if (instruction_sync_en) begin
-            if (instruction_period_counter <= {60'h0, pmci[INSTRUCTIONS]}) begin
+            if (instruction_period_counter <= 64'(pmci[INSTRUCTIONS])) begin
               // When syncing, start next period but account for extra instructions executed
               // If instructions is smaller than the extra instructions executed, start from instructions
               instruction_period_counter <= instructions - (
-                                                            ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter) > instructions ?
+                                                            (64'(pmci[INSTRUCTIONS]) - instruction_period_counter) > instructions ?
                                                             '0 :
-                                                            ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter)
+                                                            (64'(pmci[INSTRUCTIONS]) - instruction_period_counter)
                                                             );
               instruction_sync_condition <= '1;
             end else begin
-              instruction_period_counter <= instruction_period_counter - {60'h0, pmci[INSTRUCTIONS]};
+              instruction_period_counter <= instruction_period_counter - 64'(pmci[INSTRUCTIONS]);
             end
           end
         end
@@ -127,7 +127,7 @@ module pmu
           pmcounter[i] <= 0;
         end else begin
           if(perf_enabled)begin
-            pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]}; 
+            pmcounter[i] <= pmcounter[i] + 64'(pmci[i]);
           end
         end
       end
@@ -160,13 +160,13 @@ module pmu
     
   end
 
-  logic [3:0]  instr_avg;
+  logic [CORE_COUNTER_HI-1:0] instr_avg;
 
   //generate
   //   for(genvar i=0; i<EVENT_COUNT; i++) begin : evt_logic
-  logic [3:0]  mod_pmci;
+  logic [CORE_COUNTER_HI-1:0] mod_pmci;
 
-  assign mod_pmci = (pmci[INSTRUCTIONS][0]===1'bx) ? 4'b0 : pmci[INSTRUCTIONS];
+  assign mod_pmci = (pmci[INSTRUCTIONS][0]===1'bx) ? '0 : pmci[INSTRUCTIONS];
 
   // 128-cycle moving average
   logic        ema_busy;
@@ -174,7 +174,7 @@ module pmu
 
   assign ema_en   = |mod_pmci | ema_busy;
 
-  pmu_ema #(.WIDTH(4), .DECAY(7))
+  pmu_ema #(.WIDTH(CORE_COUNTER_HI), .DECAY(7))
   u_evt (.i_clk(clk), .i_reset_n(!reset), .i_en(ema_en),
          .i_activity(mod_pmci), .i_decayadj('0),
          .o_activity(instr_avg), .o_busy(ema_busy));
@@ -201,8 +201,8 @@ module pmu
   end
 
 
-  localparam MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 32;
-  parameter OVERFLOW_BIT = 24 - 1;
+  localparam longint unsigned MAX_COUNTER_VALUE_CHANGE_IN_ONE_CYCLE = 4 * ((64'd1 << CORE_COUNTER_HI) - 1); // branch_instructions sums 4 lanes
+  parameter OVERFLOW_BIT = PMCOUNTER_DPI_WIDTH - 1;
   parameter OVERFLOW_BIT_EXTRA = 2;
   logic overflow;
   logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
@@ -212,10 +212,10 @@ module pmu
 
   assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
   assign pmcounters_cores[0].data.location = location;
-  assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
-  assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
-  assign pmcounters_cores[0].data.instructions = 24'(pmcounter[INSTRUCTIONS]);
-  assign pmcounters_cores[0].data.branch_instructions = 24'(branch_instructions);
+  assign pmcounters_cores[0].data.tb_cycles = PMCOUNTER_DPI_WIDTH'(clocks - tb_cycles_offset);
+  assign pmcounters_cores[0].data.cpu_cycles = PMCOUNTER_DPI_WIDTH'(cpu_cycles);
+  assign pmcounters_cores[0].data.instructions = PMCOUNTER_DPI_WIDTH'(pmcounter[INSTRUCTIONS]);
+  assign pmcounters_cores[0].data.branch_instructions = PMCOUNTER_DPI_WIDTH'(branch_instructions);
   assign pmcounters_cores[0].data.perf_start = perf_start;
   assign pmcounters_cores[0].data.perf_end = perf_end;
   assign pmcounters_cores[0].data.terminate = terminate;
@@ -226,7 +226,7 @@ module pmu
     if (SC_PMCI_ENABLED == 1) begin
       assign pmcounters_scs[0].valid = pmcounters_cores[0].valid;
       assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
-      assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
+      assign pmcounters_scs[0].data.sc_tb_cycles = PMCOUNTER_DPI_WIDTH'(clocks - tb_cycles_offset);
       assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
       assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
       assign pmcounters_scs[0].data.terminate_sc = terminate;
