@@ -208,6 +208,7 @@ public:
     cvm::registry::messenger.procedure<push_w_rpc>(loc, [this](const axi::w_t& w) { return this->push_w(w); });
     cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this]() { return this->try_lock(); });
     cvm::registry::messenger.procedure<free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
+    cvm::registry::messenger.procedure<axi_sw_mst_free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
   }
 
   ~axi_sw_mst() {
