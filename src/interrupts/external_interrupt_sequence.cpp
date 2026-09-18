@@ -7,6 +7,7 @@
 #include "whisper_client.h"
 #include "bridge_plusargs.h"
 #include "device_address_map/device_address_map.h"
+#include "axi_sw_mst_rpc.h"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -406,7 +407,7 @@ bool external_interrupt_sequence::check_axi_backpressure() {
   if (FLAGS_msi_backpressure_threshold <= 0)
     return false;
   msi_wait_timeout_++;
-  unsigned free_ids = cvm::registry::messenger.call<axi_mst_t::free_aw_ids_rpc>(axi_mst_loc_l);
+  unsigned free_ids = cvm::registry::messenger.call<axi_sw_mst_free_aw_ids_rpc>(axi_mst_loc_l);
   if (free_ids <= FLAGS_msi_backpressure_threshold) {
     log(cvm::HIGH, "[ExtInterruptSeq] Backpressure: only {} free AXI IDs (threshold={}), deferring MSI\n",
         free_ids, FLAGS_msi_backpressure_threshold);
