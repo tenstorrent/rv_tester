@@ -55,9 +55,10 @@ aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
                cvm::topology::loc_t loc,
                cvm::topology::loc_t axiMstLoc, uint64_t ctimeAddr)
     : device(tag, addr, 0xc000 /* size */, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
-      timeCompare_(hartCount, -1),
+      timeCompare_(NUM_MTIMECMP, MTIMECMP_RESET),
       axiMstLoc_(axiMstLoc), ctimeAddr_(ctimeAddr) {
 
+  cvm::log(cvm::NONE, "ACLINT Model initialized with hart count: " + std::to_string(hartCount_) + "\n");
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
     std::string line;
@@ -72,7 +73,10 @@ aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
         iss >> val;
         uint64_t num = strtoull(val.c_str(), nullptr, 0);
         iss >> val;
-        // TODO: error check number < hartCount
+        if (num >= NUM_MTIMECMP) {
+          cvm::log(cvm::NONE, "Error: mtimecmp index " + std::to_string(num) + " out of range for " + tag + "\n");
+          continue;
+        }
         timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
       } else {
         cvm::log(cvm::NONE, "Error: unrecognized line " + type + " for " + tag + "\n");
@@ -117,9 +121,9 @@ void aclint::read(const transactor::read_t& r, data_t& data) {
     reg = 0; // write-only sync strobe; reads back 0.
     matched = true;
   } else if (aligned >= FLAGS_aclint_mtimecmp0_offset &&
-             aligned < FLAGS_aclint_mtimecmp0_offset + uint64_t(hartCount_) * 8) {
-    unsigned hartIx = (aligned - FLAGS_aclint_mtimecmp0_offset) / 8;
-    reg = timeCompare_.at(hartIx);
+             aligned < FLAGS_aclint_mtimecmp0_offset + uint64_t(NUM_MTIMECMP) * 8) {
+    unsigned cmpIx = (aligned - FLAGS_aclint_mtimecmp0_offset) / 8;
+    reg = timeCompare_.at(cmpIx);
     matched = true;
   }
 
@@ -170,10 +174,10 @@ void aclint::write(const transactor::write_t& w) {
     if (wdata & 0xff)
       broadcastTime();
   } else if (aligned >= FLAGS_aclint_mtimecmp0_offset &&
-             aligned < FLAGS_aclint_mtimecmp0_offset + uint64_t(hartCount_) * 8) {
-    unsigned hartIx = (aligned - FLAGS_aclint_mtimecmp0_offset) / 8;
-    timeCompare_.at(hartIx) = merge(timeCompare_.at(hartIx));
-    sysmod_aclint_set_mtimecmp(hartIx, timeCompare_.at(hartIx)); // drive SV MTIP compare.
+             aligned < FLAGS_aclint_mtimecmp0_offset + uint64_t(NUM_MTIMECMP) * 8) {
+    unsigned cmpIx = (aligned - FLAGS_aclint_mtimecmp0_offset) / 8;
+    timeCompare_.at(cmpIx) = merge(timeCompare_.at(cmpIx));
+    sysmod_aclint_set_mtimecmp(cmpIx, timeCompare_.at(cmpIx)); // drive SV MTIP compare.
   }
 }
 
