@@ -13,6 +13,7 @@ cc_library(
         "@mem_manager//:mem_manager",
         "//src/common:common",
         "@cvm//:plusargs",
+        "@cvm//:random",
         "@cvm//:registry",
         "@cvm//:bitmanip",
         "@cvm//:topology",

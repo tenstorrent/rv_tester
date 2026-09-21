@@ -33,10 +33,24 @@ public:
     uint8_t resp = 0; // AXI resp_t; 0 == RESP_OKAY
   };
 
+  // Optional AXI request attributes carried by a rerouted request. Zero
+  // values reproduce the legacy master defaults; the cache byte is the raw
+  // AxCACHE encoding.
+  struct axi_attr_t {
+    uint8_t cache = 0;
+    uint8_t prot = 0;
+    uint8_t qos = 0;
+    uint8_t region = 0;
+    uint8_t user = 0;
+    bool is_manual_id = false;
+    uint32_t manual_id = 0;
+  };
+
   struct read_request_t {
     uint64_t addr;
     size_t length;
     bool exp_err_rsp = false;
+    axi_attr_t attr{};
   };
 
   struct write_response_t {
@@ -51,6 +65,7 @@ public:
     std::vector<bool> strb;
     bool exp_err_rsp = false;
     bool allow_decerr_resp = false;
+    axi_attr_t attr{};
   };
 
   transactor(cvm::topology::loc_t loc, const std::string& tag)

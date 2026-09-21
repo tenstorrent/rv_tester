@@ -3,8 +3,21 @@
 
 #include "src/sysmod/mmr_txn_router/mmr_txn_router.h"
 #include "src/transactors/axi_sw/axi_sw_mst_rpc.h"
+#include "cvm/plusargs.hpp"
 
 #include <algorithm>
+
+// Rerouted hart MMR requests normally carry the master defaults on every AXI
+// attribute (cache/prot/qos/region/user = 0, allocator id). In the production
+// cluster these fields are driven by the bridge, switch, CPL and chiplet-fabric
+// masters; randomising them exercises the ring-to-MS interface-parity lanes
+// that the CCX bench otherwise never toggles. Intended for fault-simulation
+// campaigns only: everything below is inert unless +fsim_rg_attr_randomize is
+// set, and the rg_attr_* knobs are ignored without it.
+DEFINE_bool(fsim_rg_attr_randomize, false, "fault-sim only: randomise AXI attributes on rerouted MMR requests");
+DEFINE_uint32(rg_attr_fields, 0x1F, "bitmask of fields to randomise: 1=cache 2=prot 4=qos 8=region 16=user");
+DEFINE_bool(rg_attr_user_codepoints, true, "user drawn from the production code points {0x0,0x1,0x3}; false = full 8 bits");
+DEFINE_uint32(rg_attr_srcid01_every, 0, "every Nth rerouted write carries a manual id with ring SrcId 01 (0 = never)");
 
 namespace {
 
@@ -70,8 +83,40 @@ mmr_txn_router::mmr_txn_router(const std::string& tag, uint64_t addr, size_t siz
   cvm::log(cvm::HIGH, " [mmr_txn_router] Constructor \n");
 }
 
+transactor::axi_attr_t mmr_txn_router::pick_attr(bool is_write) {
+  transactor::axi_attr_t attr;
+  if (!attr_random_)
+    return attr;
+  const uint32_t r = attr_rng_();
+  if (attr_fields_ & 0x1)
+    attr.cache = uint8_t(r & 0xF);
+  if (attr_fields_ & 0x2)
+    attr.prot = uint8_t((r >> 4) & 0x7);
+  if (attr_fields_ & 0x4)
+    attr.qos = uint8_t((r >> 8) & 0xF);
+  if (attr_fields_ & 0x8)
+    attr.region = uint8_t((r >> 12) & 0xF);
+  if (attr_fields_ & 0x10) {
+    static constexpr uint8_t codepoints[] = {0x0, 0x1, 0x3};
+    attr.user = FLAGS_rg_attr_user_codepoints ? codepoints[(r >> 16) % 3] : uint8_t((r >> 16) & 0xFF);
+  }
+  // Ring SrcId 01 is the ACLINT/local source: its B is suppressed at the core
+  // node and completed by the ring's synthetic-B shim, so the id returns to
+  // the master normally. Bit 14 keeps the id clear of the allocator range.
+  if (is_write && FLAGS_rg_attr_srcid01_every && (++write_count_ % FLAGS_rg_attr_srcid01_every) == 0) {
+    attr.is_manual_id = true;
+    attr.manual_id = 0x4000u | (write_count_ & 0x7u);
+  }
+  return attr;
+}
+
 void mmr_txn_router::configure() {
   device::configure();
+  attr_random_ = FLAGS_fsim_rg_attr_randomize;
+  attr_fields_ = FLAGS_rg_attr_fields;
+  if (attr_random_)
+    cvm::log(cvm::NONE, "[mmr_txn_router] AXI attribute randomisation on, fields={:#x} user_codepoints={} srcid01_every={}\n",
+             attr_fields_, FLAGS_rg_attr_user_codepoints, FLAGS_rg_attr_srcid01_every);
   read_resp_channel_ = cvm::registry::messenger.channel<transactor::read_response_t>(axi_mst_loc_l);
   write_resp_channel_ = cvm::registry::messenger.channel<transactor::write_response_t>(axi_mst_loc_l);
 }
@@ -85,6 +130,14 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
   axi::a_no_id_t ar = make_ar(addr, length, !hardware_read);
   if (hardware_read)
     ar.allow_decerr_resp = true;
+  {
+    const transactor::axi_attr_t attr = pick_attr(false);
+    ar.cache = axi::cache_mem_attr_t(attr.cache);
+    ar.prot = attr.prot;
+    ar.qos = attr.qos;
+    ar.region = attr.region;
+    ar.user = attr.user;
+  }
 
   axi::id_t axi_id;
   if (!cvm::registry::messenger.call<axi_sw_mst_push_ar_no_id_rpc>(axi_mst_loc_l, ar, axi_id)) {
@@ -131,6 +184,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
   // interrupt. Mirrors the read reroute path.
   transactor::write_request_t req{addr, length, data, strb};
   req.allow_decerr_resp = true;
+  req.attr = pick_attr(true);
 
   axi::id_t axi_id;
   if (!cvm::registry::messenger.call<axi_sw_mst_push_write_request_rpc>(axi_mst_loc_l, req, axi_id)) {
