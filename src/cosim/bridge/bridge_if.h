@@ -156,7 +156,7 @@ typedef struct mem_s {
   uint8_t elem_size;
   bool mtime_valid;
   uint64_t mtime;
-  bool trap_intr;
+  bool intr_during_ucode;
 
   mem_s() {
     clear();
@@ -310,7 +310,8 @@ typedef struct rv_intr_s {
   uint32_t size;
   uint8_t buserr_bit;
   uint64_t timeCsr;
-  bool trap_intr;
+  bool intr_during_ucode;
+  bool stce_bit_clear;
 } rv_intr_t;
 
 typedef struct rv_nmi_s {

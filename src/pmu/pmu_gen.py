@@ -113,16 +113,15 @@ def write_cpp_event_maps(f, core_events):
 
 def create_cpp_frag(core_events, sc_events, path="gen_events.hpp"):
     """Generate the combined C++ events header (core + sc)."""
-    guard = path.upper().replace('.', '_').replace('/', '_').replace('-', '_')
     with open(path, "w") as f:
-        f.write(f"#ifndef {guard}\n#define {guard}\n\n")
+        f.write("#pragma once\n\n")
         write_cpp_group(f, core_events, "counter_core", "COUNT_CORE", "core_to_vector",
                          "pmu_core", "pmcounters_core", "counters_core", "core_to_string")
         write_cpp_event_maps(f, core_events)
         f.write("\n\n")
         write_cpp_group(f, sc_events, "counter_sc", "COUNT_SC", "sc_to_vector",
                          "pmu_sc", "pmcounters_sc", "counters_sc", "sc_to_string")
-        f.write(f"\n\n#endif // {guard}\n")
+        f.write("\n")
 
 
 def build_events_sv(core_events, sc_events):

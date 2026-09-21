@@ -14,15 +14,31 @@
 #include "src/sysmod/device.h"
 #include "src/sysmod/clint/clint.h"
 #include "cvm/registry.hpp"
+#include "cvm/plusargs.hpp"
+#include "transactor.h"
+
+DECLARE_uint64(aclint_mtime_offset);
+DECLARE_uint64(aclint_timesync_offset);
+DECLARE_uint64(aclint_mtimecmp0_offset);
 
 // Define a core local interruptor (aClint) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class aclint : public device {
 public:
+  // mtimecmp0-7 (8 physical cores) plus mtimecmp8 (cluster wakeup) occupy a
+  // contiguous stride-8 window and are implemented regardless of how many
+  // harts are populated, so the MMR array is not sized from hartCount.
+  static constexpr unsigned NUM_MTIMECMP = 9;
+
+  // ACLINT_MTIMECMP_RESET; kept in step with MTIMECMP_RESET in aclint.sv.
+  static constexpr uint64_t MTIMECMP_RESET = 0x00000000ffffffffULL;
+
   /// Define a aCLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
+  /// axiMstLoc / ctimeAddr are used to broadcast mtime to the core CTIME MMR
   aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
-         cvm::topology::loc_t loc);
+         cvm::topology::loc_t loc,
+         cvm::topology::loc_t axiMstLoc = {}, uint64_t ctimeAddr = 0);
 
   // Destructor.
   virtual ~aclint();
@@ -60,35 +76,19 @@ public:
   // timer/time-compare entries.
   void write(const transactor::write_t& w);
 
-  virtual void tick(uint64_t advance) override;
-
 protected:
-  /// Assert/deassert the timer interrupt for each hart where the
-  /// time-compare value is greater-than-or-equal/less-than the timer
-  /// value.
-  void processTimerInterrupts() {
-    for (unsigned i = 0; i < hartCount_; ++i) {
-      bool flag = timer_ >= timeCompare_.at(i);
-      if (timerIntPrev_.at(i) != flag)
-        timerInterrupt(i, flag);
-      timerIntPrev_.at(i) = flag;
-    }
-  }
-
-  // Used to assert/deassert a timer interrupt for given hart.
-  virtual void timerInterrupt(unsigned hart, bool flag) {
-    cvm::registry::messenger.signal<clint::timer_t>(loc(), clint::timer_t{hart, flag, timer_});
-  }
+  // Broadcast the current mtime to the core CTIME MMR via an AXI master
+  // write.
+  void broadcastTime();
 
 private:
   unsigned hartCount_ = 1;
 
   std::vector<uint32_t> soft_;        // Software interrupt: one per hart.
-  std::vector<uint64_t> timeCompare_; // One per hart.
-  std::vector<bool> timerIntPrev_;    // Previous value of timer interrupt
-  uint64_t timer_ = 0;
+  std::vector<uint64_t> timeCompare_; // mtimecmp mirror (MMR reads); NUM_MTIMECMP entries.
+
+  cvm::topology::loc_t axiMstLoc_; // AXI master used for time broadcast.
+  uint64_t ctimeAddr_ = 0;         // Core CTIME MMR target (0 = disabled).
 
   std::mutex mutex_;
-
-  std::uint64_t tickDivisor_;
 };

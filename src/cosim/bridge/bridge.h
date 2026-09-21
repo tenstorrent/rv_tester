@@ -77,7 +77,7 @@ public:
   virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_timer(hart_id_t hart, rv_intr_t& i) override;
-  virtual void process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool trap_intr) override;
+  virtual void process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool intr_during_ucode) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
@@ -177,6 +177,8 @@ private:
 
   // Process pre/post-step
   void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
+  void issue_whisper_mcm_read(hart_id_t hart, const mem_t& m, bool cache);
+  void skip_mcm_read_data_check_for_fault(uint64_t tag, uint64_t addr, unsigned size);
   void pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_entry(hart_id_t hart, const rv_instr_t& d);
@@ -192,8 +194,8 @@ private:
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool trap_intr);
-  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool trap_intr = false);
+  void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool intr_during_ucode);
+  bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool intr_during_ucode = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void defer_nmi(hart_id_t hart, uint64_t time, uint64_t nmi);
@@ -203,6 +205,7 @@ private:
   void clear_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip);
+  void poke_time_csr(hart_id_t hart, uint64_t time, uint64_t time_csr, bool intr_during_ucode = false);
   void peek_seip(hart_id_t hart, uint64_t time, bool& seip);
   void get_gp_reg(uint32_t reg, uint64_t& data);
   void get_fp_reg(uint32_t reg, uint64_t& data);
@@ -217,6 +220,8 @@ private:
   bool is_ucode(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool is_cracked_amocas(const std::string& instr);
+  bool is_vset(const std::string& instr);
+  std::string vtype_str(uint64_t vtype_val);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
@@ -310,6 +315,8 @@ private:
 
   // MCM order map needed for periodic cosim
   std::unordered_map<uint64_t, int> mcm_orders_;
+  // Tag -> (PA, size) for load-fault MCM skip when RTL returned bus error data
+  std::unordered_map<uint64_t, std::pair<uint64_t, unsigned>> mcm_read_by_tag_;
 
   std::map<uint64_t, std::string> MayPeekCSR_map_ = {
       {0x25C, "vstopei"} // Virtual Supervisor Top External Interrupt
@@ -428,6 +435,13 @@ private:
   int num_exceptions_late_st_hwerr_fault_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
+  const std::vector<std::string> amocas_widths_ = {"w", "d", "q"};
+  std::unordered_map<std::string, int> num_amocas_pass_{};
+  std::unordered_map<std::string, int> num_amocas_fail_{};
+  uint64_t vtype_ = 0;
+  int num_vector_ = 0;
+  int num_vector_excp_ = 0;
+  std::map<std::string, int> num_vector_by_vtype_{};
 
   uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
@@ -458,9 +472,11 @@ private:
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
 
-  std::bitset<64> intr_during_trap_ = 0;
-  std::bitset<64> intr_cleared_during_trap_ = 0;
+  std::bitset<64> intr_during_ucode_ = 0;
+  std::bitset<64> intr_cleared_during_ucode_ = 0;
+  rv_intr_t timer_state_{};
   bool intr_partially_deferred_ = false;
+  bool poke_time_csr_post_step_ = false;
   bool intr_undeferred_due_to_xret_intr_csr_ = false;
   bool nmi_undeferred_due_to_xret_intr_csr_ = false;
   bool snapshot_taken = false;

@@ -46,6 +46,7 @@ single_version_override(
     patch_strip = 1,
 )
 # Reuse cvm's verilator pin (Python 3.9 toolchain blocks rules_venv 5.046.bcr.3).
+# If upgrading to verilator >= 5.050 remove the lz4 hack in .bazelrc
 single_version_override(
     module_name = "verilator",
     version = "5.046",
@@ -89,7 +90,7 @@ use_repo(pip, "cvm_pypi", "rv_tester_pypi")
 bazel_dep(name = "whisper", version = "0.0.0")
 git_override(
     module_name = "whisper",
-    commit = "b50d320a0182a1bd6a869ec35acad1b19697c8f7",
+    commit = "40c473e22e7375660bf9fc33beff4b45d1a2c8fb",
     remote = "https://github.com/tenstorrent/whisper.git",
 )
 
@@ -108,4 +109,12 @@ use_repo(
     "opensrc-axi",
     "opensrc-nlohmann-json",
     "rules_hdl",
+)
+
+bazel_dep(name = "rv_tester_examples", version = "0.0.0", dev_dependency = True)
+archive_override(
+    module_name = "rv_tester_examples",
+    urls = ["https://github.com/tenstorrent/rv_tester_examples/archive/246cd95926b5fe97dda4c69235ceffb9c8caeeed.tar.gz"],
+    strip_prefix = "rv_tester_examples-246cd95926b5fe97dda4c69235ceffb9c8caeeed",
+    integrity = "sha256-XpxSeKyWbL8GghU2pacwRsuoDUSu1MKwfekXbz9tOc8=",
 )

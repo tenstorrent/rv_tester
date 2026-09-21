@@ -7,6 +7,7 @@
 #include "whisper_client.h"
 #include "bridge_plusargs.h"
 #include "device_address_map/device_address_map.h"
+#include "axi_sw_mst_rpc.h"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -335,9 +336,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
         }
 
         addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data(64, 0);
-        std::vector<bool> strb(64, false);
+        uint32_t length = 4;
+        std::vector<uint8_t> data(4, 0);
+        std::vector<bool> strb(4, false);
         for (uint8_t i = 0; i < 4; ++i) {
           data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
           strb[i] = true;
@@ -346,9 +347,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       } else {
         // Dual interrupt -- first with VGEIN
         addr = msi_vs_file_addr + (vgein << 12) + (intr_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data(64, 0);
-        std::vector<bool> strb(64, false);
+        uint32_t length = 4;
+        std::vector<uint8_t> data(4, 0);
+        std::vector<bool> strb(4, false);
         for (uint8_t i = 0; i < 4; ++i) {
           data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
           strb[i] = true;
@@ -388,9 +389,9 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
 
   // Non-VGEIN path: construct and send AXI write
   if (!is_vgein_intr) {
-    uint32_t length = 0x40;
-    std::vector<uint8_t> data(64, 0);
-    std::vector<bool> strb(64, false);
+    uint32_t length = 4;
+    std::vector<uint8_t> data(4, 0);
+    std::vector<bool> strb(4, false);
     for (uint8_t i = 0; i < 4; ++i) {
       data[i] = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
       strb[i] = true;
@@ -406,7 +407,7 @@ bool external_interrupt_sequence::check_axi_backpressure() {
   if (FLAGS_msi_backpressure_threshold <= 0)
     return false;
   msi_wait_timeout_++;
-  unsigned free_ids = cvm::registry::messenger.call<axi_mst_t::free_aw_ids_rpc>(axi_mst_loc_l);
+  unsigned free_ids = cvm::registry::messenger.call<axi_sw_mst_free_aw_ids_rpc>(axi_mst_loc_l);
   if (free_ids <= FLAGS_msi_backpressure_threshold) {
     log(cvm::HIGH, "[ExtInterruptSeq] Backpressure: only {} free AXI IDs (threshold={}), deferring MSI\n",
         free_ids, FLAGS_msi_backpressure_threshold);

@@ -8,7 +8,7 @@ This repository contains the verification collateral needed to interface with a 
 
 The DUT (the RISC-V core under test) is surrounded with everything needed to boot, stimulate, observe, and check the core. As the core executes, its retired instructions and memory ordering events are checked instruction-by-instruction against Whisper, while its bus traffic is serviced by a software system model of the surrounding platform.
 
-![RV_TESTER architecture](doc/rv_tester.png)
+![RV_TESTER architecture](docs/source/common/images/rv_tester.png)
 
 RV_TESTER was accepted to RISC-V North America Summit 2025, wherein it was present as a poster!
 

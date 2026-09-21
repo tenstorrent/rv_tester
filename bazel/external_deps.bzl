@@ -46,8 +46,8 @@ def _declare_cvm_and_rules_hdl():
     # currently PRIVATE, so this fetch needs a GitHub token in ~/.netrc until
     # it is made public. GitHub's canonical repo name is capitalized (CVM), so
     # the archive's top-level dir — and thus strip_prefix — is "CVM-<commit>".
-    cvm_hash = "dc013e68311e474ad20d2d612a7a5527343eff81"
-    sha256 = "1a4894ac46fc34fec23f7d71536e4438d77c7304c012484558c7b5c3994a647f"
+    cvm_hash = "2aee556a490c26de9063d70a97dd224fbb543036"
+    sha256 = "6a19cfe6de05484b328d68c9619d6d571b197eab6560ab7b0fc97c237b7ea3f8"
     cvm_url = "https://github.com/tenstorrent/CVM/archive/{commit}.tar.gz".format(commit = cvm_hash)
     maybe(
         http_archive,
@@ -109,11 +109,11 @@ def rv_tester_external_deps():
         url = "https://github.com/tenstorrent/CoreArchChecker/archive/{commit}.tar.gz".format(commit = CoreArchChecker_hash),
     )
 
-    mem_manager_hash = "185e4dd9c31799c62ea15a3efc960f1d52416888"
+    mem_manager_hash = "488f84845274d8a11ded8f658245fe3499d3f6f8"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "ad504949f0c5fc12573cc22d814f693c5d44a067181019b36b33fd1a3be989d5",
+        sha256 = "dc8a2e8ad453aee808d5178770dde621034d595cbae904a911d57ef7f19bc9e3",
         strip_prefix = "mem-manager-{commit}".format(commit = mem_manager_hash),
         url = "https://github.com/tenstorrent/mem-manager/archive/{commit}.tar.gz".format(commit = mem_manager_hash),
         patches = ["@rv_tester//bazel:mem_manager_use_bcr_lz4.patch"],

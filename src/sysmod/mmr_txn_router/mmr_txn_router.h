@@ -10,19 +10,28 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "src/transactors/axi_sw/axi.h"
+#include "cvm/random.hpp"
 
 class mmr_txn_router : public device {
 public:
-  void write(const transactor::write_t& w);
-  cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
+  cvm::messenger::task<std::uint8_t> write(const transactor::write_t& w);
+  cvm::messenger::task<std::uint8_t> read(const read_t& r, data_t& data);
 
   mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
-  void configure();
+  void configure() override;
 
 private:
+  // Attribute randomisation for rerouted requests (see +rg_attr_* plusargs).
+  bool attr_random_ = false;
+  uint32_t attr_fields_ = 0;
+  uint32_t write_count_ = 0;
+  cvm::rand::uniform_dist<uint32_t> attr_rng_;
+  transactor::axi_attr_t pick_attr(bool is_write);
+
   cvm::topology::loc_t axi_mst_loc_l;
-  cvm::messenger::pool<axi::r_t>::channel_info channel;
+  cvm::messenger::pool<transactor::read_response_t>::channel_info read_resp_channel_;
+  cvm::messenger::pool<transactor::write_response_t>::channel_info write_resp_channel_;
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

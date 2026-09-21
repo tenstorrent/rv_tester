@@ -17,6 +17,7 @@
 #include "rv_tester_transactions.hpp"
 
 #include "axi_sw_mst_plusargs.h"
+#include "axi_sw_mst_rpc.h"
 
 namespace _axi_sw_mst {
 extern "C" {
@@ -201,10 +202,13 @@ public:
         transactor::write_request_t>();
 
     cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this](const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
+    cvm::registry::messenger.procedure<axi_sw_mst_push_ar_no_id_rpc>(loc, [this](const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
     cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this](const axi::a_no_id_t& aw, axi::id_t& id) { return this->push_a_no_id(true, aw, id); });
+    cvm::registry::messenger.procedure<axi_sw_mst_push_write_request_rpc>(loc, [this](const transactor::write_request_t& req, axi::id_t& id) { return this->push_write_request(req, id); });
     cvm::registry::messenger.procedure<push_w_rpc>(loc, [this](const axi::w_t& w) { return this->push_w(w); });
     cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this]() { return this->try_lock(); });
     cvm::registry::messenger.procedure<free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
+    cvm::registry::messenger.procedure<axi_sw_mst_free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
   }
 
   ~axi_sw_mst() {
@@ -230,7 +234,7 @@ public:
 
     cvm::registry::messenger.signal<transactor::write_response_t>(
         loc_,
-        transactor::write_response_t{b.id});
+        transactor::write_response_t{b.id, b.resp});
 
     free_id(b.id);
     push_transactions();
@@ -264,7 +268,7 @@ public:
     if (r.last) {
       cvm::registry::messenger.signal<transactor::read_response_t>(
           loc_,
-          transactor::read_response_t{r.id, std::move(read_data_[r.id])});
+          transactor::read_response_t{r.id, std::move(read_data_[r.id]), r.resp});
 
       free_id(r.id);
       read_data_[r.id] = {};
@@ -308,14 +312,14 @@ public:
     push_transactions();
   }
 
-  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
+  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a, bool alloc_id = true) {
 
     a.addr = req_addr;
     a.burst = axi::BURST_INCR;
     a.atop = false;
     a.lock = false;
 
-    if (!next_id(a.id, a.seqid)) {
+    if (alloc_id && !next_id(a.id, a.seqid)) {
       cvm::log(cvm::NONE, "[{}] No free id's remaining for axi master\n", name_);
       return false;
     }
@@ -461,13 +465,27 @@ public:
     cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());
   }
 
+  // Manual ids bypass the allocator (as push_a_no_id does); callers own their
+  // uniqueness. Attributes are applied after a_wrapper so its defaults never
+  // overwrite them.
+  static void apply_attr(const transactor::axi_attr_t& attr, axi::a_t& a) {
+    a.cache = axi::cache_mem_attr_t(attr.cache);
+    a.prot = attr.prot;
+    a.qos = attr.qos;
+    a.region = attr.region;
+    a.user = attr.user;
+  }
+
   void process(const transactor::read_request_t& req) {
     axi::a_t a;
     a.w = false;
     a.exp_err_rsp = req.exp_err_rsp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return;
+    apply_attr(req.attr, a);
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
     allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
@@ -476,27 +494,51 @@ public:
   }
 
   void process(const transactor::write_request_t& req) {
+    axi::id_t id;
+    push_write_request(req, id);
+  }
+
+  // Push a rerouted write and return the allocated AXI id so the caller can
+  // correlate the B-response (write_response_t) and recover its resp code.
+  bool push_write_request(const transactor::write_request_t& req, axi::id_t& id) {
     axi::a_t a;
     a.w = true;
     a.exp_err_rsp = req.exp_err_rsp;
+    a.allow_decerr_resp = req.allow_decerr_resp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
-      return;
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
+      return false;
+    apply_attr(req.attr, a);
+    id = a.id;
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
     allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
     transactions_.emplace_back(a);
 
     size_t pow2size = size_t(1) << a.size;
+    size_t bus_bytes = data_width_ >> 3;
     for (int32_t i = a.len; i >= 0; i--) {
-      axi::data_t data(data_width_ >> 3);
-      axi::strb_t strb(strb_width_);
+      // Build a full-bus-width beat: the DPI push (axi_sw_mst_w_*) always
+      // consumes a complete beat's worth of data/strobe, and AXI requires
+      // narrow-transfer bytes on the lanes addressed by AWADDR (addr % bus
+      // width), not packed at the LSB. req.data/req.strb carry the payload
+      // LSB-packed (byte 0 = byte at req.addr).
+      axi::data_t data(bus_bytes, 0);
+      axi::strb_t strb(strb_width_, false);
 
-      data.assign(req.data.begin() + pow2size * a.len, req.data.begin() + pow2size * a.len + pow2size);
-      strb.assign(req.strb.begin() + pow2size * a.len, req.strb.begin() + pow2size * a.len + pow2size);
+      size_t beat = size_t(a.len) - size_t(i);
+      size_t src = pow2size * beat;
+      size_t lane = (req.addr + src) % bus_bytes;
+      for (size_t b = 0; b < pow2size && (src + b) < req.data.size(); b++) {
+        data[lane + b] = req.data[src + b];
+        strb[lane + b] = req.strb[src + b];
+      }
       transactions_.emplace_back(axi::w_t{std::move(data), std::move(strb), i == 0});
     }
     push_transactions();
+    return true;
   }
 
   void reset_ptrs() {

@@ -39,10 +39,12 @@ cosim:
                 width: ${TOP.PLATFORM.XLEN}
             timeCsr:
                 width: ${TOP.PLATFORM.XLEN}
-            trap_intr:
+            intr_during_ucode:
                 width: 1
             cause:
                 width: 3
+            stce_bit_clear:
+                width: 1
     
     m_mtip:
         domain: 1
@@ -52,7 +54,7 @@ cosim:
                 width: 64
             mtip:
                 width: 1
-            trap_intr:
+            intr_during_ucode:
                 width: 1
 
     m_csri:
@@ -293,7 +295,7 @@ cosim:
             v_ext:
                 width: 1
             data_vec:
-                qualify: v_ext
+                qualify: "{data}.v_ext || {data}.amo"
                 width: ${TOP.PLATFORM.VLEN}
             field:
                 qualify: v_ext
@@ -371,6 +373,8 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
+            amo_cas_fail:
+                width: 1
             cbo:
                 width: 1
             attr:
@@ -378,7 +382,7 @@ cosim:
             v_ext:
                 width: 1
             data_vec:
-                qualify: v_ext
+                qualify: "{data}.v_ext || {data}.amo"
                 width: ${TOP.PLATFORM.VLEN}
             elem_idx:
                 qualify: v_ext
@@ -438,6 +442,21 @@ cosim:
             addr:
                 width: ${TOP.PLATFORM.PALEN}
     
+    m_mcmi_decode:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NDECODES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 8
+
     m_mcmi_devict:
         domain: 1
         num: 1
@@ -521,7 +540,7 @@ cosim:
                 width: 1
             buserr_bit:
                 width: 6
-            trap_intr:
+            intr_during_ucode:
                 width: 1
 
     m_core_nmi:
@@ -547,7 +566,7 @@ cosim:
                 width: 32
             user:
                 width: 8
-            trap_intr:
+            intr_during_ucode:
                 width: 1
 
     m_debug:
@@ -821,6 +840,9 @@ reset_driver:
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_assert_tick:
+        domain: 2
+        num: 1
+    m_mti_assert_tick:
         domain: 2
         num: 1
 

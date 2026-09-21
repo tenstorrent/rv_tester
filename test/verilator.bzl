@@ -1,9 +1,8 @@
-"""Shared verilator_cc_library `vopts` constants."""
+load("@rules_verilator//verilator:defs.bzl", _verilator_cc_library = "verilator_cc_library")
 
-COMMON_VOPTS = [
+_default_vopts = [
     "--default-language",
     "1800-2017",
-    "+define+TB_EXTERNAL_CLOCK",
     "-Wall",
     "-Wpedantic",
     "-Wno-UNUSEDSIGNAL",
@@ -21,7 +20,5 @@ COMMON_VOPTS = [
     "-Wno-EOFNEWLINE",
 ]
 
-SW_TESTBENCH_VOPTS = COMMON_VOPTS + [
-    "+define+DMI_TB_WRITES_UNSUPPORTED",
-    "+define+TRACE_CHECKS_UNSUPPORTED",
-]
+def verilator_cc_library(vopts = [], timing = True, *args, **kwargs):
+    _verilator_cc_library(vopts = _default_vopts + vopts, timing = timing, *args, **kwargs)

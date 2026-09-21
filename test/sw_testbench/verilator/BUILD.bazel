@@ -1,6 +1,5 @@
-load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("//test:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
+load("//test:verilator.bzl", "verilator_cc_library")
 
 # Verilator-side of the sw_testbench, split out so the parent
 # //test/sw_testbench package stays buildable under Bazel-6 WORKSPACE mode
@@ -25,7 +24,10 @@ harnesses = ["sw_1c", "sw_2c"]
         verilator_cc_library(
             name = name + "_tb_veri_lib",
             module = name + "_top",
-            vopts = SW_TESTBENCH_VOPTS,
+            vopts = [
+                "+define+DMI_TB_WRITES_UNSUPPORTED",
+                "+define+TRACE_CHECKS_UNSUPPORTED",
+            ],
         ),
 
         cc_binary(

@@ -1,0 +1,12 @@
+# Pinned documentation build dependencies.
+#
+# These are the versions the docs are validated against; docs/make_docs.sh
+# installs from this file, and CI (.github/workflows/docs.yml) does the same, so
+# a local build and a published build resolve identically.
+#
+# Transitive dependencies (docutils, Jinja2, Pygments, ...) are resolved by pip.
+# Bump these deliberately and re-run `./docs/make_docs.sh --check` before
+# committing.
+sphinx==9.1.0
+sphinx-rtd-theme==3.1.0
+sphinxcontrib-mermaid==2.1.0

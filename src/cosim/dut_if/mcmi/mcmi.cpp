@@ -36,6 +36,7 @@ void mcmi::configure() {
       rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
       rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
       rv_tester_transactions::cosim::m_mcmi_ievict<>,
+      rv_tester_transactions::cosim::m_mcmi_decode<>,
       rv_tester_transactions::cosim::m_mcmi_devict<>,
       rv_tester_transactions::cosim::m_mcmi_flush<>,
       rv_tester_transactions::cosim::m_mcmi_writeback<>,
@@ -353,6 +354,12 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         m.data = m_mcmi_bypass.data;
         m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size * 8, 0);
 
+        // Drop mbbypass on AMOCAS compare-fail; no architectural write occurs.
+        if (m.amo && m.amo_op == AMOCAS && m_mcmi_bypass.amo_cas_fail) {
+          cvm::log(cvm::HIGH, "[mcmi] AMOCAS compare failed - dropping bypass, no write issued (tag={}, pa={:#x})\n", m.tag, m.pa);
+          return;
+        }
+
         if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
           amo_writes_.emplace(m.tag, m);
           return;
@@ -467,6 +474,30 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
 
+void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_decode<>& m_mcmi_decode) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (patch_fetch_access(m_mcmi_decode.addr))
+    return;
+
+  if (debug_fetch_access(m_mcmi_decode.addr))
+    return;
+
+  // A line-crossing 4B instruction arrives as two size-2 fragments sharing one
+  // tag, so each fragment is just an independent call - no special casing here.
+  const unsigned size = std::popcount(m_mcmi_decode.mask);
+
+  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm decode tag : {}, addr : {:#x}, size : {}\n",
+           m_mcmi_decode.order, m_mcmi_decode.addr, size);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDecodeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_decode.hart, m_mcmi_decode.cycle, m_mcmi_decode.order, m_mcmi_decode.addr, size, valid) || !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm decode for tag : {}, address : {:#x} , cycle : {}\n", m_mcmi_decode.hart, m_mcmi_decode.order, m_mcmi_decode.addr, m_mcmi_decode.cycle);
+    return;
+  }
+}
+
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
   if (terminated_ || in_reset_)
     return;
@@ -563,6 +594,20 @@ bool mcmi::patch_access(uint64_t addr) {
   return false;
 }
 
+// mdecode ONLY. patch_mode_ filters handler code wherever c_ptvec relocated it;
+// the address window covers decodes before patch_mode_ latches. Kept separate
+// from patch_access() so other MCM events are unaffected.
+bool mcmi::patch_fetch_access(uint64_t addr) {
+  if (patch_mode_)
+    return true;
+  return addr >= patch_ram_lo && addr < patch_ram_hi;
+}
+
+// mdecode ONLY. Drop DM-window decodes so whisper keeps the poked debug opcode.
+bool mcmi::debug_fetch_access(uint64_t addr) {
+  return addr >= debug_mem_lo && addr < debug_mem_hi;
+}
+
 bool mcmi::is_ncio(uint32_t mem_attr) {
   return ((mem_attr & 0x800) != 0) || ((mem_attr & 0x1000) == 0);
 }
@@ -620,13 +665,20 @@ bool mcmi::sc_failed(mem_t& write) {
 void mcmi::process_amo(mem_t& read) {
 
   if (amo_writes_.find(read.tag) == amo_writes_.end()) {
+    if (read.amo_op == AMOCAS) {
+      cvm::log(cvm::HIGH, "[mcmi] AMOCAS compare failed - no write issued (tag={}, loaded={:#x}, pa={:#x})\n",
+               read.tag, read.data, read.pa);
+      return;
+    }
     cvm::log(cvm::ERROR, "Error: [mcmi] Amo read with no matching bypass write - inst tag={}\n", read.tag);
     return;
   }
 
   mem_t m = amo_writes_.at(read.tag);
   m.cycle = read.cycle;
-  amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
+  // AMOCAS bypass already carries the correct write value (rs2); no arithmetic needed.
+  if (m.amo_op != AMOCAS)
+    amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
   bridge_->process_dut_mcm_bypass(m.hart, m, true);
   amo_writes_.erase(read.tag);

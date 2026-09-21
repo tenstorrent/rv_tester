@@ -23,12 +23,15 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   NIFETCHES_CUMSUM: [0]
   NIEVICTS: [1]
   NIEVICTS_CUMSUM: [0]
+  NDECODES: [17]
+  NDECODES_CUMSUM: [0]
   TOTAL_NREADS: 3
   TOTAL_NINSERTS: 4
   TOTAL_NWRITES: 3
   TOTAL_NBYPASSES: 3
   TOTAL_NIFETCHES: 1
   TOTAL_NIEVICTS: 1
+  TOTAL_NDECODES: 17
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
   PMU_ENABLE: 0

@@ -7,6 +7,7 @@ cc_library(
     deps = [
       "//src/sysmod:device",
       "//src/sysmod/clint:clint",
+      "//src/common:svdpi",
       "@cvm//:registry",
       "@cvm//:plusargs",
       "@cvm//:logger",
@@ -16,3 +17,5 @@ cc_library(
     }),
     visibility = ["//visibility:public"],
 )
+
+exports_files(["aclint.sv"])

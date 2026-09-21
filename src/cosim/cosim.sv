@@ -108,6 +108,7 @@ module cosim
     parameter int NBYPASS = 1,
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
+    parameter int NDECODE = 1,
     parameter int NCSRI = 1,
     parameter type rule_t = axi_pkg::xbar_rule_64_t,
     parameter int unsigned NoAddrRules = 20,
@@ -131,6 +132,7 @@ module cosim
       input mcmi_t [NIFETCH-1:0] mcmi_ifetch_req,
       input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
       input mcmi_t [NIEVICT-1:0] mcmi_ievict,
+      input mcmi_t [NDECODE-1:0] mcmi_decode,
       input rv_tester_pkg::nmi_t nmi_pend,
       input rv_tester_params::interrupt_pend_t interrupt_pend,
       input rv_tester_pkg::mtimeMmr_t mtime,
@@ -281,6 +283,7 @@ module cosim
   bit [NREAD-1:0]   mcmi_read_pokes;
   bit [NINSERT-1:0] mcmi_insert_pokes;
   bit [NIEVICT-1:0] mcmi_ievict_pokes;
+  bit [NDECODE-1:0] mcmi_decode_pokes;
 
 
   bit csrrw_valid;
@@ -432,7 +435,6 @@ module cosim
   bit [PA_WIDTH-1:0] debug_exit_pc;
   longint unsigned debug_entry_pc_offset_arg;
   longint unsigned debug_exit_pc_offset_arg;
-  int hart_enable_mask;
   int nharts;
   longint unsigned hart;
   bit boot_wfi;
@@ -882,6 +884,11 @@ end
   end
   assign saw_rvfi_intr_trap = saw_rvfi_intr_trap_d1 || (rvfi[0].trap && (get_trap_id(rvfi[0].cause) == rv_tester_pkg::INTR));
 
+  // Ucode sequence in flight this cycle (from previous cycle's serial state or any retire slot this cycle)
+  logic ucode_active, intr_during_ucode;
+  assign ucode_active = rvfi_ucode_S | rvfi_ucode[NRET-1];
+  assign intr_during_ucode = saw_rvfi_intr_trap | ucode_active;
+
   logic [63:0] mip_d1, mip_timer, mip_timer_d1;
   logic [63:0] core_clocks;
   logic seip_d1;
@@ -907,7 +914,7 @@ end
   assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
   assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
   assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
-  assign m_interrupt_pends[0].data.trap_intr = saw_rvfi_intr_trap;
+  assign m_interrupt_pends[0].data.intr_during_ucode = intr_during_ucode;
 
   //-----------------------------------------------------------------------------------------------------------
   // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
@@ -1312,6 +1319,7 @@ end
     assign m_mcmi_bypasss[n].data.elem_idx = mcmi_bypass[n].elem_idx;
     assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
     assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
+    assign m_mcmi_bypasss[n].data.amo_cas_fail = mcmi_bypass[n].amo_cas_fail;
     assign m_mcmi_bypasss[n].data.attr = mcmi_bypass[n].attr;
     //-------------------------------------------------------------------------------------------
     // End-Of-Test logic:  memory write to designated address
@@ -1392,6 +1400,19 @@ end
     assign m_mcmi_ievicts[n].data.hart = NUM;
     assign m_mcmi_ievicts[n].data.addr = mcmi_ievict[n].addr;
     assign mcmi_ievict_pokes[n] = mcmi_ievict[n].valid;
+  end
+
+  // m_mcmi_decode - per-instruction-fragment I$ read (coherent I-cache)
+  for (genvar n = 0; n < NDECODE; n++) begin
+    assign m_mcmi_decodes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_decode[n].valid;
+    assign m_mcmi_decodes[n].data.location = location;
+    assign m_mcmi_decodes[n].data.cycle = mcmi_decode[n].valid ? clocks : '0;
+    assign m_mcmi_decodes[n].data.hart = NUM;
+    assign m_mcmi_decodes[n].data.order = mcmi_decode[n].order;
+    assign m_mcmi_decodes[n].data.addr = mcmi_decode[n].addr;
+    // size travels as popcount(mask), same idiom as m_mcmi_read/insert/bypass
+    assign m_mcmi_decodes[n].data.mask = mcmi_decode[n].mask[7:0];
+    assign mcmi_decode_pokes[n] = mcmi_decode[n].valid;
   end
 
   // m_mcmi_devict
@@ -1498,7 +1519,7 @@ end
   assign m_imsic_msis[0].data.cycle = clocks;
   assign m_imsic_msis[0].data.addr = imsic_msi.addr;
   assign m_imsic_msis[0].data.data = imsic_msi.data;
-  assign m_imsic_msis[0].data.trap_intr = saw_rvfi_intr_trap;
+  assign m_imsic_msis[0].data.intr_during_ucode = intr_during_ucode;
   assign m_imsic_msis[0].data.user = imsic_msi.user;
 
   // m_mtime
@@ -1526,10 +1547,12 @@ end
     assign m_mtimes[n].data.cycle = clocks;
     assign m_mtimes[n].data.mtime = mtime.Data;
     assign m_mtimes[n].data.timeCsr = timeCsr;
-    assign m_mtimes[n].data.trap_intr = saw_rvfi_intr_trap;
+    assign m_mtimes[n].data.intr_during_ucode = intr_during_ucode;
     assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
     assign m_mtimes[n].data.size = 8;
     assign m_mtimes[n].data.cause = 3'h3;
+    assign m_mtimes[n].data.stce_bit_clear = (rvfi[n].valid && 
+                                             (rvfi[n].csr_addr == C_MENVCFG && rvfi[n].csr_wmask[63] == 1'b1 && rvfi[n].csr_wdata[63] == 1'b0));
   end
 
   logic xtip_changes;
@@ -1543,7 +1566,7 @@ end
   assign m_mtimes[NRET].data.cycle = clocks;
   assign m_mtimes[NRET].data.mtime = mtime.Data;
   assign m_mtimes[NRET].data.timeCsr = mtime.WriteValid ? mtime.Data : timeCsr;
-  assign m_mtimes[NRET].data.trap_intr = saw_rvfi_intr_trap;
+  assign m_mtimes[NRET].data.intr_during_ucode = intr_during_ucode;
   assign m_mtimes[NRET].data.mip = mip_timer;
   assign m_mtimes[NRET].data.size = 8;
   assign m_mtimes[NRET].data.cause = mtime.WriteValid ? 3'h1 :
@@ -1563,7 +1586,7 @@ end
   assign m_mtips[0].valid = ~suppress_interrupts && rvfi_enabled && (mtip_rise | mtip_fall);
   assign m_mtips[0].data.location = location;
   assign m_mtips[0].data.mtip = MTIP;
-  assign m_mtips[0].data.trap_intr = saw_rvfi_intr_trap;
+  assign m_mtips[0].data.intr_during_ucode = intr_during_ucode;
   assign m_mtips[0].data.cycle = clocks;
 
   //--------------------------------------------------------------------
@@ -1580,6 +1603,7 @@ end
   logic        max_cycle_timeout_detect;
   logic [63:0] updated_max_cycle;
   logic        max_cycle_update_valid;
+  logic        max_cycle_update_sent;
   logic        max_stall_cycle_timeout_detect;
   logic [63:0] updated_max_stall_cycle;
   logic        max_stall_cycle_update_valid;
@@ -1589,11 +1613,14 @@ end
     if (reset) begin
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
-    end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+      max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
+    end else if (!max_cycle_update_sent && max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_cycle_timeout_detect <= 1;
       if (timeout_scale_en) begin
         updated_max_cycle       <= get_max_cycle();
         max_cycle_update_valid  <= 1;
+        max_cycle_update_sent   <= 1;
       end
     end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_stall_cycle_timeout_detect <= 1;
@@ -1605,6 +1632,7 @@ end
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
       max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
       max_stall_cycle_update_valid <= 0;
     end
   end
@@ -1617,7 +1645,6 @@ end
       cosim_period <= cvm_plusargs::get_int("cosim_period");
       max_instructions <= cvm_plusargs::get_ulongint("max_instr");
       nharts <= cvm_plusargs::get_int("num_harts");
-      hart_enable_mask <= cvm_plusargs::get_int("hart_enable_mask");
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
       //mcm_value  = cvm_plusargs::get_int("mcm");

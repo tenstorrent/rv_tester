@@ -162,18 +162,21 @@ package rv_tester_params;
   parameter TOTAL_NBYPASSES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NBYPASSES : 1;
   parameter TOTAL_NIFETCHES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NIFETCHES : 1;
   parameter TOTAL_NIEVICTS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NIEVICTS : 1;
+  parameter TOTAL_NDECODES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NDECODES : 1;
   parameter bit [NHARTS-1:0][31:0] NREADS = mods.TOP.PLATFORM.COSIM.MCMI.NREADS;
   parameter bit [NHARTS-1:0][31:0] NINSERTS = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS;
   parameter bit [NHARTS-1:0][31:0] NWRITES = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES;
   parameter bit [NHARTS-1:0][31:0] NBYPASSES = mods.TOP.PLATFORM.COSIM.MCMI.NBYPASSES;
   parameter bit [NHARTS-1:0][31:0] NIFETCHES = mods.TOP.PLATFORM.COSIM.MCMI.NIFETCHES;
   parameter bit [NHARTS-1:0][31:0] NIEVICTS = mods.TOP.PLATFORM.COSIM.MCMI.NIEVICTS;
+  parameter bit [NHARTS-1:0][31:0] NDECODES = mods.TOP.PLATFORM.COSIM.MCMI.NDECODES;
   parameter bit [NHARTS-1:0][31:0] NREADS_CUMSUM   = mods.TOP.PLATFORM.COSIM.MCMI.NREADS_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NINSERTS_CUMSUM = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NWRITES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NBYPASSES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NBYPASSES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NIFETCHES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NIFETCHES_CUMSUM;
   parameter bit [NHARTS-1:0][31:0] NIEVICTS_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NIEVICTS_CUMSUM;
+  parameter bit [NHARTS-1:0][31:0] NDECODES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NDECODES_CUMSUM;
 
   typedef struct packed {
     logic                       valid;
@@ -188,6 +191,7 @@ package rv_tester_params;
     logic                       cbo  ;
     logic                       amo  ;
     logic [4:0]                 amo_op;
+    logic                       amo_cas_fail;
     logic                       v_ext;
     logic [36-1:0]              opcode;
     logic [7:0]                 field;
@@ -295,11 +299,14 @@ package rv_tester_params;
   input  rv_tester_params::bootstrap_t     bootstrap,                                             \
   input  rv_tester_pkg::nmi_t              nmi                [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
+  input  logic                             mtip               [rv_tester_params::NHARTS-1:0],     \
   input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
+  input  logic                             aclint_ref_pulse,                                      \
+  input  logic                             aclint_time_sync,                                      \
   output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
   output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
-  output logic                             MTIP               [rv_tester_params::NHARTS-1:0],     \
+  output logic                             mtip_pend          [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
   output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
   output                                   disable_checks,                                        \
@@ -319,6 +326,7 @@ package rv_tester_params;
   input                                    boot_done_all,                                         \
   input logic [64-1:0]                     cosim_eot_addr,                                        \
   output [7:0]                             DM_DebugReq_Valids,                                  \
+  input  logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY,                                       \
   output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
   output logic [1:0]                       dfetch_cl_valid,                                      \
   output logic [51:0]                      writeback_cl_addr[1:0],                               \
@@ -335,6 +343,7 @@ package rv_tester_params;
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_req,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIFETCHES-1:0]  mcmi_ifetch_resp,  \
   output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
+  output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NDECODES-1:0]   mcmi_decode,  \
   output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
   `RV_TESTER_PMCI_PORTS(input, output, rv_tester_params)                                          \
   input  logic                             rv_tester_reset_,                                      \
@@ -369,11 +378,14 @@ package rv_tester_params;
   rv_tester_params::bootstrap_t            bootstrap;                                             \
   rv_tester_pkg::nmi_t                     nmi             [rv_tester_params::NHARTS-1:0];        \
   rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
+  logic                                    mtip            [rv_tester_params::NHARTS-1:0];        \
   rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
   rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+  logic                                    aclint_ref_pulse;                                      \
+  logic                                    aclint_time_sync;                                      \
   rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
   logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
-  logic                                    MTIP            [rv_tester_params::NHARTS-1:0];        \
+  logic                                    mtip_pend       [rv_tester_params::NHARTS-1:0];        \
   rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
   logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
   logic                                    disable_checks;                                        \
@@ -389,6 +401,7 @@ package rv_tester_params;
   logic                                    boot_done_all;                                         \
   logic [64-1:0]                           cosim_eot_addr;                                        \
   logic [7:0]                              DM_DebugReq_Valids;                                    \
+  logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY;                                       \
   logic                                    rv_tester_reset_;                                      \
   logic [51:0]                             dfetch_cl_addr[1:0];                                   \
   logic [1:0]                              dfetch_cl_valid;                                       \
@@ -406,6 +419,7 @@ package rv_tester_params;
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIFETCHES-1:0]   mcmi_ifetch_req; \
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIFETCHES-1:0]   mcmi_ifetch_resp; \
   rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
+  rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NDECODES-1:0]    mcmi_decode; \
   rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
   `RV_TESTER_PMCI_VARS(rv_tester_params)                                                          \
   `RV_TESTER_AXI_VARS(rv_tester_params)                                                           \

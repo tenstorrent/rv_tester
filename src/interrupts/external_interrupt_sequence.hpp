@@ -13,18 +13,10 @@
 #include "rv_tester_transactions.hpp"
 #include "interrupts.hpp"
 #include "transactor.h"
-#include "axi_sw_mst.h"
 #include "trickbox/interrupter.h"
 #include "svdpi.h"
 
 DECLARE_bool(enable_external_interrupt_sequence_debug);
-
-using axi_mst_t = axi_sw_mst<
-    rv_tester_transactions::axi_sw_mst::b<>,
-    rv_tester_transactions::axi_sw_mst::r<>,
-    rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
-    rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
-    rv_tester_transactions::axi_sw_mst::w_q_ptr<>>;
 
 class external_interrupt_sequence {
 

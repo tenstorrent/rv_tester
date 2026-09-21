@@ -14,15 +14,22 @@ By participating in this project, you agree to abide by our
 
 ## Getting Started
 
-rv_tester builds with [Bazel](https://bazel.build/) (bzlmod).
+rv_tester builds with [Bazel](https://bazel.build/) 7 in bzlmod mode. Every
+invocation must pass `--config=bzlmod` (see `.bazelrc`); without it Bazel uses
+the legacy WORKSPACE path, which does not wire up all dependencies (e.g.
+`@rules_verilator`) and fails to load.
 
 ```sh
-# Build the exported targets
-bazel build //...
+# Build everything
+bazel-7 build //... --config=bzlmod
 
-# Run the tests
-bazel test //test/...
+# Build and run the tests
+bazel-7 test //test/... --config=bzlmod
 ```
+
+See the
+[README](https://github.com/tenstorrent/rv_tester#getting-started) for the
+Bazel 6 / WORKSPACE target set still used by downstream consumers.
 
 ## Coding Standards
 

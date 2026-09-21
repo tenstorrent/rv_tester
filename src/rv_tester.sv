@@ -112,7 +112,7 @@ module rv_tester
 
   //import "DPI-C" function void rv_tester_streaming_dpi_init();
   import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
-  import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
+  import "DPI-C" function int rv_tester_init(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
   import "DPI-C" function void rv_tester_set_seed();
   import "DPI-C" context function void rv_tester_cvm_error_handler();
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
@@ -195,7 +195,7 @@ module rv_tester
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
-  `CVM_REGISTRY_SET_SCOPE(location)
+  import "DPI-C" context function int cvm_registry_set_scope(int unsigned location);
 
   bit gen_clocks = '0;
   bit gen_timestamp = '0;
@@ -422,7 +422,12 @@ module rv_tester
       if (rv_tester_reset || (rvt_reload && $test$plusargs("whisper_loadfrom")))
       begin
         $display("[RVTESTER]: new test");
-        _ = rv_tester_parse_flags();
+        _ = rv_tester_init();
+        /* RVDE-31919 CVM_REGISTRY_SET_SCOPE
+        * The macro makes zEMI3 insert a 3-state cvm_registry_set_scope service state machine as the first machine in <inst>tester, shifting every other one down a slot.
+        * That retiming makes the always block miss the one-cycle deposited rv_tester_reset pulse → reset branch never runs → registry never built → hang at cycle ~11-12 with core_no_fetch stuck high.
+        */
+        _ = cvm_registry_set_scope(location);
         if (num_resets < 0)
           rv_tester_set_seed();
         rv_tester_cvm_error_handler();
@@ -455,6 +460,8 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
   
+        // Resolved by eot during rv_tester_build_registry above.
+        eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
         eot_status                      <= 1;
         eot_syscall                     <= 0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
@@ -783,12 +790,17 @@ end
            ) sysmod (
                      .clk(dut_clk[AXI_CLK_IDX]),
                      .reset(sys_reset[AXI_CLK_IDX]),
+                     .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
+                     .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
                      .dut_reset_req,
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .bootstrap,
                      .dmi_write(dmi_write),
+                     .debug_req_vld(DebugReqVld_ANY),
                      .event_triggers(event_triggers),
                      .interrupt,
+                     .aclint_ref_pulse(aclint_ref_pulse),
+                     .aclint_time_sync(aclint_time_sync),
                      .terminate(sysmod_terminate),
                      `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
                      );
@@ -818,6 +830,7 @@ end
             .NBYPASS(NBYPASSES[c]),
             .NIFETCH(NIFETCHES[c]),
             .NIEVICT(NIEVICTS[c]),
+            .NDECODE(NDECODES[c]),
             .NCSRI(MAX_NCSRI),
             .NoAddrRules(NoAddrRules),
             .rule_t(xbar_rule_t),
@@ -840,11 +853,12 @@ end
                      .mcmi_ifetch_req(mcmi_ifetch_req[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
                      .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
                      .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
+                     .mcmi_decode(mcmi_decode[NDECODES_CUMSUM[c] +: NDECODES[c]]),
                      .nmi_pend(nmi_pend[c]),
                      .interrupt_pend(interrupt_pend[c]),
                      .mtime(mtime),
                      .timeCsr(timeCsr[c]),
-                     .MTIP(MTIP[c]),
+                     .MTIP(mtip_pend[c]),
                      .imsic_msi(imsic_msi[c]),
                      .debug_mode(debug_mode[c]),
                      .haltreq(DM_DebugReq_Valids[c]),
@@ -892,6 +906,13 @@ end
     /* verilator lint_on ASSIGNIN */
   end
 
+  // MTI injection (random/uarch) from the interrupts block; kept internal and
+  // OR'd with the sysmod-ACLINT compare to form the MTIP driven to the DUT.
+  logic mti [NHARTS-1:0];
+  for (genvar c = 0; c < NHARTS; c++) begin: gen_mtip_or
+    assign mtip[c] = mti[c] | interrupt[c].mti;
+  end
+
   for (genvar c = 0; c < NHARTS; c++) begin: interrupts
     interrupts #(
                  .NUM(c),
@@ -904,6 +925,7 @@ end
                                .clocks,
                                .boot_done(boot_done[c]),
                                .nmi(nmi[c].nmi),
+                               .mti(mti[c]),
                                `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
                                );
   end
@@ -1000,11 +1022,6 @@ end
   endfunction
   export "DPI-C" function rv_tester_set_address_map;
 
-  function automatic void rv_tester_set_eot_addr(longint unsigned addr);
-    eot_addr = addr;
-  endfunction
-  export "DPI-C" function rv_tester_set_eot_addr;
-
   // Read-only accessor for the TB cycle counter. Called from C++ (EAM) only on
   // exclusive (locked) AXI transactions, so it costs nothing per clock.
   function automatic longint unsigned rv_tester_get_clocks();
@@ -1014,6 +1031,13 @@ end
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
+  end
+
+  always @(posedge dut_clk[TB_CLK_IDX]) begin
+    if (!rv_tester_reset) begin
+      terminate_never_unknown: assert(!$isunknown(terminate))
+        else $error("<%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
+    end
   end
 
 endmodule

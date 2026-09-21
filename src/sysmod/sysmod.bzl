@@ -8,7 +8,10 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibili
 
     verilog_library(
         name = sysmod_sv,
-        srcs = ["@rv_tester//src/sysmod:sysmod.sv"],
+        srcs = [
+            "@rv_tester//src/sysmod:sysmod.sv",
+            "@rv_tester//src/sysmod/aclint:aclint.sv",
+        ],
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",

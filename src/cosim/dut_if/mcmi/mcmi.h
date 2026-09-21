@@ -50,6 +50,7 @@ private:
   void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
   void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
   void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
+  void process(const rv_tester_transactions::cosim::m_mcmi_decode<>& m_mcmi_decode);
   void process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict);
   void process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush);
   void process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback);
@@ -60,6 +61,8 @@ private:
   void process(const bridge::error_loc&);
 
   bool patch_access(uint64_t addr);
+  bool patch_fetch_access(uint64_t addr);
+  bool debug_fetch_access(uint64_t addr);
   bool is_ncio(uint32_t mem_attr);
   bool check_axi_error(uint64_t addr);
   std::bitset<256> stringToBitset(const std::string& hexString);

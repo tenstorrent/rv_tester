@@ -3,14 +3,7 @@
 
 module top
     import rv_tester_params::*;
-#(
-  parameter int EXTERNAL_CLOCK =
-  `ifdef TB_EXTERNAL_CLOCK
-      1
-  `else
-      0
-  `endif
-) (
+(
     input clk_ext [NCLKS-1:0]
 );
 
@@ -24,7 +17,6 @@ module top
     `RV_TESTER_VARS(cvm_topology_gen::mods)
 
     rv_tester #(
-        .EXTERNAL_CLOCK(EXTERNAL_CLOCK),
         .TOPOLOGY(cvm_topology_gen::topology_t),
         .topology(cvm_topology_gen::mods)
     ) tester (

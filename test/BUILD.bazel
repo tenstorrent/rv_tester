@@ -1,2 +1,17 @@
 # Marks //test as a package so :verilator_opts.bzl can be loaded from the
 # testbench sub-packages.
+
+cc_test(
+    name = "crash_handler_test",
+    srcs = ["rv_tester_crash_handler_test.cpp"],
+    # Death tests fork and the crash handler installs SIGSEGV/SIGABRT handlers,
+    # which interact badly with the sanitizers' own signal interception. Tagged
+    # so the asan/ubsan/tsan CI variants filter it out (-no-sanitizer); it runs
+    # in the plain smoke variant. C++23 (<stacktrace>) comes from .bazelrc's
+    # --cxxopt; -lstdc++exp propagates transitively from //src:crash_handler.
+    tags = ["no-sanitizer"],
+    deps = [
+        "//src:crash_handler",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

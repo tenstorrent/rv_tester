@@ -1,0 +1,8 @@
+# rv_tester_examples smoke against this tree; runs as part of //test/...
+test_suite(
+    name = "examples_smoke",
+    tests = [
+        "@rv_tester_examples//cva6/dv/testlists:all_smoke",
+        "@rv_tester_examples//openc910/dv/testlists:all_smoke",
+    ],
+)

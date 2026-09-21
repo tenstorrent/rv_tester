@@ -212,6 +212,11 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
 }
 
 cvm::messenger::task<void> axi::a(const a_t& p) {
+  // Device-attribute transactions are exempt from read-latency policing from
+  // acceptance, not just while awaited: a device write queued ahead of a read
+  // (waiting for W beats) already gates response production for that read.
+  if (p.cache <= DEV_BUF)
+    device_accesses_in_flight_.fetch_add(1, std::memory_order_relaxed);
   a_q_.enqueue(p);
   co_await (*this)();
   co_return;
@@ -296,9 +301,12 @@ cvm::messenger::task<void> axi::operator()() {
         addr_t len = upper_byte_lane - lower_byte_lane + 1;
 
         axi::data_t read_data;
+        uint8_t sysmod_read_resp = RESP_OKAY;
         if (!a.w || a.atop.transaction != NON_ATOMIC) {
           cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
-          read_data = co_await transactor::read(start, len);
+          auto read_result = co_await transactor::read(start, len);
+          read_data = std::move(read_result.data);
+          sysmod_read_resp = read_result.resp;
           read_data.resize(data_bus_bytes, 0);
         }
 
@@ -324,12 +332,18 @@ cvm::messenger::task<void> axi::operator()() {
 
           // A failed exclusive write is squashed: the W channel is still
           // drained above, but no write is signalled downstream to sysmod.
+          //
+          // For writes that are allowed, await the write so the sysmod/overlay
+          // B-channel resp (e.g. DECERR from a rerouted MMR store) propagates
+          // back into the DUT's store response. Error responses get priority
+          // via OR (DECERR over SLVERR).
           if (eam_v.allow_write) {
-            transactor::write(
+            auto wresp = co_await transactor::write(
                 start,
                 len,
                 w.data,
                 w.strb);
+            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(wresp.resp));
           } else {
             cvm::log(cvm::HIGH, "[axi] eam squash write: id={}, addr={:#x}, len={}\n", a.id, start, len);
           }
@@ -364,8 +378,8 @@ cvm::messenger::task<void> axi::operator()() {
               std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
               std::end(read_data));
 
-          // Resp
-          axi::resp_t read_resp = eam_v.override_resp ? eam_v.resp : RESP_OKAY;
+          // Resp: honor sysmod/overlay DECERR (etc.) before optional injection.
+          axi::resp_t read_resp = eam_v.override_resp ? eam_v.resp : axi::resp_t(sysmod_read_resp);
 
           // Check and increment counters for error injection policies
           bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(addr, READ);
@@ -427,5 +441,8 @@ cvm::messenger::task<void> axi::operator()() {
       b_q_.enqueue(b_t(a.id, write_resp));
       cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
     }
+
+    if (a.cache <= DEV_BUF)
+      device_accesses_in_flight_.fetch_sub(1, std::memory_order_relaxed);
   }
 }

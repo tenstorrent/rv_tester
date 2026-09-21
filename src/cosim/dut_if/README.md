@@ -23,7 +23,7 @@ Files: `rvfi.h`, `rvfi.cpp`, `rvfi_plusargs.h`.
 
 ## mcmi/ — Memory Consistency Model Interface
 
-Captures memory-ordering events used for memory checking. The `mcmi` class subscribes to the MCM transaction family: `m_mcmi_read`, `m_mcmi_insert`, `m_mcmi_bypass`, `m_mcmi_write`, `m_mcmi_ifetch_req/resp`, `m_mcmi_ievict`, `m_mcmi_devict`, `m_mcmi_flush`, `m_mcmi_writeback`, `m_mcmi_dfetch`.
+Captures memory-ordering events used for memory checking. The `mcmi` class subscribes to the MCM transaction family: `m_mcmi_read`, `m_mcmi_insert`, `m_mcmi_bypass`, `m_mcmi_write`, `m_mcmi_ifetch_req/resp`, `m_mcmi_ievict`, `m_mcmi_decode`, `m_mcmi_devict`, `m_mcmi_flush`, `m_mcmi_writeback`, `m_mcmi_dfetch`.
 
 Responsibilities:
 

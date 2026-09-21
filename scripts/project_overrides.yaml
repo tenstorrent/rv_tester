@@ -15,6 +15,11 @@ interrupts:
   LO_PRI_RASI: 26
   HI_PRI_RASI: 27
 
+# Address windows emitted as constexpr uint64_t in project_overrides.h
+memory_windows:
+  debug_mem_lo: 0x0
+  debug_mem_hi: 0x0
+
 # Additional CSRs
 addtional_csrs:
   c_fecfg2:

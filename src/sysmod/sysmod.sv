@@ -10,18 +10,25 @@ module sysmod
     parameter int SW_CLOCK_UPDATE_PERIOD_PS    = 100_000,
     parameter int NUM                          =      -1,
     parameter int JTAG_DR_WIDTH                =      70,
+    // Number of tb_clk cycles the debug request is held before auto-deassert
+    parameter int DEBUG_REQ_HOLD_CLKS          =       10,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PARAMS
     )(
       input clk,
       input reset,
+      input aclint_ref_clk,
+      input aclint_ref_reset,
       input dut_reset_req,
       input dut_core_reset,
       output logic trace_quiesced,
       //output logic jtag_quiesced,
       output rv_tester_params::bootstrap_t bootstrap,
       output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
+      output logic aclint_ref_pulse,
+      output logic aclint_time_sync,
       output rv_tester_pkg::dm_write_t  dmi_write,
+      output logic [NHARTS-1:0] debug_req_vld,
       input  event_trigger_intf_t event_triggers [NHARTS-1:0],
       //output rv_tester_pkg::jtag_if_t  jtag_req,
       //output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
@@ -47,6 +54,9 @@ module sysmod
   bit dmi_write_begin_d = '0;
   bit dmi_write_end = '0;
   bit [63:0] dm_wdata = '0;
+  logic [NHARTS-1:0] debug_req_vld_d = '0;
+  logic [NHARTS-1:0] debug_req_vld_q;
+  int unsigned debug_req_hold_cnt [NHARTS-1:0] = '{default: 0};
 
   /* verilator lint_on BLKANDNBLK */
 
@@ -78,6 +88,8 @@ module sysmod
       //jtag_quiesced = 0;
       sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
       terminate = '0;
+      debug_req_vld_d = '0;
+      for (int h = 0; h < NHARTS; h++) debug_req_hold_cnt[h] = 0;
       /* verilator lint_on BLKSEQ */
     end
   end
@@ -119,6 +131,23 @@ module sysmod
   endfunction
   export "DPI-C" function sysmod_timer_interrupt;
 
+  // ACLINT timer model (SV in src/sysmod/aclint/aclint.sv, C++ in aclint.cpp).
+  // The model owns mtime (single MMR), the per-hart MTIP compare, the reference
+  // pulse and the TimeSync strobe; it is OR'd into the hart interrupt below.
+  logic [63:0]         aclint_mtime;
+  logic [NHARTS-1:0]   aclint_mtip;
+
+  aclint_model #(.NHARTS(NHARTS)) u_aclint (
+    .clk              (clk),
+    .reset            (reset),
+    .aclint_ref_clk   (aclint_ref_clk),
+    .aclint_ref_reset (aclint_ref_reset),
+    .aclint_ref_pulse (aclint_ref_pulse),
+    .aclint_time_sync (aclint_time_sync),
+    .mtime            (aclint_mtime),
+    .mtip             (aclint_mtip)
+  );
+
   function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
     interrupt_d[hartid].msi = val[0];
   endfunction
@@ -130,6 +159,14 @@ module sysmod
     dm_wdata = {upper_value,lower_value};
   endfunction
   export "DPI-C"  function sysmod_dmi_write;
+
+  assign debug_req_vld = debug_req_vld_q;
+
+  function void sysmod_debug_req_vld (int unsigned hartid, int unsigned val);
+    debug_req_vld_d[hartid] = val[0];
+    debug_req_hold_cnt[hartid] = val[0] ? DEBUG_REQ_HOLD_CLKS : 0;
+  endfunction
+  export "DPI-C" function sysmod_debug_req_vld;
 
   // function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
   //   if(jtag_quit[0] === 1'b0 )begin
@@ -150,9 +187,28 @@ module sysmod
 
 
   always @(posedge clk) begin
-    interrupt_q <= interrupt_d;
+    for (int h = 0; h < NHARTS; h++) begin
+      interrupt_q[h]     <= interrupt_d[h];
+      // MTIP = clint DPI (legacy) OR aclint model compare (mtime >= mtimecmp).
+      interrupt_q[h].mti <= interrupt_d[h].mti | aclint_mtip[h];
+      // Expose the modelled mtime so the TB can poke it to the ISS time CSR.
+      interrupt_q[h].mtime <= aclint_mtime;
+    end
+
+    debug_req_vld_q <= debug_req_vld_d;
+
+    /* verilator lint_off BLKSEQ */
+    for (int h = 0; h < NHARTS; h++) begin
+      if (debug_req_vld_d[h] && (debug_req_hold_cnt[h] != 0)) begin
+        debug_req_hold_cnt[h] = debug_req_hold_cnt[h] - 1;
+        if (debug_req_hold_cnt[h] == 0) debug_req_vld_d[h] = 1'b0;
+      end
+    end
+
+    /* verilator lint_on BLKSEQ */
     if (reset) begin
       dmi_write   <= '0;
+      debug_req_vld_q <= '0;
     end
     else if(dmi_write_end)begin
       dmi_write.dm_wdata <= '0;

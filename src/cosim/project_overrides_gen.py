@@ -23,18 +23,26 @@ def _emit_enum(out, enum_name, entries):
     out.append("")
 
 
+def _emit_constants(out, entries):
+    for name, value in entries.items():
+        out.append(f"    constexpr uint64_t {name} = {int(value):#x};")
+    out.append("")
+
+
 def generate(project_overrides_path):
     with open(project_overrides_path, "r") as f:
         data = yaml.safe_load(f) or {}
 
     exceptions = data.get("exceptions") or {}
     interrupts = data.get("interrupts") or {}
+    memory_windows = data.get("memory_windows") or {}
 
     out = []
     out.append(f"#pragma once")
     out.append(f"// AUTO-GENERATED from project_overrides.yaml by project_overrides_gen.py.")
     out.append(f"// DO NOT EDIT.")
     out.append(f"#include <cstddef>")
+    out.append(f"#include <cstdint>")
     out.append(f"#include <string_view>")
     out.append(f"#include <unordered_map>")
     out.append("")
@@ -46,6 +54,9 @@ def generate(project_overrides_path):
 
     if interrupts:
         _emit_enum(out, "custom_intr", interrupts)
+
+    if memory_windows:
+        _emit_constants(out, memory_windows)
 
     out.append(f"}}  // namespace")
     out.append("")

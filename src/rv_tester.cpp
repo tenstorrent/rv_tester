@@ -5,6 +5,7 @@
 #include <string_view>
 #include <chrono>
 
+#include "rv_tester_crash_handler.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/callbacks.hpp"
@@ -189,7 +190,12 @@ int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t c
   return (1);
 }
 
-int rv_tester_parse_flags() {
+int rv_tester_init() {
+  // Re-install our crash handlers here (the earliest DPI call) so we sit on top
+  // of any signal handlers the simulator installed during its own startup
+  // (e.g. VCS's SIGSEGV tracer). Our handler dumps first, then chains to the
+  // simulator's handler. The load-time install still covers earlier crashes.
+  rv_tester_install_crash_handlers();
   cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
   cvm::plusargs::parse();
   return 0;
@@ -275,7 +281,7 @@ void rv_tester_transactions_dpi_init_domain_1() {
   char* env_var = std::getenv("ZEBU_OFFLINE_DPI");
   if ((env_var != nullptr && std::string(env_var) == "1")) {
     cvm::log(cvm::NONE, "[streaming_dpi] initializing offline dpi\n");
-    rv_tester_parse_flags();
+    rv_tester_init();
 
     // override flags in offline mode
     FLAGS_offline_dpi_replay = true;

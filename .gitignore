@@ -19,3 +19,4 @@ __pycache__
 /reset_state.txt
 /stdout.txt
 /stderr.txt
+/docs/.venv
