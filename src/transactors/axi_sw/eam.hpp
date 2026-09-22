@@ -18,13 +18,17 @@ DECLARE_string(eam_unsupported_addr);
 
 // AXI Exclusive Access Monitor (EAM).
 //
-// Direct-mapped reservation table of 8 entries, indexed by AXId[2:0]. An
-// exclusive read (ARLOCK) installs/overwrites the entry for its ID and is
-// answered with EXOKAY. Any write invalidates reservations owned by *other*
-// IDs whose 64B reservation set it overlaps. An exclusive write (AWLOCK)
-// succeeds (EXOKAY) only if its own entry is still valid and its control
-// fields match the ones captured at reservation time; otherwise the write is
-// squashed and answered with OKAY.
+// Direct-mapped reservation table of 16 entries, indexed by the *hart id*
+// carried in AxUSER[3:0] rather than by AxID. AxID is an interconnect-assigned
+// tag and several harts can share one, so it does not identify the requester;
+// the CHI->AXI bridge packs {SrcID, LPID} into AxUSER[3:0].
+//
+// An exclusive read (ARLOCK) installs/overwrites the entry for its hart and
+// is answered with EXOKAY. Any write invalidates reservations owned by
+// *other* harts whose 64B reservation set it overlaps. An exclusive write
+// (AWLOCK) succeeds (EXOKAY) only if its own entry is still valid and its
+// control fields match the ones captured at reservation time; otherwise the
+// write is squashed and answered with OKAY.
 //
 // The table is system-wide (a process-wide singleton), so a reservation
 // registered on one axi port can be cleared or matched from another. All
@@ -33,6 +37,11 @@ DECLARE_string(eam_unsupported_addr);
 // separate threads.
 struct eam_entry {
   bool valid = false;
+  // Hart that owns the reservation, decoded from AxUSER. This is what the
+  // table is indexed by.
+  uint32_t hart = 0;
+  // AxID of the exclusive read that took the reservation. Debug only: it is
+  // deliberately not part of the match criteria.
   axi::id_t id = 0;
   axi::addr_t rsv_addr = 0;
   axi::len_t len = axi::len_t(0);
@@ -53,8 +62,10 @@ struct eam_verdict {
 
 class eam {
 public:
-  static constexpr std::size_t NUM_ENTRIES = 8;
   static constexpr axi::addr_t RSV_BYTES = 64;
+  // AxUSER[3:0] holds the hart id, so the table has one entry per encoding.
+  static constexpr unsigned HART_ID_W = 4;
+  static constexpr std::size_t NUM_ENTRIES = std::size_t(1) << HART_ID_W;
 
   static eam& instance();
 
@@ -112,7 +123,11 @@ private:
   // Parses +eam_unsupported_addr into unsupported_ranges_.
   void parse_unsupported_addr();
 
-  static std::size_t index(axi::id_t id) { return id % NUM_ENTRIES; }
+  // Hart id carried by this transaction: AxUSER[3:0].
+  static uint32_t hart_of(const axi::a_t& a) {
+    return uint32_t(a.user) & uint32_t(NUM_ENTRIES - 1);
+  }
+  static std::size_t index(uint32_t hart) { return hart % NUM_ENTRIES; }
   static axi::addr_t rsv_base(axi::addr_t addr) { return addr & ~(RSV_BYTES - 1); }
   static bool fields_match(const eam_entry& e, const axi::a_t& a);
 
@@ -122,6 +137,7 @@ private:
 
   void invalidate_overlaps(const axi::a_t& a);
 
+  // One entry per encodable hart.
   std::array<eam_entry, NUM_ENTRIES> t_{};
 
   // +eam_pass_invalidate_ratio = "n:e": n successes then e failures, repeating.

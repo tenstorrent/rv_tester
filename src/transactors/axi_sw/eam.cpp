@@ -177,8 +177,8 @@ bool eam::tb_fail_excl_write(const axi::a_t& a) {
 
   tb_fail_injected_++;
   tb_fail_excl_write_count_++;
-  cvm::log(cvm::HIGH, "[eam] tb injected exclusive write fail: id={}, addr={:#x}, injected={}/{}\n",
-           a.id, a.addr, tb_fail_injected_, tb_fail_cnt_);
+  cvm::log(cvm::HIGH, "[eam] tb injected exclusive write fail: hart={}, id={}, addr={:#x}, injected={}/{}\n",
+           hart_of(a), a.id, a.addr, tb_fail_injected_, tb_fail_cnt_);
   return true;
 }
 
@@ -219,8 +219,8 @@ bool eam::ttl_expired(const eam_entry& e, uint64_t now) {
     return false;
 
   ttl_fail_excl_write_count_++;
-  cvm::log(cvm::HIGH, "[eam] reservation ttl expired: entry={}, id={}, rsv_addr={:#x}, rsv_cycle={}, now={}, age={} >= ttl={}\n",
-           index(e.id), e.id, e.rsv_addr, e.rsv_cycle, now, age, FLAGS_eam_reservation_ttl);
+  cvm::log(cvm::HIGH, "[eam] reservation ttl expired: entry={}, hart={}, id={}, rsv_addr={:#x}, rsv_cycle={}, now={}, age={} >= ttl={}\n",
+           index(e.hart), e.hart, e.id, e.rsv_addr, e.rsv_cycle, now, age, FLAGS_eam_reservation_ttl);
   return true;
 }
 
@@ -260,7 +260,7 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
   axi::addr_t first, last;
   span(a, first, last);
 
-  const std::size_t own = index(a.id);
+  const std::size_t own = index(hart_of(a));
   for (std::size_t i = 0; i < NUM_ENTRIES; i++) {
     if (i == own || !t_[i].valid)
       continue;
@@ -269,8 +269,8 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
     const axi::addr_t rsv_last = rsv_first + RSV_BYTES - 1;
     if (first <= rsv_last && rsv_first <= last) {
       t_[i].valid = false;
-      cvm::log(cvm::HIGH, "[eam] invalidate: entry={}, entry_id={}, rsv_addr={:#x} by write id={}, addr={:#x}\n",
-               i, t_[i].id, rsv_first, a.id, a.addr);
+      cvm::log(cvm::HIGH, "[eam] invalidate: entry={}, entry_hart={}, rsv_addr={:#x} by write hart={}, id={}, addr={:#x}\n",
+               i, t_[i].hart, rsv_first, hart_of(a), a.id, a.addr);
     }
   }
 }
@@ -278,13 +278,16 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
 eam_verdict eam::on_addr(const axi::a_t& a) {
   eam_verdict v;
 
+  // Reservation owner: AxUSER[3:0], not AxID.
+  const uint32_t hart = hart_of(a);
+
   if (a.lock && a.atop.transaction != axi::NON_ATOMIC) {
-    cvm::log(cvm::ERROR, "Error: [eam] exclusive access combined with an atomic transaction is not supported: id={}, addr={:#x}\n",
-             a.id, a.addr);
+    cvm::log(cvm::ERROR, "Error: [eam] exclusive access combined with an atomic transaction is not supported: hart={}, id={}, addr={:#x}\n",
+             hart, a.id, a.addr);
   }
 
   if (a.lock && (addr_in_mmr_or_sp(a.addr) || addr_unsupported_by_arg(a.addr))) {
-    cvm::log(cvm::ERROR, "Error: [eam] Exclusive access to address :{:#x} not expected: id={}\n", a.addr, a.id);
+    cvm::log(cvm::ERROR, "Error: [eam] Exclusive access to address :{:#x} not expected: hart={}, id={}\n", a.addr, hart, a.id);
   }
 
   if (!a.w) {
@@ -295,33 +298,34 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
     // (and any stale one for this ID is dropped) so a later SC cannot pass.
     if (decline_excl_read()) {
       declined_excl_read_count_++;
-      t_[index(a.id)].valid = false;
-      cvm::log(cvm::HIGH, "[eam] exclusive read declined (+eam_decline_excl_pct={}): entry={}, id={}, addr={:#x}\n",
-               FLAGS_eam_decline_excl_pct, index(a.id), a.id, a.addr);
+      t_[index(hart)].valid = false;
+      cvm::log(cvm::HIGH, "[eam] exclusive read declined (+eam_decline_excl_pct={}): entry={}, hart={}, id={}, addr={:#x}\n",
+               FLAGS_eam_decline_excl_pct, index(hart), hart, a.id, a.addr);
       v.override_resp = true;
       v.resp = axi::RESP_OKAY;
       return v;
     }
 
-    // Exclusive read: install/overwrite the reservation for this ID.
-    eam_entry& e = t_[index(a.id)];
-    e = eam_entry{true, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
-    cvm::log(cvm::HIGH, "[eam] reserve: entry={}, id={}, addr={:#x}, rsv_addr={:#x}, rsv_cycle={}\n",
-             index(a.id), a.id, a.addr, e.rsv_addr, e.rsv_cycle);
+    // Exclusive read: install/overwrite the reservation for this hart.
+    eam_entry& e = t_[index(hart)];
+    e = eam_entry{true, hart, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
+    cvm::log(cvm::HIGH, "[eam] reserve: entry={}, hart={}, id={}, user={:#x}, addr={:#x}, rsv_addr={:#x}, rsv_cycle={}\n",
+             index(hart), hart, a.id, a.user, a.addr, e.rsv_addr, e.rsv_cycle);
 
     v.override_resp = true;
     v.resp = axi::RESP_EXOKAY;
     return v;
   }
 
-  // Every write, exclusive or not, kills overlapping reservations of other IDs.
+  // Every write, exclusive or not, kills overlapping reservations of other
+  // harts.
   invalidate_overlaps(a);
 
   if (!a.lock)
     return v;
 
-  // Exclusive write: only its own entry can grant success.
-  eam_entry& e = t_[index(a.id)];
+  // Exclusive write: only its own hart's entry can grant success.
+  eam_entry& e = t_[index(hart)];
   const bool was_valid = e.valid;
   // DV knob: force-fail this exclusive write per the 'n:e' pattern.
   const bool forced_fail = pattern_fail_excl_write();
@@ -340,12 +344,13 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   v.override_resp = true;
   if (pass) {
     v.resp = axi::RESP_EXOKAY;
-    cvm::log(cvm::HIGH, "[eam] exclusive write pass: entry={}, id={}, addr={:#x}\n", index(a.id), a.id, a.addr);
+    cvm::log(cvm::HIGH, "[eam] exclusive write pass: entry={}, hart={}, id={}, addr={:#x}\n",
+             index(hart), hart, a.id, a.addr);
   } else {
     v.allow_write = false;
     v.resp = axi::RESP_OKAY;
-    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}, ttl_fail={}\n",
-             index(a.id), a.id, a.addr, was_valid, forced_fail, tb_fail, ttl_fail);
+    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, hart={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}, ttl_fail={}\n",
+             index(hart), hart, a.id, a.addr, was_valid, forced_fail, tb_fail, ttl_fail);
   }
   return v;
 }

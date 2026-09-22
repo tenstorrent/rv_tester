@@ -52,6 +52,7 @@ module axi_sw #(
   parameter int unsigned DATA_WIDTH = 32'd0,
   parameter int unsigned STRB_WIDTH = DATA_WIDTH / 8,
   parameter int unsigned ID_WIDTH   = 32'd0,
+  parameter int unsigned USER_WIDTH = 32'd1,
 
   parameter int unsigned LOCATION   =     0,
   parameter string tag = "notag",
@@ -72,7 +73,7 @@ module axi_sw #(
   parameter type qos_t    = logic [3:0],
   parameter type region_t = logic [3:0],
   parameter type atop_t   = logic [5:0],
-  parameter type user_t   = logic [0:0],
+  parameter type user_t   = logic [USER_WIDTH-1:0],
   parameter type W_TYPE = int,
   parameter type AW_TYPE = int,
   parameter type AR_TYPE = int,
