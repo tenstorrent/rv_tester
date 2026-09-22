@@ -325,7 +325,7 @@ package rv_tester_params;
   output                                   unconditional_terminate,                               \
   input                                    boot_done_all,                                         \
   input logic [64-1:0]                     cosim_eot_addr,                                        \
-  output [7:0]                             DM_DebugReq_Valids,                                  \
+  output [rv_tester_params::NHARTS-1:0]    DM_DebugReq_Valids,                                    \
   input  logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY,                                       \
   output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
   output logic [1:0]                       dfetch_cl_valid,                                      \
@@ -400,7 +400,7 @@ package rv_tester_params;
   logic                                    unconditional_terminate;                               \
   logic                                    boot_done_all;                                         \
   logic [64-1:0]                           cosim_eot_addr;                                        \
-  logic [7:0]                              DM_DebugReq_Valids;                                    \
+  logic [rv_tester_params::NHARTS-1:0]     DM_DebugReq_Valids;                                    \
   logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY;                                       \
   logic                                    rv_tester_reset_;                                      \
   logic [51:0]                             dfetch_cl_addr[1:0];                                   \
