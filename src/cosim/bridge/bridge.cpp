@@ -218,7 +218,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
   }
   previous_cycle_ = 0;
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-  if (FLAGS_random_imsic_intr) {
+  if (FLAGS_eip == "random") {
     FLAGS_max_cycle = 2 * FLAGS_max_cycle;
     print(cvm::LOW, "Doubling max_cycles for sim run to {}\n", FLAGS_max_cycle);
   }
