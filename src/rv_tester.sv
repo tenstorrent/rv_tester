@@ -6,6 +6,8 @@ module rv_tester
     pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            =       0,
+    parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
+    parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     `TOPOLOGY
     ) (
        input clk_ext [NCLKS-1:0],
@@ -163,8 +165,6 @@ module rv_tester
   bit overlay_mmr_en = 0;
 
   logic terminate_1T = '0;
-  localparam int unsigned CVM_DONE_DELAY_CYCLES = 500;
-  localparam int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500;
   logic [CVM_DONE_DELAY_CYCLES-1:0] cvm_done_terminate_delay_sr;
   logic [CVM_DONE_DRAINED_DELAY_CYCLES-1:0] cvm_done_drained_delay_sr;
   logic cvm_done_drained;
