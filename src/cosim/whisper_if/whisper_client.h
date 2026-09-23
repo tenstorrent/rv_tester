@@ -153,6 +153,9 @@ public:
   bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
   bool whisperSnapshotSave();
 
+  // Enable/disable AMO support for non-cacheable and IO memory regions in the
+  bool whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid);
+
   // Deliver a non-maskable interrupt to whisper.
   bool whisperNmi(int hart, uint64_t time, uint64_t cause);
   bool whisperClearNmi(int hart, uint64_t time);
@@ -224,4 +227,5 @@ public:
   CVM_MESSENGER_procedure_call(whisperMcmSkipReadDataCheckRPC, bool(uint64_t, unsigned, bool));
   CVM_MESSENGER_procedure_call(secureRegionRPC, void(uint64_t, uint64_t));
   CVM_MESSENGER_procedure_call(whisperSnapshotSaveRPC, bool(void));
+  CVM_MESSENGER_procedure_call(whisperSetAmoAllowRPC, bool(int, bool, bool, bool&));
 };
