@@ -1599,7 +1599,7 @@ end
   assign hart = NUM;
   /* verilator lint_on WIDTHEXPAND */
 
-  localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
+  longint unsigned dram_base = 64'h8000_0000;
   logic        max_cycle_timeout_detect;
   logic [63:0] updated_max_cycle;
   logic        max_cycle_update_valid;
@@ -1648,6 +1648,7 @@ end
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
       //mcm_value  = cvm_plusargs::get_int("mcm");
+      dram_base <= cvm_plusargs::get_ulongint("dram_base");
       psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
       psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
       timeout_scale_en <= (cvm_plusargs::get_bool("timeout_scale_en") != '0);
@@ -1662,7 +1663,7 @@ end
       if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
         boot_wfi <= '1;
       end
-      if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
+      if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == dram_base) begin
         boot_done <= '1;
       end
       if (max_cycle_update_valid) begin
