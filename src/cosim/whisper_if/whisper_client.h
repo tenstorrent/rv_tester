@@ -154,8 +154,6 @@ public:
   bool whisperSnapshotSave();
 
   // Enable/disable AMO support for non-cacheable and IO memory regions in the
-  // ISS at run time. Mirrors the Hart setAllowAmoInNonCachable/setAllowAmoInIo
-  // API so a project-specific agent can keep the model in step with the DUT.
   bool whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid);
 
   // Deliver a non-maskable interrupt to whisper.
