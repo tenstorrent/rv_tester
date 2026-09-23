@@ -12,6 +12,9 @@
 #include <vector>
 #include <thread>
 #include <string>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
 #include <dlfcn.h>
 #include "cvm/plusargs.hpp"
 #include "cvm/random.hpp"
@@ -55,11 +58,47 @@ DEFINE_string(whisper_loadfrom, "", "Path to whisper Snapshot");
 DEFINE_bool(savepoint_en, false, "savepoint_en");
 DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can be set dynamically based on chicken bits");
 DEFINE_uint32(derr_interrupt_num_default, 23, "DERR interrupt default number");
+DEFINE_string(hart_mhartid, "",
+              "mhartid of each hart, in +hart_enable_id order. Ex: 0,8. Hart i then runs on the whisper hart "
+              "with index hart_mhartid[i], whose MHARTID is that value. Empty: hart i runs on whisper hart i.");
 #include "iss_utils.h"
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
 extern void (*__tracerExtension)(void*);
+
+namespace {
+
+// Whisper hart index for each tester hart index, from +hart_mhartid. Whisper sets
+// each hart's MHARTID to its index and a poke cannot change it (poke mask 0), so a
+// platform with sparse mhartids routes each hart to the matching index instead.
+// A permutation of all whisper harts when set; empty means the identity.
+std::vector<unsigned> whisper_hart_index;
+
+// Throws std::invalid_argument or std::out_of_range on a token that is not
+// entirely a decimal number. Entries stay 64-bit so the caller range-checks the
+// real value before narrowing it.
+std::vector<uint64_t> parseHartList(const std::string& list) {
+  std::vector<uint64_t> result;
+  std::istringstream ss(list);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    if (token.empty())
+      continue;
+    size_t used = 0;
+    result.push_back(std::stoull(token, &used, 10));
+    if (used != token.size())
+      throw std::invalid_argument(token);
+  }
+  return result;
+}
+
+// An index past the table is past the whisper hart count too; whisper rejects it.
+unsigned whisperHart(unsigned hart) {
+  return hart < whisper_hart_index.size() ? whisper_hart_index[hart] : hart;
+}
+
+} // namespace
 
 uint64_t
 getNmiPc() {
@@ -353,6 +392,50 @@ int whisperClient<URV>::whisperConnect() {
     cvm::log(cvm::ERROR, "Error: could not construct system\n");
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
+  if (!FLAGS_hart_mhartid.empty()) {
+    std::vector<uint64_t> entries;
+    bool valid = true;
+    try {
+      entries = parseHartList(FLAGS_hart_mhartid);
+    } catch (const std::exception&) {
+      cvm::log(cvm::ERROR, "Error: [whisperClient] Cannot parse +hart_mhartid={}\n", FLAGS_hart_mhartid);
+      valid = false;
+    }
+    if (valid && entries.size() != FLAGS_num_harts) {
+      cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid has {} entries, +num_harts is {}\n",
+               entries.size(), FLAGS_num_harts);
+      valid = false;
+    }
+    // Two harts on one whisper hart would interleave their steps on one model.
+    std::vector<bool> used(system_->hartCount(), false);
+    for (uint64_t entry : entries) {
+      if (entry >= system_->hartCount()) {
+        cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid entry {} is not below the whisper hart count {}\n",
+                 entry, system_->hartCount());
+        valid = false;
+      } else if (used[entry]) {
+        cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid entry {} appears more than once\n", entry);
+        valid = false;
+      } else {
+        used[entry] = true;
+      }
+    }
+    if (valid) {
+      // All entries passed the range check, so they fit in unsigned.
+      std::vector<unsigned> table(entries.begin(), entries.end());
+      // rv_tester runs a bridge for every physical hart, and every bridge sends
+      // requests with its own index, even when its hart is not enabled. So the
+      // map covers all whisper harts: indices below +num_harts take their
+      // +hart_mhartid entries, and the higher indices take the remaining whisper
+      // harts in order. No two bridges then share a whisper hart.
+      for (unsigned whisper_hart = 0; whisper_hart < system_->hartCount(); ++whisper_hart)
+        if (!used[whisper_hart])
+          table.push_back(whisper_hart);
+      whisper_hart_index = std::move(table);
+      cvm::log(cvm::MEDIUM, "[whisperClient] Harts run on whisper harts +hart_mhartid={}\n", FLAGS_hart_mhartid);
+    }
+  }
+
   // Coverage setup
   if (FLAGS_cov) {
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
@@ -378,8 +461,9 @@ bool whisperClient<URV>::whisperConnected() {
 }
 
 template <typename URV>
-bool whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply) {
+bool whisperClient<URV>::whisperCommand(WhisperMessage& req, WhisperMessage& reply) {
   if (FLAGS_cosim && (server_ != nullptr)) {
+    req.hart = whisperHart(req.hart);
     server_->interact(req, reply, traceFile_, commandLog_);
   }
   return true;
@@ -929,6 +1013,7 @@ bool whisperClient<URV>::whisperMcmIFetch(int hart, uint64_t time, uint64_t addr
 
 template <typename URV>
 bool whisperClient<URV>::whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable) {
+  req.hart = 0; // System-wide command: any hart will do.
   req.value = enable;
   req.type = WhisperMessageType::McmSkipReadChk;
   req.size = size;
@@ -1261,7 +1346,7 @@ bool whisperClient<URV>::whisperSetAmoAllow(int hart, bool allowNonCacheable, bo
   if (system_ == nullptr)
     return false;
 
-  auto hartPtr = system_->ithHart(hart);
+  auto hartPtr = system_->ithHart(whisperHart(hart));
   if (not hartPtr)
     return false;
 
