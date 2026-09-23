@@ -894,6 +894,11 @@ end
   end
 
   assign boot_done_all = &boot_done;
+`else
+  // No cosim drives boot_done, so treat boot as done. Without this the
+  // interrupt tick generators see an undriven boot_done.
+  assign boot_done = '1;
+  assign boot_done_all = '1;
 `endif
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
