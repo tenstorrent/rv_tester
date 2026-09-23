@@ -80,6 +80,7 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
+DEFINE_bool(csr_metrics, true, "Print the per-hart iss/dut CSR pass-metrics even when the run had no cosim mismatch; set 0 to print them only on a mismatch");
 DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
 DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
@@ -3691,6 +3692,7 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_{}\": {}}}\n", id_, vtype_name, count);
 
   // Whisper csr values
+  const bool dump_csr_metrics = FLAGS_csr_metrics || mismatch_res_ != "";
   bool valid;
   for (const auto* csr : csr_map) {
     uint64_t csr_data;
@@ -3700,7 +3702,8 @@ void bridge::report_metrics() {
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
       }
-      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+      if (dump_csr_metrics)
+        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
     }
   }
   if (mismatch_res_ != "") {
@@ -3712,9 +3715,11 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_age\": \"{}\"}}\n", id_, latest_imsic_.first == 0 ? 0 : latest_imsic_.second);
 
   // DUT csr values
-  for (const auto* csr : csr_map) {
-    uint64_t csr_data = get_csr(id_, src_t::dut, csr->address);
-    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+  if (dump_csr_metrics) {
+    for (const auto* csr : csr_map) {
+      uint64_t csr_data = get_csr(id_, src_t::dut, csr->address);
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+    }
   }
 
   // Exceptions and interrupts
