@@ -1658,7 +1658,11 @@ end
       /* verilator lint_on BLKSEQ */
       boot_wfi <= '0;
       cosim_terminate_sent <= '0;
-      boot_done <= '0;
+      // A platform with no RVFI (topology COSIM.RVFI.ENABLE = 0) never
+      // retires at dram_base, so boot is done at reset. Otherwise the NMI and
+      // MTI tick generators would never arm. +nmi_interval and +mti_interval
+      // must then cover the boot.
+      boot_done <= !RVFI_EN;
     end else begin
       if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
         boot_wfi <= '1;
