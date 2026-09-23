@@ -159,6 +159,7 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc_, [this](int hart, uint64_t time) { return this->whisperClearNmi(hart, time); });
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this](int hart, uint64_t time, uint64_t cause) { return this->whisperClearNmiCause(hart, time, cause); });
   cvm::registry::messenger.procedure<whisperSnapshotSaveRPC>(loc_, [this]() { return this->whisperSnapshotSave(); });
+  cvm::registry::messenger.procedure<whisperSetAmoAllowRPC>(loc_, [this](int hart, bool allowNonCacheable, bool allowIo, bool& valid) { return this->whisperSetAmoAllow(hart, allowNonCacheable, allowIo, valid); });
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this](uint64_t addr, unsigned size, bool enable) { return this->whisperMcmSkipReadDataCheck(addr, size, enable); });
 }
 
@@ -1251,6 +1252,23 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
 template <typename URV>
 bool whisperClient<URV>::whisperSnapshotSave() {
   system_->saveSnapshot("snapshot0");
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid) {
+  valid = false;
+  if (system_ == nullptr)
+    return false;
+
+  auto hartPtr = system_->ithHart(hart);
+  if (not hartPtr)
+    return false;
+
+  hartPtr->setAllowAmoInNonCachable(allowNonCacheable);
+  hartPtr->setAllowAmoInIo(allowIo);
+
+  valid = true;
   return true;
 }
 
