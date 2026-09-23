@@ -691,7 +691,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Update cac with whisper state
   if (!psc_stepping_) {
     if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
-      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
+      bool dut_mem_pa_valid = d.mem_write.valid || d.mem_read.valid;
+      uint64_t dut_mem_pa = d.mem_write.valid ? d.mem_write.pa : d.mem_read.pa;
+      update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified, dut_mem_pa, dut_mem_pa_valid);
     }
 
     // Update cac with dut state
@@ -1472,7 +1474,9 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
   step(hart, w);
   bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified);
+  bool dut_mem_pa_valid = d.mem_write.valid || d.mem_read.valid;
+  uint64_t dut_mem_pa = d.mem_write.valid ? d.mem_write.pa : d.mem_read.pa;
+  update_whisper_state(hart, w, d.comp, d.mem_read.page4kX, d.opcode_modified, dut_mem_pa, dut_mem_pa_valid);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1519,7 +1523,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   }
 }
 
-void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_modified) {
+void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed, bool page4kX, bool dut_opcode_modified, uint64_t dut_mem_pa, bool dut_mem_pa_valid) {
 
   w_.valid = true;
   w_.cycle = w.time;
@@ -1537,11 +1541,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
   if (((w.opcode & 0x7fff) == 0x200f) && (((w.opcode >> 20) & 0xfff) <= 2)) { // cbo - inval, clean , flush
     zicbom_ = true;
     if (!FLAGS_mcm && (w.opcode >> 20 == 0)) { // cbo.inval and no mcm RVDE-18801
-      uint64_t addr;
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekGprRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, (w.opcode >> 15) & 0x1f, addr)) {
-        error("Hart {}: Failed to peek GPR {}\n", hart, (w.opcode >> 15) & 0x1f);
-      }
-      cvm::registry::messenger.signal<cbo_inval_nomcm_s>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), cbo_inval_nomcm_s(addr));
+      if (dut_mem_pa_valid)
+        cvm::registry::messenger.signal<cbo_inval_nomcm_s>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), cbo_inval_nomcm_s(dut_mem_pa));
+      else
+        error("cbo.inval with mem_write.valid == 0, RVFI physical address not available\n");
     }
   }
 
