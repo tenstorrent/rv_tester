@@ -280,6 +280,8 @@ void bridge::reset(bool rebuild_whisper) {
     return;
   }
 
+  intr_.reset();
+
   // Configure CAC with sane defaults
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
@@ -563,7 +565,7 @@ void bridge::skip_mcm_read_data_check_for_fault(uint64_t tag, uint64_t addr, uns
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.excp={}, d.ecause={}, d.opcode={:#x}, d.disasm={}\n", hart, d.cycle, d.pc.pc_rdata, d.tag, d.excp, d.ecause, d.opcode, d.disasm);
-  print(cvm::HIGH, "                        :: mip_={}, deferred_intr_={} patch_mode_={} trap={}\n", mip_.to_ullong(), deferred_intr_, patch_mode_, d.trap);
+  print(cvm::HIGH, "                        :: mip_={}, intr_.deferred={} patch_mode_={} trap={}\n", mip_.to_ullong(), intr_.deferred, patch_mode_, d.trap);
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr, gpr.rd_wdata);
   }
@@ -1200,19 +1202,19 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
   // If Whisper takes interrupt, then increase age of the interrupt
   if (w_intr)
-    deferred_intr_age_[w_cause]++;
+    intr_.deferred_age[w_cause]++;
 
   // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
   if (d.intr) {
     uint64_t dut_intr_bit = d.icause + (d.virt_mode ? 1 : 0);
-    intr_during_ucode_.reset(dut_intr_bit);
-    defer_interrupt(hart, d.cycle, 0 | intr_during_ucode_.to_ullong());
-    if (intr_during_ucode_.to_ullong() != 0)
-      intr_partially_deferred_ = true;
-    for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end();) {
-      if (!intr_during_ucode_.test(it->first))
-        deferred_intr_age_.erase(it++);
+    intr_.set_held_for_post_step.reset(dut_intr_bit);
+    defer_interrupt(hart, d.cycle, 0 | intr_.set_held_for_post_step.to_ullong());
+    if (intr_.set_held_for_post_step.to_ullong() != 0)
+      intr_.partially_deferred = true;
+    for (auto it = intr_.deferred_age.begin(); it != intr_.deferred_age.end();) {
+      if (!intr_.set_held_for_post_step.test(it->first))
+        intr_.deferred_age.erase(it++);
       else
         it++;
     }
@@ -1225,35 +1227,47 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   if (cosim_util::is_xret_opcode(w_.opcode)) {
     // If xRET is seen, then undefer all interrupts except for those that asserted during xRET or
     // After xRET and before next instruction retires.
-    defer_interrupt(hart, d.cycle, 0 | (tmp_mip_latest_ ^ last_step_mip_).to_ullong());
-    intr_undeferred_due_to_xret_intr_csr_ = true;
+    defer_interrupt(hart, d.cycle, 0 | ((intr_.iss ^ intr_.iss_at_last_retire) | intr_.src_edges).to_ullong());
+    intr_.undeferred_due_to_xret_csr = true;
   }
   // TODO: Add interrupt CSRs check for undeferring interrupts
   // else if (cosim_util::is_csr_opcode(w_.opcode, csr_addr) && interrupt_csrs_for_check_.find(csr_addr) != interrupt_csrs_for_check_.end()){
   //   // If CSR opcode is seen, then undefer all interrupts
   //   defer_interrupt(hart, d.cycle, 0);
-  //   intr_undeferred_due_to_xret_intr_csr_ = true;
+  //   intr_.undeferred_due_to_xret_csr = true;
   // }
 
-  if (intr_undeferred_due_to_xret_intr_csr_) {
+  if (intr_.undeferred_due_to_xret_csr) {
     uint64_t w_defer_mip = 0;
     peek_deferred_interrupts(hart, w_defer_mip);
     if (w_defer_mip != 0) {
-      for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end();) {
+      for (auto it = intr_.deferred_age.begin(); it != intr_.deferred_age.end();) {
         if (!(w_defer_mip & (1ULL << it->first)))
-          it = deferred_intr_age_.erase(it);
+          it = intr_.deferred_age.erase(it);
         else
           ++it;
       }
     } else
-      deferred_intr_age_.clear();
+      intr_.deferred_age.clear();
   }
 
-  // Update last_step_mip_ for next step
-  last_step_mip_ = tmp_mip_latest_;
+  intr_.retire_boundary();
 }
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+
+  // Retire the two "held until post-step" masks first. The Whisper step for this
+  // retire has completed, so both are stale from here on. Doing it before any of
+  // the early returns below is what keeps their lifetime exactly one step; if a
+  // mask survived into the next step it would either keep Whisper's mip stale or
+  // re-defer an interrupt that was already accounted for.
+  if (intr_.clear_held_for_post_step.any()) {
+    peek_mip(hart, d.cycle, intr_.iss);
+    intr_.iss &= ~intr_.clear_held_for_post_step;
+    poke_mip(hart, d.cycle, intr_.iss);
+    intr_.clear_held_for_post_step.reset();
+  }
+  intr_.set_held_for_post_step.reset();
 
   // Check deferred interrupt at patch exit (mirrors NMI exit check)
   if (w_.intr && patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
@@ -1281,11 +1295,11 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     return;
   }
 
-  if (intr_undeferred_due_to_xret_intr_csr_) {
+  if (intr_.undeferred_due_to_xret_csr) {
     if (!d.intr && w_.intr) {
       error("Hart {}: Whisper took Interrupt, DUT did not after xRET or intr CSR write. wcause: [{}]", hart, w_.icause);
     }
-    intr_undeferred_due_to_xret_intr_csr_ = false;
+    intr_.undeferred_due_to_xret_csr = false;
     return;
   }
 
@@ -1302,7 +1316,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
   // New check for Whisper wants to take interrupt, DUT does not.
   // Traverse deferred interrupt ages, if greater than max pending age then check if whisper wants to take that interrupt or not.
-  for (const auto& [cause, age] : deferred_intr_age_) {
+  for (const auto& [cause, age] : intr_.deferred_age) {
     if (age > FLAGS_max_pend_intr_age) {
       print_instr_stdout(hart, w);
       error("Hart {}: Whisper wants to take interrupt, DUT did not after [{}] retires. wcause: [{}]\n",
@@ -1311,19 +1325,10 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     }
   }
 
-  // Reset intr_during_ucode_ as Whisper step has been completed
-  intr_during_ucode_.reset();
-  if (intr_partially_deferred_) {
-    intr_partially_deferred_ = false;
-    deferred_intr_age_.clear();
+  if (intr_.partially_deferred) {
+    intr_.partially_deferred = false;
+    intr_.deferred_age.clear();
     defer_interrupt(hart, d.cycle, 0);
-  }
-
-  // If interrupts were cleared during ucode sequence, clear them in post-step
-  if (intr_cleared_during_ucode_.to_ullong() != 0) {
-    peek_mip(hart, d.cycle, tmp_mip_latest_);
-    poke_mip(hart, d.cycle, tmp_mip_latest_ & ~intr_cleared_during_ucode_);
-    intr_cleared_during_ucode_.reset();
   }
 
   if (poke_time_csr_post_step_) {
@@ -1332,7 +1337,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   // Post step, update previous mip
-  tmp_mip_prev_ = tmp_mip_latest_;
+  intr_.iss_at_prev_poke = intr_.iss;
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1844,8 +1849,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                     poke_value = (peek_value & ~hypervisor_mask_map_[mip.address]) | (value & hypervisor_mask_map_[mip.address]);
                     mvip_ = (mvip_ & ~hypervisor_mask_map_[mvip.address]) | (mvip_ & hypervisor_mask_map_[mvip.address]);
                     poke_mip(hart, d.cycle, mip_bits | std::bitset<64>(poke_value));
-                    tmp_mip_latest_ = mip_bits | std::bitset<64>(poke_value);
-                    bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), tmp_mip_latest_.to_ullong(), old_mvip, mvip_);
+                    intr_.iss = mip_bits | std::bitset<64>(poke_value);
+                    bridge_log(cvm::MEDIUM, "<{}> Restoring hypervisor masked CSR MIP and MVIP, DUT values: {:#x}/{:#x} ISS: old/new MIP: {:#x}/{:#x} old/new MVIP: {:#x}/{:#x} \n", d.cycle, value, mvip_value, mip_bits.to_ullong(), intr_.iss.to_ullong(), old_mvip, mvip_);
 
                   } else {
                     mask = 0xffffffffffffffffULL;
@@ -1876,7 +1881,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
               if (FLAGS_hyp_save_restore_en) {
                 for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
                   if (addr == mip.address)
-                    hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
+                    hypervisor_masked_csrs_[addr] = intr_.iss.to_ullong();
                   else
                     hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
                 }
@@ -2932,7 +2937,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
   if (FLAGS_poke_mip_timer) {
     poke_mip(hart, i.cycle, mip_);
   } else {
-    peek_mip(hart, i.cycle, tmp_mip_prev_);
+    peek_mip(hart, i.cycle, intr_.iss_at_prev_poke);
     if (i.size < 8) {
       uint64_t w_data;
       peek_resource(hart, 'c', time_.address, w_data);
@@ -2957,52 +2962,59 @@ void bridge::poke_time_csr(hart_id_t hart, uint64_t time, uint64_t time_csr, boo
   // Poke time csr to whisper
   // Check mip change and accordingly defer interrupt
   poke_resource(hart, time, 'c', time_.address, time_csr);
-  peek_mip(hart, time, tmp_mip_latest_);
-  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  if (tmp_mip_prev_.to_ullong() != tmp_mip_latest_.to_ullong())
-    check_and_defer_interrupt(hart, time, tmp_mip_latest_, intr_during_ucode);
+  peek_mip(hart, time, intr_.iss);
+  check_mip_change(intr_.iss_at_prev_poke, intr_.iss);
+  if (intr_.iss_at_prev_poke.to_ullong() != intr_.iss.to_ullong())
+    check_and_defer_interrupt(hart, time, intr_.iss, intr_during_ucode);
 }
 
 void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool intr_during_ucode) {
   bridge_log(cvm::MEDIUM, "<{}> MTIP: {}\n", cycle, static_cast<uint32_t>(mtip));
   std::bitset<64> mtip_bits = 1 << MTI;
-  peek_mip(hart, cycle, tmp_mip_prev_);
+  peek_mip(hart, cycle, intr_.iss_at_prev_poke);
+
+  // Source domain first: the de-assert reaches the ISS only in post-step, so this
+  // edge is invisible to the ISS-side peek/poke that check_mip_change() compares.
+  intr_.update_src(mtip ? (intr_.src | mtip_bits) : (intr_.src & ~mtip_bits));
+
   if (mtip) {
-    poke_mip(hart, cycle, tmp_mip_prev_ | mtip_bits);
+    // A re-assertion cancels any clear that is still pending for post-step.
+    intr_.clear_held_for_post_step &= ~mtip_bits;
+    poke_mip(hart, cycle, intr_.iss_at_prev_poke | mtip_bits);
   } else {
-    if (intr_during_ucode) {
-      // Current only MTIP looks like an interrupt that can be cleared asynchronously during ucode sequence.
-      // So TB will keep track of it in `intr_cleared_during_ucode_` and clear it in post-step.
-      // TODO: Add support for other interrupts that can be cleared asynchronously during ucode sequence.
-      intr_cleared_during_ucode_ |= mtip_bits;
-      bridge_log(cvm::MEDIUM, "<{}> MTIP cleared during ucode sequence, will clear it in post-step, intr_cleared_during_ucode={:#x}\n", cycle, intr_cleared_during_ucode_.to_ullong());
-    } else {
-      poke_mip(hart, cycle, tmp_mip_prev_ & ~mtip_bits);
-    }
+    // MTIP de-assertion is always applied to the ISS in post-step, never here.
+    // The core can commit to taking MTI several cycles before RVFI reports the
+    // interrupt (mepc/mcause hw updates and the trap ucode retires arrive later),
+    // so the `intr_during_ucode` qualifier does not cover the whole window.
+    // Withdrawing the pending bit from Whisper in that window makes Whisper miss an
+    // interrupt the DUT already took -> "DUT took interrupt, Whisper did not".
+    // TODO: Add support for other interrupts that can be cleared asynchronously.
+    intr_.clear_held_for_post_step |= mtip_bits;
+    bridge_log(cvm::MEDIUM, "<{}> MTIP cleared, holding clear until post-step, clear_held_for_post_step={:#x}\n", cycle, intr_.clear_held_for_post_step.to_ullong());
   }
-  peek_mip(hart, cycle, tmp_mip_latest_);
-  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  check_and_defer_interrupt(hart, cycle, tmp_mip_latest_, intr_during_ucode);
+  peek_mip(hart, cycle, intr_.iss);
+  check_mip_change(intr_.iss_at_prev_poke, intr_.iss);
+  check_and_defer_interrupt(hart, cycle, intr_.iss, intr_during_ucode);
 }
 
 void bridge::process_counter_overflow(csr_t& c) {
   bridge_log(cvm::MEDIUM, "<{}> Counter overflow: {:#x}\n", c.cycle, c.csr_addr);
-  peek_mip(c.hart, c.cycle, tmp_mip_prev_);
+  peek_mip(c.hart, c.cycle, intr_.iss_at_prev_poke);
   uint64_t mhpmeventx;
   peek_resource(c.hart, 'c', c.csr_addr, mhpmeventx);
   mhpmeventx |= (1ULL << 63);
   poke_resource(c.hart, c.cycle, 'c', c.csr_addr, mhpmeventx);
-  peek_mip(c.hart, c.cycle, tmp_mip_latest_);
-  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
-  check_and_defer_interrupt(c.hart, c.cycle, tmp_mip_latest_);
+  peek_mip(c.hart, c.cycle, intr_.iss);
+  check_mip_change(intr_.iss_at_prev_poke, intr_.iss);
+  check_and_defer_interrupt(c.hart, c.cycle, intr_.iss);
 }
 
 void bridge::poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool intr_during_ucode) {
   peek_mip(hart, cycle, mip_);
-  tmp_mip_prev_ = mip_;
+  intr_.iss_at_prev_poke = mip_;
   poke_mip(hart, cycle, mip_ | non_std_mip_bits);
-  tmp_mip_latest_ = mip_ | non_std_mip_bits;
-  check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
+  intr_.iss = mip_ | non_std_mip_bits;
+  check_mip_change(intr_.iss_at_prev_poke, intr_.iss);
   check_and_defer_interrupt(hart, cycle, mip_ | non_std_mip_bits, intr_during_ucode);
 }
 
@@ -3020,7 +3032,7 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   // Poke imsic write into whisper memory
   bool seip_prev;
   peek_seip(hart, m.cycle, seip_prev);
-  peek_mip(hart, m.cycle, tmp_mip_prev_);
+  peek_mip(hart, m.cycle, intr_.iss_at_prev_poke);
   poke_mem(hart, m.cycle, m.pa, 4, m.data, false, false);
 
   // Peek mip to check if expected to be taken
@@ -3028,20 +3040,25 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   bool w_seip;
   peek_mip(hart, m.cycle, w_mip);
   peek_seip(hart, m.cycle, w_seip);
-  check_mip_change(tmp_mip_prev_, w_mip, seip_prev, w_seip, true);
+  check_mip_change(intr_.iss_at_prev_poke, w_mip, seip_prev, w_seip, true);
   e_mip_ = (w_mip[MEI] << MEI) | ((w_mip[SEI] | w_seip) << SEI) | (w_mip[VSEI] << VSEI) | (w_mip[SGEI] << SGEI);
   bridge_log(cvm::MEDIUM, "<{}> IMSIC write: mip[MEI]={} mip[SEI]={} seip={}\n", m.cycle, w_mip[MEI], w_mip[SEI], w_seip);
 
   // Record possible new update in mip_
   mip_ |= e_mip_;
-  tmp_mip_prev_ |= (seip_prev << SEI);
-  tmp_mip_latest_ = (tmp_mip_prev_ | e_mip_);
+  intr_.iss_at_prev_poke |= (seip_prev << SEI);
+  intr_.iss = (intr_.iss_at_prev_poke | e_mip_);
 
-  if ((seip_prev != w_seip) || (tmp_mip_prev_.to_ullong() != w_mip.to_ullong()))
+  if ((seip_prev != w_seip) || (intr_.iss_at_prev_poke.to_ullong() != w_mip.to_ullong()))
     check_and_defer_interrupt(hart, m.cycle, mip_, m.intr_during_ucode);
 }
 
 void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev, bool seip_new, bool consider_seip) {
+  // For every source whose ISS poke is immediate, the ISS value is the source
+  // value. Bits whose transition is being held back keep their source-domain level
+  // (process_dut_mtip() has already recorded it) instead of the lagging ISS one.
+  intr_.update_src((mip_new & ~intr_.clear_held_for_post_step) | (intr_.src & intr_.clear_held_for_post_step));
+
   auto bits_set = mip_new.to_ullong() & ~(mip_prev.to_ullong());
   uint32_t start = 0;
   while (bits_set) {
@@ -3090,16 +3107,19 @@ bool bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
   defer_interrupt(hart, time, mip.to_ullong() | defer_cause_mip | w_defer_mip);
 
   if (intr_during_ucode) {
-    intr_during_ucode_ |= (tmp_mip_prev_ ^ tmp_mip_latest_);
-    bridge_log(cvm::MEDIUM, "<{}> Interrupt came in during ucode sequence, will defer it a step, undefer it in post-step, defer_mip={:#x}, intr_during_ucode={:#x}\n", time, mip.to_ullong() | defer_cause_mip | w_defer_mip, intr_during_ucode_.to_ullong());
+    // Source-domain assertions that arrived during the ucode sequence. Derived
+    // from intr_.src, not from the ISS delta, so a source whose poke is held back
+    // (MTIP) is tracked the same way as an immediately poked one.
+    intr_.set_held_for_post_step |= (intr_.src & ~intr_.iss_at_prev_poke);
+    bridge_log(cvm::MEDIUM, "<{}> Interrupt came in during ucode sequence, will defer it a step, undefer it in post-step, defer_mip={:#x}, set_held_for_post_step={:#x}\n", time, mip.to_ullong() | defer_cause_mip | w_defer_mip, intr_.set_held_for_post_step.to_ullong());
   }
   // Keep track of deferred interrupts locally in bridge
-  // Update the deferred_intr_age_ map for the interrupt cause being deferred
-  if (deferred_intr_age_.find(w_cause) == deferred_intr_age_.end()) {
-    deferred_intr_age_[w_cause] = 0;
+  // Update the intr_.deferred_age map for the interrupt cause being deferred
+  if (intr_.deferred_age.find(w_cause) == intr_.deferred_age.end()) {
+    intr_.deferred_age[w_cause] = 0;
   }
 
-  tmp_mip_prev_ = tmp_mip_latest_;
+  intr_.iss_at_prev_poke = intr_.iss;
   return true;
 }
 
@@ -3112,7 +3132,7 @@ void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
     return;
   }
 
-  deferred_intr_ = (mip != 0) ? true : false;
+  intr_.deferred = (mip != 0) ? true : false;
 }
 
 void bridge::defer_nmi(hart_id_t hart, uint64_t cycle, uint64_t nmip) {
