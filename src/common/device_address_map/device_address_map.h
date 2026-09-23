@@ -45,3 +45,5 @@ uint64_t generate_axisw_device_addr(uint32_t cluster_id);
 
 // Helper functions
 uint64_t extract_mmr_offset(uint64_t addr);
+uint32_t extract_cluster_id_from_address(uint64_t addr);
+bool is_internal_device(uint64_t addr, uint32_t cluster_id);

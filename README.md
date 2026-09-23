@@ -47,7 +47,13 @@ These mirror CI: the `smoke` job (the `smoke` entry of the `test` matrix in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and runs the test
 suite with `bazel-7 test //test/... --config=bzlmod --build_tests_only`, so a
 green `bazel-7 test //test/...` locally reproduces the CI smoke result. CI also
-runs the same recipe under `asan+ubsan` and `tsan`.
+runs the same recipe under `asan+ubsan`, `tsan` and `valgrind`. Valgrind  wraps
+each sim binary through the `SIM_WRAP` hook in `test/sw_testbench/testlists/sim.sh` to reproduce it locally:
+
+```sh
+bazel-7 test //test/... --config=bzlmod \
+  --test_env=SIM_WRAP='valgrind --tool=memcheck --leak-check=full --track-origins=yes --error-exitcode=1'
+```
 
 Nested READMEs under `src/` (e.g. `src/cosim/`, `src/sysmod/`) document
 individual subsystems in more detail.

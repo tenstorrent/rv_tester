@@ -46,6 +46,7 @@ single_version_override(
     patch_strip = 1,
 )
 # Reuse cvm's verilator pin (Python 3.9 toolchain blocks rules_venv 5.046.bcr.3).
+# If upgrading to verilator >= 5.050 remove the lz4 hack in .bazelrc
 single_version_override(
     module_name = "verilator",
     version = "5.046",

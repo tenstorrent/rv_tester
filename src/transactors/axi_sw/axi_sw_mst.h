@@ -208,6 +208,7 @@ public:
     cvm::registry::messenger.procedure<push_w_rpc>(loc, [this](const axi::w_t& w) { return this->push_w(w); });
     cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this]() { return this->try_lock(); });
     cvm::registry::messenger.procedure<free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
+    cvm::registry::messenger.procedure<axi_sw_mst_free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
   }
 
   ~axi_sw_mst() {
@@ -311,14 +312,14 @@ public:
     push_transactions();
   }
 
-  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
+  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a, bool alloc_id = true) {
 
     a.addr = req_addr;
     a.burst = axi::BURST_INCR;
     a.atop = false;
     a.lock = false;
 
-    if (!next_id(a.id, a.seqid)) {
+    if (alloc_id && !next_id(a.id, a.seqid)) {
       cvm::log(cvm::NONE, "[{}] No free id's remaining for axi master\n", name_);
       return false;
     }
@@ -464,13 +465,27 @@ public:
     cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());
   }
 
+  // Manual ids bypass the allocator (as push_a_no_id does); callers own their
+  // uniqueness. Attributes are applied after a_wrapper so its defaults never
+  // overwrite them.
+  static void apply_attr(const transactor::axi_attr_t& attr, axi::a_t& a) {
+    a.cache = axi::cache_mem_attr_t(attr.cache);
+    a.prot = attr.prot;
+    a.qos = attr.qos;
+    a.region = attr.region;
+    a.user = attr.user;
+  }
+
   void process(const transactor::read_request_t& req) {
     axi::a_t a;
     a.w = false;
     a.exp_err_rsp = req.exp_err_rsp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return;
+    apply_attr(req.attr, a);
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
     allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
@@ -490,9 +505,12 @@ public:
     a.w = true;
     a.exp_err_rsp = req.exp_err_rsp;
     a.allow_decerr_resp = req.allow_decerr_resp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return false;
+    apply_attr(req.attr, a);
     id = a.id;
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;

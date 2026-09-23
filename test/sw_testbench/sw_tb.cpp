@@ -1,61 +1,63 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Verilator top-level C++ driver for generic top built with --timing
+//
+// Waveform dumping (dbg builds compiled with a VERILATOR_<fmt> local_define) is
+// opt-in via plusargs:
+//   +fsdb_dump_on=<t>   enable dumping starting at time <t> (in timeunits)
+//   +fsdb_dump_off=<t>  stop dumping at time <t>
 
-#include <cstdio>
+#include <cmath>
+#include <cstdint>
 #include <limits>
-#include <map>
-#include <numeric>
+#include <memory>
 #include <string>
 
-#include "Vtop.h"
 #include "verilated.h"
 
-#undef VERILATOR_WAVES
-
-#if defined(VERILATOR_FSDB)
-
-#include "verilated_fsdb_c.h"
-using VltTraceFile = VerilatedFsdbC;
-static constexpr char TRACE_FILE_NAME[] = "dump.fsdb";
-#define VERILATOR_WAVES
-
-#elif defined(VERILATOR_FST)
-
-#include "verilated_fst_c.h"
-using VltTraceFile = VerilatedFstC;
-static constexpr char TRACE_FILE_NAME[] = "dump.fst";
-#define VERILATOR_WAVES
-
-#elif defined(VERILATOR_VCD)
-
-#include "verilated_vcd_c.h"
-using VltTraceFile = VerilatedVcdC;
-static constexpr char TRACE_FILE_NAME[] = "dump.vcd";
-#define VERILATOR_WAVES
-
-#elif defined(VERILATOR_SAIF)
-
-#include "verilated_saif_c.h"
-using VltTraceFile = VerilatedSaifC;
-static constexpr char TRACE_FILE_NAME[] = "dump.saif";
-#define VERILATOR_WAVES
-
-#endif
+#include "Vtop.h"
 
 #include "cvm/logger.hpp"
 #include "cvm/registry.hpp"
 
-int main(int argc, char** argv) {
-  printf("[main] starting\n");
+// Waveform format selection. The build may set VERILATOR_WAVES plus one of the
+// format macros; derive VERILATOR_WAVES purely from the format actually present.
+#undef VERILATOR_WAVES
+#if defined(VERILATOR_FSDB)
+#include "verilated_fsdb_c.h"
+using VltTraceFile = VerilatedFsdbC;
+static constexpr char TRACE_FILE_NAME[] = "dump.fsdb";
+#define VERILATOR_WAVES
+#elif defined(VERILATOR_FST)
+#include "verilated_fst_c.h"
+using VltTraceFile = VerilatedFstC;
+static constexpr char TRACE_FILE_NAME[] = "dump.fst";
+#define VERILATOR_WAVES
+#elif defined(VERILATOR_VCD)
+#include "verilated_vcd_c.h"
+using VltTraceFile = VerilatedVcdC;
+static constexpr char TRACE_FILE_NAME[] = "dump.vcd";
+#define VERILATOR_WAVES
+#elif defined(VERILATOR_SAIF)
+#include "verilated_saif_c.h"
+using VltTraceFile = VerilatedSaifC;
+static constexpr char TRACE_FILE_NAME[] = "dump.saif";
+#define VERILATOR_WAVES
+#endif
 
-  //------------------------------------------------------------
-  // Create simulation context and model
+int main(int argc, char** argv) {
   VerilatedContext context;
+  context.debug(0);
   context.threads(1);
+  // Must run before constructing the model so $value$plusargs sees args.
   context.commandArgs(argc, argv);
+
   // Passing the empty string as instance name suppresses tracing
-  // of the top level wrapper, which is what we want to match VCS.
+  // of the top level wrapper, which is what we want to match other
+  // simulators.
   Vtop top{&context, ""};
+
   // Simulation timescale
   const int timeunit = context.timeunit();           // between 0 (1s) .. -15 (1fs)
   const int timeprecision = context.timeprecision(); // between 0 (1s) .. -15 (1fs) <= timeunit
@@ -65,10 +67,19 @@ int main(int argc, char** argv) {
   //------------------------------------------------------------
   // Clock configuration
 
-  // Figure out clock half periods
+  // Figure out clock half periods. Accommodate testbenches that don't specify
+  // a clock in topology too.
   const auto loc = cvm::topology::get_from_type("CLKI", 0);
-  const size_t nclks = static_cast<size_t>(cvm::topology::attr(loc, "NCLKS").second);
-  const std::vector<uint32_t> freq_mhz = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ").second;
+  const auto nclks_attr = cvm::topology::attr(loc, "NCLKS");
+  const auto freq_attr = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ");
+  const auto tb_clk_idx_attr = cvm::topology::attr(loc, "TB_CLK_IDX");
+  const size_t nclks = nclks_attr.first ? static_cast<size_t>(nclks_attr.second) : 0;
+  const std::vector<uint32_t>& freq_mhz = freq_attr.second;
+  if (nclks > freq_mhz.size()) {
+    cvm::log(cvm::ERROR, "Error: topology declares NCLKS={} but only {} CLOCK_FREQ_MHZ entries\n", nclks,
+             freq_mhz.size());
+    exit(1);
+  }
   std::vector<uint64_t> half_period(nclks, 0);
   std::vector<uint64_t> toggles(nclks, 0);
   // Numerator to compute period for a MHz frequency at the current timeprecision
@@ -80,9 +91,23 @@ int main(int argc, char** argv) {
       exit(1);
     }
   }
-  const size_t core_clk_idx = cvm::topology::attr(loc, "CORE_CLK_IDX").second;
-  const size_t tb_clk_idx = cvm::topology::attr(loc, "TB_CLK_IDX").second;
-  const uint64_t tb_clk_period = 2 * half_period[tb_clk_idx];
+  const size_t tb_clk_idx = tb_clk_idx_attr.first ? static_cast<size_t>(tb_clk_idx_attr.second) : 0;
+  if (nclks && tb_clk_idx >= nclks) {
+    cvm::log(cvm::ERROR, "Error: topology TB_CLK_IDX={} is out of range for NCLKS={}\n", tb_clk_idx, nclks);
+    exit(1);
+  }
+  const uint64_t tb_clk_period = nclks ? 2 * half_period[tb_clk_idx] : 0;
+
+  // Cycle-based dump plusargs need that period; the time-based ones do not.
+  const auto cycles_to_time = [tb_clk_period](const char* valp) {
+    if (!tb_clk_period) {
+      cvm::log(cvm::ERROR,
+               "Error: cycle-based dump plusargs need a CLKI node in the topology; "
+               "use the time-based (+*_dump_on/off) form instead\n");
+      exit(1);
+    }
+    return std::stoull(valp) * tb_clk_period;
+  };
 
   //------------------------------------------------------------
   // Dump configuration
@@ -91,12 +116,12 @@ int main(int argc, char** argv) {
   bool dumping = true;
   uint64_t dump_on = 0;
   if (const char* const valp = vl_mc_scan_plusargs("fsdb_cycle_on=")) {
-    dump_on = std::stoull(valp) * tb_clk_period;
+    dump_on = cycles_to_time(valp);
   } else if (const char* const valp = vl_mc_scan_plusargs("fsdb_dump_on=")) {
     dump_on = std::stoull(valp) * timeUnit2Prec;
   } else if (const char* const valp = vl_mc_scan_plusargs("vcd_cycle_on=")) {
     // Accept vcd_cycle_on for backward compatibility
-    dump_on = std::stoull(valp) * tb_clk_period;
+    dump_on = cycles_to_time(valp);
   } else {
     dumping = false;
   }
@@ -104,12 +129,12 @@ int main(int argc, char** argv) {
   // Figure out when to turn off dumping
   uint64_t dump_off = std::numeric_limits<uint64_t>::max();
   if (const char* const valp = vl_mc_scan_plusargs("fsdb_cycle_off=")) {
-    dump_off = std::stoull(valp) * tb_clk_period;
+    dump_off = cycles_to_time(valp);
   } else if (const char* const valp = vl_mc_scan_plusargs("fsdb_dump_off=")) {
     dump_off = std::stoull(valp) * timeUnit2Prec;
   } else if (const char* const valp = vl_mc_scan_plusargs("vcd_cycle_off=")) {
     // Accept vcd_cycle_off for backward compatibility
-    dump_off = std::stoull(valp) * tb_clk_period;
+    dump_off = cycles_to_time(valp);
   }
 
   // Make sure we are not doing something stupid, the time queue assumes this
@@ -118,147 +143,67 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-#ifndef VERILATOR_WAVES
-  if (dumping) {
-    cvm::log(cvm::LOW, "Warning: wave dump requested but model compiled without dumping capability\n");
-  }
-#endif
-
-  //------------------------------------------------------------
-  // Event queue setup
-
-  // The event queue: indexed by time, contains functions that take the
-  // current simulation time, and return the next simulation time to
-  // reschedule them. If a function returns the current, or earlier time,
-  // it is not rescheduled.
-  std::multimap<uint64_t, std::function<uint64_t(uint64_t)>> event_queue;
-
-  // Need an event at time 0 for proper startup
-  event_queue.emplace(0, [&](uint64_t) {
-    return 0; // Do not re-schedule
-  });
-
-  // Schedule dump enable/disable
 #ifdef VERILATOR_WAVES
   std::unique_ptr<VltTraceFile> tfp; // The dump file
   if (dumping) {
     context.traceEverOn(true);
     tfp.reset(new VltTraceFile{});
-    // At time 'dump_on', open trace file and perform initial dump
-    event_queue.emplace(dump_on, [&](uint64_t time) {
-      // Verilator misfeature: partition instances are only created and
-      // added to the context after the first evaluation, so must register
-      // the trace callbacks after the first 'eval', but before the first
-      // 'dump'. So let's just do it right before the first dump then ...
-      context.trace(tfp.get(), 99, 0);
-      tfp->open(TRACE_FILE_NAME);
-      tfp->dump(time);
-      return 0; // Do not reschedule
-    });
-    // At time 'dump_off', flush and close trace file
-    event_queue.emplace(dump_off, [&](uint64_t time) {
-      tfp->dump(time);
-      tfp->flush();
-      tfp->close();
-      return 0; // Do not reschedule
-    });
+  }
+#else
+  if (dumping) {
+    cvm::log(cvm::LOW, "Warning: wave dump requested but model compiled without dumping capability\n");
   }
 #endif
 
-  // Flag signaling a model input has changes
-  bool input_changed = false;
-
-  // Schedule clocks
-  for (unsigned i = 0; i < nclks; ++i) {
-    // Clock starts at zero
-    top.clk_ext[i] = 0;
-    // Toggles each half period
-    event_queue.emplace(half_period[i], [&, i](uint64_t time) {
-      top.clk_ext[i] = !top.clk_ext[i];
-      ++toggles[i];
-      input_changed = true;
-      return time + half_period[i]; // Reschedule one half period later
-    });
-  }
-
-  // Evaluate model at given time slot
-  const auto evaluate = [&](uint64_t time) -> void {
-    context.time(time);
-    // Evaluate the model
-    top.eval();
-    // Schedule next time slot of internal event queue
-    if (top.eventsPending()) {
-      const uint64_t nextTimeSlot = top.nextTimeSlot();
-      if (nextTimeSlot <= time) {
-        cvm::log(cvm::ERROR, "Error: Event pending for same or earlier time slot\n");
-        exit(1);
+  // A dump at time t is emitted only while dump_on <= t <= dump_off.
+  auto dump_at = [&](uint64_t t) {
+#ifdef VERILATOR_WAVES
+    if (dumping) {
+      if (t >= dump_on && t <= dump_off) {
+        tfp->dump(t);
       }
-      event_queue.emplace(nextTimeSlot, [&](uint64_t) {
-        input_changed = true;
-        return 0; // Do not reschedule
-      });
+      if (tfp->isOpen() && t >= dump_off) {
+        tfp->flush();
+        tfp->close();
+      }
     }
+#else
+    (void)t;
+#endif
   };
 
-  //------------------------------------------------------------
-  // Simulation loop
-
-  // Initial eval at time 0
-  evaluate(0);
-
-  while (!context.gotFinish()) {
-    // Process next time step in the event queue
-    const uint64_t time = event_queue.begin()->first;
-    while (true) {
-      auto it = event_queue.begin();
-      // Stop when no more event at current time
-      if (it->first > time)
-        break;
-      // Extract and run head of event queue
-      auto node = event_queue.extract(it);
-      const uint64_t next_time = node.mapped()(time);
-      // Drop it if not scheduled in the future
-      if (next_time <= time)
-        continue;
-      // Otherwise reschedule at the requested time
-      node.key() = next_time;
-      event_queue.insert(std::move(node));
-    }
-
-    // Evaluate the model if any inputs changed
-    if (input_changed) {
-      input_changed = false;
-      // Already called eval at time 0, shouldn't need to do it again
-      if (!time) {
-        cvm::log(cvm::ERROR, "Error: multiple evaluations at time 0\n");
-        exit(1);
-      }
-      // Evaluate model
-      evaluate(time);
+  // First eval before registering the trace: with a partitioned model the
+  // partition instances are only created/added to the context after the first
+  // eval (Verilator behavior), so trace callbacks must be registered after it.
+  top.eval();
 #ifdef VERILATOR_WAVES
-      // Dump waveforms if dumping in progress
-      if (tfp && tfp->isOpen())
-        tfp->dump(time);
+  if (dumping) {
+    context.trace(tfp.get(), 99, 0);
+    tfp->open(TRACE_FILE_NAME);
+  }
 #endif
-    }
+  dump_at(context.time());
+
+  // Timing event loop: advance to the next scheduled event until $finish.
+  while (!context.gotFinish() && top.eventsPending()) {
+    context.time(top.nextTimeSlot());
+    top.eval();
+    dump_at(context.time());
   }
 
-  // Run 'final' blocks
-  top.final();
-
-  //------------------------------------------------------------
-  // Shutdown
+  if (!context.gotFinish()) {
+    VL_PRINTF("%%Warning: top: no $finish - ran out of events\n");
+  }
 
 #ifdef VERILATOR_WAVES
-  // Close the waveform dump if finished before dump_off
-  if (tfp && tfp->isOpen()) {
+  if (dumping && tfp->isOpen()) {
     tfp->flush();
     tfp->close();
   }
 #endif
 
-  printf("[main] exiting after %lu core cycles\n", toggles[core_clk_idx] / 2);
-  exit(0);
+  top.final();
+  return 0;
 }
 
 extern "C" void assert_on_dpi() {

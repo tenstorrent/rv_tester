@@ -26,7 +26,7 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
             "@rv_tester//src/cosim/whisper_if:whisper_if",
             "@rv_tester//src/cosim/bridge:bridge_plusargs",
             "@rv_tester//src/common:transactor",
-            "@rv_tester//src/transactors/axi_sw:axi_sw_mst",
+            "@rv_tester//src/transactors/axi_sw:axi_sw_mst_rpc",
             "@rv_tester//src:structs",
             "@rv_tester//src:device_handler",
             packet + "_cc",

@@ -1,8 +1,7 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//src/transactors/axi_sw:axi_sw.bzl", "axi_sw_gen", "generate_axi_interfaces")
-load("//test:verilator_opts.bzl", "COMMON_VOPTS")
+load("//test:verilator.bzl", "verilator_cc_library")
 
 name = "axi_sw_tb"
 topology = name + "_topology"
@@ -49,7 +48,7 @@ verilog_library(
         topology + "_sv",
         name + "_axi_sw_sv",
     ],
-    top_module = "tb",
+    top_module = "top",
 )
 
 # Replaces bzsim's verilog_dpi_library (just cc_library + alwayslink + svdpi).
@@ -66,17 +65,14 @@ cc_library(
     linkstatic = True,
 )
 
-# Replaces bzsim's verilog_unit. Same cvm-style pattern as
-# //sw_testbench:sw_1c_tb_verilator.
 verilator_cc_library(
     name = name + "_veri_lib",
     module = ":" + name + "_top",
-    vopts = COMMON_VOPTS,
 )
 
 cc_binary(
     name = name + "_verilator",
-    srcs = ["top.cpp"],
+    srcs = ["//test/sw_testbench:sw_tb.cpp"],
     deps = [
         ":" + name + "_veri_lib",
         ":" + name + "_dpi",
