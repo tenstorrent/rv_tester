@@ -167,8 +167,8 @@ module axi_sw #(
   typedef byte unsigned UB;
   typedef longint unsigned UL;
 
-  logic b_queue_empty     ;
-  logic r_queue_empty     ;
+  logic b_queue_empty, b_queue_full;
+  logic r_queue_empty, r_queue_full;
 
   import "DPI-C" context function byte unsigned axi_sw_reset_ptrs(int unsigned location);
 
@@ -707,7 +707,7 @@ module axi_sw_mst #(
     end
   end
 
-  logic ar_queue_rptr_incremented, ar_queue_empty;
+  logic ar_queue_rptr_incremented, ar_queue_empty, ar_queue_full;
   logic [$clog2(AR_Q_MAX+1)-1:0] ar_queue_rptr;
   ar_t ar;
 
@@ -750,7 +750,7 @@ module axi_sw_mst #(
     end
   end
 
-  logic aw_queue_rptr_incremented, aw_queue_empty;
+  logic aw_queue_rptr_incremented, aw_queue_empty, aw_queue_full;
   logic [$clog2(AW_Q_MAX+1)-1:0] aw_queue_rptr;
   aw_t aw;
 
@@ -795,7 +795,7 @@ module axi_sw_mst #(
     end
   end
 
-  logic w_queue_rptr_incremented, w_queue_empty;
+  logic w_queue_rptr_incremented, w_queue_empty, w_queue_full;
   logic [$clog2(W_Q_MAX+1)-1:0] w_queue_rptr;
   w_t w;
 
