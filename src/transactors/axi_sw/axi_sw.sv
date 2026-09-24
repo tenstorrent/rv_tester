@@ -24,7 +24,7 @@
     endfunction                                            \
     export "DPI-C" function name``_reset;
 
-`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, update_rptr, rptr_updated, empty, out, rptr) \
+`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, update_rptr, rptr_updated, empty, full, out, rptr) \
     localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];               \
     localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];               \
     localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);                     \
@@ -195,7 +195,7 @@ module axi_sw #(
   logic r_queue_rptr_incremented;
   logic [$clog2(R_Q_MAX+1)-1:0] r_queue_rptr;
   r_t r;
-  `AXI_SW_DPI_FIFO(axi_sw_r, r_t, R_Q_MAX, clk, sys_reset, reset_n, axi_slv_r_valid && axi_mst_r_ready, r_queue_rptr_incremented, r_queue_empty, r, r_queue_rptr)
+    `AXI_SW_DPI_FIFO(axi_sw_r, r_t, R_Q_MAX, clk, sys_reset, reset_n, axi_slv_r_valid && axi_mst_r_ready, r_queue_rptr_incremented, r_queue_empty, r_queue_full, r, r_queue_rptr)
 
   `define AXI_SW_R_SIZED(S)                                                                                                                   \
         function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last, shortint unsigned latency); \
@@ -324,7 +324,7 @@ module axi_sw #(
   logic b_queue_rptr_incremented;
   logic [$clog2(B_Q_MAX+1)-1:0] b_queue_rptr;
   b_t b;
-  `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready, b_queue_rptr_incremented, b_queue_empty, b, b_queue_rptr)
+    `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready, b_queue_rptr_incremented, b_queue_empty, b_queue_full, b, b_queue_rptr)
 
   function automatic void axi_sw_b(int unsigned id, byte unsigned resp, shortint unsigned latency);
     b_t bd = '{id: id_t'(id), resp: 2'(resp), latency: 16'(latency)};
@@ -711,7 +711,7 @@ module axi_sw_mst #(
   logic [$clog2(AR_Q_MAX+1)-1:0] ar_queue_rptr;
   ar_t ar;
 
-  `AXI_SW_DPI_FIFO(axi_sw_mst_ar, ar_t, AR_Q_MAX, clk, sys_reset, reset_n, axi_slv_ar_ready && axi_mst_ar_valid, ar_queue_rptr_incremented, ar_queue_empty, ar, ar_queue_rptr)
+    `AXI_SW_DPI_FIFO(axi_sw_mst_ar, ar_t, AR_Q_MAX, clk, sys_reset, reset_n, axi_slv_ar_ready && axi_mst_ar_valid, ar_queue_rptr_incremented, ar_queue_empty, ar_queue_full, ar, ar_queue_rptr)
 
   function void axi_sw_mst_ar(int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned cache, byte unsigned prot, byte unsigned qos, byte unsigned region, byte unsigned user);
     ar_t p;
@@ -754,7 +754,7 @@ module axi_sw_mst #(
   logic [$clog2(AW_Q_MAX+1)-1:0] aw_queue_rptr;
   aw_t aw;
 
-  `AXI_SW_DPI_FIFO(axi_sw_mst_aw, aw_t, AW_Q_MAX, clk, sys_reset, reset_n, axi_slv_aw_ready && axi_mst_aw_valid, aw_queue_rptr_incremented, aw_queue_empty, aw, aw_queue_rptr)
+    `AXI_SW_DPI_FIFO(axi_sw_mst_aw, aw_t, AW_Q_MAX, clk, sys_reset, reset_n, axi_slv_aw_ready && axi_mst_aw_valid, aw_queue_rptr_incremented, aw_queue_empty, aw_queue_full, aw, aw_queue_rptr)
 
   function void axi_sw_mst_aw(int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned cache, byte unsigned prot, byte unsigned qos, byte unsigned region, byte unsigned atop, byte unsigned user);
     aw_t p;
@@ -799,7 +799,7 @@ module axi_sw_mst #(
   logic [$clog2(W_Q_MAX+1)-1:0] w_queue_rptr;
   w_t w;
 
-  `AXI_SW_DPI_FIFO(axi_sw_mst_w, w_t, W_Q_MAX, clk, sys_reset, reset_n, axi_slv_w_ready && axi_mst_w_valid, w_queue_rptr_incremented, w_queue_empty, w, w_queue_rptr)
+    `AXI_SW_DPI_FIFO(axi_sw_mst_w, w_t, W_Q_MAX, clk, sys_reset, reset_n, axi_slv_w_ready && axi_mst_w_valid, w_queue_rptr_incremented, w_queue_empty, w_queue_full, w, w_queue_rptr)
 
   `define AXI_SW_MST_W(data, strb, last)                    \
         w_t p;                                            \
