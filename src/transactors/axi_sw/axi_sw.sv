@@ -33,7 +33,7 @@
     name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                          \
                                                                                      \
     assign name``_size  = name``_wptr - rptr;                                        \
-//  assign full  = name``_size == name``_D;                                          \
+    assign full  = name``_size == name``_D;                                          \
     assign empty = name``_size == '0;                                                \
                                                                                      \
     always @(posedge clk) begin                                                      \
@@ -490,6 +490,7 @@ module axi_sw #(
   );
 
   logic flushed;
+  logic flushing;
   logic [$bits(axi_sw_r_wptr)-1:0] axi_sw_r_wptr_prev;
 
   always_ff @(posedge clk) begin
@@ -500,7 +501,7 @@ module axi_sw #(
         flushed <= '0;
       end
     end else if (!ar_history_empty && read_latency != 0) begin
-      if (r_queue_empty) begin
+      if (!r_queue_full) begin
         automatic logic fifo_near_critical    = ($bits(ar_history_size)'(AR_HISTORY_Q_MAX) - ar_history_size) <= $bits(ar_history_size)'(read_latency_fifo_threshold);
         automatic logic timeout_near_critical = CW'(clocks) - ar_history_q >= CW'(read_latency - read_latency_timeout_threshold);
         automatic logic fifo_critical         = ar_history_full;
@@ -512,6 +513,7 @@ module axi_sw #(
           if (success == '0 && (fifo_critical || timeout_critical)) begin
             $error("Error: couldn't maintain requested axi read latency");
           end
+          flushing <= '1;
           flushed <= success != '0;
           axi_sw_r_wptr_prev <= axi_sw_r_wptr;
         end
