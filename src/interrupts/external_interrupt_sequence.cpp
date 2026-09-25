@@ -8,29 +8,14 @@
 #include "bridge_plusargs.h"
 #include "device_address_map/device_address_map.h"
 #include "axi_sw_mst_rpc.h"
+#include "interrupts.hpp"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-static bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
-  if (value <= 0) {
-    cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
-    return false;
-  }
-  return true;
-}
-DEFINE_bool(interrupt_injection_enable, false, "Enable event based external_interrupt_sequence in the sim");
-DEFINE_int32(interrupt_injection_count, 1, "Number of MSI in the sim if random mode enabled");
-DEFINE_int32(interrupt_injection_rand_delay_min, 1, "min TB cycle interval between MSI random mode enabled");
-DEFINE_validator(interrupt_injection_rand_delay_min, &validate_interrupt_injection_rand_delay_min);
-DEFINE_int32(interrupt_injection_rand_delay_max, 16, "max TB cycle interval between MSI random mode enabled");
-DEFINE_string(interrupt_injection_initial_delay, "0:0", "Initial delay range (min:max) after which interrupt trigger starts");
-DEFINE_int32(interrupt_injection_event_mask, 0, "Bitmask to enable specific uarch event triggers");
-DEFINE_string(interrupt_injection_event_names, "", "Comma-separated list of uarch event names to trigger interrupts");
-DEFINE_string(interrupt_injection_label, "", "Label to trigger interrupt");
-DEFINE_string(interrupt_injection_pc, "", "Comma-separated list of PC addresses to trigger interrupts");
+// ---- Mode select, mirroring +mti / +nmi ----
+DEFINE_string(eip, "off", "Enable external_interrupt_sequence in the sim - off/random/uarch_trigger");
 
 // ---- Tick-based random MSI plusargs (moved from interrupter.cpp) ----
-DEFINE_bool(random_imsic_intr, false, "Drive random interrupts");
 DEFINE_bool(trickbox_write_enables_intr, false, "Require software write to trickbox address 0x9004040 before random interrupts start");
 DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic interrupts to M file");
 DEFINE_bool(disable_s_imsic_intr, false, "Drive random imsic interrupts to S file");
@@ -53,6 +38,14 @@ DEFINE_uint32(msi_backpressure_timeout, 10000, "Timeout for MSI backpressure");
 // Logging
 DEFINE_bool(enable_external_interrupt_sequence_debug, false, "Enable external_interrupt_sequence debug");
 
+bool eip_random_mode() {
+  return FLAGS_eip == "random";
+}
+
+bool eip_uarch_trigger_mode() {
+  return FLAGS_interrupt_injection_enable && (FLAGS_eip == "uarch_trigger");
+}
+
 // ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
@@ -72,7 +65,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   msi_vs_file_addr = msi_s_file_addr;
 
   // Tick-based random MSI init (hart 0 only)
-  if (id_ == 0 && FLAGS_random_imsic_intr) {
+  if (id_ == 0 && eip_random_mode()) {
     log(cvm::MEDIUM, "[ExtInterruptSeq] Enable random IMSIC MSIs\n");
     uint32_t rand_num = (rng1() % 2) + 1;
     if (FLAGS_imsic_intr_delay_min) {
@@ -110,7 +103,9 @@ void external_interrupt_sequence::configure() {
         });
   }
 
-  if (FLAGS_interrupt_injection_enable) {
+  if (FLAGS_eip != "off" && FLAGS_eip != "random" && FLAGS_eip != "uarch_trigger") {
+    log(cvm::ERROR, "Error: [ExtInterruptSeq][h{}] Invalid value for +eip flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_eip);
+  } else if (eip_uarch_trigger_mode()) {
     interrupt_injection_thread();
   }
 }
@@ -202,7 +197,7 @@ void external_interrupt_sequence::on_sysmod_tick(uint64_t advance) {
       intr_enable_check = false;
   }
 
-  if (!FLAGS_random_imsic_intr || !intr_enable_check)
+  if (!eip_random_mode() || !intr_enable_check)
     return;
   if (limit_interrupts_ && (intr_count_ > (int)FLAGS_max_intr_count))
     return;
