@@ -440,7 +440,11 @@ module axi_sw #(
     end
   end
 
-  localparam AR_HISTORY_Q_MAX = 128;
+  // Sized above the deepest DUT-side outstanding-read capacity (mmcab_dv has
+  // 256 read slots); at fixed latency L and one AR per clock the steady-state
+  // occupancy is L entries, so 128 left no headroom at L=121 and ar_ready
+  // backpressure re-appeared as added read latency at the DUT (RVBBL-5558).
+  localparam AR_HISTORY_Q_MAX = 512;
   localparam AW_HISTORY_Q_MAX = 128;
 
   logic                   ar_history_empty;
