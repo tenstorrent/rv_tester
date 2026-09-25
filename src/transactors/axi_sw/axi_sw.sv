@@ -440,7 +440,11 @@ module axi_sw #(
     end
   end
 
-  localparam AR_HISTORY_Q_MAX = 128;
+  // Sized above the deepest DUT-side outstanding-read capacity (mmcab_dv has
+  // 256 read slots); at fixed latency L and one AR per clock the steady-state
+  // occupancy is L entries, so 128 left no headroom at L=121 and ar_ready
+  // backpressure re-appeared as added read latency at the DUT (RVBBL-5558).
+  localparam AR_HISTORY_Q_MAX = 512;
   localparam AW_HISTORY_Q_MAX = 128;
 
   logic                   ar_history_empty;
@@ -482,6 +486,35 @@ module axi_sw #(
   );
 
   assign read_latency_requirement_met = !read_latency_fixed || ar_history_empty || (CW'(clocks) - ar_history_q) >= CW'(read_latency);
+
+  // Achieved-latency tracking: the fixed-latency gate above only enforces a
+  // minimum, so when data production lags (e.g. Zebu DPI sync cadence longer
+  // than the requested latency) reads ship late without any error. Count and
+  // report the lateness so violations are visible (RVBBL-5558).
+  int unsigned read_lat_max;
+  int unsigned read_lat_violations;
+  always_ff @(posedge clk) begin
+    if (!reset_n) begin
+      read_lat_max        <= '0;
+      read_lat_violations <= '0;
+    end else if (axi_slv_r_valid && axi_mst_r_ready && axi_slv_r_last &&
+                 !ar_history_empty && read_latency != 0) begin
+      automatic int unsigned achieved = 32'(CW'(clocks) - ar_history_q);
+      if (achieved > read_lat_max) read_lat_max <= achieved;
+      if (read_latency_fixed &&
+          achieved > read_latency + read_latency_timeout_threshold) begin
+        read_lat_violations <= read_lat_violations + 1;
+        if (read_lat_violations < 32'd10)
+          $display("Warning: [axi_sw] LOCATION=%0d read served at %0d clks vs fixed %0d (+%0d slack), violation %0d",
+                   LOCATION, achieved, read_latency, read_latency_timeout_threshold, read_lat_violations + 1);
+      end
+    end
+  end
+  final begin
+    if (read_latency != 0)
+      $display("[axi_sw] LOCATION=%0d read latency: fixed=%0d max_achieved=%0d violations=%0d",
+               LOCATION, read_latency, read_lat_max, read_lat_violations);
+  end
 
   import "DPI-C" function byte unsigned axi_sw_flush(
     int unsigned location,
