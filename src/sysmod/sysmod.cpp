@@ -298,7 +298,7 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
   // Compulsive Backdoor write
   uint64_t read_data = 0;
   device::data_t data(8);
-  uint64_t ld_addr = ((inval_crsp_.address) >> 6) << 6; // Starting from cacheline base address
+  uint64_t ld_addr = ((inval_crsp_.address & ~FLAGS_pa_mask) >> 6) << 6; // Tag bits are stripped before the memory model is written
   // Performing Whisper Poke for entire Cacheline Granularity
   for (int offset = 0; offset < 8; offset++) {
     read_data = 0;
@@ -318,7 +318,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
   // Do a backdoor read for the load's address
   device::data_t data(8);
   uint64_t read_data = 0;
-  uint64_t ld_addr = inval_load_.address;
+  uint64_t ld_addr = inval_load_.address & ~FLAGS_pa_mask; // Tag bits are stripped before the memory model is written
   uint8_t byte_mask = inval_load_.size;
   // length = inval_load_.size;
   // int size = (1 << length)/8;
