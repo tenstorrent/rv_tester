@@ -86,6 +86,7 @@ DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire 
 DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
+DEFINE_bool(mcm_fatal_violation, true, "Fail on first MCM violation. False will report an error on the first and then warnings on subsequent violations.");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
 DEFINE_uint64(bridge_debug_cycle, 0, "enabled C debug messages at clock=<n>");
 DEFINE_uint64(cosim_period, 0, "COSIM periodic mode enable");
@@ -1054,11 +1055,24 @@ void bridge::issue_whisper_mcm_read(hart_id_t hart, const mem_t& m, bool cache) 
   if (m.v_ext || (m.amo && m.size > 8)) {
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm vec load\n", hart);
+      if (FLAGS_mcm_fatal_violation)
+        error("Hart {}: Failed mcm vec load\n", hart);
+      else {
+        print(cvm::LOW, "Hart {}: Failed mcm vec load. Disabling mcm checks\n", hart);
+        end_mcm_ = true;
+      }
+      return;
     }
   } else {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm load\n", hart);
+      if (FLAGS_mcm_fatal_violation) {
+        error("Hart {}: Failed mcm load\n", hart);
+      }
+      else {
+        print(cvm::LOW, "Hart {}: Failed mcm load. Disabling mcm checks\n", hart);
+        end_mcm_ = true;
+      }
+      return;
     }
   }
   bridge_log(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
@@ -2670,12 +2684,22 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m, bool cache) {
   if (m.v_ext || (m.amo && m.size > 8)) {
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm store bypass\n", hart);
+      if (FLAGS_mcm_fatal_violation)
+        error("Hart {}: Failed mcm store bypass\n", hart);
+      else {
+        print(cvm::LOW, "Hart {}: Failed mcm store bypass. Disabling mcm checks\n", hart);
+        end_mcm_ = true;
+      }
       return;
     }
   } else {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, cache, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed mcm store bypass\n", hart);
+      if (FLAGS_mcm_fatal_violation)
+        error("Hart {}: Failed mcm store bypass\n", hart);
+      else {
+        print(cvm::LOW, "Hart {}: Failed mcm store bypass. Disabling mcm checks\n", hart);
+        end_mcm_ = true;
+      }
       return;
     }
   }
@@ -2700,7 +2724,12 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
   }
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmWriteRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, 64, data, m.mask, m.error, valid) || !valid) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed mcm store drain\n", hart);
+    if (FLAGS_mcm_fatal_violation)
+      error("Hart {}: Failed mcm store drain\n", hart);
+    else {
+      print(cvm::LOW, "Hart {}: Failed mcm store drain. Disabling mcm checks\n", hart);
+      end_mcm_ = true;
+    }
     return;
   }
 
@@ -2719,7 +2748,12 @@ void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)) {
-    error("Hart {}: Failed mcm ifetch\n", hart);
+    if (FLAGS_mcm_fatal_violation)
+      error("Hart {}: Failed mcm ifetch\n", hart);
+    else {
+      print(cvm::LOW, "Hart {}: Failed mcm ifetch. Disabling mcm checks\n", hart);
+      end_mcm_ = true;
+    }
     return;
   }
   bridge_log(cvm::HIGH, "<{}> mcm_ifetch [valid={}, addr={:#x}]\n", m.cycle, valid, m.pa);
@@ -2733,7 +2767,12 @@ void bridge::process_dut_mcm_ievict(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid) || !valid) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed mcm ievict\n", hart);
+    if (FLAGS_mcm_fatal_violation)
+      error("Hart {}: Failed mcm ievict\n", hart);
+    else {
+      print(cvm::LOW, "Hart {}: Failed mcm ievict. Disabling mcm checks\n", hart);
+      end_mcm_ = true;
+    }
     return;
   }
 
