@@ -494,6 +494,8 @@ module axi_sw #(
   logic [$bits(axi_sw_r_wptr)-1:0] axi_sw_r_wptr_prev;
 
   always_ff @(posedge clk) begin
+    flushing <= '0;
+
     if (!reset_n) begin
       flushed <= '0;
     end else if (flushed) begin  // on zebu it takes some number of clocks for the export called by this import to take affect
