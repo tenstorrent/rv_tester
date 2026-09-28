@@ -87,7 +87,7 @@ private:
           std::invoke(read, dev, r.r, data);
           std::string d;
           if (cvm::logger::check_verbosity(cvm::FULL))
-            for (int i = 63; i >= 0; i--)
+            for (int i = static_cast<int>(data.size()) - 1; i >= 0; i--)
               d += fmt::format("{:02x}", data[i]);
           cvm::log(cvm::FULL, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), d);
           cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
