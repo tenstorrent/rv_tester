@@ -8,7 +8,7 @@
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
-DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/trigger");
+DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/uarch_trigger");
 DEFINE_bool(nmi_rand_en, false, "Enable nmi_sequence tick");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset and first nmi sequence in the sim if random mode enabled");
@@ -33,7 +33,7 @@ void nmi_sequence::configure() {
   if (FLAGS_nmi_rand_en || (FLAGS_nmi == "random")) {
     random_mode_thread();
   } else if (FLAGS_nmi == "uarch_trigger") {
-    trigger_mode_thread();
+    uarch_trigger_mode_thread();
   } else if (FLAGS_nmi != "off") {
     cvm::log(cvm::ERROR, "Error: [nmi_sequence][h{}] Invalid value for +nmi flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_nmi);
   }
@@ -52,7 +52,7 @@ void nmi_sequence::random_mode_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
-void nmi_sequence::trigger_mode_thread() {
+void nmi_sequence::uarch_trigger_mode_thread() {
   auto* task = +[](nmi_sequence* m) -> cvm::messenger::task<void> {
     co_await m->trigger_mode();
     co_return;

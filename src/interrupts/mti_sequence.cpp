@@ -4,6 +4,7 @@
 #include "mti_sequence.hpp"
 #include "sysmod_plusargs.h"
 #include "rv_tester_plusargs.h"
+#include "trickbox/interrupter.h"
 
 REGISTRY_register(mti_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -53,7 +54,7 @@ void mti_sequence::random_mode_thread() {
 
 void mti_sequence::uarch_trigger_mode_thread() {
   auto* task = +[](mti_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->uarch_trigger_mode();
+    co_await m->trigger_mode();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
@@ -62,18 +63,29 @@ void mti_sequence::uarch_trigger_mode_thread() {
 cvm::messenger::task<void> mti_sequence::random_mode() {
 
   while (true) {
-    // Wait for next tick generated after a random interval "mti_interval"
     co_await assert_tick();
 
+    if (FLAGS_trickbox_write_enables_intr) {
+      bool intr_enabled = false;
+      auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+      if (!cvm::registry::messenger.call<interrupter::intr_enable_read_RPC>(sysmod_loc, intr_enabled)) {
+        cvm::log(cvm::ERROR, "Error: [mti_sequence][h{}] Failed to read interrupt enable flag\n", id_);
+      }
+      if (!intr_enabled) {
+        cvm::log(cvm::MEDIUM, "[mti_sequence][h{}] MTI injection disabled, waiting for trickbox enable write\n", id_);
+        continue;
+      }
+    }
+
     mti_count_++;
-    cvm::log(cvm::HIGH, "[interrupts][h{}] Starting mti sequence - count = {}\n", id_, mti_count_);
+    cvm::log(cvm::HIGH, "[mti_sequence][h{}] Starting mti sequence - count = {}\n", id_, mti_count_);
 
     mti(ASSERT);
   }
   co_return;
 }
 
-cvm::messenger::task<void> mti_sequence::uarch_trigger_mode() {
+cvm::messenger::task<void> mti_sequence::trigger_mode() {
   while (1) {
     // Wait for next selected trigger
     co_await trigger();
@@ -86,7 +98,7 @@ void mti_sequence::mti(uint8_t assert) {
   cvm::registry::callbacks.push(
       loc_,
       [assert, this]() {
-        cvm::log(cvm::HIGH, "[interrupts][h{}] {} mti\n", id_, assert ? "assert" : "deassert");
+        cvm::log(cvm::HIGH, "[mti_sequence][h{}] {} mti\n", id_, assert ? "assert" : "deassert");
         drive_mti(assert);
       });
 }
