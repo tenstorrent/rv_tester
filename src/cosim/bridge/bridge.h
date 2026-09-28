@@ -380,7 +380,6 @@ private:
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;
 
-  bool deferred_intr_ = false;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
@@ -392,7 +391,33 @@ private:
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
-  std::bitset<64> last_step_mip_ = 0;
+
+  // --- Interrupt tracking state ---------------------------------------------
+  struct intr_state_t {
+    std::bitset<64> src = 0;
+    std::bitset<64> src_edges = 0;
+    std::bitset<64> clear_held_for_post_step = 0;
+    std::bitset<64> set_held_for_post_step = 0;
+    std::bitset<64> iss = 0, iss_at_prev_poke = 0, iss_at_last_retire = 0;
+
+    // Deferral: which interrupts Whisper is being held off from taking, and for
+    // how many retires. Same lifetime as the masks above, cleared on undefer.
+    std::unordered_map<uint32_t, uint32_t> deferred_age;
+    bool deferred = false;
+    bool partially_deferred = false;
+    bool undeferred_due_to_xret_csr = false;
+
+    void update_src(std::bitset<64> new_src) {
+      src_edges |= (src ^ new_src);
+      src = new_src;
+    }
+    void retire_boundary() {
+      iss_at_last_retire = iss;
+      src_edges.reset();
+    }
+    void reset() { *this = intr_state_t{}; }
+  };
+  intr_state_t intr_;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
@@ -402,10 +427,8 @@ private:
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
-  std::unordered_map<uint32_t, uint32_t> deferred_intr_age_;
 
   std::unordered_map<uint32_t, uint32_t> whisper_mip_age_, whisper_mip_clr_age_, dut_mip_age_, dut_mip_clr_age_;
-  std::bitset<64> tmp_mip_prev_, tmp_mip_latest_;
 
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
@@ -472,12 +495,8 @@ private:
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
 
-  std::bitset<64> intr_during_ucode_ = 0;
-  std::bitset<64> intr_cleared_during_ucode_ = 0;
   rv_intr_t timer_state_{};
-  bool intr_partially_deferred_ = false;
   bool poke_time_csr_post_step_ = false;
-  bool intr_undeferred_due_to_xret_intr_csr_ = false;
   bool nmi_undeferred_due_to_xret_intr_csr_ = false;
   bool snapshot_taken = false;
 };
