@@ -12,3 +12,4 @@ configuration.
    sysmod
    pmu
    sw_testbench
+   end_of_test

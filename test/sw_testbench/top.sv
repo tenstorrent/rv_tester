@@ -56,6 +56,7 @@ module top
     assign target_num_resets = 0;
   `ifdef UVM_MACROS_SVH
     assign uvm_done = '1;
+    assign uvm_final_done = '1;
   `endif 
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin

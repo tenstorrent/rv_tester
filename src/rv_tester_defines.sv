@@ -314,6 +314,7 @@ package rv_tester_params;
   input                                    cvm_done,                                              \
 `ifdef UVM_MACROS_SVH                                                                           \
   output                                   uvm_done,                                              \
+  output                                   uvm_final_done,                                        \
 `endif                                                                                          \
   input                                    terminate,                                             \
   input                                    sysmod_terminate,                                      \

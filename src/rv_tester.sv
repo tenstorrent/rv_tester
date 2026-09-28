@@ -6,8 +6,8 @@ module rv_tester
     pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            =       0,
+    // TB clocks after `terminate` before `cvm_done` may assert, once the harness reports `quiesced`.
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
-    parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     `TOPOLOGY
     ) (
        input clk_ext [NCLKS-1:0],
@@ -165,9 +165,9 @@ module rv_tester
   bit overlay_mmr_en = 0;
 
   logic terminate_1T = '0;
-  logic [CVM_DONE_DELAY_CYCLES-1:0] cvm_done_terminate_delay_sr;
-  logic [CVM_DONE_DRAINED_DELAY_CYCLES-1:0] cvm_done_drained_delay_sr;
-  logic cvm_done_drained;
+  logic cvm_done_q;
+  logic quiesce_complete;
+  logic uvm_handshake_done;
   logic terminated_1T = '0;
   logic rerun_now;
   /* verilator lint_off UNOPTFLAT */
@@ -179,6 +179,11 @@ module rv_tester
 
   int quiesce_counter = 0;
   int quiesce_timeout;
+`ifdef UVM_MACROS_SVH
+  int uvm_final_counter = 0;
+  int uvm_final_timeout;
+  logic uvm_final_timed_out;
+`endif
   bit print_terminate_message = '1;
   bit dm_registery_terminate_message = '1;
   int ndmreset_ack_delay = 0;
@@ -237,14 +242,20 @@ module rv_tester
 `else    
   assign terminate           = (core_terminate_conditions || quiesce_counter > 0) && !rv_tester_reset && !warm_reset;
 `endif   
-  assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (cvm_done_drained &&terminate_1T && (quiesced || (quiesce_timeout != 0 && (quiesce_counter >= quiesce_timeout))) && !warm_reset) || dut_terminate || warm_reset_now;
+  // +quiesce_timeout=0 waits for `quiesced` without limit.
+  assign quiesce_complete    = quiesced || (quiesce_timeout != 0 && quiesce_counter >= quiesce_timeout);
+`ifdef UVM_MACROS_SVH
+  // UVM handshake: `cvm_done` is the request, `uvm_final_done` the acknowledge. +uvm_final_timeout=0 waits without limit.
+  assign uvm_final_timed_out = (uvm_final_timeout != 0) && (uvm_final_counter >= uvm_final_timeout);
+  assign uvm_handshake_done  = cvm_done && ((uvm_final_done === 1'b1) || uvm_final_timed_out);
+`else
+  assign uvm_handshake_done  = 1'b1;
+`endif
+  assign terminate_now       = (unconditional_terminate && sysmod_terminate) || (terminate_1T && quiesce_complete && uvm_handshake_done && !warm_reset) || dut_terminate || warm_reset_now;
 
   assign rerun_now           = terminated && !terminated_1T && num_reruns != -1 && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
-  // Assert `cvm_done` CVM_DONE_DELAY_CYCLES TB clk cycles after `terminate_1T` (uvm/CVM handshake).
-  assign cvm_done = cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1];
-  // Assert `cvm_done_drained` CVM_DONE_DRAINED_DELAY_CYCLES TB clk cycles after `cvm_done`.
-  assign cvm_done_drained = cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-1];
+  assign cvm_done            = cvm_done_q;
 
 `ifndef CLK_MUX_UNSUPPORTED
   always @(posedge dut_clk[TB_CLK_IDX])begin
@@ -288,6 +299,9 @@ module rv_tester
 `endif
 
     quiesce_counter <= quiesce_counter + int'(terminate);
+`ifdef UVM_MACROS_SVH
+    uvm_final_counter <= uvm_final_counter + int'((cvm_done === 1'b1) && (uvm_final_done !== 1'b1));
+`endif
 
 `ifdef RV_TESTER_PMCI_ENABLE
     for (int i=0; i<NHARTS; i++) begin
@@ -297,6 +311,9 @@ module rv_tester
 
     if (rv_tester_reset) begin
       quiesce_counter <= '0;
+`ifdef UVM_MACROS_SVH
+      uvm_final_counter <= '0;
+`endif
       instructions    <= '0;
       if (num_resets < 0) begin
         clocks <= '0;
@@ -464,6 +481,9 @@ module rv_tester
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
         cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
         quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
+`ifdef UVM_MACROS_SVH
+        uvm_final_timeout               <= cvm_plusargs::get_int("uvm_final_timeout");
+`endif
         ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
         trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
         freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
@@ -526,6 +546,11 @@ module rv_tester
     if (terminate_now && !terminated) begin
 
       if (print_terminate_message) begin
+`ifdef UVM_MACROS_SVH
+        if (uvm_final_timed_out && (uvm_final_done !== 1'b1)) begin
+          $display("\n<%0d> [RVTESTER]: Error: Waiting for the UVM final phase for more than %0d cycles", clocks, uvm_final_timeout);
+        end
+`endif
         if (warm_reset_now) begin
           $display("<%0d> [RVTESTER]: starting warm reset", clocks);
         end else if (dut_terminate) begin
@@ -574,20 +599,9 @@ module rv_tester
 
   always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
     if (rv_tester_reset) begin
-      cvm_done_terminate_delay_sr <= '0;
-      cvm_done_drained_delay_sr <= '0;
-    end else begin
-      if (terminate_1T === 'b1) begin
-        cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], terminate_1T};
-      end else begin
-        cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], '0};
-      end
-      if(cvm_done === 'b1) begin
-        cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0],
-                                      cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1]};
-      end else begin
-        cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0], '0};
-      end
+      cvm_done_q <= '0;
+    end else if (terminate_1T && quiesce_complete && quiesce_counter >= int'(CVM_DONE_DELAY_CYCLES)) begin
+      cvm_done_q <= '1;
     end
   end
 

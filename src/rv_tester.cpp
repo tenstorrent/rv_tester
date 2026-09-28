@@ -30,6 +30,7 @@ static bool validate_debug_cycle_off(const char* flagname, const uint64_t value)
 
 DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
 DEFINE_int32(quiesce_timeout, 600, "cycles to wait after eot condition before calling $finish");
+DEFINE_int32(uvm_final_timeout, 1000, "cycles to wait after cvm_done for the UVM final phase before terminating anyway (0 waits without limit)");
 DEFINE_int32(flush_timeout, 30000, "cycles to wait after flush is initiated before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
 DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
