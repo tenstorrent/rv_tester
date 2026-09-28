@@ -87,8 +87,10 @@ public:
     cvm::set_logger_prefix([]() -> std::string_view {
       static char buf[64];
       int n = 0;
-      if (timestamp) n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "ps]", timestamp);
-      if (clock)     n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "] ", clock);
+      if (timestamp)
+        n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "ps]", timestamp);
+      if (clock)
+        n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "] ", clock);
       return std::string_view(buf, static_cast<std::size_t>(n));
     });
 
