@@ -145,6 +145,11 @@ private:
   uint32_t aw_q_rptr_, aw_q_wptr_;
   uint32_t w_q_rptr_, w_q_wptr_;
 
+  // when wptr wraps to 0, 0 - rptr_ could underflow so add ptr_max_
+  static bool q_full(uint32_t wptr, uint32_t rptr, size_t q_max, size_t ptr_max) {
+    return ((wptr + ptr_max - rptr) % ptr_max) >= q_max;
+  }
+
   std::vector<bool> ids_;
   std::vector<bool> exp_err_rsp_ids_;
   std::vector<bool> allow_decerr_resp_ids_;
@@ -378,7 +383,7 @@ public:
           read_bytes_ = read_bytes_ + (1ull << arg.size);
           cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
           cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
-          if ((ar_q_wptr_ - ar_q_rptr_) < ar_q_max_) {
+          if (!q_full(ar_q_wptr_, ar_q_rptr_, ar_q_max_, ar_q_ptr_max_)) {
             ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
             cvm::registry::callbacks.push(
                 loc_,
@@ -391,7 +396,7 @@ public:
           write_bytes_ = write_bytes_ + (1ull << arg.size);
           cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
           cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
-          if ((aw_q_wptr_ - aw_q_rptr_) < aw_q_max_) {
+          if (!q_full(aw_q_wptr_, aw_q_rptr_, aw_q_max_, aw_q_ptr_max_)) {
             aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
             cvm::registry::callbacks.push(
                 loc_,
@@ -403,7 +408,7 @@ public:
         }
       } else if constexpr (std::is_same_v<T, axi::w_t>) {
         cvm::log(cvm::FULL, "[axi_sw_mst] wdata w_q_wptr:{} w_q_rptr:{} w_q_max_:{} \n", w_q_wptr_, w_q_rptr_, w_q_max_);
-        if ((w_q_wptr_ - w_q_rptr_) < w_q_max_) {
+        if (!q_full(w_q_wptr_, w_q_rptr_, w_q_max_, w_q_ptr_max_)) {
           w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
           if (arg.strb.size() == 0) {
