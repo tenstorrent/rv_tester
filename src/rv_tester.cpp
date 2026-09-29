@@ -233,13 +233,9 @@ void rv_tester_build_registry() {
   cvm::registry::configure();
 }
 
-// Reset domains: GENERAL is rebuilt on every warm reset, WARM_RESET persists across them
-constexpr unsigned GENERAL    = 0; // for lack of better word
-constexpr unsigned WARM_RESET = 1;
-
 void rv_tester_domain0_build_registry() {
   check_called = false;
-  cvm::registry::build_domain(GENERAL);
+  cvm::registry::build_domain(0);
   cvm::registry::configure();
 }
 
@@ -254,8 +250,8 @@ uint8_t rv_tester_shutdown_registry(bool all_domains) {
     cvm::log(cvm::NONE, "[registry] shutdown all domains...\n");
     return cvm::registry::shutdown();
   }
-  cvm::log(cvm::NONE, "[registry] shutdown domain:{} (GENERAL)...\n", GENERAL);
-  return cvm::registry::shutdown_domain(GENERAL);
+  cvm::log(cvm::NONE, "[registry] shutdown domain:0 (GENERAL)...\n");
+  return cvm::registry::shutdown_domain(0);
 }
 
 uint8_t rv_tester_flush_callbacks() {
