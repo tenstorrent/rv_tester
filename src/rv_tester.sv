@@ -120,8 +120,7 @@ module rv_tester
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
   import "DPI-C" context function void rv_tester_build_registry();
   import "DPI-C" context function void rv_tester_domain0_build_registry();
-  import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
-  import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
+  import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit all_domains);
   import "DPI-C" context function bit rv_tester_flush_callbacks();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
@@ -181,7 +180,6 @@ module rv_tester
   int quiesce_timeout;
   bit print_terminate_message = '1;
   bit dm_registery_terminate_message = '1;
-  bit domain0_shutdowned = '0;
   int ndmreset_ack_delay = 0;
 
   int trace_timeout;
@@ -514,14 +512,12 @@ module rv_tester
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
     automatic logic shutdowned = '0;
-    automatic logic domain1_shutdowned = '0;
     automatic logic final_terminate = '0;
 `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
     fml_shutdowned = 1'b0;
 `endif
     if (rv_tester_reset) begin
       print_terminate_message <= '1;
-      domain0_shutdowned      <= '0;
     end
     if(cold_reset) begin //
       dm_registery_terminate_message <= '1;
@@ -543,24 +539,19 @@ module rv_tester
 
       end
 
-      shutdowned = domain0_shutdowned || (rv_tester_shutdown_registry(unconditional_terminate) != '0);
-      domain0_shutdowned <= shutdowned;
+      // Components that persist across warm resets are torn down only when no rerun is pending
+      final_terminate = num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req;
+      shutdowned = rv_tester_shutdown_registry(unconditional_terminate || final_terminate) != '0;
 `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
       fml_shutdowned = shutdowned;
 `endif
-      final_terminate = shutdowned && num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req;
-      if (unconditional_terminate) begin
-        domain1_shutdowned = shutdowned;
-      end else if (final_terminate || num_resets > target_num_resets) begin
-        domain1_shutdowned = rv_tester_domain1_shutdown_registry() != '0;
-      end
-      if (!shutdowned || (final_terminate && !domain1_shutdowned)) begin
+      if (!shutdowned) begin
         if (print_terminate_message) begin
           $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
         end
       end
 
-      if (final_terminate && domain1_shutdowned) begin
+      if (shutdowned && final_terminate) begin
         $display("INFO_PASS:{\"clocks\": %0d}", clocks);
         $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
         $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
@@ -574,7 +565,7 @@ module rv_tester
     end
 
     terminate_1T <= terminate;
-    terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned && (!final_terminate || domain1_shutdowned)));
+    terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
     terminated_1T <= terminated;
 
   end
