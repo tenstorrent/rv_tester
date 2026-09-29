@@ -133,8 +133,7 @@ void rv_tester_signal_handler(int signum) {
   rv_tester_safe_write(")\n");
   rv_tester_dump_backtrace_safe();
 
-  // avoid SIGABRT from chaining and straightup terminate. It causes hang.
-  if (signum != SIGABRT && signum > 0 && signum < NSIG && rv_tester_prev_actionable(rv_tester_prev_action[signum])) {
+  if (signum > 0 && signum < NSIG && rv_tester_prev_actionable(rv_tester_prev_action[signum])) {
     // Restore and re-raise so the previous (e.g. VCS) handler runs. The signal
     // is masked while we are in here; it is delivered to the restored handler
     // once we return.

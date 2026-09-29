@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <cinttypes>
-#include <cstdio>
 #include <cstdlib>
 #include <string_view>
 #include <chrono>
@@ -85,13 +83,9 @@ public:
     timestamp = 0;
 
     cvm::set_logger_prefix([]() -> std::string_view {
-      static char buf[64];
-      int n = 0;
-      if (timestamp)
-        n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "ps]", timestamp);
-      if (clock)
-        n += std::snprintf(buf + n, sizeof buf - n, "[%" PRIu64 "] ", clock);
-      return std::string_view(buf, static_cast<std::size_t>(n));
+      prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+      prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      return prefix;
     });
 
     cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [](const auto& c) { clock = c.clock; });
@@ -116,6 +110,7 @@ public:
 
 private:
   static svScope scope;
+  static std::string prefix;
   static uint64_t clock;
   static uint64_t timestamp;
   cvm::topology::loc_t loc;
@@ -316,6 +311,7 @@ void rv_tester_clock_monitor(const uint64_t clocks, const uint32_t clock_mode) {
 }
 
 svScope logger_instrument::scope;
+std::string logger_instrument::prefix;
 uint64_t logger_instrument::clock;
 uint64_t logger_instrument::timestamp;
 
