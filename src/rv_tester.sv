@@ -638,39 +638,37 @@ end
     soc_clocks <= soc_clocks + 1;
   end
 
-  // dut_reset = force_ref_clk delayed by 2 clocks
+  // force_ref_clk resynchronised to REF_CLK for the external-clock mux
   always @(posedge dut_clk[REF_CLK_IDX]) begin
     force_ref_clk_d1 <= force_ref_clk;
     force_ref_clk_d2 <= force_ref_clk_d1;
   end
 
-  // We also assert reset at the end of the test to quiesce the DPIs.
+  // Reset is held at the end of a run so the DPIs quiesce. The harness owns the
+  // per-clock-domain dut_reset[] composition; rv_tester only publishes
+  // warm_reset_pullup so the harness can extend the hold until pwrmgmt asserts
+  // warm_reset.
   logic reset_pullup;
   logic cold_reset_pullup = 0;
-  logic warm_reset_pullup = 0;
+  logic warm_reset_pullup_ = 0;
   assign reset_pullup = rv_tester_reset || terminate_now || terminated;
+  assign warm_reset_pullup = warm_reset_pullup_;
 
   assign reset[COLD_RESET_IDX] = cold_reset || cold_reset_pullup;
   assign reset[WARM_RESET_IDX] = warm_reset;
-
-  assign dut_reset[TB_CLK_IDX] =  reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-  assign dut_reset[CORE_CLK_IDX] =&core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
-  assign dut_reset[AXI_CLK_IDX] = reset_window || reset[WARM_RESET_IDX] || warm_reset_pullup;
-  assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
-  assign dut_reset[REF_CLK_IDX] = reset_window;
 
   always@(posedge dut_clk[TB_CLK_IDX]) begin
     if (reset_pullup)
       if (!warm_reset_req && !(dut_reset_req || shifted_dut_reset_req))
         cold_reset_pullup <= '1;
       else
-        warm_reset_pullup <= '1;
+        warm_reset_pullup_ <= '1;
     if (cold_reset) begin
       cold_reset_pullup <= '0;
-      warm_reset_pullup <= '0;
+      warm_reset_pullup_ <= '0;
     end
     if (warm_reset)
-      warm_reset_pullup <= '0;
+      warm_reset_pullup_ <= '0;
   end
 
   // posedge on dut_reset_req should trigger a warm reset
@@ -686,7 +684,7 @@ end
     warm_reset_req_d1 <= warm_reset_req;
     warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
   end
-  assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup;
+  assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup_;
 
   //ndmreset ack delay logic
   LU ndmreset_ack_clocks;

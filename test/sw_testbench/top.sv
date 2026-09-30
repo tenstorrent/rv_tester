@@ -28,6 +28,13 @@ module top
     assign core_no_fetch[cvm_topology_gen::mods.TOP.PLATFORM.NHARTS-1:0] = {cvm_topology_gen::mods.TOP.PLATFORM.NHARTS{reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX]}};
     /* verilator lint_on WIDTHEXPAND */
 
+    // TB-model reset per clock domain; same policy as the cluster harness.
+    assign dut_reset[TB_CLK_IDX]   = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[AXI_CLK_IDX]  = reset_window || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[SOC_CLK_IDX]  = reset[COLD_RESET_IDX];
+    assign dut_reset[REF_CLK_IDX]  = reset_window;
+
     rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_next;
 
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
