@@ -256,7 +256,7 @@ module cosim
   longint unsigned psc_off_low  = 0;
   longint unsigned psc_off_high = 0;
   bit to_host;
-  int unsigned cosim_period=0;
+  longint unsigned cosim_period=0;
   int unsigned PSC_period=0;
 
   bit get_cosim_compare_values = 1;
@@ -1640,14 +1640,13 @@ end
   always @(posedge tb_clk) begin
     if (reset || rvt_reload_d2) begin
       /* verilator lint_off BLKSEQ */
-      max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+      max_stall_cycle <= cvm_plusargs::get_ulongint("max_stall_cycle");
       max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
-      cosim_period <= cvm_plusargs::get_int("cosim_period");
+      cosim_period <= cvm_plusargs::get_ulongint("cosim_period");
       max_instructions <= cvm_plusargs::get_ulongint("max_instr");
       nharts <= cvm_plusargs::get_int("num_harts");
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
-      //mcm_value  = cvm_plusargs::get_int("mcm");
       dram_base <= cvm_plusargs::get_ulongint("dram_base");
       psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
       psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
