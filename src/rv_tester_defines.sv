@@ -280,7 +280,7 @@ package rv_tester_params;
   input  longint unsigned                  clocks,                                                \
   input                                    clk                [rv_tester_params::NCLKS-1:0],      \
   output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
-  input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
+  output                                   dut_reset          [rv_tester_params::NCLKS-1:0],      \
   output                                   dut_reset_req,                                         \
   input   logic                            ndmreset_ack,                                          \
   input                                    dut_reset_req_active,                                  \
@@ -292,6 +292,7 @@ package rv_tester_params;
   output  logic                            warm_reset_en,                                         \
   output  int                              target_num_resets,                                     \
   output logic                             reset_window,                                          \
+  input  logic                             warm_reset_pullup,                                     \
   output                                   warm_reset_release_hang,                               \
   output                                   force_ref_clk,                                         \
   output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
@@ -371,6 +372,7 @@ package rv_tester_params;
   int                                      num_resets;                                            \
   int                                      target_num_resets;                                     \
   logic                                    reset_window;                                          \
+  logic                                    warm_reset_pullup;                                     \
   logic                                    warm_reset_release_hang;                               \
   logic                                    force_ref_clk;                                         \
   logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
