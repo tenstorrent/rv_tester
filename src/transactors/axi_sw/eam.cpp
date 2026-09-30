@@ -170,7 +170,7 @@ void eam::set_tb_fail_en(bool en) {
 bool eam::tb_fail_excl_write(const axi::a_t& a) {
   if (!tb_fail_en_ || tb_fail_cnt_ == 0)
     return false;
-  if (uint64_t(a.addr) != tb_fail_addr_)
+  if (rsv_base(a.addr) != rsv_base(tb_fail_addr_))
     return false;
   if (tb_fail_injected_ >= tb_fail_cnt_)
     return false;
@@ -231,6 +231,7 @@ bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
   // region), so a legal LR/SC pair can legitimately differ here. It is still
   // captured in the entry for debug.
   return e.rsv_addr == rsv_base(a.addr) &&
+         e.size == a.size &&
          e.len == a.len &&
          e.burst == a.burst &&
          e.prot == a.prot;

@@ -88,9 +88,9 @@ public:
 
 private:
   // Returns true if this exclusive write must be failed by the trickbox
-  // injection mechanism: tb_fail_en_ is armed, the address matches
-  // tb_fail_addr_ exactly and fewer than tb_fail_cnt_ failures have been
-  // injected since the last arming. Consumes one count.
+  // injection mechanism: tb_fail_en_ is armed, a.addr and tb_fail_addr_
+  // share a reservation granule, and fewer than tb_fail_cnt_ failures have
+  // been injected since the last arming. Consumes one count.
   bool tb_fail_excl_write(const axi::a_t& a);
 
   eam();
