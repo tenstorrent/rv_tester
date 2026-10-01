@@ -306,7 +306,7 @@ module cosim
   bit               force_compare;
 
 
-  bit [31:0]             rvfi_scheck_cnt;
+  bit [63:0]             rvfi_scheck_cnt;
   bit [NRET-1:0]         rvfi_valids;
   bit [NRET-1:0][63:0]   rvfi_orders;
   bit [NRET-1:0]         rvfi_luops;
@@ -1148,7 +1148,7 @@ end
         rvfi_scheck_cnt <= '0;                           // clear counter
       else
         if (rvfi_valid)
-          rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);
+          rvfi_scheck_cnt <= rvfi_scheck_cnt + 64'(valid_cnt);
 
       if (rvfi_valid & ~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper
         rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
