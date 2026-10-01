@@ -19,6 +19,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
   subdevices_.emplace_back(sub);
+  sub = new debug_req_vld("debug_req_vld", addr + 0x58000, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, loc);
+  subdevices_.emplace_back(sub);
   sub = new evt_trigger("evt_trigger", addr + 0x78000, 1, loc);
   subdevices_.emplace_back(sub);
   sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc, m_);

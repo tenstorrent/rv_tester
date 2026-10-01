@@ -9,7 +9,6 @@ sh_test(
     data = [
         "//test/transactors/axi_sw:axi_sw_tb_verilator",
     ],
-    tags = ["no-valgrind"],
 )
 
 test_suite(

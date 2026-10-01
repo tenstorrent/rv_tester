@@ -22,7 +22,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tenstorrent/cvm:0.1.4
+      image: ghcr.io/tenstorrent/cvm:0.1.5
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
     # Downstream consumers still run Bazel 6 + WORKSPACE.
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tenstorrent/cvm:0.1.4
+      image: ghcr.io/tenstorrent/cvm:0.1.5
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -49,10 +49,11 @@ jobs:
         run: bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv $BAZEL_OPTS
 
   test:
-    # smoke / asan+ubsan / tsan share one recipe, differing only by config.
+    # smoke / asan+ubsan / tsan / valgrind share one recipe, differing only by
+    # config.
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tenstorrent/cvm:0.1.4
+      image: ghcr.io/tenstorrent/cvm:0.1.5
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -73,6 +74,9 @@ jobs:
           - name: tsan
             targets: "-- //test/... -//test/examples/..."
             flags: "--features=tsan --test_tag_filters=-no-sanitizer"
+          - name: valgrind
+            targets: "-- //test/... -//test/examples/..."
+            flags: "--test_env=SIM_WRAP='valgrind --tool=memcheck --leak-check=full --track-origins=yes --error-exitcode=1' --test_tag_filters=-no-valgrind"
     name: test (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4

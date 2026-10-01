@@ -19,6 +19,7 @@
 #include "cvm/topology.hpp"
 #include "src/sysmod/trickbox/interrupter.h"
 #include "src/sysmod/trickbox/debugger.h"
+#include "src/sysmod/trickbox/debug_req_vld.h"
 #include "src/sysmod/trickbox/evt_trigger.h"
 #include "src/sysmod/trickbox/uc_helper.h"
 #include "src/sysmod/trickbox/io_coh_helper.h"
@@ -38,7 +39,7 @@ public:
   // Destructor.
   virtual ~trickbox();
 
-  void configure();
+  void configure() override;
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size

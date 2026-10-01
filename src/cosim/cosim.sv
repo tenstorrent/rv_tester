@@ -256,7 +256,7 @@ module cosim
   longint unsigned psc_off_low  = 0;
   longint unsigned psc_off_high = 0;
   bit to_host;
-  int unsigned cosim_period=0;
+  longint unsigned cosim_period=0;
   int unsigned PSC_period=0;
 
   bit get_cosim_compare_values = 1;
@@ -1599,10 +1599,11 @@ end
   assign hart = NUM;
   /* verilator lint_on WIDTHEXPAND */
 
-  localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
+  longint unsigned dram_base = 64'h8000_0000;
   logic        max_cycle_timeout_detect;
   logic [63:0] updated_max_cycle;
   logic        max_cycle_update_valid;
+  logic        max_cycle_update_sent;
   logic        max_stall_cycle_timeout_detect;
   logic [63:0] updated_max_stall_cycle;
   logic        max_stall_cycle_update_valid;
@@ -1612,11 +1613,14 @@ end
     if (reset) begin
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
-    end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+      max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
+    end else if (!max_cycle_update_sent && max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_cycle_timeout_detect <= 1;
       if (timeout_scale_en) begin
         updated_max_cycle       <= get_max_cycle();
         max_cycle_update_valid  <= 1;
+        max_cycle_update_sent   <= 1;
       end
     end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
       max_stall_cycle_timeout_detect <= 1;
@@ -1628,6 +1632,7 @@ end
       max_cycle_timeout_detect <= 0;
       max_stall_cycle_timeout_detect <= 0;
       max_cycle_update_valid  <= 0;
+      max_cycle_update_sent   <= 0;
       max_stall_cycle_update_valid <= 0;
     end
   end
@@ -1635,14 +1640,14 @@ end
   always @(posedge tb_clk) begin
     if (reset || rvt_reload_d2) begin
       /* verilator lint_off BLKSEQ */
-      max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+      max_stall_cycle <= cvm_plusargs::get_ulongint("max_stall_cycle");
       max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
-      cosim_period <= cvm_plusargs::get_int("cosim_period");
+      cosim_period <= cvm_plusargs::get_ulongint("cosim_period");
       max_instructions <= cvm_plusargs::get_ulongint("max_instr");
       nharts <= cvm_plusargs::get_int("num_harts");
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
-      //mcm_value  = cvm_plusargs::get_int("mcm");
+      dram_base <= cvm_plusargs::get_ulongint("dram_base");
       psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
       psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");
       timeout_scale_en <= (cvm_plusargs::get_bool("timeout_scale_en") != '0);
@@ -1652,12 +1657,16 @@ end
       /* verilator lint_on BLKSEQ */
       boot_wfi <= '0;
       cosim_terminate_sent <= '0;
-      boot_done <= '0;
+      // A platform with no RVFI (topology COSIM.RVFI.ENABLE = 0) never
+      // retires at dram_base, so boot is done at reset. Otherwise the NMI and
+      // MTI tick generators would never arm. +nmi_interval and +mti_interval
+      // must then cover the boot.
+      boot_done <= !RVFI_EN;
     end else begin
       if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
         boot_wfi <= '1;
       end
-      if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
+      if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == dram_base) begin
         boot_done <= '1;
       end
       if (max_cycle_update_valid) begin

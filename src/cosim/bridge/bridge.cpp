@@ -80,6 +80,7 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
+DEFINE_bool(csr_metrics, true, "Print the per-hart iss/dut CSR pass-metrics even when the run had no cosim mismatch; set 0 to print them only on a mismatch");
 DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
 DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
@@ -217,7 +218,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
   }
   previous_cycle_ = 0;
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-  if (FLAGS_random_imsic_intr) {
+  if (FLAGS_imsic_intr == "random") {
     FLAGS_max_cycle = 2 * FLAGS_max_cycle;
     print(cvm::LOW, "Doubling max_cycles for sim run to {}\n", FLAGS_max_cycle);
   }
@@ -1225,7 +1226,7 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   if (cosim_util::is_xret_opcode(w_.opcode)) {
     // If xRET is seen, then undefer all interrupts except for those that asserted during xRET or
     // After xRET and before next instruction retires.
-    defer_interrupt(hart, d.cycle, 0 | (tmp_mip_latest_ ^ last_step_mip_).to_ullong());
+    defer_interrupt(hart, d.cycle, 0 | ((tmp_mip_latest_ ^ last_step_mip_) | mip_changed_since_last_step_).to_ullong());
     intr_undeferred_due_to_xret_intr_csr_ = true;
   }
   // TODO: Add interrupt CSRs check for undeferring interrupts
@@ -1251,9 +1252,21 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
   // Update last_step_mip_ for next step
   last_step_mip_ = tmp_mip_latest_;
+  mip_changed_since_last_step_.reset();
 }
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+
+  // Apply interrupt clears that were held back while a retire was in flight.
+  // Done first so that no early return below can leave Whisper's mip stale for
+  // additional steps; the Whisper step for this retire has already completed, so
+  // the pending bit is no longer needed.
+  if (intr_cleared_during_ucode_.to_ullong() != 0) {
+    peek_mip(hart, d.cycle, tmp_mip_latest_);
+    tmp_mip_latest_ &= ~intr_cleared_during_ucode_;
+    poke_mip(hart, d.cycle, tmp_mip_latest_);
+    intr_cleared_during_ucode_.reset();
+  }
 
   // Check deferred interrupt at patch exit (mirrors NMI exit check)
   if (w_.intr && patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
@@ -1317,13 +1330,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     intr_partially_deferred_ = false;
     deferred_intr_age_.clear();
     defer_interrupt(hart, d.cycle, 0);
-  }
-
-  // If interrupts were cleared during ucode sequence, clear them in post-step
-  if (intr_cleared_during_ucode_.to_ullong() != 0) {
-    peek_mip(hart, d.cycle, tmp_mip_latest_);
-    poke_mip(hart, d.cycle, tmp_mip_latest_ & ~intr_cleared_during_ucode_);
-    intr_cleared_during_ucode_.reset();
   }
 
   if (poke_time_csr_post_step_) {
@@ -1588,6 +1594,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
       update_regs(hart, w);
+      if (c.csr_addr == vtype.address)
+        vtype_ = w.value;
     }
     if (w.resource == 'm') {
       w_.mem_write.valid = true;
@@ -1595,6 +1603,28 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       w_.mem_write.data = w.value;
       if ((w.address < device_address_map_sp_base_addr() + device_address_map_sp_size()) && (w.address >= device_address_map_sp_base_addr()))
         num_sp_accesses_++;
+    }
+  }
+
+  // Whisper only performs the AMOCAS store when the compare matches
+  if (!w_.trap && !w.is_cancelled && is_cracked_amocas(w.disasm)) {
+    for (const auto& width : amocas_widths_) {
+      if (w.disasm.find("amocas." + width) != std::string::npos) {
+        if (w_.mem_write.valid)
+          num_amocas_pass_[width]++;
+        else
+          num_amocas_fail_[width]++;
+      }
+    }
+  }
+
+  if (is_vector(w.disasm) && !is_vset(w.disasm)) {
+    if (w_.trap) {
+      num_vector_++;
+      num_vector_excp_++;
+    } else if (!w.is_cancelled) {
+      num_vector_++;
+      num_vector_by_vtype_[vtype_str(vtype_)]++;
     }
   }
 
@@ -2146,6 +2176,20 @@ bool bridge::is_cracked_csr(const std::string& instr) {
 
 bool bridge::is_cracked_amocas(const std::string& instr) {
   return instr.find("amocas") != std::string::npos;
+}
+
+bool bridge::is_vset(const std::string& instr) {
+  return instr.substr(0, 4) == "vset";
+}
+
+std::string bridge::vtype_str(uint64_t vtype_val) {
+  static const std::map<int, std::string> lmul_names = {{0, "1"}, {1, "2"}, {2, "4"}, {3, "8"}, {5, "f8"}, {6, "f4"}, {7, "f2"}};
+  if (vtype_val >> 63)
+    return "vill";
+  int sew = 8 << ((vtype_val & 0x38) >> 3);
+  int lmul_enc = vtype_val & 0x7;
+  auto lmul = lmul_names.find(lmul_enc);
+  return fmt::format("e{}_m{}", sew, lmul != lmul_names.end() ? lmul->second : "rsvd");
 }
 
 bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss) {
@@ -2929,18 +2973,25 @@ void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool in
   bridge_log(cvm::MEDIUM, "<{}> MTIP: {}\n", cycle, static_cast<uint32_t>(mtip));
   std::bitset<64> mtip_bits = 1 << MTI;
   peek_mip(hart, cycle, tmp_mip_prev_);
+
+  // Record the pin toggle directly. This callback is only invoked on an MTIP edge,
+  // and the de-assert is applied to the ISS mip lazily (post-step), so the edge is
+  // not observable from the Whisper mip peek/poke that check_mip_change() sees.
+  mip_changed_since_last_step_ |= mtip_bits;
   if (mtip) {
+    // A re-assertion cancels any clear that is still pending for post-step.
+    intr_cleared_during_ucode_ &= ~mtip_bits;
     poke_mip(hart, cycle, tmp_mip_prev_ | mtip_bits);
   } else {
-    if (intr_during_ucode) {
-      // Current only MTIP looks like an interrupt that can be cleared asynchronously during ucode sequence.
-      // So TB will keep track of it in `intr_cleared_during_ucode_` and clear it in post-step.
-      // TODO: Add support for other interrupts that can be cleared asynchronously during ucode sequence.
-      intr_cleared_during_ucode_ |= mtip_bits;
-      bridge_log(cvm::MEDIUM, "<{}> MTIP cleared during ucode sequence, will clear it in post-step, intr_cleared_during_ucode={:#x}\n", cycle, intr_cleared_during_ucode_.to_ullong());
-    } else {
-      poke_mip(hart, cycle, tmp_mip_prev_ & ~mtip_bits);
-    }
+    // MTIP de-assertion is always applied to the ISS in post-step, never here.
+    // The core can commit to taking MTI several cycles before RVFI reports the
+    // interrupt (mepc/mcause hw updates and the trap ucode retires arrive later),
+    // so the `intr_during_ucode` qualifier does not cover the whole window.
+    // Withdrawing the pending bit from Whisper in that window makes Whisper miss an
+    // interrupt the DUT already took -> "DUT took interrupt, Whisper did not".
+    // TODO: Add support for other interrupts that can be cleared asynchronously.
+    intr_cleared_during_ucode_ |= mtip_bits;
+    bridge_log(cvm::MEDIUM, "<{}> MTIP cleared, will clear it in post-step, intr_cleared_during_ucode={:#x}\n", cycle, intr_cleared_during_ucode_.to_ullong());
   }
   peek_mip(hart, cycle, tmp_mip_latest_);
   check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
@@ -3004,6 +3055,11 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
 }
 
 void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev, bool seip_new, bool consider_seip) {
+  // Track every mip bit that toggled since the last step, not just the net level
+  // difference. A bit that de-asserts and re-asserts between two retires is a new
+  // assertion that the DUT instruction could not have observed.
+  mip_changed_since_last_step_ |= (mip_prev ^ mip_new);
+
   auto bits_set = mip_new.to_ullong() & ~(mip_prev.to_ullong());
   uint32_t start = 0;
   while (bits_set) {
@@ -3643,8 +3699,17 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
+  for (const auto& width : amocas_widths_) {
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_amocas_{}_pass\": {}}}\n", id_, width, num_amocas_pass_[width]);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_amocas_{}_fail\": {}}}\n", id_, width, num_amocas_fail_[width]);
+  }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs\": {}}}\n", id_, num_vector_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_excp\": {}}}\n", id_, num_vector_excp_);
+  for (const auto& [vtype_name, count] : num_vector_by_vtype_)
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_vec_instrs_{}\": {}}}\n", id_, vtype_name, count);
 
   // Whisper csr values
+  const bool dump_csr_metrics = FLAGS_csr_metrics || mismatch_res_ != "";
   bool valid;
   for (const auto* csr : csr_map) {
     uint64_t csr_data;
@@ -3654,7 +3719,8 @@ void bridge::report_metrics() {
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
       }
-      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+      if (dump_csr_metrics)
+        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
     }
   }
   if (mismatch_res_ != "") {
@@ -3666,9 +3732,11 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_age\": \"{}\"}}\n", id_, latest_imsic_.first == 0 ? 0 : latest_imsic_.second);
 
   // DUT csr values
-  for (const auto* csr : csr_map) {
-    uint64_t csr_data = get_csr(id_, src_t::dut, csr->address);
-    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+  if (dump_csr_metrics) {
+    for (const auto* csr : csr_map) {
+      uint64_t csr_data = get_csr(id_, src_t::dut, csr->address);
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+    }
   }
 
   // Exceptions and interrupts

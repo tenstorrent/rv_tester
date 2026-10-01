@@ -13,3 +13,5 @@ CVM_MESSENGER_procedure_call(axi_sw_mst_push_ar_no_id_rpc, bool(const axi::a_no_
 // Pushes a rerouted write (AW + W beats) and returns the allocated AXI id so the
 // caller can correlate the B-response and recover its resp code.
 CVM_MESSENGER_procedure_call(axi_sw_mst_push_write_request_rpc, bool(const transactor::write_request_t& req, axi::id_t& id));
+// Count of free AW IDs on any axi_sw_mst instance (packet types differ per NAME).
+CVM_MESSENGER_procedure_call(axi_sw_mst_free_aw_ids_rpc, unsigned());

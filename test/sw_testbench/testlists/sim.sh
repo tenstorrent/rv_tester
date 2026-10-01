@@ -5,15 +5,23 @@
 # in test/.../testlists/BUILD.bazel.
 #
 # First arg is the sim binary; rest are plusargs forwarded to it.
+#
+# SIM_WRAP (optional, e.g. via bazel --test_env) is a command prepended to
+# the sim binary invocation, such as "valgrind --tool=memcheck ...". Only the
+# sim binary is wrapped: the helper tools this script and the sim itself
+# spawn (mktemp, tee, grep, objcopy, nm) report their own valgrind findings
+# and would otherwise fail the test.
 set -u
 set -o pipefail
 
 LOG=$(mktemp)
 trap 'rm -f "$LOG"' EXIT
 
+read -ra sim_wrap <<< "${SIM_WRAP:-}"
+
 # Tee through to stdout (bazel captures it) AND to a file we rescan
 # after the binary exits.
-"$@" 2>&1 | tee "$LOG"
+"${sim_wrap[@]}" "$@" 2>&1 | tee "$LOG"
 rc=${PIPESTATUS[0]}
 
 if [ "$rc" -ne 0 ]; then

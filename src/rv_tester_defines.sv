@@ -280,7 +280,7 @@ package rv_tester_params;
   input  longint unsigned                  clocks,                                                \
   input                                    clk                [rv_tester_params::NCLKS-1:0],      \
   output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
-  input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
+  output                                   dut_reset          [rv_tester_params::NCLKS-1:0],      \
   output                                   dut_reset_req,                                         \
   input   logic                            ndmreset_ack,                                          \
   input                                    dut_reset_req_active,                                  \
@@ -292,6 +292,7 @@ package rv_tester_params;
   output  logic                            warm_reset_en,                                         \
   output  int                              target_num_resets,                                     \
   output logic                             reset_window,                                          \
+  input  logic                             warm_reset_pullup,                                     \
   output                                   warm_reset_release_hang,                               \
   output                                   force_ref_clk,                                         \
   output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
@@ -306,7 +307,7 @@ package rv_tester_params;
   input  logic                             aclint_time_sync,                                      \
   output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
   output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
-  output logic                             MTIP               [rv_tester_params::NHARTS-1:0],     \
+  output logic                             mtip_pend          [rv_tester_params::NHARTS-1:0],     \
   output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
   output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
   output                                   disable_checks,                                        \
@@ -325,7 +326,8 @@ package rv_tester_params;
   output                                   unconditional_terminate,                               \
   input                                    boot_done_all,                                         \
   input logic [64-1:0]                     cosim_eot_addr,                                        \
-  output [7:0]                             DM_DebugReq_Valids,                                  \
+  output [rv_tester_params::NHARTS-1:0]    DM_DebugReq_Valids,                                    \
+  input  logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY,                                       \
   output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
   output logic [1:0]                       dfetch_cl_valid,                                      \
   output logic [51:0]                      writeback_cl_addr[1:0],                               \
@@ -370,6 +372,7 @@ package rv_tester_params;
   int                                      num_resets;                                            \
   int                                      target_num_resets;                                     \
   logic                                    reset_window;                                          \
+  logic                                    warm_reset_pullup;                                     \
   logic                                    warm_reset_release_hang;                               \
   logic                                    force_ref_clk;                                         \
   logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
@@ -384,7 +387,7 @@ package rv_tester_params;
   logic                                    aclint_time_sync;                                      \
   rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
   logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
-  logic                                    MTIP            [rv_tester_params::NHARTS-1:0];        \
+  logic                                    mtip_pend       [rv_tester_params::NHARTS-1:0];        \
   rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
   logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
   logic                                    disable_checks;                                        \
@@ -399,7 +402,8 @@ package rv_tester_params;
   logic                                    unconditional_terminate;                               \
   logic                                    boot_done_all;                                         \
   logic [64-1:0]                           cosim_eot_addr;                                        \
-  logic [7:0]                              DM_DebugReq_Valids;                                    \
+  logic [rv_tester_params::NHARTS-1:0]     DM_DebugReq_Valids;                                    \
+  logic [rv_tester_params::NHARTS-1:0]     DebugReqVld_ANY;                                       \
   logic                                    rv_tester_reset_;                                      \
   logic [51:0]                             dfetch_cl_addr[1:0];                                   \
   logic [1:0]                              dfetch_cl_valid;                                       \

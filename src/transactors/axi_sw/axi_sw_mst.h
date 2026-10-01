@@ -145,6 +145,11 @@ private:
   uint32_t aw_q_rptr_, aw_q_wptr_;
   uint32_t w_q_rptr_, w_q_wptr_;
 
+  // when wptr wraps to 0, 0 - rptr_ could underflow so add ptr_max_
+  static bool q_full(uint32_t wptr, uint32_t rptr, size_t q_max, size_t ptr_max) {
+    return ((wptr + ptr_max - rptr) % ptr_max) >= q_max;
+  }
+
   std::vector<bool> ids_;
   std::vector<bool> exp_err_rsp_ids_;
   std::vector<bool> allow_decerr_resp_ids_;
@@ -208,6 +213,7 @@ public:
     cvm::registry::messenger.procedure<push_w_rpc>(loc, [this](const axi::w_t& w) { return this->push_w(w); });
     cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this]() { return this->try_lock(); });
     cvm::registry::messenger.procedure<free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
+    cvm::registry::messenger.procedure<axi_sw_mst_free_aw_ids_rpc>(loc, [this]() { return this->count_free_ids(); });
   }
 
   ~axi_sw_mst() {
@@ -311,14 +317,14 @@ public:
     push_transactions();
   }
 
-  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
+  bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a, bool alloc_id = true) {
 
     a.addr = req_addr;
     a.burst = axi::BURST_INCR;
     a.atop = false;
     a.lock = false;
 
-    if (!next_id(a.id, a.seqid)) {
+    if (alloc_id && !next_id(a.id, a.seqid)) {
       cvm::log(cvm::NONE, "[{}] No free id's remaining for axi master\n", name_);
       return false;
     }
@@ -378,7 +384,7 @@ public:
           read_bytes_ = read_bytes_ + (1ull << arg.size);
           cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
           cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
-          if ((ar_q_wptr_ - ar_q_rptr_) < ar_q_max_) {
+          if (!q_full(ar_q_wptr_, ar_q_rptr_, ar_q_max_, ar_q_ptr_max_)) {
             ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
             cvm::registry::callbacks.push(
                 loc_,
@@ -391,7 +397,7 @@ public:
           write_bytes_ = write_bytes_ + (1ull << arg.size);
           cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
           cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
-          if ((aw_q_wptr_ - aw_q_rptr_) < aw_q_max_) {
+          if (!q_full(aw_q_wptr_, aw_q_rptr_, aw_q_max_, aw_q_ptr_max_)) {
             aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
             cvm::registry::callbacks.push(
                 loc_,
@@ -403,7 +409,7 @@ public:
         }
       } else if constexpr (std::is_same_v<T, axi::w_t>) {
         cvm::log(cvm::FULL, "[axi_sw_mst] wdata w_q_wptr:{} w_q_rptr:{} w_q_max_:{} \n", w_q_wptr_, w_q_rptr_, w_q_max_);
-        if ((w_q_wptr_ - w_q_rptr_) < w_q_max_) {
+        if (!q_full(w_q_wptr_, w_q_rptr_, w_q_max_, w_q_ptr_max_)) {
           w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
           if (arg.strb.size() == 0) {
@@ -464,13 +470,27 @@ public:
     cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());
   }
 
+  // Manual ids bypass the allocator (as push_a_no_id does); callers own their
+  // uniqueness. Attributes are applied after a_wrapper so its defaults never
+  // overwrite them.
+  static void apply_attr(const transactor::axi_attr_t& attr, axi::a_t& a) {
+    a.cache = axi::cache_mem_attr_t(attr.cache);
+    a.prot = attr.prot;
+    a.qos = attr.qos;
+    a.region = attr.region;
+    a.user = attr.user;
+  }
+
   void process(const transactor::read_request_t& req) {
     axi::a_t a;
     a.w = false;
     a.exp_err_rsp = req.exp_err_rsp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return;
+    apply_attr(req.attr, a);
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
     allow_slverr_resp_ids_[a.id] = a.allow_slverr_resp;
@@ -490,9 +510,12 @@ public:
     a.w = true;
     a.exp_err_rsp = req.exp_err_rsp;
     a.allow_decerr_resp = req.allow_decerr_resp;
+    if (req.attr.is_manual_id)
+      a.id = req.attr.manual_id;
 
-    if (!a_wrapper(req.addr, req.length, a))
+    if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return false;
+    apply_attr(req.attr, a);
     id = a.id;
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;

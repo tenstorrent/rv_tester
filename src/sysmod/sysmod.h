@@ -16,6 +16,7 @@
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
+#include "trickbox/debug_req_vld.h"
 #include "cvm/topology.hpp"
 #include "rv_tester_structs.h"
 #include "sysmod_params.hpp"
@@ -58,6 +59,8 @@ public:
   void load_io(const std::string& io);
   void store_dm_rand();
 
+  void add_device(std::shared_ptr<device> d);
+
   device* dev(uint64_t addr);
   device* dev(const std::string& tag);
 
@@ -86,6 +89,7 @@ protected:
   void timer_interrupt(clint::timer_t t);
   void sw_interrupt(clint::sw_t s);
   void dmi_write(debugger::dmi_data_t s);
+  void debug_req(debug_req_vld::request_t r);
   void eot_backdoor_write(transactor::write_t& w);
   void tboxtrig_updatemem(uint64_t addr, uint64_t data);
   void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
@@ -107,7 +111,28 @@ private:
   unsigned id_;
   unsigned id() { return id_; }
   std::vector<std::unique_ptr<device>> devices_;
+  // Project devices registered through sysmod_add_device; owned separately so compose() does not drop them
+  std::vector<std::shared_ptr<device>> external_devices_;
   std::unique_ptr<device> fallback_null_dev_;
+
+  template <typename F>
+  void for_each_device(F&& f) {
+    for (auto& d : devices_)
+      f(*d);
+    for (auto& d : external_devices_)
+      f(*d);
+  }
+
+  template <typename P>
+  device* find_device(P&& pred) {
+    for (auto& d : devices_)
+      if (pred(*d))
+        return d.get();
+    for (auto& d : external_devices_)
+      if (pred(*d))
+        return d.get();
+    return nullptr;
+  }
   std::map<std::string, memmap_entry_t> memmap_;
 
   uint64_t ticks_ = 0;

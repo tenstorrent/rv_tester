@@ -220,6 +220,8 @@ private:
   bool is_ucode(const std::string& instr);
   bool is_cracked_csr(const std::string& instr);
   bool is_cracked_amocas(const std::string& instr);
+  bool is_vset(const std::string& instr);
+  std::string vtype_str(uint64_t vtype_val);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w, std::string& resource, std::string& dut, std::string& iss);
 
@@ -391,6 +393,8 @@ private:
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
   std::bitset<64> last_step_mip_ = 0;
+  // Sticky OR of all mip bit toggles observed since the last pre-step
+  std::bitset<64> mip_changed_since_last_step_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
@@ -433,6 +437,13 @@ private:
   int num_exceptions_late_st_hwerr_fault_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
+  const std::vector<std::string> amocas_widths_ = {"w", "d", "q"};
+  std::unordered_map<std::string, int> num_amocas_pass_{};
+  std::unordered_map<std::string, int> num_amocas_fail_{};
+  uint64_t vtype_ = 0;
+  int num_vector_ = 0;
+  int num_vector_excp_ = 0;
+  std::map<std::string, int> num_vector_by_vtype_{};
 
   uint64_t dword_vec_array[vlen / 64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;

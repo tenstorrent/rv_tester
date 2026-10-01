@@ -45,3 +45,7 @@ DECLARE_uint32(mmr_s);
 // Patch RAM plusargs
 DECLARE_uint32(patch_ram_start_offset);
 DECLARE_uint32(patch_ram_size);
+
+// CPL RAS MMR window (IBF filter programming; defaults 0, supplied via flagfile)
+DECLARE_uint32(cpl_ras_mmr_start_offset);
+DECLARE_uint32(cpl_ras_mmr_end_offset);

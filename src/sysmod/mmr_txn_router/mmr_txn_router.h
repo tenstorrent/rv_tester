@@ -10,6 +10,7 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "src/transactors/axi_sw/axi.h"
+#include "cvm/random.hpp"
 
 class mmr_txn_router : public device {
 public:
@@ -18,9 +19,16 @@ public:
 
   mmr_txn_router(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
-  void configure();
+  void configure() override;
 
 private:
+  // Attribute randomisation for rerouted requests (see +rg_attr_* plusargs).
+  bool attr_random_ = false;
+  uint32_t attr_fields_ = 0;
+  uint32_t write_count_ = 0;
+  cvm::rand::uniform_dist<uint32_t> attr_rng_;
+  transactor::axi_attr_t pick_attr(bool is_write);
+
   cvm::topology::loc_t axi_mst_loc_l;
   cvm::messenger::pool<transactor::read_response_t>::channel_info read_resp_channel_;
   cvm::messenger::pool<transactor::write_response_t>::channel_info write_resp_channel_;
