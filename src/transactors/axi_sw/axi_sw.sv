@@ -233,37 +233,50 @@ module axi_sw #(
     end
   end
 
+  // Fast write response: AW IDs and W-last beats queue up here and each
+  // matched pair is answered with a B the next cycle. Several writes must be
+  // in flight for back-to-back writes to issue every cycle. The head is read
+  // combinationally from registers: rv_tester_fifo's synchronous RAM returns a
+  // stale head when it pops and pushes in the same cycle holding one entry,
+  // which this queue does on every back-to-back write.
+  localparam int unsigned FAST_B_Q_D = 16;
+  localparam int unsigned FAST_B_Q_W = $clog2(FAST_B_Q_D);
+
   logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
   id_t fast_axi_slv_b_id;
   logic [1:0] fast_axi_slv_b_resp;
-  rv_tester_fifo #(
-    .D         (1),
-    .T         (logic[$bits(id_t)+2-1:0])
-  ) fast_b_queue (
-    .clk         (clk                                 ),
-    .reset_n     (reset_n                             ),
-    .full        (fast_b_queue_full                        ),
-    .empty       (fast_b_queue_empty                       ),
-    .d           ({axi_mst_aw_id, axi_mst_aw_lock? RESP_EXOKAY : RESP_OKAY}    ),
-    .push        (axi_mst_aw_valid && axi_slv_aw_ready && fast_b_response),
-    .q           ({fast_axi_slv_b_id , fast_axi_slv_b_resp}    ),
-    .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
-  );
-
   logic w_last_queue_full, w_last_queue_empty;
-  rv_tester_fifo #(
-    .D         (1),
-    .T         (logic)
-  ) w_last_queue (
-    .clk         (clk                                                 ),
-    .reset_n     (reset_n                                             ),
-    .full        (w_last_queue_full                                   ),
-    .empty       (w_last_queue_empty                                  ),
-    .d           (1'b1                                                ),
-    .push        (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && fast_b_response),
-    .q           (                                                    ),
-    .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
-  );
+
+  logic fast_b_push, fast_b_pop, w_last_push;
+  assign fast_b_push = axi_mst_aw_valid && axi_slv_aw_ready && fast_b_response;
+  assign w_last_push = axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && fast_b_response;
+  assign fast_b_pop  = axi_slv_b_valid && axi_mst_b_ready && fast_b_response;
+
+  logic [$bits(id_t)+2-1:0] fast_b_mem [FAST_B_Q_D];
+  logic [FAST_B_Q_W:0]      fast_b_rptr, fast_b_wptr, w_last_cnt;
+
+  assign fast_b_queue_empty = fast_b_rptr == fast_b_wptr;
+  assign fast_b_queue_full  = (fast_b_wptr - fast_b_rptr) == (FAST_B_Q_W+1)'(FAST_B_Q_D);
+  assign {fast_axi_slv_b_id, fast_axi_slv_b_resp} = fast_b_mem[fast_b_rptr[FAST_B_Q_W-1:0]];
+  assign w_last_queue_empty = w_last_cnt == '0;
+  assign w_last_queue_full  = w_last_cnt == (FAST_B_Q_W+1)'(FAST_B_Q_D);
+
+  always_ff @(posedge clk) begin
+    if (!reset_n) begin
+      fast_b_rptr <= '0;
+      fast_b_wptr <= '0;
+      w_last_cnt  <= '0;
+    end else begin
+      if (fast_b_push) fast_b_wptr <= fast_b_wptr + 1'b1;
+      if (fast_b_pop)  fast_b_rptr <= fast_b_rptr + 1'b1;
+      w_last_cnt <= w_last_cnt + (FAST_B_Q_W+1)'(w_last_push) - (FAST_B_Q_W+1)'(fast_b_pop);
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    if (fast_b_push)
+      fast_b_mem[fast_b_wptr[FAST_B_Q_W-1:0]] <= {axi_mst_aw_id, axi_mst_aw_lock ? RESP_EXOKAY : RESP_OKAY};
+  end
 
   always_comb begin
     axi_slv_b_id = 'X;
