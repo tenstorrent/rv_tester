@@ -295,8 +295,8 @@ module axi_sw #(
       always @(posedge clk) begin                                                    \
           if (sys_reset) begin                                                       \
               /* verilator lint_off BLKSEQ */                                        \
-              lfsr_seed_``tx = cvm_plusargs::get_int({"axi_sw_lfsr_seed_", `"tx`", "_rdy"}); \
-              lfsr_mask_``tx = cvm_plusargs::get_int({"axi_sw_lfsr_mask_", `"tx`", "_rdy"}); \
+              lfsr_seed_``tx = cvm_plusargs::get_uint({"axi_sw_lfsr_seed_", `"tx`", "_rdy"}); \
+              lfsr_mask_``tx = cvm_plusargs::get_uint({"axi_sw_lfsr_mask_", `"tx`", "_rdy"}); \
               /* verilator lint_on BLKSEQ */                                         \
           end                                                                        \
       end
@@ -429,8 +429,8 @@ module axi_sw #(
       axi_sw_read_latency_fixed      = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
       read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
       read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
-      reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
-      reorder_window                 = cvm_plusargs::get_int("axi_sw_reorder_window") != 0;
+      reorder_latency_timeout        = cvm_plusargs::get_uint("axi_sw_reorder_timeout");
+      reorder_window                 = cvm_plusargs::get_uint("axi_sw_reorder_window") != 0;
       fast_b_response                = cvm_plusargs::get_bool("axi_sw_fast_write_response") != 0;
       read_latency       = (axi_sw_read_latency_fixed != 0) ? axi_sw_read_latency_fixed : axi_sw_read_latency_max;
       read_latency_fixed = axi_sw_read_latency_fixed != 0;

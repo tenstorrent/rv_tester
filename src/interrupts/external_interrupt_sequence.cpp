@@ -7,6 +7,7 @@
 #include "whisper_client.h"
 #include "bridge_plusargs.h"
 #include "device_address_map/device_address_map.h"
+#include "cvm/topology_defs.hpp"
 #include "axi_sw_mst_rpc.h"
 #include "interrupts.hpp"
 
