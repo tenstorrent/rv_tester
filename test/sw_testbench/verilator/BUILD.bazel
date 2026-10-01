@@ -5,7 +5,7 @@ load("//test:verilator.bzl", "verilator_cc_library")
 # //test/sw_testbench package stays buildable under Bazel-6 WORKSPACE mode
 # (it doesn't load @rules_verilator).
 
-harnesses = ["sw_1c", "sw_2c"]
+harnesses = ["sw_1c", "sw_2c", "sw_8c"]
 
 [
     [

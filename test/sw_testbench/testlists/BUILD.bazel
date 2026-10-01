@@ -52,11 +52,49 @@ sh_test(
     ],
 )
 
+# Two enabled harts send each other an MSI: tester hart 0 is core 2 (mhartid 2)
+# and tester hart 1 is core 5 (mhartid 5). Each hart stores interrupt id 1 to
+# the setipnum register of the other hart's IMSIC machine file; the DUT stimulus
+# then reports the MSI at that hart, which takes the interrupt and claims it
+# through mtopei. The bridge pokes each MSI the stimulus reports into the IMSIC
+# file at its address in whisper, so the cosim compare checks that each MSI
+# reaches the whisper hart that runs the target hart. Hart 0 runs on whisper
+# hart 2 and hart 1 on whisper hart 5, whose mhartids match the DUT's.
+# +cosim_resynch_instr=mhartid gives whisper the DUT's csrr mhartid result, so
+# a wrong mapping fails at the MSI, not at the csrr.
+# imsic_ipi.elf is prebuilt from imsic_ipi.S, like infinite.elf:
+#   riscv64-unknown-elf-gcc -march=rv64i -mabi=lp64 -nostdlib -nostartfiles \
+#     -static -Wl,-N -Wl,-Ttext=0x80000000 -Wl,--build-id=none -o imsic_ipi.elf imsic_ipi.S
+sh_test(
+    name = "hart_mhartid_imsic_ipi_8c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_8c_tb_verilator)",
+        "+load=$(location :imsic_ipi.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=60",
+        "+num_harts=2",
+        "+hart_enable_id=2,5",
+        "+hart_mhartid=2,5",
+        "+cosim_resynch_instr=mhartid",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_8c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":imsic_ipi.elf",
+    ],
+)
+
 test_suite(
     name = "all_smoke",
     tests = [
         ":infinite_1c_verilator",
         ":infinite_2c_verilator",
+        ":hart_mhartid_imsic_ipi_8c_verilator",
     ],
     visibility = ["//visibility:public"],
 )
