@@ -233,11 +233,15 @@ module axi_sw #(
     end
   end
 
+  // Several writes must be in flight for back-to-back writes to issue every
+  // cycle with fast write response.
+  localparam int unsigned FAST_B_Q_D = 16;
+
   logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
   id_t fast_axi_slv_b_id;
   logic [1:0] fast_axi_slv_b_resp;
   rv_tester_fifo #(
-    .D         (1),
+    .D         (FAST_B_Q_D),
     .T         (logic[$bits(id_t)+2-1:0])
   ) fast_b_queue (
     .clk         (clk                                 ),
@@ -252,7 +256,7 @@ module axi_sw #(
 
   logic w_last_queue_full, w_last_queue_empty;
   rv_tester_fifo #(
-    .D         (1),
+    .D         (FAST_B_Q_D),
     .T         (logic)
   ) w_last_queue (
     .clk         (clk                                                 ),
