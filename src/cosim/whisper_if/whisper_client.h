@@ -162,7 +162,9 @@ public:
   bool whisperClearNmiCause(int hart, uint64_t time, uint64_t cause);
 
 private:
-  bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);
+  // Routes req.hart to its whisper hart in place (+hart_mhartid). Every caller
+  // sets req.hart before calling, so a request is never routed twice.
+  bool whisperCommand(WhisperMessage& req, WhisperMessage& reply);
 
   std::shared_ptr<WdRiscv::Session<URV>> session_;
   std::shared_ptr<WdRiscv::System<URV>> system_;

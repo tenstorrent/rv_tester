@@ -1,0 +1,47 @@
+# Per-hart interface widths for the 8-hart harness. Each hart gets one lane
+# of every interface: the stimulus retires at most one instruction per hart
+# per cycle and drives no MCMI traffic, so wider lanes would only add
+# compile time.
+rv_tester_rvfi_attrs: &rv_tester_rvfi_attrs
+  ENABLE: 1
+  FP_ENABLE: 1
+  VEC_ENABLE: 1
+  MEM_ENABLE: 1
+  CSR_ENABLE: 0
+  UOP_ENABLE: 1
+  NRETS: [1, 1, 1, 1, 1, 1, 1, 1]
+  NRETS_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  TOTAL_NRETS: 8
+
+rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
+  ENABLE: 1
+  NREADS: [1, 1, 1, 1, 1, 1, 1, 1]
+  NREADS_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NINSERTS: [1, 1, 1, 1, 1, 1, 1, 1]
+  NINSERTS_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NWRITES: [1, 1, 1, 1, 1, 1, 1, 1]
+  NWRITES_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NBYPASSES: [1, 1, 1, 1, 1, 1, 1, 1]
+  NBYPASSES_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NIFETCHES: [1, 1, 1, 1, 1, 1, 1, 1]
+  NIFETCHES_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NIEVICTS: [1, 1, 1, 1, 1, 1, 1, 1]
+  NIEVICTS_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  NDECODES: [1, 1, 1, 1, 1, 1, 1, 1]
+  NDECODES_CUMSUM: [0, 1, 2, 3, 4, 5, 6, 7]
+  TOTAL_NREADS: 8
+  TOTAL_NINSERTS: 8
+  TOTAL_NWRITES: 8
+  TOTAL_NBYPASSES: 8
+  TOTAL_NIFETCHES: 8
+  TOTAL_NIEVICTS: 8
+  TOTAL_NDECODES: 8
+
+rv_tester_pmci_attrs: &rv_tester_pmci_attrs
+  PMU_ENABLE: 1
+  SC_PMCI_ENABLED: 1
+  LS_PIPES: [3, 3, 3, 3, 3, 3, 3, 3]
+
+rv_tester_csri_attrs: &rv_tester_csri_attrs
+  ENABLE: 1
+  NCSRI: 11
