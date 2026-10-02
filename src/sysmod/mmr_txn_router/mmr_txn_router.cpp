@@ -18,6 +18,12 @@ DEFINE_bool(fsim_rg_attr_randomize, false, "fault-sim only: randomise AXI attrib
 DEFINE_uint32(rg_attr_fields, 0x1F, "bitmask of fields to randomise: 1=cache 2=prot 4=qos 8=region 16=user");
 DEFINE_bool(rg_attr_user_codepoints, true, "user drawn from the production code points {0x0,0x1,0x3}; false = full 8 bits");
 DEFINE_uint32(rg_attr_srcid01_every, 0, "every Nth rerouted write carries a manual id with ring SrcId 01 (0 = never)");
+// Rerouted requests stand in for the cluster-internal SCB->bridge path, which
+// stamps AxUSER[3:0] with CLUSTER_LOCAL_SRCID and carries the hart's non-secure
+// CHI NS bit as AxPROT[1]; CPL inbound filters keyed on source ID and NS (patch
+// RAM window) DECERR the re-entry otherwise.
+DEFINE_uint32(rg_attr_user_default, 0x1, "AxUSER value on rerouted MMR requests when not randomised (CLUSTER_LOCAL_SRCID)");
+DEFINE_uint32(rg_attr_prot_default, 0x2, "AxPROT value on rerouted MMR requests when not randomised (non-secure data access)");
 
 namespace {
 
@@ -85,6 +91,8 @@ mmr_txn_router::mmr_txn_router(const std::string& tag, uint64_t addr, size_t siz
 
 transactor::axi_attr_t mmr_txn_router::pick_attr(bool is_write) {
   transactor::axi_attr_t attr;
+  attr.user = uint8_t(FLAGS_rg_attr_user_default);
+  attr.prot = uint8_t(FLAGS_rg_attr_prot_default);
   if (!attr_random_)
     return attr;
   const uint32_t r = attr_rng_();
