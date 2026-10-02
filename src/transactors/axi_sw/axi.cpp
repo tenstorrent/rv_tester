@@ -278,6 +278,23 @@ cvm::messenger::task<void> axi::operator()() {
     // Single write response for all write transfers. Give DECERR priority over SLVERR.
     axi::resp_t write_resp = RESP_OKAY;
 
+    // Whole-burst prefetch for aligned full-width INCR reads: one sysmod
+    // round trip instead of one per beat. The messenger round trip dominates
+    // the achieved read latency on Zebu (RVBBL-5558) and line reads from the
+    // CHI bridges are exactly this shape.
+    axi::data_t burst_data;
+    uint8_t burst_resp = RESP_OKAY;
+    bool burst_prefetched = false;
+    if (!a.w && a.atop.transaction == NON_ATOMIC && a.burst == BURST_INCR &&
+        aligned && num_bytes == data_bus_bytes && burst_len > 1) {
+      cvm::log(cvm::FULL, "[axi] ar burst prefetch: id={}, addr={:#x}, bytes={}\n", a.id, a.addr, dtsize);
+      auto burst_result = co_await transactor::read(a.addr, dtsize);
+      burst_data = std::move(burst_result.data);
+      burst_resp = burst_result.resp;
+      burst_data.resize(dtsize, 0);
+      burst_prefetched = true;
+    }
+
     for (addr_t n = 1; n <= burst_len; n++) {
 
       addr_t lower_byte_lane = addr - addr / data_bus_bytes * data_bus_bytes;
@@ -297,7 +314,11 @@ cvm::messenger::task<void> axi::operator()() {
 
         axi::data_t read_data;
         uint8_t sysmod_read_resp = RESP_OKAY;
-        if (!a.w || a.atop.transaction != NON_ATOMIC) {
+        if (burst_prefetched) {
+          read_data.assign(burst_data.begin() + (n - 1) * data_bus_bytes,
+                           burst_data.begin() + n * data_bus_bytes);
+          sysmod_read_resp = burst_resp;
+        } else if (!a.w || a.atop.transaction != NON_ATOMIC) {
           cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
           auto read_result = co_await transactor::read(start, len);
           read_data = std::move(read_result.data);
