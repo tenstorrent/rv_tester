@@ -256,7 +256,7 @@ module cosim
   longint unsigned psc_off_low  = 0;
   longint unsigned psc_off_high = 0;
   bit to_host;
-  int unsigned cosim_period=0;
+  longint unsigned cosim_period=0;
   int unsigned PSC_period=0;
 
   bit get_cosim_compare_values = 1;
@@ -306,7 +306,7 @@ module cosim
   bit               force_compare;
 
 
-  bit [31:0]             rvfi_scheck_cnt;
+  bit [63:0]             rvfi_scheck_cnt;
   bit [NRET-1:0]         rvfi_valids;
   bit [NRET-1:0][63:0]   rvfi_orders;
   bit [NRET-1:0]         rvfi_luops;
@@ -548,7 +548,7 @@ module cosim
   logic [7:0] axisw_dev_id;
 
   longint unsigned mb;
-  int pls, mds, mcs, mm, dm_id, ax_id;
+  int unsigned pls, mds, mcs, mm, dm_id, ax_id;
 
   always_ff @(posedge clk) begin
     if (reset) begin
@@ -576,12 +576,12 @@ module cosim
     end
     if (reset || rvt_reload_d2) begin
       mb <= cvm_plusargs::get_ulongint("mmr_base_addr");
-      pls <= cvm_plusargs::get_int("priv_level_start_bit");
-      mds <= cvm_plusargs::get_int("mmr_device_id_start_bit");
-      mcs <= cvm_plusargs::get_int("mmr_cluster_id_start_bit");
-      mm <= cvm_plusargs::get_int("mmr_m");
-      dm_id <= cvm_plusargs::get_int("dm_device_id");
-      ax_id <= cvm_plusargs::get_int("axisw_device_id");
+      pls <= cvm_plusargs::get_uint("priv_level_start_bit");
+      mds <= cvm_plusargs::get_uint("mmr_device_id_start_bit");
+      mcs <= cvm_plusargs::get_uint("mmr_cluster_id_start_bit");
+      mm <= cvm_plusargs::get_uint("mmr_m");
+      dm_id <= cvm_plusargs::get_uint("dm_device_id");
+      ax_id <= cvm_plusargs::get_uint("axisw_device_id");
     end
   end
   for(genvar n=0;n<NRET;n=n+1) begin
@@ -1148,7 +1148,7 @@ end
         rvfi_scheck_cnt <= '0;                           // clear counter
       else
         if (rvfi_valid)
-          rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);
+          rvfi_scheck_cnt <= rvfi_scheck_cnt + 64'(valid_cnt);
 
       if (rvfi_valid & ~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper
         rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
@@ -1640,14 +1640,13 @@ end
   always @(posedge tb_clk) begin
     if (reset || rvt_reload_d2) begin
       /* verilator lint_off BLKSEQ */
-      max_stall_cycle <= cvm_plusargs::get_int("max_stall_cycle");
+      max_stall_cycle <= cvm_plusargs::get_ulongint("max_stall_cycle");
       max_cycle <= cvm_plusargs::get_ulongint("max_cycle");
-      cosim_period <= cvm_plusargs::get_int("cosim_period");
+      cosim_period <= cvm_plusargs::get_ulongint("cosim_period");
       max_instructions <= cvm_plusargs::get_ulongint("max_instr");
-      nharts <= cvm_plusargs::get_int("num_harts");
+      nharts <= cvm_plusargs::get_uint("num_harts");
       debug_entry_pc_offset_arg <= cvm_plusargs::get_ulongint("debug_entry_pc_offset");
       debug_exit_pc_offset_arg  <= cvm_plusargs::get_ulongint("debug_exit_pc_offset");
-      //mcm_value  = cvm_plusargs::get_int("mcm");
       dram_base <= cvm_plusargs::get_ulongint("dram_base");
       psc_off_low  <= cvm_plusargs::get_ulongint("psc_off_low");
       psc_off_high <= cvm_plusargs::get_ulongint("psc_off_high");

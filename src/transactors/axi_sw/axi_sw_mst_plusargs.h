@@ -15,5 +15,5 @@ DECLARE_int32(axi_mst_brdy_high);
 DECLARE_int32(axi_mst_brdy_low);
 DECLARE_int32(axi_mst_rrdy_high);
 DECLARE_int32(axi_mst_rrdy_low);
-DECLARE_int64(axi_sw_rsp_toggle_start);
+DECLARE_uint64(axi_sw_rsp_toggle_start);
 DECLARE_uint32(axi_resp_timeout);

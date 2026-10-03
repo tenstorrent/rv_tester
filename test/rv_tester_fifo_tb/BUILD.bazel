@@ -1,0 +1,24 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("//test:verilator.bzl", "verilator_cc_library")
+
+verilog_library(
+    name = "rv_tester_fifo_tb",
+    srcs = [":rv_tester_fifo_tb_top.sv"],
+    deps = ["//src:rv_tester_lib"],
+    top_module = "rv_tester_fifo_tb_top",
+)
+
+verilator_cc_library(
+    name = "rv_tester_fifo_tb_veri_lib",
+    module = ":rv_tester_fifo_tb",
+)
+
+cc_binary(
+    name = "rv_tester_fifo_tb_verilator",
+    srcs = ["rv_tester_fifo_tb_top.cpp"],
+    deps = [
+        ":rv_tester_fifo_tb_veri_lib",
+        "@rules_verilator//verilator:verilated_runtime",
+    ],
+    visibility = ["//test/rv_tester_fifo_tb/testlists:__pkg__"],
+)
