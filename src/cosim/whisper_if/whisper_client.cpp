@@ -47,6 +47,7 @@ DEFINE_uint32(whisper_deterministic, 100, "Equivalent to Whisper's deterministic
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(ppowarn, false, "Warn instead of error on mcm ppo fail");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
@@ -275,6 +276,8 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
         args_str.push_back("--dismcmcache");
       if (!FLAGS_ppo)
         args_str.push_back("--noppo");
+      if (FLAGS_ppowarn)
+        args_str.push_back("--ppowarn");
     } else {
       args_str.push_back("--dismcmcache");
     }
