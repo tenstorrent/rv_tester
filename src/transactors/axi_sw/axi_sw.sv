@@ -516,7 +516,10 @@ module axi_sw #(
         if (fifo_near_critical || timeout_near_critical) begin
           automatic byte unsigned success;
           success = axi_sw_flush(LOCATION, clocks, 32'(r_queue_rptr));
-          if (success == '0 && (fifo_critical || timeout_critical)) begin
+          // A failed flush is only a latency violation when no response data is
+          // pending delivery in the r queue; otherwise the slip is R-channel
+          // backpressure, not a model failure.
+          if (success == '0 && r_queue_empty && (fifo_critical || timeout_critical)) begin
             $error("Error: couldn't maintain requested axi read latency");
           end
           flushing <= '1;
