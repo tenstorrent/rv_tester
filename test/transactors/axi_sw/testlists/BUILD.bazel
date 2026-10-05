@@ -9,11 +9,52 @@ sh_test(
     data = [
         "//test/transactors/axi_sw:axi_sw_tb_verilator",
     ],
-    tags = ["no-valgrind"],
+)
+
+sh_test(
+    name = "axi_sw_tb_fast_write_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
+        "+axi_sw_fast_write_response",
+    ],
+    data = [
+        "//test/transactors/axi_sw:axi_sw_tb_verilator",
+    ],
+)
+
+sh_test(
+    name = "axi_sw_tb_fixed_read_latency_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
+        "+axi_sw_read_latency_fixed=20",
+    ],
+    data = [
+        "//test/transactors/axi_sw:axi_sw_tb_verilator",
+    ],
+)
+
+sh_test(
+    name = "axi_sw_tb_fast_write_fixed_read_latency_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/transactors/axi_sw:axi_sw_tb_verilator)",
+        "+axi_sw_fast_write_response",
+        "+axi_sw_read_latency_fixed=20",
+    ],
+    data = [
+        "//test/transactors/axi_sw:axi_sw_tb_verilator",
+    ],
 )
 
 test_suite(
     name = "all_smoke",
-    tests = [":axi_sw_tb_verilator"],
+    tests = [
+        ":axi_sw_tb_verilator",
+        ":axi_sw_tb_fast_write_verilator",
+        ":axi_sw_tb_fixed_read_latency_verilator",
+        ":axi_sw_tb_fast_write_fixed_read_latency_verilator",
+    ],
     visibility = ["//visibility:public"],
 )

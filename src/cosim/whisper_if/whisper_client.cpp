@@ -47,6 +47,7 @@ DEFINE_uint32(whisper_deterministic, 100, "Equivalent to Whisper's deterministic
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(ppowarn, false, "Warn instead of error on mcm ppo fail");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
@@ -56,8 +57,6 @@ DEFINE_bool(savepoint_en, false, "savepoint_en");
 DEFINE_uint32(derr_interrupt_num_override, 0, "DERR interrupt number which can be set dynamically based on chicken bits");
 DEFINE_uint32(derr_interrupt_num_default, 23, "DERR interrupt default number");
 #include "iss_utils.h"
-
-REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
 extern void (*__tracerExtension)(void*);
 
@@ -159,6 +158,7 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc_, [this](int hart, uint64_t time) { return this->whisperClearNmi(hart, time); });
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this](int hart, uint64_t time, uint64_t cause) { return this->whisperClearNmiCause(hart, time, cause); });
   cvm::registry::messenger.procedure<whisperSnapshotSaveRPC>(loc_, [this]() { return this->whisperSnapshotSave(); });
+  cvm::registry::messenger.procedure<whisperSetAmoAllowRPC>(loc_, [this](int hart, bool allowNonCacheable, bool allowIo, bool& valid) { return this->whisperSetAmoAllow(hart, allowNonCacheable, allowIo, valid); });
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this](uint64_t addr, unsigned size, bool enable) { return this->whisperMcmSkipReadDataCheck(addr, size, enable); });
 }
 
@@ -276,6 +276,8 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
         args_str.push_back("--dismcmcache");
       if (!FLAGS_ppo)
         args_str.push_back("--noppo");
+      if (FLAGS_ppowarn)
+        args_str.push_back("--ppowarn");
     } else {
       args_str.push_back("--dismcmcache");
     }
@@ -1251,6 +1253,23 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
 template <typename URV>
 bool whisperClient<URV>::whisperSnapshotSave() {
   system_->saveSnapshot("snapshot0");
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid) {
+  valid = false;
+  if (system_ == nullptr)
+    return false;
+
+  auto hartPtr = system_->ithHart(hart);
+  if (not hartPtr)
+    return false;
+
+  hartPtr->setAllowAmoInNonCachable(allowNonCacheable);
+  hartPtr->setAllowAmoInIo(allowIo);
+
+  valid = true;
   return true;
 }
 

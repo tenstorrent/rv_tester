@@ -125,6 +125,10 @@ public:
     Q rptr_;
     Q wptr_;
     uint64_t rptr_update_time_;
+
+    // when wptr wraps to 0, 0 - rptr_ could underflow so add ptr_max_
+    Q size() const { return static_cast<Q>(wptr_ + ptr_max_ - rptr_) % ptr_max_; }
+    bool full() const { return size() >= max_; }
   };
 
 private:
@@ -315,7 +319,7 @@ private:
   }
 
   void r_resp() {
-    while ((r_dpi_fifo_.wptr_ - r_dpi_fifo_.rptr_) < r_dpi_fifo_.max_) {
+    while (!r_dpi_fifo_.full()) {
       auto [valid, result] = axi_->r(false);
       if (!valid)
         break;
@@ -342,7 +346,7 @@ private:
     if (FLAGS_axi_sw_fast_write_response)
       return;
 
-    while ((b_dpi_fifo_.wptr_ - b_dpi_fifo_.rptr_) < b_dpi_fifo_.max_) {
+    while (!b_dpi_fifo_.full()) {
       // We don't need this, this is more for future-proofing if writes ever becomes a coroutine
       auto [valid, result] = axi_->b();
       if (!valid)

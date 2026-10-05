@@ -6,6 +6,8 @@ module rv_tester
     pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            =       0,
+    parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
+    parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     `TOPOLOGY
     ) (
        input clk_ext [NCLKS-1:0],
@@ -118,8 +120,7 @@ module rv_tester
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
   import "DPI-C" context function void rv_tester_build_registry();
   import "DPI-C" context function void rv_tester_domain0_build_registry();
-  import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit unconditional_terminate);
-  import "DPI-C" function byte unsigned rv_tester_domain1_shutdown_registry();
+  import "DPI-C" function byte unsigned rv_tester_shutdown_registry(bit all_domains);
   import "DPI-C" context function bit rv_tester_flush_callbacks();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
@@ -165,8 +166,6 @@ module rv_tester
   bit overlay_mmr_en = 0;
 
   logic terminate_1T = '0;
-  localparam int unsigned CVM_DONE_DELAY_CYCLES = 500;
-  localparam int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500;
   logic [CVM_DONE_DELAY_CYCLES-1:0] cvm_done_terminate_delay_sr;
   logic [CVM_DONE_DRAINED_DELAY_CYCLES-1:0] cvm_done_drained_delay_sr;
   logic cvm_done_drained;
@@ -516,7 +515,7 @@ module rv_tester
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
     automatic logic shutdowned = '0;
-    automatic logic domain1_shutdowned = '0;
+    automatic logic final_terminate = '0;
 `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
     fml_shutdowned = 1'b0;
 `endif
@@ -543,20 +542,19 @@ module rv_tester
 
       end
 
-      shutdowned = rv_tester_shutdown_registry(unconditional_terminate) != '0;
+      // Components that persist across warm resets are torn down only when no rerun is pending
+      final_terminate = num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req;
+      shutdowned = rv_tester_shutdown_registry(unconditional_terminate || final_terminate) != '0;
 `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
       fml_shutdowned = shutdowned;
 `endif
-      if(num_resets > target_num_resets)begin
-        domain1_shutdowned = rv_tester_domain1_shutdown_registry() != '0;
-      end
       if (!shutdowned) begin
         if (print_terminate_message) begin
           $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
         end
       end
 
-      if (shutdowned && num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req) begin
+      if (shutdowned && final_terminate) begin
         $display("INFO_PASS:{\"clocks\": %0d}", clocks);
         $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
         $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
@@ -643,39 +641,37 @@ end
     soc_clocks <= soc_clocks + 1;
   end
 
-  // dut_reset = force_ref_clk delayed by 2 clocks
+  // force_ref_clk resynchronised to REF_CLK for the external-clock mux
   always @(posedge dut_clk[REF_CLK_IDX]) begin
     force_ref_clk_d1 <= force_ref_clk;
     force_ref_clk_d2 <= force_ref_clk_d1;
   end
 
-  // We also assert reset at the end of the test to quiesce the DPIs.
+  // Reset is held at the end of a run so the DPIs quiesce. The harness owns the
+  // per-clock-domain dut_reset[] composition; rv_tester only publishes
+  // warm_reset_pullup so the harness can extend the hold until pwrmgmt asserts
+  // warm_reset.
   logic reset_pullup;
   logic cold_reset_pullup = 0;
-  logic warm_reset_pullup = 0;
+  logic warm_reset_pullup_ = 0;
   assign reset_pullup = rv_tester_reset || terminate_now || terminated;
+  assign warm_reset_pullup = warm_reset_pullup_;
 
   assign reset[COLD_RESET_IDX] = cold_reset || cold_reset_pullup;
   assign reset[WARM_RESET_IDX] = warm_reset;
-
-  assign dut_reset[TB_CLK_IDX] =  reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-  assign dut_reset[CORE_CLK_IDX] =&core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
-  assign dut_reset[AXI_CLK_IDX] = reset_window || reset[WARM_RESET_IDX] || warm_reset_pullup;
-  assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
-  assign dut_reset[REF_CLK_IDX] = reset_window;
 
   always@(posedge dut_clk[TB_CLK_IDX]) begin
     if (reset_pullup)
       if (!warm_reset_req && !(dut_reset_req || shifted_dut_reset_req))
         cold_reset_pullup <= '1;
       else
-        warm_reset_pullup <= '1;
+        warm_reset_pullup_ <= '1;
     if (cold_reset) begin
       cold_reset_pullup <= '0;
-      warm_reset_pullup <= '0;
+      warm_reset_pullup_ <= '0;
     end
     if (warm_reset)
-      warm_reset_pullup <= '0;
+      warm_reset_pullup_ <= '0;
   end
 
   // posedge on dut_reset_req should trigger a warm reset
@@ -691,7 +687,7 @@ end
     warm_reset_req_d1 <= warm_reset_req;
     warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
   end
-  assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup;
+  assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup_;
 
   //ndmreset ack delay logic
   LU ndmreset_ack_clocks;
@@ -897,6 +893,11 @@ end
   end
 
   assign boot_done_all = &boot_done;
+`else
+  // No cosim drives boot_done, so treat boot as done. Without this the
+  // interrupt tick generators see an undriven boot_done.
+  assign boot_done = '1;
+  assign boot_done_all = '1;
 `endif
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin

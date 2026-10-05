@@ -393,6 +393,8 @@ private:
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
   std::bitset<64> last_step_mip_ = 0;
+  // Sticky OR of all mip bit toggles observed since the last pre-step
+  std::bitset<64> mip_changed_since_last_step_ = 0;
   std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
