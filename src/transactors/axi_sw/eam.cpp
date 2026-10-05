@@ -230,7 +230,7 @@ bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
   // write-channel meaning (e.g. WB_RA on AR vs WB_WA on AW for the same
   // region), so a legal LR/SC pair can legitimately differ here. It is still
   // captured in the entry for debug.
-  return e.rsv_addr == rsv_base(a.addr) &&
+  return e.rsv_addr == a.addr &&
          e.size == a.size &&
          e.len == a.len &&
          e.burst == a.burst &&
@@ -266,12 +266,12 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
     if (i == own || !t_[i].valid)
       continue;
 
-    const axi::addr_t rsv_first = t_[i].rsv_addr;
+    const axi::addr_t rsv_first = rsv_base(t_[i].rsv_addr);
     const axi::addr_t rsv_last = rsv_first + RSV_BYTES - 1;
     if (first <= rsv_last && rsv_first <= last) {
       t_[i].valid = false;
-      cvm::log(cvm::HIGH, "[eam] invalidate: entry={}, entry_hart={}, rsv_addr={:#x} by write hart={}, id={}, addr={:#x}\n",
-               i, t_[i].hart, rsv_first, hart_of(a), a.id, a.addr);
+      cvm::log(cvm::HIGH, "[eam] invalidate: entry={}, entry_hart={}, rsv_addr={:#x}, rsv_base={:#x} by write hart={}, id={}, addr={:#x}\n",
+               i, t_[i].hart, t_[i].rsv_addr, rsv_first, hart_of(a), a.id, a.addr);
     }
   }
 }
@@ -309,7 +309,7 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
 
     // Exclusive read: install/overwrite the reservation for this hart.
     eam_entry& e = t_[index(hart)];
-    e = eam_entry{true, hart, a.id, rsv_base(a.addr), a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
+    e = eam_entry{true, hart, a.id, a.addr, a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
     cvm::log(cvm::HIGH, "[eam] reserve: entry={}, hart={}, id={}, user={:#x}, addr={:#x}, rsv_addr={:#x}, rsv_cycle={}\n",
              index(hart), hart, a.id, a.user, a.addr, e.rsv_addr, e.rsv_cycle);
 
