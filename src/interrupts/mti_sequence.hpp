@@ -25,7 +25,7 @@ private:
   void uarch_trigger_mode_thread();
 
   cvm::messenger::task<void> random_mode();
-  cvm::messenger::task<void> uarch_trigger_mode();
+  cvm::messenger::task<void> trigger_mode();
 
   cvm::messenger::task<void> assert_tick();
   cvm::messenger::task<void> trigger();
