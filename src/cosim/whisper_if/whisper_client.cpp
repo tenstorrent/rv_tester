@@ -190,6 +190,7 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperClearNmiCauseRPC>(loc_, [this](int hart, uint64_t time, uint64_t cause) { return this->whisperClearNmiCause(hart, time, cause); });
   cvm::registry::messenger.procedure<whisperSnapshotSaveRPC>(loc_, [this]() { return this->whisperSnapshotSave(); });
   cvm::registry::messenger.procedure<whisperSetAmoAllowRPC>(loc_, [this](int hart, bool allowNonCacheable, bool allowIo, bool& valid) { return this->whisperSetAmoAllow(hart, allowNonCacheable, allowIo, valid); });
+  cvm::registry::messenger.procedure<whisperSetClearTinstLrScRPC>(loc_, [this](int hart, bool enable, bool& valid) { return this->whisperSetClearTinstLrSc(hart, enable, valid); });
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this](uint64_t addr, unsigned size, bool enable) { return this->whisperMcmSkipReadDataCheck(addr, size, enable); });
 }
 
@@ -1041,7 +1042,6 @@ bool whisperClient<URV>::whisperMcmDEvict(int hart, uint64_t time, uint64_t addr
   return true;
 }
 
-// Remote Procedural Call for MCM Devict
 template <typename URV>
 bool whisperClient<URV>::whisperMcmDWriteback(int hart, uint64_t time, uint64_t addr, bool& valid) {
   req.hart = hart;
@@ -1328,19 +1328,16 @@ bool whisperClient<URV>::whisperSnapshotSave() {
 
 template <typename URV>
 bool whisperClient<URV>::whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid) {
-  valid = false;
-  if (system_ == nullptr)
-    return false;
+  bool validNc = false, validIo = false;
+  bool ok = whisperPoke(hart, 0, 's', WhisperSpecialResource::AmoInNc, allowNonCacheable, false, false, validNc) &&
+            whisperPoke(hart, 0, 's', WhisperSpecialResource::AmoInIo, allowIo, false, false, validIo);
+  valid = validNc and validIo;
+  return ok;
+}
 
-  auto hartPtr = system_->ithHart(whisperHart(hart));
-  if (not hartPtr)
-    return false;
-
-  hartPtr->setAllowAmoInNonCachable(allowNonCacheable);
-  hartPtr->setAllowAmoInIo(allowIo);
-
-  valid = true;
-  return true;
+template <typename URV>
+bool whisperClient<URV>::whisperSetClearTinstLrSc(int hart, bool enable, bool& valid) {
+  return whisperPoke(hart, 0, 's', WhisperSpecialResource::ClearTinstLrSc, enable, false, false, valid);
 }
 
 template class whisperClient<uint32_t>;
