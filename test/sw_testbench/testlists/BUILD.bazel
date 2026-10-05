@@ -52,11 +52,36 @@ sh_test(
     ],
 )
 
+sh_test(
+    name = "hart_mhartid_imsic_ipi_8c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_8c_tb_verilator)",
+        "+load=$(location :imsic_ipi.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=60",
+        "+num_harts=2",
+        "+hart_enable_id=2,5",
+        "+hart_mhartid=2,5",
+        "+cosim_resynch_instr=mhartid",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_8c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":imsic_ipi.elf",
+    ],
+)
+
 test_suite(
     name = "all_smoke",
     tests = [
         ":infinite_1c_verilator",
         ":infinite_2c_verilator",
+        ":hart_mhartid_imsic_ipi_8c_verilator",
     ],
     visibility = ["//visibility:public"],
 )
