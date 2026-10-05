@@ -58,7 +58,7 @@ def rv_tester_repositories(_unused_bzlmod = False):
     maybe(
         git_repository,
         name = "whisper",
-        commit = "79575107156ca5c19b570e60c894605bcb18b4f8",
+        commit = "e0fb89037d73837c1bf00c09508bd18168d32036",
         shallow_since = "2026-07-15",
         remote = "https://github.com/tenstorrent/whisper.git",
     )
