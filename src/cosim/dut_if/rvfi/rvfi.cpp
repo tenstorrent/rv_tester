@@ -8,6 +8,7 @@
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/topology_defs.hpp"
 #include "sysmod_plusargs.h"
 #include "bridge_plusargs.h"
 #include "rv_tester_plusargs.h"

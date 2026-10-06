@@ -1,0 +1,13 @@
+top:
+  cluster:
+    count: 1
+    type:
+      - cluster
+    core:
+      count: 8
+      type:
+        - core
+      attrs:
+        SC_NUM_WAYS: 24
+
+  <<: *rv_tester

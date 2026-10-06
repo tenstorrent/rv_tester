@@ -1,0 +1,52 @@
+rv_tester_nharts: &rv_tester_nharts 8
+rv_tester_clk_count: &rv_tester_clk_count 5
+rv_tester_reset_count: &rv_tester_reset_count 2
+rv_tester_pwrmgmt_ctrl: &rv_tester_pwrmgmt_ctrl 1
+
+rv_tester_platform_attrs: &rv_tester_platform_attrs
+  NHARTS: 8
+  NCSR: 102
+  ISA_RVIMA: 1
+  ISA_RVF: 1
+  ISA_RVD: 1
+  ISA_RVC: 1
+  ISA_RVV: 1
+  ILEN: 32
+  XLEN: 64
+  FLEN: 64
+  VLEN: 256
+  RDLEN: 64
+  VALEN: 64
+  PALEN: 56
+  CLLEN: 512
+  CSRLEN: 12
+  MAX_IN_FLIGHT_READ_REQ: 16
+  MAX_BEATS_PER_BURST: 16
+
+rv_tester_clki_attrs: &rv_tester_clki_attrs
+  NCLKS: 5
+  TB_CLK_IDX: 0
+  CORE_CLK_IDX: 1
+  AXI_CLK_IDX: 2
+  SOC_CLK_IDX: 3
+  REF_CLK_IDX: 4
+  CLOCK_FREQ_MHZ: [2000, 2000, 1000, 500, 100]
+  PROFILE1_CLOCK_FREQ_MHZ: [1500, 1500, 1500, 1500, 1500]
+  PROFILE2_CLOCK_FREQ_MHZ: [2100, 2100, 2100, 2100, 2100]
+  PROFILE3_CLOCK_FREQ_MHZ: [2100, 2100, 2100, 2100, 2100]
+  PROFILE4_CLOCK_FREQ_MHZ: [2100, 2100, 2100, 2100, 2100]
+  PROFILE5_CLOCK_FREQ_MHZ: [2100, 2100, 2100, 2100, 2100]
+  PROFILE6_CLOCK_FREQ_MHZ: [2100, 2100, 2100, 2100, 2100]
+  SW_CLOCK_PERIOD_PS: 200000
+
+rv_tester_reseti_attrs: &rv_tester_reseti_attrs
+  NRESETS: 2
+  COLD_RESET_IDX: 0
+  WARM_RESET_IDX: 1
+  NHOLDS: 3
+  SRAM_HOLD_IDX: 0
+  DEBUG_HOLD_IDX: 1
+  CRITICAL_HOLD_IDX: 2
+
+rv_tester_pwrmgmt_attrs: &rv_tester_pwrmgmt_attrs
+  PWRMGMT_EN: 0

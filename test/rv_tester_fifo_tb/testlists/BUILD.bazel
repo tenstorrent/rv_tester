@@ -1,0 +1,16 @@
+sh_test(
+    name = "rv_tester_fifo_tb_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/rv_tester_fifo_tb:rv_tester_fifo_tb_verilator)",
+    ],
+    data = [
+        "//test/rv_tester_fifo_tb:rv_tester_fifo_tb_verilator",
+    ],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [":rv_tester_fifo_tb_verilator"],
+    visibility = ["//visibility:public"],
+)
