@@ -16,7 +16,7 @@ namespace {
 // once at registry build time so that the EAM (a process-wide singleton called
 // from arbitrary axi contexts) can set it before the exported call.
 svScope rv_tester_scope = nullptr;
-}  // namespace
+} // namespace
 
 extern "C" void eam_register_scope() {
   rv_tester_scope = svGetScope();

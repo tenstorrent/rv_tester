@@ -17,6 +17,7 @@ DEFINE_uint64(max_instr_base, 100000, "Base value for max_instr calculation when
 DEFINE_uint64(max_instr_per_core_increment, 20000, "Increment value per additional core for max_instr calculation");
 DEFINE_double(ext_mem_stall_factor, 0.8, "Apply mult factor for shared cache to max_stall_cycle");
 DEFINE_bool(timeout_scale_en, true, "Enable timeout scaling via DPI calls (default on for simulation, off for emulation)");
+DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 
 extern "C" {
 std::uint32_t ext_mem_rv_tester_get_stall_timeout() { return FLAGS_ext_mem_stall_factor * FLAGS_max_stall_cycle; }

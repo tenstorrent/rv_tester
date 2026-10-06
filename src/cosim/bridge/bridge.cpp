@@ -79,7 +79,6 @@ DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
-DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_bool(csr_metrics, true, "Print the per-hart iss/dut CSR pass-metrics even when the run had no cosim mismatch; set 0 to print them only on a mismatch");
 DEFINE_uint32(max_nmi_resynch_age, 4, "Max age for a pending NMI to be deferred from poking to whisper esp. for newly asserted NMI which DUT is yet to acknowledge");
 DEFINE_uint32(max_pend_intr_age, 256, "Number of instructions allowed to retire before a pending interrupt should be taken");
