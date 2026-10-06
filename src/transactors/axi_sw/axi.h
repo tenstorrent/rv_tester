@@ -224,6 +224,8 @@ private:
   int num_slverr_resp_{0};
   int num_decerr_resp_{0};
   bool error_en_{true};
+  // Held from AW dequeue through the matching B so one operator() consumes W beats in AW order.
+  bool burst_active_{false};
 
   // Device-attribute (MMR/IO) accesses route through sysmod devices and can
   // round-trip through the DUT, so their completion time is not bounded by
