@@ -242,9 +242,13 @@ void axi::reset() {
   w_q_.clear();
   r_q_.clear();
   b_q_.clear();
+  burst_active_ = false;
 }
 
 cvm::messenger::task<void> axi::operator()() {
+  if (burst_active_)
+    co_return;
+
   while (1) {
     a_t a;
 
@@ -259,6 +263,7 @@ cvm::messenger::task<void> axi::operator()() {
       co_return;
     }
 
+    burst_active_ = true;
     a_q_.dequeue();
 
     addr_t num_bytes = 1 << a.size;
@@ -426,5 +431,6 @@ cvm::messenger::task<void> axi::operator()() {
 
     if (a.cache <= DEV_BUF)
       device_accesses_in_flight_.fetch_sub(1, std::memory_order_relaxed);
+    burst_active_ = false;
   }
 }
