@@ -513,7 +513,8 @@ module axi_sw #(
         automatic logic fifo_critical         = ar_history_full;
         automatic logic timeout_critical      = CW'(clocks) - ar_history_q == CW'(read_latency - read_latency_timeout_threshold);
         if (CW'(clocks) == ar_history_q) $error("Error: clocks wrapped around timer");
-        if (fifo_near_critical || timeout_near_critical) begin
+        // A beat already in the SV FIFO is waiting on the fixed-latency gate. Flush only reports the C++ queue.
+        if ((fifo_near_critical || timeout_near_critical) && r_queue_empty) begin
           automatic byte unsigned success;
           success = axi_sw_flush(LOCATION, clocks, 32'(r_queue_rptr));
           if (success == '0 && (fifo_critical || timeout_critical)) begin
