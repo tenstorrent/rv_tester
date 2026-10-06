@@ -30,8 +30,10 @@ module aclint_model #(
 
   // mtimecmp0-7 (8 physical cores) plus mtimecmp8 (cluster wakeup) are always
   // implemented, independent of how many harts are populated. MTIP is still
-  // only driven for the populated harts.
+  // only driven for the populated harts. A hart id at or above the core
+  // compare count belongs to another cluster and has no slot in this model.
   localparam int NUM_MTIMECMP = 9;
+  localparam int NUM_CORE_MTIMECMP = NUM_MTIMECMP - 1;
 
   // ACLINT_MTIMECMP_RESET (cluster/dv/aclint/sv/env/aclint_defines.svh).
   localparam logic [63:0] MTIMECMP_RESET = 64'h00000000_FFFFFFFF;
@@ -126,7 +128,11 @@ module aclint_model #(
   assign aclint_ref_pulse = ref_clk_sync[0] & ~ref_clk_sync[1];
 
   for (genvar h = 0; h < NHARTS; h++) begin : gen_mtip
-    assign mtip[h] = (mtime_q >= mtimecmp[h]);
+    if (h < NUM_CORE_MTIMECMP) begin : gen_core
+      assign mtip[h] = (mtime_q >= mtimecmp[h]);
+    end else begin : gen_no_compare
+      assign mtip[h] = 1'b0;
+    end
   end
 
   always @(posedge clk) begin
