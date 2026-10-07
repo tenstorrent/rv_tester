@@ -51,10 +51,10 @@ struct scope_guard {
 // Called once from sysmod.sv (initial block) to capture the sysmod DPI scope.
 extern "C" void sysmod_aclint_register_scope() { g_aclint_sv_scope = svGetScope(); }
 
-aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
+aclint::aclint(const std::string& tag, uint64_t addr, uint64_t size, unsigned hartCount,
                cvm::topology::loc_t loc,
                cvm::topology::loc_t axiMstLoc, uint64_t ctimeAddr)
-    : device(tag, addr, 0xc000 /* size */, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
+    : device(tag, addr, size, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
       timeCompare_(NUM_MTIMECMP, MTIMECMP_RESET),
       axiMstLoc_(axiMstLoc), ctimeAddr_(ctimeAddr) {
 

@@ -633,7 +633,7 @@ void sysmod::compose() {
       } else if (type == "aclint") {
         // Core CTIME MMR target for the mtime time-broadcast (AXI master write
         // on MTIME/TIMESYNC writes). Owned by the cluster gflag aclint_ctime_addr.
-        device = std::make_unique<aclint>(tag, base, nharts, loc_, masters[0], FLAGS_aclint_ctime_addr);
+        device = std::make_unique<aclint>(tag, base, size, nharts, loc_, masters[0], FLAGS_aclint_ctime_addr);
         // MTIP is generated in SV (sysmod.sv aclint model), not via the C++
         // timer_interrupt messenger path, so no clint::timer_t connect here.
       } else if (type == "mmr_txn_router") {
