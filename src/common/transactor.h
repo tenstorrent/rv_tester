@@ -66,6 +66,8 @@ public:
     bool exp_err_rsp = false;
     bool allow_decerr_resp = false;
     axi_attr_t attr{};
+    // fault-sim only: override the derived AxSIZE (0 = derive from length).
+    uint8_t size_override = 0;
   };
 
   transactor(cvm::topology::loc_t loc, const std::string& tag)

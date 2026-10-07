@@ -516,6 +516,10 @@ public:
     if (!a_wrapper(req.addr, req.length, a, !req.attr.is_manual_id))
       return false;
     apply_attr(req.attr, a);
+    // Fault-sim: force a wider AxSIZE than the payload to exercise the size lane;
+    // a.len stays single-beat so only the payload bytes are strobed.
+    if (req.size_override)
+      a.size = req.size_override;
     id = a.id;
     exp_err_rsp_ids_[a.id] = a.exp_err_rsp;
     allow_decerr_resp_ids_[a.id] = a.allow_decerr_resp;
