@@ -2888,6 +2888,21 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     poke_non_standard_interrupt(hart, i.cycle, non_std_intr, i.intr_during_ucode);
   // ================================================================================================================
 
+  // A software clear of LCOFIP retiring inside the counter-overflow propagation
+  // window is stepped in Whisper before the delayed OF poke re-asserts the bit
+  // there, while the DUT applied the hardware set first. Whisper follows the DUT.
+  if (!i.hw && i.mip_clr[LCOFI]) {
+    peek_mip(hart, i.cycle, tmp_mip_prev_);
+    if (tmp_mip_prev_[LCOFI]) {
+      bridge_log(cvm::MEDIUM, "<{}> LCOFI SW clear ordered after delayed OF poke, clearing in Whisper: mip={}\n", i.cycle, to_string(i));
+      tmp_mip_latest_ = tmp_mip_prev_;
+      tmp_mip_latest_.reset(LCOFI);
+      poke_mip(hart, i.cycle, tmp_mip_latest_);
+      check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
+      check_and_defer_interrupt(hart, i.cycle, tmp_mip_latest_, i.intr_during_ucode);
+    }
+  }
+
   // Handling needed only for hw interrupts
   if (!i.hw)
     return;
