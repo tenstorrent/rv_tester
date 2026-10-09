@@ -26,6 +26,12 @@ private:
   bool attr_random_ = false;
   uint32_t attr_fields_ = 0;
   uint32_t write_count_ = 0;
+  // >8B size injection for rerouted MMR reads (see +fsim_rg_size_gt8_every); SCB NDERRs these.
+  uint32_t size_gt8_every_ = 0;
+  uint32_t read_count_ = 0;
+  // >8B size injection for rerouted MMR writes (see +fsim_rg_aw_size_gt8_every); SCB NDERRs these.
+  uint32_t aw_size_gt8_every_ = 0;
+  uint32_t aw_size_count_ = 0;
   cvm::rand::uniform_dist<uint32_t> attr_rng_;
   transactor::axi_attr_t pick_attr(bool is_write);
 

@@ -18,6 +18,8 @@ DEFINE_bool(fsim_rg_attr_randomize, false, "fault-sim only: randomise AXI attrib
 DEFINE_uint32(rg_attr_fields, 0x1F, "bitmask of fields to randomise: 1=cache 2=prot 4=qos 8=region 16=user");
 DEFINE_bool(rg_attr_user_codepoints, true, "user drawn from the production code points {0x0,0x1,0x3}; false = full 8 bits");
 DEFINE_uint32(rg_attr_srcid01_every, 0, "every Nth rerouted write carries a manual id with ring SrcId 01 (0 = never)");
+DEFINE_uint32(fsim_rg_size_gt8_every, 0, "fault-sim only: every Nth rerouted MMR read is upsized to a >8B AXI size (size[2]=1); the SCB returns NDERR (0 = never)");
+DEFINE_uint32(fsim_rg_aw_size_gt8_every, 0, "fault-sim only: every Nth rerouted MMR write is upsized to a >8B AXI size (size[2]=1); the SCB returns NDERR (0 = never)");
 
 namespace {
 
@@ -114,6 +116,12 @@ void mmr_txn_router::configure() {
   device::configure();
   attr_random_ = FLAGS_fsim_rg_attr_randomize;
   attr_fields_ = FLAGS_rg_attr_fields;
+  size_gt8_every_ = FLAGS_fsim_rg_size_gt8_every;
+  if (size_gt8_every_)
+    cvm::log(cvm::NONE, "[mmr_txn_router] >8B read size injection on, every {}\n", size_gt8_every_);
+  aw_size_gt8_every_ = FLAGS_fsim_rg_aw_size_gt8_every;
+  if (aw_size_gt8_every_)
+    cvm::log(cvm::NONE, "[mmr_txn_router] >8B write size injection on, every {}\n", aw_size_gt8_every_);
   if (attr_random_)
     cvm::log(cvm::NONE, "[mmr_txn_router] AXI attribute randomisation on, fields={:#x} user_codepoints={} srcid01_every={}\n",
              attr_fields_, FLAGS_rg_attr_user_codepoints, FLAGS_rg_attr_srcid01_every);
@@ -137,6 +145,16 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
     ar.qos = attr.qos;
     ar.region = attr.region;
     ar.user = attr.user;
+  }
+
+  // Fault-sim only: upsize some rerouted reads to a >8B AXI size so the ring->SCB
+  // ar.size[2] lane is exercised. The SC/SCB MMR slave rejects >8B (scb_mmr.sv:258)
+  // and returns NDERR, so tolerate the error response; the DUT load fault is stepped
+  // over by the test's mtvec skip handler.
+  if (size_gt8_every_ && (++read_count_ % size_gt8_every_) == 0) {
+    ar.size = 4; // 16B -> AxSIZE[2]=1
+    ar.allow_decerr_resp = true;
+    cvm::log(cvm::HIGH, "[mmr_txn_router] size[2] injection: upsized read addr={:#x} to AxSIZE=16B\n", addr);
   }
 
   axi::id_t axi_id;
@@ -185,6 +203,14 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
   transactor::write_request_t req{addr, length, data, strb};
   req.allow_decerr_resp = true;
   req.attr = pick_attr(true);
+
+  // Fault-sim only: upsize some rerouted writes to a >8B AXI size so the ring->SCB
+  // aw.size[2] lane is exercised. The SC/SCB MMR slave rejects >8B (scb_mmr.sv:258)
+  // and returns NDERR on the B channel, tolerated via req.allow_decerr_resp above.
+  if (aw_size_gt8_every_ && (++aw_size_count_ % aw_size_gt8_every_) == 0) {
+    req.size_override = 4; // 16B -> AxSIZE[2]=1
+    cvm::log(cvm::HIGH, "[mmr_txn_router] size[2] injection: upsized write addr={:#x} to AxSIZE=16B\n", addr);
+  }
 
   axi::id_t axi_id;
   if (!cvm::registry::messenger.call<axi_sw_mst_push_write_request_rpc>(axi_mst_loc_l, req, axi_id)) {
