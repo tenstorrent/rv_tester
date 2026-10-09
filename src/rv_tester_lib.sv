@@ -214,8 +214,10 @@ module rv_tester_fifo #(
       wptr <= wptr_nxt;
 
       // Bypass logic
-      if (push && wptr == rptr) begin
-        // Bypass: pushing to empty FIFO
+      if (push && wptr == rptr_nxt) begin
+        // Bypass: the pushed entry is the next head (pushing to an empty FIFO,
+        // or popping the only entry in the same cycle); the synchronous RAM
+        // read would return the entry's old contents
         bypass_enable <= '1;
         q_bypass <= d;
       end

@@ -2,7 +2,7 @@
     "tlb_entries"           : 0,
 
     "xlen"                  : 64,
-    "isa"                   : "rv64imafcdvuszfh",
+    "isa"                   : "rv64imafcdvuszfh_smaia",
     "reset_vec"             : "0x80000000",
 
     "memmap" : {
@@ -401,5 +401,14 @@
       "InstCommited" : "0x00800000",
       "Load"         : "0x00c00000",
       "Store"        : "0x00d00000"
+    },
+
+    "imsic" : {
+      "mbase"        : "0x24000000",
+      "mstride"      : "0x1000",
+      "sbase"        : "0x28000000",
+      "sstride"      : "0x1000",
+      "ids"          : [64, 64, 64],
+      "guests"       : "0"
     }
 }

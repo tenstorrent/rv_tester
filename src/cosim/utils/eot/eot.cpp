@@ -12,6 +12,7 @@
 #include "rv_tester_plusargs.h"
 #include "src/sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"
+#include "cvm/topology_defs.hpp"
 
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
 
@@ -23,6 +24,7 @@ DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +re
 DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
 DEFINE_uint64(psc_off_high, 0, "Turn Period-Cosim mode BACK ON when clocks > psc_off_high");
 DEFINE_uint64(psc_off_low, 0, "Turn Period-Cosim mode OFF     when clocks > psc_off_low");
+DEFINE_uint64(dram_base, 0x80000000, "DRAM base PC that raises cosim boot_done");
 DEFINE_bool(hw_eot_enable, false, "Enable hardware termination of the EOT (useful for offline DPI testing when rvfi is not sent to cosim)");
 DEFINE_bool(eot_mem_check, false, "Do End of Test memory checks");
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);

@@ -5,6 +5,9 @@
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
+
+DECLARE_bool(interrupt_injection_enable);
 
 namespace {
 typedef enum : uint8_t { ASSERT = 1,

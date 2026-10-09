@@ -152,14 +152,14 @@ public:
   bool whisperGetLastLdStAddress(int hart, uint64_t& value);
   bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
   bool whisperSnapshotSave();
-
-  // Deliver a non-maskable interrupt to whisper.
+  bool whisperSetAmoAllow(int hart, bool allowNonCacheable, bool allowIo, bool& valid);
+  bool whisperSetClearTinstLrSc(int hart, bool enable, bool& valid);
   bool whisperNmi(int hart, uint64_t time, uint64_t cause);
   bool whisperClearNmi(int hart, uint64_t time);
   bool whisperClearNmiCause(int hart, uint64_t time, uint64_t cause);
 
 private:
-  bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);
+  bool whisperCommand(WhisperMessage& req, WhisperMessage& reply);
 
   std::shared_ptr<WdRiscv::Session<URV>> session_;
   std::shared_ptr<WdRiscv::System<URV>> system_;
@@ -224,4 +224,6 @@ public:
   CVM_MESSENGER_procedure_call(whisperMcmSkipReadDataCheckRPC, bool(uint64_t, unsigned, bool));
   CVM_MESSENGER_procedure_call(secureRegionRPC, void(uint64_t, uint64_t));
   CVM_MESSENGER_procedure_call(whisperSnapshotSaveRPC, bool(void));
+  CVM_MESSENGER_procedure_call(whisperSetAmoAllowRPC, bool(int, bool, bool, bool&));
+  CVM_MESSENGER_procedure_call(whisperSetClearTinstLrScRPC, bool(int, bool, bool&));
 };

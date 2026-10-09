@@ -159,10 +159,11 @@ extern "C" std::uint8_t axi_sw_tb_init() {
   for (const auto& source : sources) {
     cvm::registry::messenger.connect<transactor::write_t>(
         source,
-        [](const auto& w) {
+        [source](const auto& w) {
           for (std::uint64_t i = 0; i < w.length; i++)
             if (w.strb[i])
               byte_map[w.addr + i] = w.data[i];
+          cvm::registry::messenger.signal(source, transactor::write_response_t{w.id, 0});
         });
     cvm::registry::messenger.connect<transactor::read_t>(
         source,

@@ -2,7 +2,7 @@
 
 This testbench serves to validate the behavior and performance of `rv_tester` without requiring a full-chip simulation. It is implemented as a simple wrapper around `rv_tester.sv` with utilities for mocking the chip's `rvfi` messages using a C++ DPI (see [dpi.cpp](dpi.cpp)).
 
-Two harnesses are built, differing only in hart count: `sw_1c` (single hart) and `sw_2c` (dual hart).
+Three harnesses are built: `sw_1c` (single hart), `sw_2c` (dual hart) and `sw_8c` (8 harts). `sw_1c` and `sw_2c` differ only in hart count. In `sw_8c`, harts 0 and 1 run `testlists/imsic_ipi.elf` and send each other an MSI. The `hart_mhartid_imsic_ipi_8c_verilator` test in [testlists/BUILD.bazel](testlists/BUILD.bazel) runs it with `+hart_mhartid`.
 
 ## Functional Testing
 
