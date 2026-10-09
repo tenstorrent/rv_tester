@@ -10,6 +10,7 @@
 #include <regex>
 #include <filesystem>
 #include "src/transactors/axi_sw/axi.h"
+#include "src/transactors/axi_sw/eam.hpp"
 #include "cvm/logger.hpp"
 
 // Error responses
@@ -266,6 +267,10 @@ cvm::messenger::task<void> axi::operator()() {
     burst_active_ = true;
     a_q_.dequeue();
 
+    // Exclusive access monitor decision, taken once per transaction so that
+    // every beat and the single B response share the same verdict.
+    const eam_verdict eam_v = eam::instance().on_addr(a);
+
     addr_t num_bytes = 1 << a.size;
     addr_t aligned_addr = a.addr / num_bytes * num_bytes;
     data_width_t data_bus_bytes = data_width() / 8;
@@ -330,15 +335,23 @@ cvm::messenger::task<void> axi::operator()() {
 
           atop_modify_write_data(a.atop, read_data, w.data, len);
 
-          // Await the write so the sysmod/overlay B-channel resp (e.g. DECERR
-          // from a rerouted MMR store) propagates back into the DUT's store
-          // response. Give error responses priority via OR (DECERR over SLVERR).
-          auto wresp = co_await transactor::write(
-              start,
-              len,
-              w.data,
-              w.strb);
-          write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(wresp.resp));
+          // A failed exclusive write is squashed: the W channel is still
+          // drained above, but no write is signalled downstream to sysmod.
+          //
+          // For writes that are allowed, await the write so the sysmod/overlay
+          // B-channel resp (e.g. DECERR from a rerouted MMR store) propagates
+          // back into the DUT's store response. Error responses get priority
+          // via OR (DECERR over SLVERR).
+          if (eam_v.allow_write) {
+            auto wresp = co_await transactor::write(
+                start,
+                len,
+                w.data,
+                w.strb);
+            write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(wresp.resp));
+          } else {
+            cvm::log(cvm::HIGH, "[axi] eam squash write: id={}, addr={:#x}, len={}\n", a.id, start, len);
+          }
 
           // Check and increment counters for error injection policies
           bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(addr, WRITE);
@@ -371,7 +384,7 @@ cvm::messenger::task<void> axi::operator()() {
               std::end(read_data));
 
           // Resp: honor sysmod/overlay DECERR (etc.) before optional injection.
-          axi::resp_t read_resp = a.lock ? RESP_EXOKAY : axi::resp_t(sysmod_read_resp);
+          axi::resp_t read_resp = eam_v.override_resp ? eam_v.resp : axi::resp_t(sysmod_read_resp);
 
           // Check and increment counters for error injection policies
           bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(addr, READ);
@@ -425,6 +438,11 @@ cvm::messenger::task<void> axi::operator()() {
 
     // We should only generate a single B response regardless of burst length.
     if (a.w) {
+      // Apply the exclusive access verdict only if no error was injected, so
+      // SLVERR/DECERR keep priority (they are OR-ed into write_resp above).
+      if (eam_v.override_resp && write_resp == RESP_OKAY) {
+        write_resp = eam_v.resp;
+      }
       b_q_.enqueue(b_t(a.id, write_resp));
       cvm::log(cvm::HIGH, "[axi] b: id={}, resp={}\n", a.id, write_resp);
     }

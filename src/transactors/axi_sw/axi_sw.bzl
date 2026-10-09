@@ -171,6 +171,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//src/transactors/axi_sw:axi_sw.cpp",
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst.cpp",
             "@rv_tester//src/transactors/axi_sw:axi.cpp",
+            "@rv_tester//src/transactors/axi_sw:eam.cpp",
         ],
         hdrs = [
             "@rv_tester//src/transactors/axi_sw:axi_sw.h",
@@ -178,10 +179,12 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst.h",
             "@rv_tester//src/transactors/axi_sw:axi_sw_mst_plusargs.h",
             "@rv_tester//src/transactors/axi_sw:axi.h",
+            "@rv_tester//src/transactors/axi_sw:eam.hpp",
             "@rv_tester//src/transactors/axi_sw:safe_queue.h",
         ],
         deps = [
           "@rv_tester//src/common:common",
+          "@rv_tester//src/common/device_address_map:device_address_map",
           "@rv_tester//src:plusargs",
           "@cvm//:plusargs",
           "@cvm//:topology",
@@ -189,6 +192,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
           "@cvm//:logger",
           "@cvm//:bitmanip",
           "@cvm//:messenger",
+          "@cvm//:random",
           "@rv_tester//src/transactors/axi_sw:axi_sw_mst_rpc",
           packet + "_cc",
         ],

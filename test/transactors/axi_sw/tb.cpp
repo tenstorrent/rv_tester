@@ -146,6 +146,11 @@ extern "C" void get_stim(
   }
 }
 
+// Stand-in for the rv_tester.sv DPI export of the TB cycle counter.
+extern "C" std::uint64_t rv_tester_get_clocks() {
+  return 0;
+}
+
 extern "C" std::uint8_t axi_sw_tb_init() {
   static std::unordered_map<std::uint64_t, std::uint8_t> byte_map;
 

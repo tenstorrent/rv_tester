@@ -14,10 +14,12 @@ genrule(
 
 cc_library(
     name = "axi",
-    srcs = [ "axi.cpp" ],
-    hdrs = [ "axi.h", "safe_queue.h" ],
+    srcs = [ "axi.cpp", "eam.cpp" ],
+    hdrs = [ "axi.h", "eam.hpp", "safe_queue.h" ],
     deps = [
         "@rv_tester//src/common:transactor",
+        "@rv_tester//src/common:svdpi",
+        "@rv_tester//src/common/device_address_map:device_address_map",
         "@rv_tester//src:plusargs",
         "@cvm//:plusargs",
         "@cvm//:topology",
@@ -106,4 +108,4 @@ cc_library(
     include_prefix = "axi_sw",
     visibility = ["//visibility:public"],
 )
-exports_files(["safe_queue.h", "axi_sw.h"] + glob(["axi_sw*", "axi.*", "gen_axi_interfaces.py"]))
+exports_files(["safe_queue.h", "axi_sw.h"] + glob(["axi_sw*", "axi.*", "eam.*", "gen_axi_interfaces.py"]))

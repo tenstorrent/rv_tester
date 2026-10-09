@@ -101,6 +101,13 @@ class AXIInterfaceGenerator:
 
         return '\n'.join(lines)
 
+    # Single source of truth for AxUSER width: the generated *_user_t typedef
+    # and the USER_WIDTH parameter on the axi_sw/axi_sw_mst instance must agree,
+    # otherwise the req/rsp struct fields mismatch the module ports.
+    @staticmethod
+    def user_width(name, intf):
+        return intf.get('USER_WIDTH', 8 if 'mst' in name else 1)
+
     def generate_interface_typedefs(self, name, intf):
         lines = []
 
@@ -108,9 +115,7 @@ class AXIInterfaceGenerator:
         lines.append(f"    typedef logic [{intf['DATA_WIDTH']}-1:0] {name}_data_t;")
         lines.append(f"    typedef logic [{intf['STRB_WIDTH']}-1:0] {name}_strb_t;")
         lines.append(f"    typedef logic [{intf['ID_WIDTH']}-1:0] {name}_id_t;")
-        default_user_width = 8 if 'mst' in name else 1
-        user_width = intf.get('USER_WIDTH', default_user_width)
-        lines.append(f"    typedef logic [{user_width}-1:0] {name}_user_t;")
+        lines.append(f"    typedef logic [{self.user_width(name, intf)}-1:0] {name}_user_t;")
         lines.append("")
 
         lines.append(f"    `AXI_TYPEDEF_AW_CHAN_T({name}_aw_chan_t, {name}_addr_t, {name}_id_t, {name}_user_t)")
@@ -174,6 +179,7 @@ class AXIInterfaceGenerator:
             lines.append(f"        .DATA_WIDTH({intf['DATA_WIDTH']}), \\")
             lines.append(f"        .ID_WIDTH({intf['ID_WIDTH']}), \\")
             lines.append(f"        .STRB_WIDTH({intf['STRB_WIDTH']}), \\")
+            lines.append(f"        .USER_WIDTH({self.user_width(name, intf)}), \\")
             lines.append(f"        .R_Q_MAX({intf.get('R_Q_MAX', 1024)}), \\")
             lines.append(f"        .B_Q_MAX({intf.get('B_Q_MAX', 1024)}), \\")
             lines.append(f"        .LOCATION(cvm_topology_gen::get_location(topology.{self.axi_sw_topo}[{NAME}_IDX].ID, k)), \\")
@@ -247,7 +253,7 @@ class AXIInterfaceGenerator:
             lines.append(f"        .DATA_WIDTH({intf['DATA_WIDTH']}), \\")
             lines.append(f"        .ID_WIDTH({intf['ID_WIDTH']}), \\")
             lines.append(f"        .STRB_WIDTH({intf['STRB_WIDTH']}), \\")
-            lines.append(f"        .USER_WIDTH({intf.get('USER_WIDTH', 8)}), \\")
+            lines.append(f"        .USER_WIDTH({self.user_width(name, intf)}), \\")
             lines.append(f"        .AR_Q_MAX({intf.get('AR_Q_MAX', 1024)}), \\")
             lines.append(f"        .AW_Q_MAX({intf.get('AW_Q_MAX', 1024)}), \\")
             lines.append(f"        .W_Q_MAX({intf.get('W_Q_MAX', 1024)}), \\")

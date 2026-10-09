@@ -32,6 +32,7 @@ cc_library(
       "uc_helper.h",
       "io_coh_helper.h",
       "ras_helper.h",
+      "eam_helper.h",
       "post_si_pcietc_helper.h",
       "trickbox.h",
     ],
@@ -70,6 +71,7 @@ cc_library(
       "io_coh_helper.cpp",
       "ras_helper.cpp",
       "dma.cpp",
+      "eam_helper.cpp",
       "post_si_pcietc_helper.cpp",
       "trickbox.cpp"
     ],
@@ -83,11 +85,13 @@ cc_library(
       "io_coh_helper.h",
       "ras_helper.h",
       "dma.h",
+      "eam_helper.h",
       "post_si_pcietc_helper.h",
       "trickbox.h"
     ],
     deps = [
              "//src/transactors/axi_sw:axi_sw_h",
+             "//src/transactors/axi_sw:axi",
              "//src/common:common",
              "//src/common/device_address_map:device_address_map",
              "//src/sysmod:device",

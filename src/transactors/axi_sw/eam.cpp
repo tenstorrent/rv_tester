@@ -1,0 +1,357 @@
+// SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#include "src/transactors/axi_sw/eam.hpp"
+#include "cvm/logger.hpp"
+#include "cvm/random.hpp"
+#include "device_address_map/device_address_map.h"
+#include "rv_tester_plusargs.h"
+#include "svdpi.h"
+
+// DPI export from rv_tester.sv: returns the TB clock counter.
+extern "C" uint64_t rv_tester_get_clocks();
+
+namespace {
+// Scope of the rv_tester instance that owns rv_tester_get_clocks(), captured
+// once at registry build time so that the EAM (a process-wide singleton called
+// from arbitrary axi contexts) can set it before the exported call.
+svScope rv_tester_scope = nullptr;
+} // namespace
+
+extern "C" void eam_register_scope() {
+  rv_tester_scope = svGetScope();
+}
+
+DEFINE_int32(eam_decline_excl_pct, 0, "Percentage of exclusive reads (ARLOCK) the EAM declines: no reservation is taken and OKAY is returned instead of EXOKAY");
+DEFINE_string(eam_pass_invalidate_ratio, "1:0", "Exclusive write (AWLOCK) pass/fail pattern in format 'n:e': n exclusive writes succeed, then e are failed (reservation invalidated), repeating");
+DEFINE_string(eam_unsupported_addr, "", "Comma separated list of inclusive address ranges ('first-last', hex or decimal) that the EAM treats as unsupported targets for exclusive accesses; an exclusive transaction to any of them is flagged as an error");
+DEFINE_uint64(eam_reservation_ttl, 0, "Reservation time-to-live in TB clock cycles: an exclusive write (AWLOCK) is failed and its reservation invalidated if at least this many cycles elapsed since the exclusive read that took it. 0 disables the check");
+
+eam& eam::instance() {
+  static eam inst;
+  return inst;
+}
+
+eam::eam() {
+  const std::string& p = FLAGS_eam_pass_invalidate_ratio;
+  const size_t delim = p.find(':');
+  if (delim == std::string::npos) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    return;
+  }
+
+  try {
+    pattern_pass_ = std::stoul(p.substr(0, delim));
+    pattern_fail_ = std::stoul(p.substr(delim + 1));
+  } catch (const std::exception&) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    pattern_pass_ = 1;
+    pattern_fail_ = 0;
+    return;
+  }
+
+  if (pattern_pass_ + pattern_fail_ == 0) {
+    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' must have n+e greater than zero\n", p);
+    pattern_pass_ = 1;
+    pattern_fail_ = 0;
+  }
+
+  parse_unsupported_addr();
+
+  cvm::log(cvm::HIGH, "[eam] config: decline_excl_pct={}, pass_invalidate_ratio={}:{}, reservation_ttl={}, unsupported_addr='{}'\n",
+           FLAGS_eam_decline_excl_pct, pattern_pass_, pattern_fail_, FLAGS_eam_reservation_ttl,
+           FLAGS_eam_unsupported_addr);
+}
+
+// +eam_unsupported_addr = "first-last[,first-last]*", bounds inclusive and
+// accepted in hex (0x...) or decimal.
+void eam::parse_unsupported_addr() {
+  const std::string& s = FLAGS_eam_unsupported_addr;
+  size_t pos = 0;
+  while (pos < s.size()) {
+    const size_t comma = s.find(',', pos);
+    const std::string range = s.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+    pos = (comma == std::string::npos) ? s.size() : comma + 1;
+    if (range.empty())
+      continue;
+
+    const size_t dash = range.find('-');
+    if (dash == std::string::npos) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not in 'first-last' format\n", range);
+      continue;
+    }
+
+    uint64_t first = 0, last = 0;
+    try {
+      first = std::stoull(range.substr(0, dash), nullptr, 0);
+      last = std::stoull(range.substr(dash + 1), nullptr, 0);
+    } catch (const std::exception&) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not a valid address pair\n", range);
+      continue;
+    }
+
+    if (first > last) {
+      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' has first greater than last\n", range);
+      continue;
+    }
+
+    unsupported_ranges_.emplace_back(first, last);
+    cvm::log(cvm::HIGH, "[eam] unsupported address range: [{:#x}, {:#x}]\n", first, last);
+  }
+}
+
+// MMR: mask off the region offset bits and compare against the MMR base. Die
+// id bits are cleared first so that a transaction targeting a remote die still
+// decodes as MMR.
+// SP: plain range check against [sp_base, sp_base + sp_size - 1].
+bool eam::addr_in_mmr_or_sp(axi::addr_t addr) {
+  uint64_t a = uint64_t(addr);
+
+  const uint32_t die_id_width = device_address_map_die_id_width();
+  if (die_id_width != 0) {
+    const uint32_t die_id_start_bit = device_address_map_die_id_start_bit();
+    const uint64_t die_mask = ((uint64_t(1) << die_id_width) - 1) << die_id_start_bit;
+    a &= ~die_mask;
+  }
+
+  const uint64_t mmr_base = device_address_map_mmr_base_addr();
+  const uint64_t mmr_mask = ~((uint64_t(1) << mmr_base) - 1);
+  if ((a & mmr_mask) == mmr_base)
+    return true;
+
+  const uint64_t sp_base = device_address_map_sp_base_addr();
+  const uint64_t sp_size = device_address_map_sp_size();
+  return sp_size != 0 && a >= sp_base && a <= sp_base + sp_size - 1;
+}
+
+bool eam::addr_unsupported_by_arg(axi::addr_t addr) const {
+  const uint64_t a = uint64_t(addr);
+  for (const auto& r : unsupported_ranges_) {
+    if (a >= r.first && a <= r.second)
+      return true;
+  }
+  return false;
+}
+
+eam::~eam() {
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_declined_exclusive_read_count\": \"{}\"}}\n", declined_excl_read_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_forced_fail_exclusive_write_count\": \"{}\"}}\n", forced_fail_excl_write_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_tb_fail_exclusive_write_count\": \"{}\"}}\n", tb_fail_excl_write_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"eam_ttl_fail_exclusive_write_count\": \"{}\"}}\n", ttl_fail_excl_write_count_);
+  }
+}
+
+// Reprogramming either operand starts a new injection window: a test arms
+// tb_fail_en_ once and then drives a sequence of LR/SC loops, programming
+// tb_fail_addr_/tb_fail_cnt_ before each one. Without this reset the injected
+// count would carry over from the previous loop and the new loop would see
+// fewer than tb_fail_cnt_ failures.
+void eam::set_tb_fail_addr(uint64_t addr) {
+  tb_fail_addr_ = addr;
+  tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_addr set to {:#x}\n", addr);
+}
+
+void eam::set_tb_fail_cnt(uint64_t cnt) {
+  tb_fail_cnt_ = cnt;
+  tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_cnt set to {}\n", cnt);
+}
+
+void eam::set_tb_fail_en(bool en) {
+  tb_fail_en_ = en;
+  if (en)
+    tb_fail_injected_ = 0;
+  cvm::log(cvm::HIGH, "[eam] tb_fail_en set to {} (tb_fail_addr={:#x}, tb_fail_cnt={})\n",
+           en, tb_fail_addr_, tb_fail_cnt_);
+}
+
+bool eam::tb_fail_excl_write(const axi::a_t& a) {
+  if (!tb_fail_en_ || tb_fail_cnt_ == 0)
+    return false;
+  if (rsv_base(a.addr) != rsv_base(tb_fail_addr_))
+    return false;
+  if (tb_fail_injected_ >= tb_fail_cnt_)
+    return false;
+
+  tb_fail_injected_++;
+  tb_fail_excl_write_count_++;
+  cvm::log(cvm::HIGH, "[eam] tb injected exclusive write fail: hart={}, id={}, addr={:#x}, injected={}/{}\n",
+           hart_of(a), a.id, a.addr, tb_fail_injected_, tb_fail_cnt_);
+  return true;
+}
+
+bool eam::decline_excl_read() {
+  if (FLAGS_eam_decline_excl_pct <= 0)
+    return false;
+
+  const uint64_t r = cvm::rand::lcg::generate<uint64_t>(100);
+  return int32_t(r) < FLAGS_eam_decline_excl_pct;
+}
+
+bool eam::pattern_fail_excl_write() {
+  const unsigned period = pattern_pass_ + pattern_fail_;
+  const unsigned phase = excl_wr_count_ % period;
+  excl_wr_count_ = (excl_wr_count_ + 1) % period;
+  return phase >= pattern_pass_;
+}
+
+uint64_t eam::current_cycles() {
+  if (FLAGS_eam_reservation_ttl == 0 || rv_tester_scope == nullptr)
+    return 0;
+
+  const svScope prev = svGetScope();
+  svSetScope(rv_tester_scope);
+  const uint64_t now = rv_tester_get_clocks();
+  if (prev != nullptr)
+    svSetScope(prev);
+  return now;
+}
+
+bool eam::ttl_expired(const eam_entry& e, uint64_t now) {
+  if (FLAGS_eam_reservation_ttl == 0 || !e.valid)
+    return false;
+
+  // clocks is a monotonically increasing 64-bit counter, so no wrap handling.
+  const uint64_t age = now - e.rsv_cycle;
+  if (age < FLAGS_eam_reservation_ttl)
+    return false;
+
+  ttl_fail_excl_write_count_++;
+  cvm::log(cvm::HIGH, "[eam] reservation ttl expired: entry={}, hart={}, id={}, rsv_addr={:#x}, rsv_cycle={}, now={}, age={} >= ttl={}\n",
+           index(e.hart), e.hart, e.id, e.rsv_addr, e.rsv_cycle, now, age, FLAGS_eam_reservation_ttl);
+  return true;
+}
+
+bool eam::fields_match(const eam_entry& e, const axi::a_t& a) {
+  // AxCACHE is deliberately NOT compared: cache_mem_attr_t is the decoded
+  // AxCACHE attribute, and the allocate-hint bits carry read-channel vs
+  // write-channel meaning (e.g. WB_RA on AR vs WB_WA on AW for the same
+  // region), so a legal LR/SC pair can legitimately differ here. It is still
+  // captured in the entry for debug.
+  return e.rsv_addr == a.addr &&
+         e.size == a.size &&
+         e.len == a.len &&
+         e.burst == a.burst &&
+         e.prot == a.prot;
+}
+
+void eam::span(const axi::a_t& a, axi::addr_t& first, axi::addr_t& last) {
+  const axi::addr_t num_bytes = axi::addr_t(1) << a.size;
+  const axi::addr_t aligned_addr = a.addr / num_bytes * num_bytes;
+  const axi::addr_t burst_len = axi::addr_t(a.len) + 1;
+  const axi::addr_t dtsize = num_bytes * burst_len;
+
+  if (a.burst == axi::BURST_FIXED) {
+    // Every beat targets the same address window.
+    first = aligned_addr;
+    last = aligned_addr + num_bytes - 1;
+  } else if (a.burst == axi::BURST_WRAP) {
+    // Wrapping bursts stay inside their dtsize-aligned container.
+    first = a.addr / dtsize * dtsize;
+    last = first + dtsize - 1;
+  } else {
+    first = aligned_addr;
+    last = aligned_addr + dtsize - 1;
+  }
+}
+
+void eam::invalidate_overlaps(const axi::a_t& a) {
+  axi::addr_t first, last;
+  span(a, first, last);
+
+  const std::size_t own = index(hart_of(a));
+  for (std::size_t i = 0; i < NUM_ENTRIES; i++) {
+    if (i == own || !t_[i].valid)
+      continue;
+
+    const axi::addr_t rsv_first = rsv_base(t_[i].rsv_addr);
+    const axi::addr_t rsv_last = rsv_first + RSV_BYTES - 1;
+    if (first <= rsv_last && rsv_first <= last) {
+      t_[i].valid = false;
+      cvm::log(cvm::HIGH, "[eam] invalidate: entry={}, entry_hart={}, rsv_addr={:#x}, rsv_base={:#x} by write hart={}, id={}, addr={:#x}\n",
+               i, t_[i].hart, t_[i].rsv_addr, rsv_first, hart_of(a), a.id, a.addr);
+    }
+  }
+}
+
+eam_verdict eam::on_addr(const axi::a_t& a) {
+  eam_verdict v;
+
+  // Reservation owner index: AxUSER[3:0].
+  const uint32_t hart = hart_of(a);
+
+  if (a.lock && a.atop.transaction != axi::NON_ATOMIC) {
+    cvm::log(cvm::ERROR, "Error: [eam] exclusive access combined with an atomic transaction is not supported: hart={}, id={}, addr={:#x}\n",
+             hart, a.id, a.addr);
+  }
+
+  if (a.lock && (addr_in_mmr_or_sp(a.addr) || addr_unsupported_by_arg(a.addr))) {
+    cvm::log(cvm::ERROR, "Error: [eam] Exclusive access to address :{:#x} not expected: hart={}, id={}\n", a.addr, hart, a.id);
+  }
+
+  if (!a.w) {
+    if (!a.lock)
+      return v;
+
+    // DV knob: randomly decline the exclusive read. No reservation is taken
+    // (and any stale one for this ID is dropped) so a later SC cannot pass.
+    if (decline_excl_read()) {
+      declined_excl_read_count_++;
+      t_[index(hart)].valid = false;
+      cvm::log(cvm::HIGH, "[eam] exclusive read declined (+eam_decline_excl_pct={}): entry={}, hart={}, id={}, addr={:#x}\n",
+               FLAGS_eam_decline_excl_pct, index(hart), hart, a.id, a.addr);
+      v.override_resp = true;
+      v.resp = axi::RESP_OKAY;
+      return v;
+    }
+
+    // Exclusive read: install/overwrite the reservation for this hart.
+    eam_entry& e = t_[index(hart)];
+    e = eam_entry{true, hart, a.id, a.addr, a.len, a.burst, a.size, a.prot, a.cache, current_cycles()};
+    cvm::log(cvm::HIGH, "[eam] reserve: entry={}, hart={}, id={}, user={:#x}, addr={:#x}, rsv_addr={:#x}, rsv_cycle={}\n",
+             index(hart), hart, a.id, a.user, a.addr, e.rsv_addr, e.rsv_cycle);
+
+    v.override_resp = true;
+    v.resp = axi::RESP_EXOKAY;
+    return v;
+  }
+
+  // Every write, exclusive or not, kills overlapping reservations of other
+  // harts.
+  invalidate_overlaps(a);
+
+  if (!a.lock)
+    return v;
+
+  // Exclusive write: only its own hart's entry can grant success.
+  eam_entry& e = t_[index(hart)];
+  const bool was_valid = e.valid;
+  // DV knob: force-fail this exclusive write per the 'n:e' pattern.
+  const bool forced_fail = pattern_fail_excl_write();
+  // Trickbox injection: fails the exclusive write regardless of whether a
+  // valid reservation exists, for the programmed number of occurrences.
+  const bool tb_fail = tb_fail_excl_write(a);
+  // DV knob: fail the exclusive write if the reservation is older than
+  // +eam_reservation_ttl cycles. The entry is invalidated below regardless.
+  const bool ttl_fail = ttl_expired(e, current_cycles());
+  const bool pass = was_valid && fields_match(e, a) && !forced_fail && !tb_fail && !ttl_fail;
+  // Count writes that would have passed but were failed solely by forced_fail.
+  if (forced_fail && !ttl_fail && was_valid && fields_match(e, a))
+    forced_fail_excl_write_count_++;
+  e.valid = false;
+
+  v.override_resp = true;
+  if (pass) {
+    v.resp = axi::RESP_EXOKAY;
+    cvm::log(cvm::HIGH, "[eam] exclusive write pass: entry={}, hart={}, id={}, addr={:#x}\n",
+             index(hart), hart, a.id, a.addr);
+  } else {
+    v.allow_write = false;
+    v.resp = axi::RESP_OKAY;
+    cvm::log(cvm::HIGH, "[eam] exclusive write fail (squashed): entry={}, hart={}, id={}, addr={:#x}, entry_valid={}, forced_fail={}, tb_fail={}, ttl_fail={}\n",
+             index(hart), hart, a.id, a.addr, was_valid, forced_fail, tb_fail, ttl_fail);
+  }
+  return v;
+}
