@@ -279,7 +279,7 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
 eam_verdict eam::on_addr(const axi::a_t& a) {
   eam_verdict v;
 
-  // Reservation owner: AxUSER[3:0], not AxID.
+  // Reservation owner index: AxUSER[3:0].
   const uint32_t hart = hart_of(a);
 
   if (a.lock && a.atop.transaction != axi::NON_ATOMIC) {
