@@ -67,6 +67,7 @@ private:
   bool sc_failed(mem_t& write);
 
   void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
+  bool use_excp_trap_tag(const rv_instr_t& instr) const;
   void print_csr(csr_t& csr);
   void append_uop_changes_to_instr(rv_instr_t& instr);
   void print_instr(const rv_instr_t& instr);
@@ -136,6 +137,7 @@ private:
   bool ucode_priv_change_ = false;
   uint32_t trap_insn_ = 0;
   uint64_t trap_addr_ = 0;
+  uint64_t trap_tag_ = 0;
 
   std::vector<rv_instr_t> instrs_;
   std::vector<vr_t> cracked_vrs_;
