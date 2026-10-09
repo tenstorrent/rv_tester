@@ -1203,6 +1203,23 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   if (w_intr)
     deferred_intr_age_[w_cause]++;
 
+  // An external interrupt can become pending in Whisper with no event on this
+  // hart: another hart's MCM bypass into this hart's IMSIC file writes Whisper's
+  // interrupt file at the storing hart's completion, ahead of the MSI reaching
+  // the DUT IMSIC. The cause stays deferred until the DUT reports it pending; the
+  // sticky tracker keeps it deferred through a DUT trap of another cause and
+  // through an xRET. The DUT trap undefers it like any other interrupt.
+  if (w_intr && is_external_intr(w_cause) && !dut_ext_mip_.test(w_cause)) {
+    mip_changed_since_last_step_.set(w_cause);
+    uint64_t w_defer_mip = 0;
+    peek_deferred_interrupts(hart, w_defer_mip);
+    const uint64_t cause_bit = uint64_t{1} << w_cause;
+    if (!(w_defer_mip & cause_bit)) {
+      bridge_log(cvm::MEDIUM, "<{}> Whisper external interrupt {} pending ahead of the DUT, deferring\n", d.cycle, intr_name(w_cause));
+      defer_interrupt(hart, d.cycle, w_defer_mip | cause_bit);
+    }
+  }
+
   // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
   // Interrupts raised in Whisper after the last DUT retire were not visible when the DUT selected
@@ -2861,6 +2878,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   mip_ = i.mip;
   hw_mip_ = i.hw ? i.mip : hw_mip_;
   e_mip_ = (i.mip[MEI] << MEI) | ((i.mip[SEI] | i.seip) << SEI);
+  dut_ext_mip_ = i.mip & std::bitset<64>(EXTERNAL_INTR_MASK);
+  if (i.seip)
+    dut_ext_mip_.set(SEI);
 
   auto ull = mip_.to_ullong();
   for (uint32_t count = 0; ull > 0; ull >>= 1, count++) {

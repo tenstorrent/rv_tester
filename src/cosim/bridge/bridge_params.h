@@ -165,6 +165,13 @@ typedef enum : size_t {
   LCOFI = 13,
 } intr;
 
+// Causes sourced from the IMSIC interrupt files and the SEIP pin
+constexpr uint64_t EXTERNAL_INTR_MASK = (uint64_t{1} << SEI) | (uint64_t{1} << VSEI) | (uint64_t{1} << MEI) | (uint64_t{1} << SGEI);
+
+inline bool is_external_intr(uint64_t cause) {
+  return cause < 64 && ((EXTERNAL_INTR_MASK >> cause) & 1);
+}
+
 const std::unordered_map<intr, std::string_view> intr_to_string = {
     {DEBUG, "DEBUG"},
     {SSI, "SSI"},

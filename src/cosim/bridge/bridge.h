@@ -400,6 +400,11 @@ private:
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
   std::bitset<64> nmip_ = 0;
+  // External interrupt pending bits as last reported by the DUT, with the SEIP
+  // pin folded into SEI. Whisper may take an external interrupt only once the
+  // DUT shows it pending: a store from another hart into this hart's IMSIC file
+  // lands in Whisper through the storing hart's MCM bypass, ahead of the DUT.
+  std::bitset<64> dut_ext_mip_ = 0;
 
   uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
