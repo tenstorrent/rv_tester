@@ -1205,14 +1205,21 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
   // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
+  // Interrupts raised in Whisper after the last DUT retire were not visible when the DUT selected
+  // this interrupt, so they stay deferred for this step in the same way as the ucode window.
   if (d.intr) {
     uint64_t dut_intr_bit = d.icause + (d.virt_mode ? 1 : 0);
     intr_during_ucode_.reset(dut_intr_bit);
-    defer_interrupt(hart, d.cycle, 0 | intr_during_ucode_.to_ullong());
-    if (intr_during_ucode_.to_ullong() != 0)
+    std::bitset<64> keep_deferred = intr_during_ucode_ | mip_changed_since_last_step_;
+    keep_deferred.reset(dut_intr_bit);
+    mip_changed_since_last_step_.reset();
+    if (w_intr && (w_cause != dut_intr_bit) && keep_deferred.test(w_cause))
+      bridge_log(cvm::MEDIUM, "<{}> Whisper cause {} raised after last retire, deferred for DUT cause {}\n", d.cycle, intr_name(w_cause), intr_name(dut_intr_bit));
+    defer_interrupt(hart, d.cycle, 0 | keep_deferred.to_ullong());
+    if (keep_deferred.to_ullong() != 0)
       intr_partially_deferred_ = true;
     for (auto it = deferred_intr_age_.begin(); it != deferred_intr_age_.end();) {
-      if (!intr_during_ucode_.test(it->first))
+      if (!keep_deferred.test(it->first))
         deferred_intr_age_.erase(it++);
       else
         it++;
@@ -3091,7 +3098,10 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
     start++;
     bits_clr >>= 1;
   }
+  // The SEIP pin is outside the mip register peek, so its toggle is recorded here
   if (consider_seip) {
+    if (seip_new != seip_prev)
+      mip_changed_since_last_step_.set(SEI);
     if (seip_new == seip_prev) {
       whisper_mip_age_.erase(SEI);
       whisper_mip_clr_age_.erase(SEI);
