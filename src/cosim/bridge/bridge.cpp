@@ -2306,7 +2306,8 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
 }
 
 bool bridge::clint_read(const uint64_t& pa) {
-  return memmap::instance().in_range({"clint", "aclint"}, pa);
+  auto& memmap_inst = memmap::instance();
+  return memmap_inst.in_range_tag_family("clint", pa) || memmap_inst.in_range_tag_family("aclint", pa);
 }
 
 bool bridge::tbox_read(const uint64_t& pa) {
