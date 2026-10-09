@@ -146,7 +146,7 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
   if (atop.transaction == ATOMIC_SWAP)
     return;
   if (atop.transaction == ATOMIC_COMPARE) {
-    assert(false && "atomic compare not supported");
+    assert(false && "atomic compare is handled by atop_compare_write_data");
     return;
   }
 
@@ -208,6 +208,25 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
       }
     }
   }
+}
+
+// AXI5 AtomicCompare (IHI0022 A7.4): AWADDR selects the compare lanes inside
+// the 2*op_bytes window and the swap value occupies the other half. Only the
+// addressed op_bytes are updated, and only when the compare matches. Both
+// buffers are indexed from the addressed lane; swap_index locates the swap
+// half after that rotation.
+bool axi::atop_compare_write_data(data_t& read_data, data_t& write_data, strb_t& write_strb, const len_t& op_bytes, const data_width_t& swap_index) {
+  const bool match = std::equal(read_data.begin(), std::next(read_data.begin(), op_bytes), write_data.begin());
+
+  if (match)
+    std::copy_n(std::next(write_data.begin(), swap_index), op_bytes, write_data.begin());
+
+  for (std::size_t i = 0; i < write_strb.size(); i++)
+    write_strb[i] = match && i < op_bytes && write_strb[i];
+
+  std::fill(std::next(read_data.begin(), op_bytes), read_data.end(), 0);
+
+  return match;
 }
 
 cvm::messenger::task<void> axi::a(const a_t& p) {
@@ -328,7 +347,15 @@ cvm::messenger::task<void> axi::operator()() {
               std::next(std::begin(w.strb), lower_byte_lane),
               std::end(w.strb));
 
-          atop_modify_write_data(a.atop, read_data, w.data, len);
+          if (a.atop.transaction == ATOMIC_COMPARE) {
+            assert(a.len == 0 && "atomic compare spanning multiple beats not supported");
+            const len_t op_bytes = num_bytes / 2;
+            const data_width_t swap_index = ((lower_byte_lane ^ op_bytes) + data_bus_bytes - lower_byte_lane) % data_bus_bytes;
+            const bool match = atop_compare_write_data(read_data, w.data, w.strb, op_bytes, swap_index);
+            cvm::log(cvm::HIGH, "[axi] atomic compare: id={}, addr={:#x}, op_bytes={}, match={}\n", a.id, start, op_bytes, match);
+          } else {
+            atop_modify_write_data(a.atop, read_data, w.data, len);
+          }
 
           // Await the write so the sysmod/overlay B-channel resp (e.g. DECERR
           // from a rerouted MMR store) propagates back into the DUT's store
