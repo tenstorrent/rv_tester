@@ -38,6 +38,7 @@ DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
+DEFINE_bool(excp_trap_tag_override, true, "Step Whisper on an exception with the trapping instruction's tag, not the ucode handler's");
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -176,6 +177,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     trap_insn_ = m_rvfi.insn;
     trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr
                                                                                                              : 0x0;
+    trap_tag_ = m_rvfi.order;
     return;
   }
 
@@ -217,6 +219,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   vec_cmode_pc_addr_ = 0;
   trap_insn_ = 0;
   trap_addr_ = 0;
+  trap_tag_ = 0;
   pc_error_ = false;
   mem_error_ = false;
 
@@ -427,6 +430,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_debug<>& m_debug) {
   bridge_->process_debug_haltreq(m_debug.haltreq);
 }
 
+bool rvfi::use_excp_trap_tag(const rv_instr_t& instr) const {
+  if (!FLAGS_excp_trap_tag_override || !trap_tag_ || !excp_ || intr_ || nmi_)
+    return false;
+  if (patch_mode_ || vec_cmode_ || in_debug_mode_)
+    return false;
+  if ((instr.priv == PRIV_DEBUG_ROM) || (instr.priv == PRIV_DEBUG_PROGBUF))
+    return false;
+  // 25-55: custom, >= 58: patch
+  return ecause_ < 25;
+}
+
 void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {
 
   static bool started = true;
@@ -584,6 +598,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cvm::log(cvm::HIGH, "CLOCK={}: SW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
              static_cast<int>(ucode_), static_cast<int>(instr.first_uop), static_cast<int>(instr.last_uop), m_rvfi.mode, instr.priv, static_cast<int>(ucode_priv_change_), m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_), instr.disasm);
   }
+
+  if (use_excp_trap_tag(instr))
+    instr.tag = trap_tag_;
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
