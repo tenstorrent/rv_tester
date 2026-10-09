@@ -22,7 +22,7 @@ DECLARE_uint64(aclint_timesync_offset);
 DECLARE_uint64(aclint_mtimecmp0_offset);
 
 // Define a core local interruptor (aClint) at the given address
-// and for the given hart count. The size will be 48k bytes.
+// and for the given hart count.
 class aclint : public device {
 public:
   // mtimecmp0-7 (8 physical cores) plus mtimecmp8 (cluster wakeup) occupy a
@@ -34,9 +34,9 @@ public:
   static constexpr uint64_t MTIMECMP_RESET = 0x00000000ffffffffULL;
 
   /// Define a aCLINT device at the given address for the given hart count.
-  /// Range of addresses reserved is: [addr, addr + 0xbfff]
+  /// Range of addresses reserved is: [addr, addr + size - 1]
   /// axiMstLoc / ctimeAddr are used to broadcast mtime to the core CTIME MMR
-  aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
+  aclint(const std::string& tag, uint64_t addr, uint64_t size, unsigned hartCount,
          cvm::topology::loc_t loc,
          cvm::topology::loc_t axiMstLoc = {}, uint64_t ctimeAddr = 0);
 
