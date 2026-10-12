@@ -74,6 +74,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
                 "@rv_tester//src/cosim/bridge:bridge.cpp",
     ],
      deps    = [
+                "@rv_tester//src/cosim/bridge:mmr_cluster_range",
                 csr_param + "_cc",
                 "@rv_tester//src/common:parser",
                 "@rv_tester//src:structs",

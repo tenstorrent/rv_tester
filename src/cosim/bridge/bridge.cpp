@@ -4,6 +4,7 @@
 // vim: ft=c et ts=2 sw=0 sts
 
 #include "bridge.h"
+#include "mmr_cluster_range.h"
 #include "cosim/utils/util.h"
 #include "device_address_map/device_address_map.h"
 #include "cvm/plusargs.hpp"
@@ -2417,15 +2418,36 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   return false;
 }
 
+static uint32_t topology_num_clusters() {
+  static const uint32_t n = [] {
+    auto count = cvm::topology::attr(cvm::topology::get_from_type("CLUSTER", 0), "COUNT");
+    return (count.first && count.second > 0) ? count.second : 1u;
+  }();
+  return n;
+}
+
+static uint64_t cluster_mmr_offset(uint32_t cluster_id) {
+  return generate_cr_device_addr(cluster_id) - generate_cr_device_addr(0);
+}
+
 bool bridge::debug_mem_access(const uint64_t& pa) {
-  uint32_t cluster_id = 0;
-  if (debug_mode_ && pa >= generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset && pa < (generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset + FLAGS_debug_mem_size))
-    return true;
-  return false;
+  if (!debug_mode_)
+    return false;
+  return mmr_cluster::any_cluster_half_open(
+      pa, topology_num_clusters(),
+      [](uint32_t cluster_id) {
+        return generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset;
+      },
+      FLAGS_debug_mem_size);
 }
 
 bool bridge::unsupported_mmr_access(const uint64_t& pa) {
-  if (pa >= mmr_lo_addr() && pa < mmr_hi_addr())
+  const uint64_t lo = mmr_lo_addr();
+  const uint64_t hi = mmr_hi_addr();
+  if (mmr_cluster::any_cluster_half_open(
+          pa, topology_num_clusters(),
+          [lo](uint32_t cluster_id) { return lo + cluster_mmr_offset(cluster_id); },
+          hi - lo))
     return true;
   if (pa >= sep_base_ && pa < sep_end_)
     return true;
@@ -2467,9 +2489,10 @@ bool bridge::uart_access(const uint64_t& pa) {
 }
 
 bool bridge::sc_slice_status(const uint64_t& pa) {
-  if ((pa & 0xffffffffffff0fff) == sc_slice_base_)
-    return true;
-  return false;
+  const uint64_t base = sc_slice_base_;
+  return mmr_cluster::any_cluster_sc_slice(
+      pa, topology_num_clusters(),
+      [base](uint32_t cluster_id) { return base + cluster_mmr_offset(cluster_id); });
 }
 
 // Poke resources in whisper
