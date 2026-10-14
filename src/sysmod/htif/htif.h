@@ -4,6 +4,7 @@
 // -*- c++ -*-
 #pragma once
 
+#include <set>
 #include "src/sysmod/device.h"
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
@@ -66,4 +67,6 @@ private:
   pty pty_;
 
   int passed_ = 0;
+  std::set<uint16_t> passed_harts_;
+  std::set<uint16_t> failed_harts_;
 };

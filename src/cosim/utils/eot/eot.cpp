@@ -162,7 +162,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
     }
   }
 
-  uint64_t exit_code = (data >> 1) & 0x7fffffffffff;
+  uint64_t exit_code = (data >> 1) & 0xff;
 
   end = std::chrono::system_clock::now();
 
@@ -170,7 +170,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
     if (!std::count(terminated_harts_.begin(), terminated_harts_.end(), hartid)) {
       eot::terminated_harts_.emplace_back(hartid);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-      cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
+      cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[8:1]=0\n", cycle, hartid);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     }
     if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= FLAGS_num_harts)) {
@@ -180,7 +180,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
   } else {
     ended_ = true;
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
+    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[8:1]={:#x}\n", cycle, hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     eot_terminate(false);
   }
