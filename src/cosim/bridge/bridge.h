@@ -471,8 +471,7 @@ private:
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
-  // External interrupts that became pending inside Whisper (e.g. cross-hart IMSIC store) and
-  // were deferred by defer_unregistered_external_interrupt() until the DUT took them.
+  // Count of external interrupts deferred by defer_unregistered_external_interrupt()
   uint64_t num_unregistered_ext_intr_deferred_ = 0;
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;

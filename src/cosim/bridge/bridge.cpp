@@ -1200,13 +1200,7 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   uint64_t w_cause = 0;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
 
-  // An external interrupt can become pending in Whisper without passing through any bridge
-  // poke: a store by this or another hart into this hart's IMSIC interrupt file is applied by
-  // Whisper's IMSIC model at the storing hart's step, while the DUT's MSI is still in flight
-  // through the fabric and only reaches process_dut_imsic_msi() later. Nothing deferred it, so
-  // Whisper would take it before the DUT (RVBBL-6011). Defer it now, as process_imsic_msi()
-  // would have; the DUT trap undefers it, and max_pend_intr_age still fails if the DUT never
-  // takes it. Must run before the age increment below, which creates the map entry.
+  // Defer external interrupts raised inside Whisper (e.g. cross-hart IMSIC store) before the DUT MSI arrives (RVBBL-6011)
   if (w_intr && !d.intr)
     defer_unregistered_external_interrupt(hart, d.cycle, w_cause);
 
@@ -3088,15 +3082,11 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
     check_and_defer_interrupt(hart, m.cycle, mip_, m.intr_during_ucode);
 }
 
-// Whisper wants to take an external interrupt (MEI/SEI/VSEI/SGEI) that no bridge hook raised
-// and the DUT is not taking on this retire. The pending bit was set inside Whisper itself,
-// typically by a store into this hart's IMSIC interrupt file (IPI from another hart). Register
-// and defer it exactly as a DUT-observed MSI would be, so Whisper waits for the DUT.
+// Register and defer an external interrupt that became pending inside Whisper without a bridge poke
 void bridge::defer_unregistered_external_interrupt(hart_id_t hart, uint64_t cycle, uint64_t w_cause) {
   if (!(w_cause == MEI || w_cause == SEI || w_cause == VSEI || w_cause == SGEI))
     return;
-  // Already known to the bridge: deferred earlier (age entry) or undeferred on purpose
-  // (xRET / patch exit), in which case the existing post-step checks must judge it.
+  // Already deferred, or deliberately undeferred (xRET / patch exit): leave it to the post-step checks
   if (deferred_intr_age_.find(w_cause) != deferred_intr_age_.end())
     return;
   if (intr_undeferred_due_to_xret_intr_csr_ || patch_mode_ != NO_PATCH || debug_mode_)
