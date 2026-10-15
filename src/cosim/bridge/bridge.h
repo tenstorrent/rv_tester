@@ -194,6 +194,7 @@ private:
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
+  void defer_unregistered_external_interrupt(hart_id_t hart, uint64_t cycle, uint64_t w_cause);
   void poke_non_standard_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> non_std_mip_bits, bool intr_during_ucode);
   bool check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip, bool intr_during_ucode = false);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause, bool& virt_mode);
@@ -470,6 +471,9 @@ private:
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
+  // External interrupts that became pending inside Whisper (e.g. cross-hart IMSIC store) and
+  // were deferred by defer_unregistered_external_interrupt() until the DUT took them.
+  uint64_t num_unregistered_ext_intr_deferred_ = 0;
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
