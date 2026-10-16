@@ -89,7 +89,7 @@ module rv_tester
     clock_mode_next = clock_mode;
     if (rv_tester_reset || rv_tester_reset_d1 || !dyn_clk_switch) begin
       clock_mode_next = CLK_MODE_W'(clk_profile);
-    end else if (clocks > 10 && freq_switch_ncycles != 0 && (clocks % longint'(freq_switch_ncycles)) == 0) begin
+    end else if (freq_switch_ncycles != 0 && (clocks % longint'(freq_switch_ncycles)) == 0) begin
       clock_mode_next = (clock_mode == CLK_MODE_W'(NUM_CLK_PROFILES)) ? CLK_MODE_W'(1) : clock_mode + 1'b1;
     end
   end
