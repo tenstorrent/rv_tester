@@ -3568,7 +3568,7 @@ uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   }
   if (debug_mode_ && addr == dcsr.address)
     return poke_mask;
-  return mask & read_mask;
+  return mask & poke_mask & read_mask;
 }
 
 uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
