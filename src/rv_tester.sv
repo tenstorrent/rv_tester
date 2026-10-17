@@ -154,8 +154,6 @@ module rv_tester
   bit overlay_mmr_en = 0;
 
   logic terminate_1T = '0;
-  logic [CVM_DONE_DELAY_CYCLES-1:0] cvm_done_terminate_delay_sr;
-  logic [CVM_DONE_DRAINED_DELAY_CYCLES-1:0] cvm_done_drained_delay_sr;
   logic cvm_done_drained;
   logic terminated_1T = '0;
   logic rerun_now;
@@ -220,10 +218,8 @@ module rv_tester
 
   assign rerun_now           = terminated && !terminated_1T && num_reruns != -1 && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
-  // Assert `cvm_done` CVM_DONE_DELAY_CYCLES TB clk cycles after `terminate_1T` (uvm/CVM handshake).
-  assign cvm_done = cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1];
-  // Assert `cvm_done_drained` CVM_DONE_DRAINED_DELAY_CYCLES TB clk cycles after `cvm_done`.
-  assign cvm_done_drained = cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-1];
+  assign cvm_done         = quiesce_counter > int'(CVM_DONE_DELAY_CYCLES);  // reuse quiesce counter which starts incrementing after terminate
+  assign cvm_done_drained = quiesce_counter > int'(CVM_DONE_DELAY_CYCLES + CVM_DONE_DRAINED_DELAY_CYCLES);
 
   /*
    * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -508,25 +504,6 @@ module rv_tester
     terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
     terminated_1T <= terminated;
 
-  end
-
-  always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
-    if (rv_tester_reset) begin
-      cvm_done_terminate_delay_sr <= '0;
-      cvm_done_drained_delay_sr <= '0;
-    end else begin
-      if (terminate_1T === 'b1) begin
-        cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], terminate_1T};
-      end else begin
-        cvm_done_terminate_delay_sr <= {cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-2:0], '0};
-      end
-      if(cvm_done === 'b1) begin
-        cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0],
-                                      cvm_done_terminate_delay_sr[CVM_DONE_DELAY_CYCLES-1]};
-      end else begin
-        cvm_done_drained_delay_sr <= {cvm_done_drained_delay_sr[CVM_DONE_DRAINED_DELAY_CYCLES-2:0], '0};
-      end
-    end
   end
 
   // sys_reset per clock domain
