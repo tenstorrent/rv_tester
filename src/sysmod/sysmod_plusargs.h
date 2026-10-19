@@ -51,3 +51,4 @@ DECLARE_bool(overlay_mmr_check);
 DECLARE_bool(jtag_en);
 DECLARE_bool(enable_ntrace_in_boot);
 DECLARE_bool(time_mtime_sync_enable);
+DECLARE_uint32(sysmod_mmr_mst_idx);

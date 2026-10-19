@@ -78,6 +78,7 @@ DEFINE_int32(overlay_idle, 5, "Number of idle cycles between each transfer");
 DEFINE_int32(start_overlay_access, 10, "Start tick point for starting overlay access");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
+DEFINE_uint32(sysmod_mmr_mst_idx, 0, "PLATFORM_TRANSACTOR_MST index used for TB-originated MMR and MSI traffic into the DUT (mmr_txn_router, ACLINT ctime broadcast, APLIC and injected MSIs, MMR config sequences)");
 // Uninitialized memory read callback configuration
 DEFINE_bool(sysmod_mem_random, false, "Return random data for uninitialized memory reads");
 DEFINE_uint64(sysmod_mem_default_64, 0, "Return specific 64-bit pattern for uninitialized memory reads (0 = disabled)");
@@ -515,7 +516,7 @@ sysmod::create_aplic() const {
   std::shared_ptr<TT_APLIC::Aplic> aplic =
       std::make_shared<TT_APLIC::Aplic>(nharts, FLAGS_aplic_sources, domains);
 
-  auto axi_mst_loc = masters[0];
+  auto axi_mst_loc = masters[FLAGS_sysmod_mmr_mst_idx];
   auto msiCallback = [axi_mst_loc](uint64_t addr, uint32_t data) {
     cvm::log(cvm::DEBUG, "Aplic sent IMSIC interrupt {:#x} (@ {:#x})\n", data, addr);
 
@@ -633,11 +634,11 @@ void sysmod::compose() {
       } else if (type == "aclint") {
         // Core CTIME MMR target for the mtime time-broadcast (AXI master write
         // on MTIME/TIMESYNC writes). Owned by the cluster gflag aclint_ctime_addr.
-        device = std::make_unique<aclint>(tag, base, nharts, loc_, masters[0], FLAGS_aclint_ctime_addr);
+        device = std::make_unique<aclint>(tag, base, nharts, loc_, masters[FLAGS_sysmod_mmr_mst_idx], FLAGS_aclint_ctime_addr);
         // MTIP is generated in SV (sysmod.sv aclint model), not via the C++
         // timer_interrupt messenger path, so no clint::timer_t connect here.
       } else if (type == "mmr_txn_router") {
-        device = std::make_unique<mmr_txn_router>(tag, base, size, loc_, masters[0]);
+        device = std::make_unique<mmr_txn_router>(tag, base, size, loc_, masters[FLAGS_sysmod_mmr_mst_idx]);
 
       } else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_);

@@ -54,7 +54,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
     : sequence_log_file_("h" + std::to_string(id) + "_external_interrupt_sequence.log"), loc_(loc), id_(id), msi_wait_timeout_(0) {
 
   sysmod_loc_ = cvm::topology::get_from_type("SYSMOD", 0);
-  axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", FLAGS_sysmod_mmr_mst_idx);
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", id_);
   ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
