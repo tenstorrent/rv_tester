@@ -1200,6 +1200,10 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   uint64_t w_cause = 0;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
 
+  // Defer external interrupts raised inside Whisper (e.g. cross-hart IMSIC store) before the DUT MSI arrives (RVBBL-6011)
+  if (w_intr && !d.intr)
+    defer_unregistered_external_interrupt(hart, d.cycle, w_cause);
+
   // If Whisper takes interrupt, then increase age of the interrupt
   if (w_intr)
     deferred_intr_age_[w_cause]++;
@@ -3078,6 +3082,34 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
     check_and_defer_interrupt(hart, m.cycle, mip_, m.intr_during_ucode);
 }
 
+// Register and defer an external interrupt that became pending inside Whisper without a bridge poke
+void bridge::defer_unregistered_external_interrupt(hart_id_t hart, uint64_t cycle, uint64_t w_cause) {
+  if (!(w_cause == MEI || w_cause == SEI || w_cause == VSEI || w_cause == SGEI))
+    return;
+  // Already deferred, or deliberately undeferred (xRET / patch exit): leave it to the post-step checks
+  if (deferred_intr_age_.find(w_cause) != deferred_intr_age_.end())
+    return;
+  if (intr_undeferred_due_to_xret_intr_csr_ || patch_mode_ != NO_PATCH || debug_mode_)
+    return;
+
+  std::bitset<64> w_mip;
+  bool w_seip = false;
+  peek_mip(hart, cycle, w_mip);
+  peek_seip(hart, cycle, w_seip);
+  bridge_log(cvm::MEDIUM, "<{}> External interrupt {} pending in Whisper without a DUT MSI/poke (cross-hart IMSIC write?): mip={:#x} seip={} -> defer until DUT takes it\n",
+             cycle, intr_name(w_cause), w_mip.to_ullong(), w_seip);
+
+  // Same bookkeeping as process_imsic_msi()
+  bool seip_prev = tmp_mip_prev_.test(SEI);
+  check_mip_change(tmp_mip_prev_, w_mip, seip_prev, w_seip, true);
+  e_mip_ = (w_mip[MEI] << MEI) | ((w_mip[SEI] | w_seip) << SEI) | (w_mip[VSEI] << VSEI) | (w_mip[SGEI] << SGEI);
+  mip_ |= e_mip_;
+  tmp_mip_latest_ = (tmp_mip_prev_ | e_mip_);
+  num_unregistered_ext_intr_deferred_++;
+
+  check_and_defer_interrupt(hart, cycle, mip_);
+}
+
 void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev, bool seip_new, bool consider_seip) {
   // Track every mip bit that toggled since the last step, not just the net level
   // difference. A bit that de-asserts and re-asserts between two retires is a new
@@ -3757,6 +3789,7 @@ void bridge::report_metrics() {
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_pa\": \"0x{:x}\"}}\n", id_, latest_imsic_.first);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_latest_imsic_age\": \"{}\"}}\n", id_, latest_imsic_.first == 0 ? 0 : latest_imsic_.second);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_unregistered_ext_intr_deferred\": \"{}\"}}\n", id_, num_unregistered_ext_intr_deferred_);
 
   // DUT csr values
   if (dump_csr_metrics) {
