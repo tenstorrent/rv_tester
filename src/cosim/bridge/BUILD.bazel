@@ -1,13 +1,6 @@
 exports_files(["bridge.cpp", "bridge.h", "bridge_base.h", "bridge_if.h", "bridge_params.h"])
 
 cc_library(
-    name = "mmr_cluster_range",
-    hdrs = ["mmr_cluster_range.h"],
-    strip_include_prefix = ".",
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
         name    = "bridge_plusargs",
         hdrs    = ["bridge_plusargs.h"],
         deps    = ["@cvm//:plusargs"],

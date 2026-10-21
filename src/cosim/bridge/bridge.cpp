@@ -4,7 +4,6 @@
 // vim: ft=c et ts=2 sw=0 sts
 
 #include "bridge.h"
-#include "mmr_cluster_range.h"
 #include "cosim/utils/util.h"
 #include "device_address_map/device_address_map.h"
 #include "cvm/plusargs.hpp"
@@ -119,6 +118,10 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
     : sc_slice_base_([]() { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + 0x8; }()),
+      num_clusters_([]() {
+        auto count = cvm::topology::attr(cvm::topology::get_from_type("CLUSTER", 0), "COUNT");
+        return (count.first && count.second > 0) ? count.second : 1u;
+      }()),
       bridge_log_("h" + std::to_string(id) + "_bridge.log"),
       loc_(loc),
       id_(id),
@@ -2418,13 +2421,28 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   return false;
 }
 
-static uint32_t topology_num_clusters() {
-  static const uint32_t n = [] {
-    auto count = cvm::topology::attr(cvm::topology::get_from_type("CLUSTER", 0), "COUNT");
-    return (count.first && count.second > 0) ? count.second : 1u;
-  }();
-  return n;
+namespace {
+
+template <typename BaseFn>
+bool pa_in_any_cluster_window(uint64_t pa, uint32_t nclusters, BaseFn base_of, uint64_t size) {
+  for (uint32_t cluster_id = 0; cluster_id < nclusters; ++cluster_id) {
+    const uint64_t base = base_of(cluster_id);
+    if (pa >= base && pa < base + size)
+      return true;
+  }
+  return false;
 }
+
+template <typename BaseFn>
+bool any_cluster_sc_slice(uint64_t pa, uint32_t nclusters, BaseFn base_of) {
+  for (uint32_t cluster_id = 0; cluster_id < nclusters; ++cluster_id) {
+    if ((pa & 0xffffffffffff0fffULL) == base_of(cluster_id))
+      return true;
+  }
+  return false;
+}
+
+} // namespace
 
 static uint64_t cluster_mmr_offset(uint32_t cluster_id) {
   return generate_cr_device_addr(cluster_id) - generate_cr_device_addr(0);
@@ -2433,8 +2451,8 @@ static uint64_t cluster_mmr_offset(uint32_t cluster_id) {
 bool bridge::debug_mem_access(const uint64_t& pa) {
   if (!debug_mode_)
     return false;
-  return mmr_cluster::any_cluster_half_open(
-      pa, topology_num_clusters(),
+  return pa_in_any_cluster_window(
+      pa, num_clusters_,
       [](uint32_t cluster_id) {
         return generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset;
       },
@@ -2444,8 +2462,8 @@ bool bridge::debug_mem_access(const uint64_t& pa) {
 bool bridge::unsupported_mmr_access(const uint64_t& pa) {
   const uint64_t lo = mmr_lo_addr();
   const uint64_t hi = mmr_hi_addr();
-  if (mmr_cluster::any_cluster_half_open(
-          pa, topology_num_clusters(),
+  if (pa_in_any_cluster_window(
+          pa, num_clusters_,
           [lo](uint32_t cluster_id) { return lo + cluster_mmr_offset(cluster_id); },
           hi - lo))
     return true;
@@ -2490,8 +2508,8 @@ bool bridge::uart_access(const uint64_t& pa) {
 
 bool bridge::sc_slice_status(const uint64_t& pa) {
   const uint64_t base = sc_slice_base_;
-  return mmr_cluster::any_cluster_sc_slice(
-      pa, topology_num_clusters(),
+  return any_cluster_sc_slice(
+      pa, num_clusters_,
       [base](uint32_t cluster_id) { return base + cluster_mmr_offset(cluster_id); });
 }
 
