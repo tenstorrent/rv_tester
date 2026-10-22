@@ -27,10 +27,12 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibili
         name = sysmod_dpi,
         srcs = [
           "@rv_tester//src/sysmod:sysmod.cpp",
+          "@rv_tester//src/sysmod/aclint:aclint.cpp",
         ],
         hdrs = [
           "@rv_tester//src/sysmod:sysmod.h",
-          "@rv_tester//src/sysmod:sysmod_rpc.h"
+          "@rv_tester//src/sysmod:sysmod_rpc.h",
+          "@rv_tester//src/sysmod/aclint:aclint.h",
         ],
         deps = [
           "@rv_tester//src:plusargs",
@@ -38,7 +40,8 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibili
           "@rv_tester//src/common:common",
           "@rv_tester//src/sysmod:device",
           "@rv_tester//src/sysmod/clint:clint",
-          "@rv_tester//src/sysmod/aclint:aclint",
+          "@rv_tester//src/sysmod:sysmod_plusargs",
+          "@rv_tester//src/common:svdpi",
           "@rv_tester//src/sysmod/trickbox:trickbox",
           "@rv_tester//src/sysmod/sep_entropy_fifo:sep_entropy_fifo",
           "@rv_tester//src/sysmod/htif:htif",
@@ -47,6 +50,8 @@ def sysmod_gen(name, packet, csr_param, topology, project_overrides_cc, visibili
           "@rv_tester//src/sysmod/dm:dm",
           "@rv_tester//src/sysmod/io_dev:io_dev",
           "@rv_tester//src/sysmod/mmr_txn_router:mmr_txn_router",
+          "@rv_tester//src/transactors/axi_sw:axi",
+          "@rv_tester//src/transactors/axi_sw:axi_sw_mst_rpc",
           "@rv_tester//src/sysmod/null_dev:null_dev",
           "@rv_tester//src/sysmod/heartbeat:heartbeat",
           "@rv_tester//src/cosim/bridge:bridge_if",
