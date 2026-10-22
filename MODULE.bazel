@@ -114,7 +114,7 @@ use_repo(
 bazel_dep(name = "rv_tester_examples", version = "0.0.0", dev_dependency = True)
 archive_override(
     module_name = "rv_tester_examples",
-    urls = ["https://github.com/tenstorrent/rv_tester_examples/archive/49786e0a028fb5933c9024819214c9fa37a5b2b2.tar.gz"],
-    strip_prefix = "rv_tester_examples-49786e0a028fb5933c9024819214c9fa37a5b2b2",
-    integrity = "sha256-m5KHgrondQuY+qhW8gZ5V3oFqrvK8kAmIleSXqBaNak=",
+    urls = ["https://github.com/tenstorrent/rv_tester_examples/archive/33f9001ba82c8d3aed4b740efe6aa3f6ac17e8fa.tar.gz"],
+    strip_prefix = "rv_tester_examples-33f9001ba82c8d3aed4b740efe6aa3f6ac17e8fa",
+    integrity = "sha256-yqTOuhyuSWY8bno050t0P1LBXkNYKh9+FfQq/nF8lcs=",
 )

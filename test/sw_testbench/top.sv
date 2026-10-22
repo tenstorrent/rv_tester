@@ -40,9 +40,6 @@ module top
         CLOCK_FREQ_MHZ
     };
 
-    import "DPI-C" function void sw_tb_set_tb_clk_freq_mhz(input int unsigned freq_mhz);
-    initial sw_tb_set_tb_clk_freq_mhz(CLOCK_FREQ_MHZ[TB_CLK_IDX]);
-
     rv_tester #(
         .CLK_PROFILE_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ),
         .TOPOLOGY(cvm_topology_gen::topology_t),

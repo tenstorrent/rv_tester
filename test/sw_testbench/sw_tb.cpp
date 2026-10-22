@@ -19,6 +19,8 @@
 #include "Vtop.h"
 
 #include "cvm/logger.hpp"
+#include "cvm/registry.hpp"
+#include "util/clock_profiles.h"
 
 // Waveform format selection. The build may set VERILATOR_WAVES plus one of the
 // format macros; derive VERILATOR_WAVES purely from the format actually present.
@@ -44,12 +46,6 @@ using VltTraceFile = VerilatedSaifC;
 static constexpr char TRACE_FILE_NAME[] = "dump.saif";
 #define VERILATOR_WAVES
 #endif
-
-static uint32_t tb_clk_freq_mhz = 0;
-
-extern "C" void sw_tb_set_tb_clk_freq_mhz(const uint32_t freq_mhz) {
-  tb_clk_freq_mhz = freq_mhz;
-}
 
 int main(int argc, char** argv) {
   VerilatedContext context;
@@ -137,6 +133,10 @@ int main(int argc, char** argv) {
   // eval (Verilator behavior), so trace callbacks must be registered after it.
   top.eval();
 
+  const auto clki = cvm::topology::get_from_type("CLKI", 0);
+  const auto tb_clk_idx_attr = cvm::topology::attr(clki, "TB_CLK_IDX");
+  const uint32_t tb_clk_idx = tb_clk_idx_attr.first ? tb_clk_idx_attr.second : 0;
+  const uint32_t tb_clk_freq_mhz = tb_clk_idx < rv_tester::clocks::nclks() ? rv_tester::clocks::freq_mhz(0, tb_clk_idx) : 0;
   // Numerator to compute period for a MHz frequency at the current timeprecision
   const uint64_t mhz2periodNumer = static_cast<uint64_t>(std::pow(10.0, -timeprecision - 6));
   const uint64_t tb_clk_period = tb_clk_freq_mhz ? mhz2periodNumer / tb_clk_freq_mhz : 0;
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
   const auto cycles_to_time = [tb_clk_period](const uint64_t cycles) {
     if (!tb_clk_period) {
       cvm::log(cvm::ERROR,
-               "Error: cycle-based dump plusargs need the TB clock frequency registered by top.sv; "
+               "Error: cycle-based dump plusargs need the clock table rv_tester registers from CLK_PROFILE_FREQ_MHZ; "
                "use the time-based (+*_dump_on/off) form instead\n");
       exit(1);
     }

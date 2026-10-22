@@ -37,6 +37,7 @@ harnesses = ["sw_1c", "sw_2c", "sw_8c"]
                 ":" + name + "_tb_veri_lib",
                 "//test/sw_testbench:dpi_glue",
                 "//test/sw_testbench:" + name + "_rv_tester_dpi",
+                "//src/util:clock_profiles",
                 "@cvm//:logger",
                 "@cvm//:topology",
                 # Pulls verilator's runtime, which dedups lz4 symbols that
