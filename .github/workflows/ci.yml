@@ -17,15 +17,58 @@ on:
 env:
   # Mirrors BAZEL_OPTS from .gitlab-ci.yml's .test-template.
   BAZEL_OPTS: "--jobs=8"
+  # Bazel disk cache shared between jobs through actions/cache. build-verilator
+  # fills it; the bazel-7 jobs below restore it so the Verilator tool build
+  # (@@verilator~//:verilator, ~7 min per job) runs once per pipeline instead
+  # of once per job.
+  BAZEL_DISK_CACHE: bazel_disk_cache
 
 jobs:
+  build-verilator:
+    # Builds the Verilator tool (plus its flex/bison/autoconf helpers) into the
+    # disk cache. The tool is a `[for tool]` exec-configuration dependency of
+    # every VerilatorCompile action, so it is built through the smallest
+    # verilated cc_binary rather than as a top-level target: a top-level build
+    # would produce target-configuration outputs with different action keys
+    # that the test jobs could not reuse. The exec configuration is unaffected
+    # by the sanitizer flags, so the asan/tsan jobs hit the same cache entries.
+    #
+    # The cache key covers everything the tool build depends on: module pins
+    # (MODULE.bazel; the lockfile is gitignored), compiler flags (.bazelrc),
+    # patches (bazel/) and the container image (pinned in this file).
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.5
+    timeout-minutes: 60
+    outputs:
+      cache-key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute cache key
+        id: key
+        run: echo "key=bazel-disk-cache-verilator-${{ hashFiles('MODULE.bazel', '.bazelrc', 'bazel/**', '.github/workflows/ci.yml') }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: ${{ steps.key.outputs.key }}
+      - name: Build Verilator tool into the disk cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bazel-7 --output_user_root=./bazel_output_user_root build --config=bzlmod --disk_cache=./$BAZEL_DISK_CACHE $BAZEL_OPTS //test/rv_tester_fifo_tb:rv_tester_fifo_tb_verilator
+
   lint:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
     timeout-minutes: 180
+    needs: build-verilator
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: ${{ needs.build-verilator.outputs.cache-key }}
+          fail-on-cache-miss: true
       - name: Mark workspace safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Static checks
@@ -35,7 +78,7 @@ jobs:
           git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format --Werror --dry-run --verbose
       - name: clang-tidy
         # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in .bazelrc.
-        run: bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy $BAZEL_OPTS
+        run: bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy --disk_cache=./$BAZEL_DISK_CACHE $BAZEL_OPTS
 
   build-bazel6-top:
     # Downstream consumers still run Bazel 6 + WORKSPACE.
@@ -78,7 +121,13 @@ jobs:
             targets: "-- //test/... -//test/examples/..."
             flags: "--test_env=SIM_WRAP='valgrind --tool=memcheck --leak-check=full --track-origins=yes --error-exitcode=1' --test_tag_filters=-no-valgrind"
     name: test (${{ matrix.name }})
+    needs: build-verilator
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: ${{ needs.build-verilator.outputs.cache-key }}
+          fail-on-cache-miss: true
       - name: bazel test //test/...
-        run: bazel-7 --output_user_root=./bazel_output_user_root test --config=bzlmod --build_tests_only ${{ matrix.flags }} --test_output=errors $BAZEL_OPTS ${{ matrix.targets }}
+        run: bazel-7 --output_user_root=./bazel_output_user_root test --config=bzlmod --build_tests_only ${{ matrix.flags }} --disk_cache=./$BAZEL_DISK_CACHE --test_output=errors $BAZEL_OPTS ${{ matrix.targets }}
