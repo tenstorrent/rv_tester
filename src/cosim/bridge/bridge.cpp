@@ -1312,6 +1312,15 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     return;
   }
 
+  // Whisper takes an interrupt only once the bridge undefers it, so a trap on a
+  // retire the DUT completed is reported here: the state compare resynchs the
+  // cancelled step and would otherwise fail one retire later on the PC.
+  if (w_.intr && !d.intr && !FLAGS_cosim_resynch) {
+    print_instr_stdout(hart, w);
+    error("Hart {}: Whisper took Interrupt, DUT did not. wcause: [{}]\n", hart, w_.icause);
+    return;
+  }
+
   // DUT cause should match whisper cause
   if ((d.intr && w_.intr) && (d.icause != w_.icause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
