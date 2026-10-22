@@ -21,7 +21,6 @@
 DECLARE_uint64(aclint_mtime_offset);
 DECLARE_uint64(aclint_timesync_offset);
 DECLARE_uint64(aclint_mtimecmp0_offset);
-DECLARE_uint64(aclint_ctime_addr);
 DECLARE_bool(aclint_ctime_per_hart);
 DECLARE_uint64(aclint_ctime_hart_stride);
 

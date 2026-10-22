@@ -9,12 +9,12 @@
 #include <random>
 #include <string>
 #include <gflags/gflags.h>
+#include "sysmod_plusargs.h"
 
 // ACLINT model configuration shared between the sysmod device (aclint.cpp),
 // the SV model (through DPI) and the cosim bridge. Every consumer derives the
-// same values from the gflags and the simulation seed, so no run-time state
-// has to be exchanged between the C++ libraries.
-DECLARE_uint64(seed);
+// same values from the gflags and the simulation seed (sysmod_plusargs.h), so
+// no run-time state has to be exchanged between the C++ libraries.
 DECLARE_string(aclint_local_sync);
 DECLARE_int64(aclint_local_sync_latency);
 DECLARE_int64(aclint_local_sync_latency_max);

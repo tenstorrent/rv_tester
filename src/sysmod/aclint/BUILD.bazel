@@ -7,6 +7,7 @@ cc_library(
     deps = [
       "//src/sysmod:device",
       "//src/sysmod/clint:clint",
+      "//src/sysmod:sysmod_plusargs",
       "//src/common:svdpi",
       "@cvm//:registry",
       "@cvm//:plusargs",
