@@ -27,6 +27,13 @@ module sysmod
       output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
       output logic aclint_ref_pulse,
       output logic aclint_time_sync,
+      output logic aclint_ctime_wr,
+      output logic [63:0] aclint_ctime_wr_data,
+      output logic aclint_mtip_cl,
+      output logic aclint_cfg_local_sync,
+      output logic [15:0] aclint_cfg_local_sync_latency,
+      output logic [7:0] aclint_cfg_timer_update_latency,
+      output logic [7:0] aclint_cfg_ref_time_incr,
       output rv_tester_pkg::dm_write_t  dmi_write,
       output logic [NHARTS-1:0] debug_req_vld,
       input  event_trigger_intf_t event_triggers [NHARTS-1:0],
@@ -141,8 +148,15 @@ module sysmod
     .aclint_ref_reset (aclint_ref_reset),
     .aclint_ref_pulse (aclint_ref_pulse),
     .aclint_time_sync (aclint_time_sync),
+    .aclint_ctime_wr  (aclint_ctime_wr),
+    .aclint_ctime_wr_data (aclint_ctime_wr_data),
     .mtime            (aclint_mtime),
-    .mtip             (aclint_mtip)
+    .mtip             (aclint_mtip),
+    .mtip_cl          (aclint_mtip_cl),
+    .cfg_local_sync           (aclint_cfg_local_sync),
+    .cfg_local_sync_latency   (aclint_cfg_local_sync_latency),
+    .cfg_timer_update_latency (aclint_cfg_timer_update_latency),
+    .cfg_ref_time_incr        (aclint_cfg_ref_time_incr)
   );
 
   function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
