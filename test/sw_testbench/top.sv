@@ -17,7 +17,34 @@ module top
     
     `RV_TESTER_VARS(cvm_topology_gen::mods)
 
+    function automatic bit [NCLKS-1:0][31:0] clk_set(int unsigned tb, int unsigned core, int unsigned axi,
+                                                     int unsigned soc, int unsigned ref_clk);
+        bit [NCLKS-1:0][31:0] freq_mhz = '0;
+        freq_mhz[TB_CLK_IDX]   = tb;
+        freq_mhz[CORE_CLK_IDX] = core;
+        freq_mhz[AXI_CLK_IDX]  = axi;
+        freq_mhz[SOC_CLK_IDX]  = soc;
+        freq_mhz[REF_CLK_IDX]  = ref_clk;
+        return freq_mhz;
+    endfunction
+
+    localparam bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = clk_set(2000, 2000, 1000, 500, 100);
+
+    localparam CLK_PROFILE_FREQ_MHZ = {
+        clk_set(2100, 2100, 2100, 2100, 2100),
+        clk_set(2100, 2100, 2100, 2100, 2100),
+        clk_set(2100, 2100, 2100, 2100, 2100),
+        clk_set(2100, 2100, 2100, 2100, 2100),
+        clk_set(2100, 2100, 2100, 2100, 2100),
+        clk_set(1500, 1500, 1500, 1500, 1500),
+        CLOCK_FREQ_MHZ
+    };
+
+    import "DPI-C" function void sw_tb_set_tb_clk_freq_mhz(input int unsigned freq_mhz);
+    initial sw_tb_set_tb_clk_freq_mhz(CLOCK_FREQ_MHZ[TB_CLK_IDX]);
+
     rv_tester #(
+        .CLK_PROFILE_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ),
         .TOPOLOGY(cvm_topology_gen::topology_t),
         .topology(cvm_topology_gen::mods)
     ) tester (

@@ -69,6 +69,16 @@ cc_library(
 )
 
 cc_library(
+    name = "clocks",
+    srcs = [":rv_tester_clocks.cpp"],
+    hdrs = [":rv_tester_clocks.h"],
+    deps = ["@cvm//:logger"],
+    strip_include_prefix = ".",
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "crash_handler",
     hdrs = [":rv_tester_crash_handler.hpp"],
     strip_include_prefix = ".",
