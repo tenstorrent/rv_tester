@@ -11,6 +11,8 @@ module rv_tester_clkgen #(
 
   localparam int CLOCK_PERIOD_PS = CLOCK_FREQ_MHZ == 0 ? 0 : 1000000 / CLOCK_FREQ_MHZ;
 
+  if (CLOCK_FREQ_MHZ == 0) $error("Error: %m: CLOCK_FREQ_MHZ is 0; pass the clock frequency table to rv_tester through CLK_PROFILE_FREQ_MHZ");
+
 `ifdef IXCOM_COMPILE
  `ifdef PALLADIUM_CAKE1X
   IXCcake1x #(.FREQ(CLOCK_FREQ_MHZ),.BFREQ(FASTEST_FREQ_MHZ)) uclk (.clkBase(fastest_clk),.clkOut(clk));
@@ -22,12 +24,7 @@ module rv_tester_clkgen #(
   clockDelayPort #(CLOCK_PERIOD_PS/2,CLOCK_PERIOD_PS/2,0) ClockPort(clk);
  `else
      logic c = '0;
-     initial begin
-       if (CLOCK_FREQ_MHZ == 0) begin
-         $fatal(1, "%m: CLOCK_FREQ_MHZ is 0; pass the clock frequency table to rv_tester through CLK_PROFILE_FREQ_MHZ");
-       end
-       forever #(CLOCK_PERIOD_PS*1ps/2) c = ~c;
-     end
+     initial forever  #(CLOCK_PERIOD_PS*1ps/2) c = ~c;
      assign clk = c;
  `endif
 `endif

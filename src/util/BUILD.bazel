@@ -1,0 +1,10 @@
+cc_library(
+    name = "clock_profiles",
+    srcs = ["clock_profiles.cpp"],
+    hdrs = ["clock_profiles.h"],
+    deps = ["@cvm//:logger"],
+    strip_include_prefix = ".",
+    include_prefix = "util",
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+)

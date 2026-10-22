@@ -36,14 +36,14 @@ module rv_tester
 
   logic fastest_clk;
 
-  if ($bits(CLK_PROFILE_FREQ_MHZ) % (NCLKS * 32) != 0) begin : g_clk_profile_table_check
-    $error("CLK_PROFILE_FREQ_MHZ width %0d is not a multiple of NCLKS * 32 (%0d)", $bits(CLK_PROFILE_FREQ_MHZ), NCLKS * 32);
-  end
+  if ($bits(CLK_PROFILE_FREQ_MHZ) % (NCLKS * 32) != 0) $error("Error: %m: CLK_PROFILE_FREQ_MHZ width %0d is not a multiple of NCLKS * 32 (%0d)", $bits(CLK_PROFILE_FREQ_MHZ), NCLKS * 32);
 
   localparam int unsigned NUM_CLK_MODES    = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
   localparam int unsigned NUM_CLK_PROFILES = NUM_CLK_MODES - 1;
   localparam int unsigned CLK_MODE_W       = NUM_CLK_PROFILES == 0 ? 1 : $clog2(NUM_CLK_MODES);
   localparam bit [NUM_CLK_MODES-1:0][NCLKS-1:0][31:0] CLK_FREQ_MHZ = CLK_PROFILE_FREQ_MHZ;
+
+  if (CLK_FREQ_MHZ == '0) $error("Error: %m: CLK_PROFILE_FREQ_MHZ is not set; pass the clock frequency table to rv_tester");
 
   function automatic int unsigned find_max_freq(bit [NUM_CLK_MODES-1:0][NCLKS-1:0][31:0] freqs);
     int unsigned max_val = 0;
@@ -119,6 +119,15 @@ module rv_tester
   import "DPI-C" context function bit rv_tester_flush_callbacks();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
+
+  initial begin
+    for (int m = 0; m < NUM_CLK_MODES; m++) begin
+      for (int c = 0; c < NCLKS; c++) begin
+        rv_tester_set_clock_freq(m, c, CLK_FREQ_MHZ[m][c]);
+      end
+    end
+  end
+
   // Captures this scope and installs the TB cycle counter on the EAM.
   import "DPI-C" context function void eam_register_scope();
 
@@ -356,11 +365,6 @@ module rv_tester
     if (rv_tester_reset || rvt_reload) begin
       if (rv_tester_reset || (rvt_reload && $test$plusargs("whisper_loadfrom"))) begin
         $display("[RVTESTER]: new test");
-        for (int m = 0; m < NUM_CLK_MODES; m++) begin
-          for (int c = 0; c < NCLKS; c++) begin
-            rv_tester_set_clock_freq(m, c, CLK_FREQ_MHZ[m][c]);
-          end
-        end
         _ = rv_tester_init();
         /* RVDE-31919 CVM_REGISTRY_SET_SCOPE
         * The macro makes zEMI3 insert a 3-state cvm_registry_set_scope service state machine as the first machine in <inst>tester, shifting every other one down a slot.
@@ -679,7 +683,7 @@ end
   end
 
 
-  localparam int AXI_CLOCK_PERIOD = 1000000 / CLK_FREQ_MHZ[0][AXI_CLK_IDX];
+  localparam int AXI_CLOCK_PERIOD = CLK_FREQ_MHZ[0][AXI_CLK_IDX] == 0 ? 0 : 1000000 / CLK_FREQ_MHZ[0][AXI_CLK_IDX];
   localparam int JTAG_CLOCK_PERIOD = 10*100;
   localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
   sysmod #(
@@ -938,13 +942,13 @@ end
   export "DPI-C" function rv_tester_get_clocks;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
-    assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
+    assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("Error: assertion test cycle failed");
   end
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     if (!rv_tester_reset) begin
       terminate_never_unknown: assert(!$isunknown(terminate))
-        else $error("<%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
+        else $error("Error: <%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
     end
   end
 

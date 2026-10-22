@@ -5,7 +5,6 @@
 #include <string_view>
 #include <chrono>
 
-#include "rv_tester_clocks.h"
 #include "rv_tester_crash_handler.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
@@ -225,11 +224,6 @@ int rv_tester_init() {
   cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
   cvm::plusargs::parse();
 
-  const int max_clk_profile = static_cast<int>(rv_tester::clocks::num_profiles());
-  if (FLAGS_clk_profile < 0 || FLAGS_clk_profile > max_clk_profile) {
-    cvm::log(cvm::MEDIUM, "INFO: +clk_profile={} outside 0..{}, using 0\n", FLAGS_clk_profile, max_clk_profile);
-    FLAGS_clk_profile = 0;
-  }
   return 0;
 }
 

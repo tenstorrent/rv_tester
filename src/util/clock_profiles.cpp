@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "rv_tester_clocks.h"
-
+#include "util/clock_profiles.h"
 #include <vector>
-
 #include "cvm/logger.hpp"
 
 namespace {
