@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <iostream>
+#include <sstream>
+#include <string>
 #include <cassert>
 #include <unistd.h>
 #include <pty.h>
@@ -13,10 +15,12 @@
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
 #include "src/cosim/utils/eot/eot_plusargs.h"
+#include "sysmod_plusargs.h"
 
 DEFINE_bool(htif_flip, false, "Reverse the htif tohost/fromhost address order");
 DEFINE_bool(htif_log, true, "tee htif characters to htif.log");
 DEFINE_bool(pty, false, "Use a pseudo-terminal for the HTIF console");
+DEFINE_bool(payload_has_hart_id, false, "tohost payload[31:16] carries the exiting hart id; terminate when every enabled hart has exited");
 
 // https://stackoverflow.com/a/45675259
 htif::pty::pty() {
@@ -82,9 +86,19 @@ int htif::pty::read() {
 
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
     : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0), htif_log_("htif.log") {
+  if (!FLAGS_payload_has_hart_id)
+    return;
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  while (std::getline(ss, token, ','))
+    enabled_harts_.insert(static_cast<uint16_t>(std::stoul(token)));
 }
 
 htif::~htif() {
+  if (passed_ == 0 && failed_ == 0)
+    return;
+  cvm::log(cvm::NONE, "HTIF exit summary: passed {}, failed {}, expected {} harts\n",
+           passed_, failed_, FLAGS_num_harts);
 }
 
 static bool
@@ -204,18 +218,37 @@ void htif::write(const transactor::write_t& w) {
         from_ = ((payload >> 48) << 48) | uint64_t(ch);
     }
   } else if (dev == 0 and cmd == 0) {
-    if ((payload & 1) && ((payload >> 1) == uint64_t(0))) {
-      if (passed_ == 0) {
-        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0\n");
-        if (FLAGS_eot != "tohost_all") {
-          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = true});
+    if (FLAGS_payload_has_hart_id) {
+      uint16_t hart_id = (payload >> 16) & 0xffff;
+      if (!enabled_harts_.count(hart_id)) {
+        cvm::log(cvm::ERROR, "Error: illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, w.id);
+      } else {
+        uint64_t status = payload & ~(uint64_t(0xffff) << 16);
+        if ((status & 1) && ((status >> 1) == uint64_t(0))) {
+          if (passed_harts_.insert(hart_id).second)
+            passed_++;
+          cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 hart_id={} ({}/{}) axi_id={}\n", hart_id, passed_, enabled_harts_.size(), w.id);
+        } else {
+          if (failed_harts_.insert(hart_id).second)
+            failed_++;
+          cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} hart_id={} ({}/{}) axi_id={}\n", (status & 1), (status >> 1), hart_id, failed_, enabled_harts_.size(), w.id);
         }
-      } else if (passed_ == 1) {
-        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 again, no longer going to log successive writes\n");
+        if (passed_harts_.size() + failed_harts_.size() == enabled_harts_.size()) {
+          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_harts_.empty()});
+        }
       }
+    } else if ((payload & 1) && ((payload >> 1) == uint64_t(0))) {
       passed_++;
+      cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 ({}/{}) axi_id={}\n", passed_, FLAGS_num_harts, w.id);
+      if (FLAGS_eot != "tohost_all") {
+        cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = true});
+      }
     } else {
-      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}\n", (payload & 1), (payload >> 1));
+      failed_++;
+      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} ({}/{}) axi_id={}\n", (payload & 1), (payload >> 1), failed_, FLAGS_num_harts, w.id);
+    }
+    if (FLAGS_eot == "tohost_all" && passed_ + failed_ == int(FLAGS_num_harts)) {
+      cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_ == 0});
     }
   } else {
     assert(0);

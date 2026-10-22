@@ -13,6 +13,11 @@ module rv_tester_clkgen #(
 
   if (CLOCK_FREQ_MHZ == 0) $error("Error: %m: CLOCK_FREQ_MHZ is 0; pass the clock frequency table to rv_tester through CLK_PROFILE_FREQ_MHZ");
 
+`ifndef PALLADIUM_CAKE1X
+  logic unused_fastest_clk_ok;
+  assign unused_fastest_clk_ok = fastest_clk;
+`endif
+
 `ifdef IXCOM_COMPILE
  `ifdef PALLADIUM_CAKE1X
   IXCcake1x #(.FREQ(CLOCK_FREQ_MHZ),.BFREQ(FASTEST_FREQ_MHZ)) uclk (.clkBase(fastest_clk),.clkOut(clk));

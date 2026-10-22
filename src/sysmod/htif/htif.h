@@ -7,6 +7,7 @@
 #include "src/sysmod/device.h"
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
+#include <set>
 
 /// Model an htif (host target interface) device
 class htif : public device {
@@ -66,4 +67,8 @@ private:
   pty pty_;
 
   int passed_ = 0;
+  int failed_ = 0;
+  std::set<uint16_t> enabled_harts_;
+  std::set<uint16_t> passed_harts_;
+  std::set<uint16_t> failed_harts_;
 };

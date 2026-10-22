@@ -27,9 +27,9 @@ module pmu
       );
 
   parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
-  longint unsigned period = 0;
-  longint unsigned instructions = 0;
-  longint unsigned tb_cycles_offset = 0;
+  longint unsigned period = '0;
+  longint unsigned instructions = '0;
+  longint unsigned tb_cycles_offset = '0;
   bit cycle_sync_en, instruction_sync_en;
   assign cycle_sync_en = (period != '0);
   assign instruction_sync_en = (instructions != '0);
@@ -51,9 +51,9 @@ module pmu
     end
   end
 
-  longint unsigned cpu_cycles = 0;
-  longint unsigned cycle_period_counter = 0;
-  longint unsigned instruction_period_counter = 0;
+  longint unsigned cpu_cycles = '0;
+  longint unsigned cycle_period_counter = '0;
+  longint unsigned instruction_period_counter = '0;
   longint unsigned nret = {32'h0, NRET};
   longint unsigned pmcounter [EVENT_COUNT]  = '{default:0};
   bit [EVENT_COUNT-1:0][63:0] pmcounter_vec;
@@ -79,20 +79,20 @@ module pmu
     instruction_sync_condition <= '0;
 
     if (reset) begin
-      pmcounter[0] <= 0;
-      cpu_cycles <= 0;
-      cycle_period_counter <= 0;
+      pmcounter[0] <= '0;
+      cpu_cycles <= '0;
+      cycle_period_counter <= '0;
       instruction_period_counter <= instructions;
     end else begin
       if(perf_enabled)begin
         if (perf_start) begin
-          cycle_period_counter <= 1;  // Start counting from 1 to get full period before first sync
+          cycle_period_counter <= 64'd1;  // Start counting from 1 to get full period before first sync
           instruction_period_counter <= instructions;
         end else begin
           // Update period counters
           if (cycle_sync_en) begin
             if (cycle_period_counter >= (period - 1)) begin
-              cycle_period_counter <= 0;
+              cycle_period_counter <= '0;
             end else begin
               cycle_period_counter <= cycle_period_counter + 1;
             end
@@ -124,7 +124,7 @@ module pmu
     for (genvar i=1; i < EVENT_COUNT; i++) begin : pmci_regs
       always @(posedge clk) begin
         if (reset) begin
-          pmcounter[i] <= 0;
+          pmcounter[i] <= '0;
         end else begin
           if(perf_enabled)begin
             pmcounter[i] <= pmcounter[i] + 64'(pmci[i]);

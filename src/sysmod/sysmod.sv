@@ -38,7 +38,7 @@ module sysmod
       );
 
   typedef longint unsigned LU;
-  LU clocks = 0;
+  LU clocks = '0;
   parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.SYSMOD.ID, NUM);
 
   `CVM_REGISTRY_SET_SCOPE(location)
@@ -46,7 +46,7 @@ module sysmod
   bit sysmod_tick_async = '1;
 
   /* verilator lint_off UNOPTFLAT */
-  logic trace_quiesced_q = 0;
+  logic trace_quiesced_q = 1'b0;
   /* verilator lint_on UNOPTFLAT */
 
   /* verilator lint_off BLKANDNBLK */
@@ -83,7 +83,7 @@ module sysmod
     clocks <= clocks + 1;
     if (reset) begin
       $display("[sysmod]: reset");
-      clocks <= 0;
+      clocks <= '0;
       /* verilator lint_off BLKSEQ */
       sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
       terminate = '0;
@@ -151,7 +151,7 @@ module sysmod
 
   export "DPI-C" function sysmod_sw_interrupt;
 
-  function void sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
+  function void sysmod_dmi_write (int unsigned upper_value, int unsigned lower_value);
     dmi_write_begin = '1;
     dm_wdata = {upper_value,lower_value};
   endfunction

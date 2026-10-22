@@ -103,7 +103,7 @@ REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 extern "C" {
 void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
 void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
+void sysmod_dmi_write(unsigned upper_val, unsigned lower_val);
 void sysmod_debug_req_vld(unsigned hartid, unsigned val);
 void sysmod_jtag_req(unsigned cmd, unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
 void sysmod_terminate();
@@ -421,7 +421,7 @@ void sysmod::dmi_write(debugger::dmi_data_t i) {
       loc_,
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox::dmi.(upper,lower) = {:#x}, {:#x}\n", i.upper_dmi_data, i.lower_dmi_data);
-        sysmod_dmi_write(i.hart, i.upper_dmi_data, i.lower_dmi_data);
+        sysmod_dmi_write(i.upper_dmi_data, i.lower_dmi_data);
       });
 }
 

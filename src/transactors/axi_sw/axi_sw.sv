@@ -3,18 +3,18 @@
 
 // can't call a function from a function in DPI export on palladium
 `define AXI_SW_DPI_FIFO_PUSH(name, D, data, rptr)              \
-    if (1) begin                                               \
+    begin : name``_push                                        \
         typedef logic[$clog2(D+1)-1:0] ptr_t;                  \
         typedef logic[$clog2(D+0)-1:0] idx_t;                  \
         localparam ptr_t PD = ptr_t'(D);                       \
         `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED        \
-        assert(name``_wptr_nxt - rptr != PD) else              \
+        name``_not_full: assert(name``_wptr_nxt - rptr != PD) else \
             $error("fifo is full");                            \
-        assert(reset_n) else $error("called in reset");        \
+        name``_out_of_reset: assert(reset_n) else $error("called in reset"); \
         `endif                                                 \
         if (reset_n) begin                                     \
             name``_q[idx_t'(name``_wptr_nxt % PD)] = data;     \
-            name``_wptr_nxt++;                                 \
+            name``_wptr_nxt = name``_wptr_nxt + ptr_t'(1);     \
         end                                                    \
     end
 
@@ -339,13 +339,13 @@ module axi_sw #(
 
   function automatic void axi_sw_b(int unsigned id, byte unsigned resp, shortint unsigned latency);
     b_t bd = '{id: id_t'(id), resp: 2'(resp), latency: 16'(latency)};
-    `AXI_SW_DPI_FIFO_PUSH(axi_sw_b, B_Q_MAX, bd, b_queue_rptr);
+    `AXI_SW_DPI_FIFO_PUSH(axi_sw_b, B_Q_MAX, bd, b_queue_rptr)
   endfunction
   export "DPI-C" function axi_sw_b;
 
   always @(posedge clk) begin
-    axi_slv_b_delay <= (axi_slv_b_delay != 0) ? axi_slv_b_delay - 1 : b.latency;
-    axi_slv_r_delay <= (axi_slv_r_delay != 0) ? axi_slv_r_delay - 1 : r.latency;
+    axi_slv_b_delay <= (axi_slv_b_delay != 0) ? axi_slv_b_delay - 16'd1 : b.latency;
+    axi_slv_r_delay <= (axi_slv_r_delay != 0) ? axi_slv_r_delay - 16'd1 : r.latency;
   end
 
   logic [64-1:0] clocks;
@@ -874,7 +874,7 @@ module axi_sw_mst #(
       rrdy_hi      = cvm_plusargs::get_int("axi_mst_rrdy_high");
       rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_low");
       /* verilator lint_off WIDTHTRUNC */
-      axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_sw_rsp_toggle_en");
+      axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_sw_rsp_toggle_en") != 0;
       /* verilator lint_on WIDTHTRUNC */
       axi_sw_rsp_toggle_start = cvm_plusargs::get_ulongint("axi_sw_rsp_toggle_start");
       //clocks = 0;
@@ -892,21 +892,21 @@ module axi_sw_mst #(
   always_ff @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
       brdy_counter <= 0;
-      brdy_state   <= 0;
+      brdy_state   <= 1'b0;
     end else begin
       if (brdy_state) begin  // High state
         if (brdy_counter < brdy_hi) begin
           brdy_counter <= brdy_counter + 1;
         end else begin
           brdy_counter <= 0;
-          brdy_state   <= 0; // Switch to low state
+          brdy_state   <= 1'b0; // Switch to low state
         end
       end else begin  // Low state
         if (brdy_counter < brdy_low) begin
           brdy_counter <= brdy_counter + 1;
         end else begin
           brdy_counter <= 0;
-          brdy_state   <= 1; // Switch to high state
+          brdy_state   <= 1'b1; // Switch to high state
         end
       end
     end
@@ -923,21 +923,21 @@ module axi_sw_mst #(
   always_ff @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
       rrdy_counter <= 0;
-      rrdy_state   <= 0;
+      rrdy_state   <= 1'b0;
     end else begin
       if (rrdy_state) begin  // High state
         if (rrdy_counter < rrdy_hi) begin
           rrdy_counter <= rrdy_counter + 1;
         end else begin
           rrdy_counter <= 0;
-          rrdy_state   <= 0; // Switch to low state
+          rrdy_state   <= 1'b0; // Switch to low state
         end
       end else begin  // Low state
         if (rrdy_counter < rrdy_low) begin
           rrdy_counter <= rrdy_counter + 1;
         end else begin
           rrdy_counter <= 0;
-          rrdy_state   <= 1; // Switch to high state
+          rrdy_state   <= 1'b1; // Switch to high state
         end
       end
     end

@@ -168,8 +168,8 @@ module cosim
   localparam FP_WIDTH  = $size(rvfi[0].frd_wdata);
   localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
   localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
-  bit [PA_WIDTH-1:0] debug_entry_pc_const='h0a110800;
-  bit [PA_WIDTH-1:0] debug_exit_pc_const='h0a110860;
+  bit [PA_WIDTH-1:0] debug_entry_pc_const=PA_WIDTH'('h0a110800);
+  bit [PA_WIDTH-1:0] debug_exit_pc_const=PA_WIDTH'('h0a110860);
   // MMR addresses computed at reset from device_address_map plusargs (same formula as generate_device_addr)
   logic [PA_WIDTH-1:0] mmr_lo_addr;
   logic [PA_WIDTH-1:0] mmr_hi_addr;
@@ -191,13 +191,13 @@ module cosim
   //---------------------------------------------------------------
   // Function to return the count of VALIDS with UNIQUE ORDER bits
   //---------------------------------------------------------------
-  function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops,num);
-    bit [63:0] corder=0;
-    valid_count = 0;
+  function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops, input int num);
+    bit [63:0] corder='0;
+    valid_count = '0;
     /* verilator lint_off WIDTH */
     for(int i=0;i<num;i=i+1) begin
       if ((valid[i] == 1'b1) & (last_uops[i] == 1'b1)) begin
-        valid_count = valid_count + 1;
+        valid_count = valid_count + 1'b1;
       end
     end
     /* verilator lint_on WIDTH */
@@ -207,7 +207,7 @@ module cosim
   // Function to return the highest valid order bits
   //----------------------------------------------------------
   function automatic [63:0] max_order(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
-    max_order = 0;
+    max_order = '0;
     /* verilator lint_off WIDTH */
     for(int i=NRET-1;i>=0;i=i-1) begin
       if (valid[i] == 1) begin
@@ -228,7 +228,7 @@ module cosim
       return(1'b1);
     /* verilator lint_off WIDTH */
     for(int i=0;i<NoAddrRules;i=i+1) begin
-      if ((address >= mem_map[i].start_addr) & (address < mem_map[i].end_addr) & (mem_map[i].idx == 1)) begin
+      if (($bits(mem_map[i].start_addr)'(address) >= mem_map[i].start_addr) & ($bits(mem_map[i].end_addr)'(address) < mem_map[i].end_addr) & (mem_map[i].idx == 1)) begin
         return(1'b1);
       end
     end
@@ -253,14 +253,14 @@ module cosim
   bit timeout_scale_en;                          // enable timeout scaling via DPI calls
 
   //int mcm_value;
-  longint unsigned psc_off_low  = 0;
-  longint unsigned psc_off_high = 0;
+  longint unsigned psc_off_low  = '0;
+  longint unsigned psc_off_high = '0;
   bit to_host;
-  longint unsigned cosim_period=0;
+  longint unsigned cosim_period='0;
   int unsigned PSC_period=0;
 
-  bit get_cosim_compare_values = 1;
-  bit reset_d1 = 1;
+  bit get_cosim_compare_values = 1'b1;
+  bit reset_d1 = 1'b1;
   logic [5:0]           rd_addr     [NRET    ]; //register-retire load enable
   logic [5:0]           frd_addr    [NRET    ]; //register-retire load enable
   logic [5:0]           vrd_addr    [NRET    ]; //register-retire load enable
@@ -508,7 +508,7 @@ module cosim
     assign rvvc_valids[n] = rvfi[n].valid & rvfi[n].vrd_valid;
 
     for(genvar r=0;r<NGP_REGS;r=r+1) begin
-      assign gp_loadn[r][n] = (rvfi[n].valid & (rvfi[n].rd_addr[4:0] == r) ? 1'b1 : 1'b0);
+      assign gp_loadn[r][n] = (rvfi[n].valid & (rvfi[n].rd_addr[4:0] == 5'(r)) ? 1'b1 : 1'b0);
     end
   end
   for(genvar r=0;r<NGP_REGS;r=r+1) begin
@@ -1154,7 +1154,7 @@ end
         rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
       else
         if (send_steps)
-          rvfi_steps <= 0;                                 // we sent the step-count to whisper .... reset the step counter
+          rvfi_steps <= '0;                                 // we sent the step-count to whisper .... reset the step counter
 
     end
   end
@@ -1470,9 +1470,9 @@ end
 
 
   function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
-    if (cause[63:62] == 'h3)
+    if (cause[63:62] == 2'h3)
       return rv_tester_pkg::NMI;
-    else if (cause[63:62] == 'h2)
+    else if (cause[63:62] == 2'h2)
       return rv_tester_pkg::INTR;
     else
       return rv_tester_pkg::EXCP;
@@ -1611,29 +1611,29 @@ end
   /* verilator lint_off WIDTHEXPAND */
   always_ff @(posedge tb_clk) begin
     if (reset) begin
-      max_cycle_timeout_detect <= 0;
-      max_stall_cycle_timeout_detect <= 0;
-      max_cycle_update_valid  <= 0;
-      max_cycle_update_sent   <= 0;
+      max_cycle_timeout_detect <= 1'b0;
+      max_stall_cycle_timeout_detect <= 1'b0;
+      max_cycle_update_valid  <= 1'b0;
+      max_cycle_update_sent   <= 1'b0;
     end else if (!max_cycle_update_sent && max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-      max_cycle_timeout_detect <= 1;
+      max_cycle_timeout_detect <= 1'b1;
       if (timeout_scale_en) begin
         updated_max_cycle       <= get_max_cycle();
-        max_cycle_update_valid  <= 1;
-        max_cycle_update_sent   <= 1;
+        max_cycle_update_valid  <= 1'b1;
+        max_cycle_update_sent   <= 1'b1;
       end
-    end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-      max_stall_cycle_timeout_detect <= 1;
+    end else if (max_stall_cycle > 0 && longint'(cycles_since_retire) > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+      max_stall_cycle_timeout_detect <= 1'b1;
       if (timeout_scale_en) begin
         updated_max_stall_cycle <= get_max_stall_cycle();
-        max_stall_cycle_update_valid <= 1;
+        max_stall_cycle_update_valid <= 1'b1;
       end
     end else begin
-      max_cycle_timeout_detect <= 0;
-      max_stall_cycle_timeout_detect <= 0;
-      max_cycle_update_valid  <= 0;
-      max_cycle_update_sent   <= 0;
-      max_stall_cycle_update_valid <= 0;
+      max_cycle_timeout_detect <= 1'b0;
+      max_stall_cycle_timeout_detect <= 1'b0;
+      max_cycle_update_valid  <= 1'b0;
+      max_cycle_update_sent   <= 1'b0;
+      max_stall_cycle_update_valid <= 1'b0;
     end
   end
 
@@ -1663,7 +1663,7 @@ end
       // must then cover the boot.
       boot_done <= !RVFI_EN;
     end else begin
-      if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+      if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < VALEN'('h20000)) begin // WFI
         boot_wfi <= '1;
       end
       if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == dram_base) begin
@@ -1687,7 +1687,7 @@ end
           if (max_stall_cycle < updated_max_stall_cycle) begin
             max_stall_cycle <= updated_max_stall_cycle;
             $display("\nHart %0d:  Updated max_stall_cycle=%0d", NUM, updated_max_stall_cycle);
-          end else if (cycles_since_retire > max_stall_cycle) begin
+          end else if (longint'(cycles_since_retire) > max_stall_cycle) begin
             automatic string pc = get_stall_probable_cause();
             $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles. %s", NUM, max_stall_cycle, pc);
             cosim_terminate();

@@ -392,6 +392,8 @@ private:
   bool nmi_poke_in_debug_mode_ = false;
   uint64_t mvip_;
   std::bitset<64> mip_ = 0;
+  // mip_ also mirrors ISS-side external pending bits, so DUT-anchored checks read dut_mip_
+  std::bitset<64> dut_mip_ = 0;
   std::bitset<64> last_step_mip_ = 0;
   // Sticky OR of all mip bit toggles observed since the last pre-step
   std::bitset<64> mip_changed_since_last_step_ = 0;

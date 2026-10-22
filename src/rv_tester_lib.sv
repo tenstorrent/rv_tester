@@ -9,8 +9,8 @@ module rv_tester_cdc_pulse (
                             output logic        pulse_pending_or_asserted_a   // Pulse pending in domain A
                             );
 
-  bit pulse_b_sync1 = 0, pulse_b_sync2 = 0, pulse_b_sync3 = 0;
-  bit pulse_pending_a = 0;
+  bit pulse_b_sync1 = 1'b0, pulse_b_sync2 = 1'b0, pulse_b_sync3 = 1'b0;
+  bit pulse_pending_a = 1'b0;
 
   // Register to hold pulse_a until acknowledged
   always @(posedge clk_a) begin
@@ -24,7 +24,7 @@ module rv_tester_cdc_pulse (
   assign pulse_pending_or_asserted_a = pulse_pending_a || pulse_b_sync3;
 
   // Synchronizer flip-flops for pulse crossing from A to B
-  bit sync1 = 0, sync2 = 0, sync3 = 0;
+  bit sync1 = 1'b0, sync2 = 1'b0, sync3 = 1'b0;
   always @(posedge clk_b) begin
     sync1 <= pulse_pending_a;
     sync2 <= sync1;
@@ -224,9 +224,9 @@ module rv_tester_fifo #(
     end
   end
 
-  push_when_full: assert property(@(posedge clk) disable iff(!reset_n) push -> !full)
+  push_when_full: assert property(@(posedge clk) (reset_n && push) |-> !full)
     else $error("pushing when fifo is full");
-  pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
+  pop_when_empty: assert property(@(posedge clk) (reset_n && pop) |-> !empty)
     else $error("popping when fifo is empty");
 
 endmodule

@@ -135,8 +135,21 @@ module rv_tester
   localparam int unsigned MaxBeatsPerBurst = topology.TOP.PLATFORM.MAX_BEATS_PER_BURST;
   localparam bit RespDelayModule = 1;
 
+  // Harness-bundle inputs without a consumer in this configuration; read once
+  // so the port list shared with the test harness stays intact.
+  logic unused_harness_inputs_ok;
+  always_comb begin
+    unused_harness_inputs_ok = warm_reset_release_hang ^ force_ref_clk ^ (^core_no_fetch);
+`ifndef CACHE_MODEL_EN
+    for (int i = 0; i < 2; i++)
+      unused_harness_inputs_ok ^= (^dfetch_cl_addr[i]) ^ (^writeback_cl_addr[i]);
+    for (int i = 0; i < rv_tester_params::NHARTS; i++)
+      unused_harness_inputs_ok ^= (^devict_cl_addr[i]) ^ devict_cl_valid[i] ^ (^flush_cl_addr[i]) ^ flush_cl_valid[i];
+`endif
+  end
+
   xbar_rule_t [NoAddrRules-1:0] addr_map;
-  bit perf = 0;
+  bit perf = 1'b0;
   logic sys_reset_any;
   logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
   logic dut_reset_req_d1;
@@ -166,7 +179,7 @@ module rv_tester
 
   bit [NHARTS-1:0] poke_event_out;
   bit poke_event_in;
-  bit overlay_mmr_en = 0;
+  bit overlay_mmr_en = 1'b0;
 
   logic terminate_1T = '0;
   logic cvm_done_drained;
@@ -176,7 +189,7 @@ module rv_tester
   rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
   logic cosim_terminate_any;
   logic sysmod_cosim_dmi_terminate;
-  longint unsigned instructions = 0;
+  longint unsigned instructions = '0;
 
   int quiesce_counter = 0;
   int quiesce_timeout;
@@ -187,7 +200,7 @@ module rv_tester
   int trace_timeout;
   int assertion_test_cycle = 0;
 
-  logic streaming_dpi_shutdowned = 0;
+  logic streaming_dpi_shutdowned = 1'b0;
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
@@ -276,12 +289,12 @@ module rv_tester
    */
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     if (rv_tester_reset) begin
-      streaming_dpi_shutdowned <= 0;
+      streaming_dpi_shutdowned <= 1'b0;
     end
     if (terminated && !streaming_dpi_shutdowned) begin
       // Used for zebu offline DPI to shutdown the registry
       rv_tester_streaming_dpi_shutdown();
-      streaming_dpi_shutdowned <= 1;
+      streaming_dpi_shutdowned <= 1'b1;
     end
   end
   always @(posedge dut_clk[TB_CLK_IDX] or posedge rv_tester_dpi_init_done) begin
@@ -402,8 +415,8 @@ module rv_tester
         /* verilator lint_on BLKSEQ */
   
         eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
-        eot_status                      <= 1;
-        eot_syscall                     <= 0;
+        eot_status                      <= 8'd1;
+        eot_syscall                     <= '0;
         perf                            <= cvm_plusargs::get_bool("perf") != '0;
         cb_poll                         <= cvm_plusargs::get_bool("cb_async") == '0;
         quiesce_timeout                 <= cvm_plusargs::get_int("quiesce_timeout");
@@ -552,7 +565,7 @@ end
   // Clock counts
   always_ff @(posedge dut_clk[AXI_CLK_IDX]) begin
     if (dut_reset[AXI_CLK_IDX]) begin
-      axi_clocks <= 0;
+      axi_clocks <= '0;
     end else begin
       axi_clocks <= axi_clocks + 1;
     end
@@ -575,8 +588,8 @@ end
   // warm_reset_pullup so the harness can extend the hold until pwrmgmt asserts
   // warm_reset.
   logic reset_pullup;
-  logic cold_reset_pullup = 0;
-  logic warm_reset_pullup_ = 0;
+  logic cold_reset_pullup = 1'b0;
+  logic warm_reset_pullup_ = 1'b0;
   assign reset_pullup = rv_tester_reset || terminate_now || terminated;
   assign warm_reset_pullup = warm_reset_pullup_;
 
@@ -834,7 +847,6 @@ end
                                .clk(dut_clk[AXI_CLK_IDX]),
                                .sys_reset(sys_reset[AXI_CLK_IDX]),
                                .reset(dut_reset[AXI_CLK_IDX]),
-                               .clocks,
                                .boot_done(boot_done[c]),
                                .nmi(nmi[c].nmi),
                                .mti(mti[c]),
@@ -849,7 +861,6 @@ end
                `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PARAMS(0)
                ) triggers (
                            .tb_clk(dut_clk[TB_CLK_IDX]),
-                           .tb_reset(sys_reset[TB_CLK_IDX]),
                            .clk(dut_clk[AXI_CLK_IDX]),
                            .reset(dut_reset[AXI_CLK_IDX]),
                            .event_trigger_vec(event_triggers),
@@ -942,7 +953,7 @@ end
   export "DPI-C" function rv_tester_get_clocks;
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
-    assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("Error: assertion test cycle failed");
+    assertion_test_cycle_check: assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
   end
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin

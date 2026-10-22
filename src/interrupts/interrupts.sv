@@ -13,7 +13,6 @@ module interrupts
    input logic sys_reset,
    input logic reset,
    input logic boot_done,
-   input logic [63:0] clocks,
    /* verilator lint_off BLKANDNBLK */
    output logic nmi,
    output logic mti,
