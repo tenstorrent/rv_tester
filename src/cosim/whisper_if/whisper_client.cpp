@@ -339,7 +339,7 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
     system->setAplicAutoForwardViaMsi(false); // currently, these dont have a mapping in whisper json
     for (unsigned i = 0; i < system->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
-      hart->setAclintDeliverInterrupts(false);
+      hart->setAclintDeliverInterrupts(FLAGS_mtip_standalone);
     }
   }
   return ok;
@@ -1295,8 +1295,11 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
 
   if (standalone) {
     j["wfi_timeout"] = FLAGS_wfi_timeout_standalone;
-    if (FLAGS_mtip_standalone)
+    if (FLAGS_mtip_standalone) {
       j["enable_mtip"] = true;
+      if (j.contains("aclint"))
+        j["aclint"]["deliver_interrupts"] = true;
+    }
   }
 
   if (!standalone)
