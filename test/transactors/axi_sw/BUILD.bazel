@@ -76,7 +76,7 @@ cc_binary(
     deps = [
         ":" + name + "_veri_lib",
         ":" + name + "_dpi",
-        "//src/util:clock_profiles",
+        "//:clock_profiles",
     ],
     visibility = ["//visibility:public"],
 )

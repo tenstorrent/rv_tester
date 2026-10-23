@@ -120,14 +120,6 @@ module rv_tester
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
 
-  initial begin
-    for (int m = 0; m < NUM_CLK_MODES; m++) begin
-      for (int c = 0; c < NCLKS; c++) begin
-        rv_tester_set_clock_freq(m, c, CLK_FREQ_MHZ[m][c]);
-      end
-    end
-  end
-
   // Captures this scope and installs the TB cycle counter on the EAM.
   import "DPI-C" context function void eam_register_scope();
 
@@ -394,6 +386,11 @@ module rv_tester
   
         if (rv_tester_reset) begin
           if(num_builds < 0) begin
+            for (int m = 0; m < NUM_CLK_MODES; m++) begin
+              for (int c = 0; c < NCLKS; c++) begin
+                rv_tester_set_clock_freq(m, c, CLK_FREQ_MHZ[m][c]);
+              end
+            end
             $display("[RVTESTER]: constructing Full registry");
             rv_tester_build_registry();
             num_builds <= 0;
