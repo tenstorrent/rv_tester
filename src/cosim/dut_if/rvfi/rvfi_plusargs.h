@@ -14,3 +14,4 @@ DECLARE_bool(cosim);
 DECLARE_bool(cache_model_en);
 DECLARE_bool(emulate_amo_arithmetic);
 DECLARE_bool(mcm);
+DECLARE_bool(patch_mode_tag_override);

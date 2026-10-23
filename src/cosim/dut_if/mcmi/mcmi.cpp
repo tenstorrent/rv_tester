@@ -17,6 +17,8 @@
 
 DEFINE_bool(mcm, true, "Enable mcm");
 
+static constexpr uint64_t RVFI_PATCH_MODE = 0x4;
+
 mcmi::mcmi(cvm::topology::loc_t loc, unsigned id, std::shared_ptr<bridge> bridge)
     : log("h" + std::to_string(id) + "_dut_mcmi.log"), loc_(loc), id_(id), bridge_(bridge) {
 
@@ -79,7 +81,12 @@ void mcmi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       cvm::log(cvm::HIGH, "Enter patch via exception\n");
       if (FLAGS_cosim)
         bridge_->set_patch_mode(ENTER_PATCH);
+      if (patch_mode_ && patch_lo_tag_)
+        close_patch_session();
       patch_mode_ = true;
+      patch_mode_first_tag_ = m_trap.order;
+      patch_lo_tag_ = 0;
+      patch_hi_tag_ = 0;
     } else if (ecause_ == CUSTOM_VEC_CMODE) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
@@ -106,19 +113,21 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     patch_mode_ = true;
-    patch_mode_first_tag_ = m_rvfi.order;
-  }
-  if (m_rvfi.clr_pmode) {
-    patch_mode_ = false;
-    patch_mode_first_tag_ = 0;
+    if (!patch_mode_first_tag_)
+      patch_mode_first_tag_ = m_rvfi.order;
   }
   if (patch_mode_) {
-    if (!patch_mode_first_tag_) {
+    if (!patch_mode_first_tag_)
       patch_mode_first_tag_ = m_rvfi.order;
+    if (m_rvfi.mode == RVFI_PATCH_MODE) {
+      if (!patch_lo_tag_ || m_rvfi.order < patch_lo_tag_)
+        patch_lo_tag_ = m_rvfi.order;
+      if (m_rvfi.order > patch_hi_tag_)
+        patch_hi_tag_ = m_rvfi.order;
     }
-    if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
-      patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
   }
+  if (m_rvfi.clr_pmode || (patch_mode_ && patch_lo_tag_ && m_rvfi.mode != RVFI_PATCH_MODE))
+    close_patch_session();
 
   if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
     vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
@@ -162,7 +171,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.hart = m_mcmi_read.hart;
   m.cycle = m_mcmi_read.cycle;
   m.opcode = m_mcmi_read.opcode;
-  m.tag = m_mcmi_read.order;
+  m.tag = remap_patch_tag(m_mcmi_read.order);
   m.pa = m_mcmi_read.addr;
   m.size = std::popcount(m_mcmi_read.mask);
   m.data = m_mcmi_read.data;
@@ -300,7 +309,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 
   mem_t m;
   m.valid = true;
-  m.tag = m_mcmi_insert.order;
+  m.tag = remap_patch_tag(m_mcmi_insert.order);
   m.cycle = m_mcmi_insert.cycle;
   m.v_ext = m_mcmi_insert.v_ext;
   m.elem_idx = m_mcmi_insert.elem_idx;
@@ -335,7 +344,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
 
   mem_t m;
   m.valid = true;
-  m.tag = m_mcmi_bypass.order;
+  m.tag = remap_patch_tag(m_mcmi_bypass.order);
   m.hart = m_mcmi_bypass.hart;
   m.cycle = m_mcmi_bypass.cycle;
   m.v_ext = m_mcmi_bypass.v_ext;
@@ -579,6 +588,40 @@ void mcmi::process(const rv_tester::terminate_called_mem_checks&) {
 
 void mcmi::process(const bridge::error_loc&) {
   // Handle bridge error location if needed
+}
+
+void mcmi::close_patch_session() {
+  if (patch_mode_first_tag_ && patch_lo_tag_) {
+    patch_tag_ranges_.push_back({patch_mode_first_tag_, patch_lo_tag_, patch_hi_tag_});
+    if (patch_tag_ranges_.size() > PATCH_TAG_RANGES_KEPT)
+      patch_tag_ranges_.pop_front();
+    cvm::log(cvm::HIGH, "[mcmi] patch session closed: trigger tag={}, patch tags=[{}, {}]\n",
+             patch_mode_first_tag_, patch_lo_tag_, patch_hi_tag_);
+  }
+  patch_mode_ = false;
+  patch_mode_first_tag_ = 0;
+  patch_lo_tag_ = 0;
+  patch_hi_tag_ = 0;
+}
+
+uint64_t mcmi::remap_patch_tag(uint64_t tag) {
+  if (!FLAGS_patch_mode_tag_override)
+    return tag;
+  uint64_t trigger_tag = 0;
+  if (patch_mode_ && patch_mode_first_tag_ && patch_lo_tag_ && tag >= patch_lo_tag_) {
+    trigger_tag = patch_mode_first_tag_;
+  } else {
+    for (auto it = patch_tag_ranges_.rbegin(); it != patch_tag_ranges_.rend(); ++it) {
+      if (tag >= it->lo_tag && tag <= it->hi_tag) {
+        trigger_tag = it->trigger_tag;
+        break;
+      }
+    }
+  }
+  if (!trigger_tag)
+    return tag;
+  cvm::log(cvm::HIGH, "[mcmi] patch-mode tag {} remapped to trigger tag {}\n", tag, trigger_tag);
+  return trigger_tag;
 }
 
 bool mcmi::patch_access(uint64_t addr) {
