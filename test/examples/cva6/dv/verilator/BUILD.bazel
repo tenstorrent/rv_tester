@@ -28,6 +28,7 @@ cc_binary(
         ":cva6_tb_veri_lib",
         "//test/examples/cva6/dv:dpi_glue",
         "//test/examples/cva6/dv:cva6_rv_tester_dpi",
+        "//:clock_profiles",
         "@cvm//:logger",
         "@cvm//:topology",
         "@rules_verilator//verilator:verilated_runtime",
