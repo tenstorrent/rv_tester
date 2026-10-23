@@ -1,10 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Tenstorrent USA, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# GitHub Actions translation of .gitlab-ci.yml. The two internal `notify_*`
-# jobs (which trigger the internal riscv_cluster GitLab pipeline) and the
-# `riscv/dv/gitlab-definitions` include are intentionally omitted — they are
-# GitLab-only and have no GitHub equivalent.
 name: CI
 
 on:
@@ -15,59 +11,55 @@ on:
   pull_request:
 
 env:
-  # Mirrors BAZEL_OPTS from .gitlab-ci.yml's .test-template.
   BAZEL_OPTS: "--jobs=8"
-  # Bazel disk cache shared between jobs through actions/cache. build-verilator
-  # fills it; the bazel-7 jobs below restore it so the Verilator tool build
-  # (@@verilator~//:verilator, ~7 min per job) runs once per pipeline instead
-  # of once per job.
   BAZEL_DISK_CACHE: bazel_disk_cache
+  BAZEL_DISK_CACHE_MARKER: bazel_disk_cache.marker
 
 jobs:
-  build-verilator:
-    # Builds the Verilator tool (plus its flex/bison/autoconf helpers) into the
-    # disk cache. The tool is a `[for tool]` exec-configuration dependency of
-    # every VerilatorCompile action, so it is built through the smallest
-    # verilated cc_binary rather than as a top-level target: a top-level build
-    # would produce target-configuration outputs with different action keys
-    # that the test jobs could not reuse. The exec configuration is unaffected
-    # by the sanitizer flags, so the asan/tsan jobs hit the same cache entries.
-    #
-    # The cache key covers everything the tool build depends on: module pins
-    # (MODULE.bazel; the lockfile is gitignored), compiler flags (.bazelrc),
-    # patches (bazel/) and the container image (pinned in this file).
+  build:
+    # Builds every test target in the plain configuration into the disk cache:
+    # the Verilator tool, the verilated models and the testbench binaries. The
+    # smoke/valgrind/lint jobs then only run tests; asan/tsan reuse the
+    # configuration-independent entries.
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
-    timeout-minutes: 60
+    timeout-minutes: 90
     outputs:
       cache-key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@v4
       - name: Compute cache key
         id: key
-        run: echo "key=bazel-disk-cache-verilator-${{ hashFiles('MODULE.bazel', '.bazelrc', 'bazel/**', '.github/workflows/ci.yml') }}" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        id: cache
+        run: |
+          echo "key=bazel-disk-cache-plain-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          touch "$BAZEL_DISK_CACHE_MARKER"
+      - uses: actions/cache/restore@v4
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
           key: ${{ steps.key.outputs.key }}
-      - name: Build Verilator tool into the disk cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: bazel-7 --output_user_root=./bazel_output_user_root build --config=bzlmod --disk_cache=./$BAZEL_DISK_CACHE $BAZEL_OPTS //test/rv_tester_fifo_tb:rv_tester_fifo_tb_verilator
+          restore-keys: bazel-disk-cache-plain-
+      - name: Build all test targets into the disk cache
+        run: bazel-7 --output_user_root=./bazel_output_user_root build --config=bzlmod --build_tests_only --disk_cache=./$BAZEL_DISK_CACHE $BAZEL_OPTS //test/...
+      - name: Drop cache entries this build did not use
+        run: find "$BAZEL_DISK_CACHE" -type f ! -newer "$BAZEL_DISK_CACHE_MARKER" -delete
+      - uses: actions/cache/save@v4
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: ${{ steps.key.outputs.key }}
 
   lint:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
-    timeout-minutes: 180
-    needs: build-verilator
+    timeout-minutes: 60
+    needs: build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache/restore@v4
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: ${{ needs.build-verilator.outputs.cache-key }}
+          key: ${{ needs.build.outputs.cache-key }}
           fail-on-cache-miss: true
       - name: Mark workspace safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -77,57 +69,67 @@ jobs:
           python3 scripts/plusarg_lint.py
           git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format --Werror --dry-run --verbose
       - name: clang-tidy
-        # Drives erenon/bazel_clang_tidy via the `clang-tidy` config in .bazelrc.
         run: bazel-7 --output_user_root=./bazel_output_user_root build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy --disk_cache=./$BAZEL_DISK_CACHE $BAZEL_OPTS
 
   build-bazel6-top:
-    # Downstream consumers still run Bazel 6 + WORKSPACE.
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
-    timeout-minutes: 180
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Bazel 6 WORKSPACE build
         run: bazel --output_user_root=./bazel_output_user_root_b6 build //src:all //test/sw_testbench:sw_1c_rv_tester_sv //test/sw_testbench:sw_2c_rv_tester_sv $BAZEL_OPTS
 
   test:
-    # smoke / asan+ubsan / tsan / valgrind share one recipe, differing only by
-    # config.
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
-    timeout-minutes: 180
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        # The crash-handler death tests fork and install signal handlers, which
-        # clash with the sanitizers' own signal interception, so they are tagged
-        # "no-sanitizer" and filtered out of the asan/ubsan/tsan variants; the
-        # plain smoke variant runs them.
         include:
           - name: smoke
             targets: "//test/..."
             flags: ""
-          # The sanitizer variants also exclude the examples smoke: verilating
-          # two full cores with asan/tsan instrumentation is not worth the cost.
+            cache: plain
           - name: asan+ubsan
             targets: "-- //test/... -//test/examples/..."
             flags: "--config=asan --config=ubsan --test_tag_filters=-no-sanitizer"
+            cache: asan
           - name: tsan
             targets: "-- //test/... -//test/examples/..."
             flags: "--features=tsan --test_tag_filters=-no-sanitizer"
+            cache: tsan
           - name: valgrind
             targets: "-- //test/... -//test/examples/..."
             flags: "--test_env=SIM_WRAP='valgrind --tool=memcheck --leak-check=full --track-origins=yes --error-exitcode=1' --test_tag_filters=-no-valgrind"
+            cache: plain
     name: test (${{ matrix.name }})
-    needs: build-verilator
+    needs: build
     steps:
       - uses: actions/checkout@v4
+      - name: Compute cache key
+        id: key
+        run: |
+          echo "key=bazel-disk-cache-${{ matrix.cache }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          touch "$BAZEL_DISK_CACHE_MARKER"
       - uses: actions/cache/restore@v4
         with:
           path: ${{ env.BAZEL_DISK_CACHE }}
-          key: ${{ needs.build-verilator.outputs.cache-key }}
+          key: ${{ steps.key.outputs.key }}
+          restore-keys: |
+            bazel-disk-cache-${{ matrix.cache }}-
+            ${{ needs.build.outputs.cache-key }}
           fail-on-cache-miss: true
       - name: bazel test //test/...
         run: bazel-7 --output_user_root=./bazel_output_user_root test --config=bzlmod --build_tests_only ${{ matrix.flags }} --disk_cache=./$BAZEL_DISK_CACHE --test_output=errors $BAZEL_OPTS ${{ matrix.targets }}
+      - name: Drop cache entries this build did not use
+        if: matrix.cache != 'plain'
+        run: find "$BAZEL_DISK_CACHE" -type f ! -newer "$BAZEL_DISK_CACHE_MARKER" -delete
+      - uses: actions/cache/save@v4
+        if: matrix.cache != 'plain'
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: ${{ steps.key.outputs.key }}
