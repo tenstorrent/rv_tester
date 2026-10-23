@@ -730,6 +730,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
   post_step_satp_write_poke(hart, d, w);
+  post_step_coherent_icache_poke(hart, d);
 
   if (excp_in_debug_mode) {
     cac_.ResetStatus(hart);
@@ -1532,6 +1533,27 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
 
 bool bridge::is_custom_excp(uint64_t cause) {
   return (cause >= 25 && cause <= 55);
+}
+
+// Mirror c_core_cfg.DisableCoherentICache into whisper.
+void bridge::post_step_coherent_icache_poke(hart_id_t hart, const rv_instr_t& d) {
+  for (const auto& c : d.csr) {
+    if (!c.valid || c.csr_addr != c_core_cfg_csr_addr || !(c.csr_wmask & c_core_cfg_dis_coherent_icache_mask))
+      continue;
+
+    bool coherent = !(c.csr_wdata & c_core_cfg_dis_coherent_icache_mask);
+    if (coherent_icache_ == coherent)
+      continue;
+
+    bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: c_core_cfg.DisableCoherentICache={}, setting whisper coherent i-cache={}\n",
+               d.cycle, step_, !coherent, coherent);
+    bool valid = false;
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperSetCoherentIcacheRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, coherent, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to set whisper coherent i-cache to {}\n", hart, coherent);
+      return;
+    }
+    coherent_icache_ = coherent;
+  }
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
