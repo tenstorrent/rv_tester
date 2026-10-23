@@ -1,0 +1,4 @@
+exports_files(
+    ["hello_world.elf", "infinite.elf", "infinite.S"],
+    visibility = ["//visibility:public"],
+)

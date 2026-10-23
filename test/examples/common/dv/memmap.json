@@ -1,0 +1,8 @@
+[
+  { "tag" : "boot"   , "type" : "memory", "base" : "0x00000000", "size" : "0x02000000" },
+  { "tag" : "memory" , "type" : "memory", "base" : "0x80000000", "size" : "0x80000000" },
+  { "tag" : "scratch", "type" : "memory", "base" : "0x08000000", "size" : "0x00100000" },
+  { "tag" : "clint"  , "type" : "clint" , "base" : "0x02000000", "size" : "0x0000c000" },
+  { "tag" : "trickbox","type" : "trickbox" , "base" : "0x09000000", "size" : "0x000c0000" },
+  { "tag" : "htif"   , "type" : "htif"  , "base" : "0x70000000", "size" : "0x00000010" }
+]

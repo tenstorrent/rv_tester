@@ -1,0 +1,205 @@
+{
+    "xlen"                  : 64,
+    "isa"                   : "rv64imafdc",
+    "reset_vec"             : "0x80000000",
+
+    "memmap" : {
+       "Comment"            : "Set physical memory size to be 39-bits",
+       "size"               : "0x8000000000"
+    },
+
+    "Comment"                    : "Print memory addres of ld/st instructions in trace log.",
+    "print_load_store_address"   : "true",
+
+    "csr" : {
+      "misa" : {
+          "reset-comment"   : "imafdcsu",
+          "reset"           : "0x800000000014112d",
+          "mask-comment"    : "Misa is not writable by CSR instructions",
+          "mask"            : "0x0"
+      },
+
+      "mstatus" : {
+          "reset-comment"   : "SXL=10, UXL=10",
+          "reset"           : "0x0000000a00000000",
+          "mask-comment"    : "Readonly fields: SXL, UXL, XS",
+          "mask"            : "0xfffffff0fffe7fff",
+          "poke_mask"            : "0xfffffff0fffe7fff"
+        },
+
+      "mip"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process"
+      },
+
+      "mideleg" : {
+          "Comment"         : "Supervisor delegation supported",
+          "reset"           : "0x0",
+          "mask"            : "0x0000000000000222"
+      },
+
+      "medeleg" : {
+          "Comment"         : "0-15 exceptions supported",
+          "reset"           : "0x0",
+          "mask"            : "0x000000000000ffff",
+          "poke_mask"       : "0x000000000000ffff"
+      },
+
+      "satp" : {
+          "satp-comment"    : "Hardwired to zero except for FS, VS, and SD.",
+          "reset"           : "0x0",
+          "mask"            : "0xffffffffffffffff"
+      },
+
+      "stvec" : {
+          "stvec-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
+          "reset"           : "0x0",
+          "mask"            : "0xffffffffffffffff",
+          "poke_mask"            : "0xffffffffffffffff"
+      },
+
+      "tselect" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata1" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata2" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata3" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dcsr" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dpc" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dscratch" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dscratch1" : {
+          "Comment"         : "Hardwired to 0",
+          "number"          : "0x7b3",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "pmpaddr0" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr1" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr2" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr3" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr4" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+
+      },
+      "pmpaddr5" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr6" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr7" : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff",
+        "poke_mask"         : "0xffffffffffffffff"
+      },
+      "pmpaddr8" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr9" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr10" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr11" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr12" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr13" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr14" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+      "pmpaddr15" : {
+        "reset"             : "0x0",
+        "mask"              : "0x0"
+      },
+
+      "cycle"     : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff"
+      },
+      "instret"   : {
+        "reset"             : "0x0",
+        "mask"              : "0xffffffffffffffff"
+      },
+      "time"                : { "exists" : "false" },
+      "mcountinhibit"       : { "exists" : "false" },
+
+      "menvcfg"             : { "exists" : "false" }
+    },
+
+    "physical_memory_protection_grain": 8,
+
+    "Comment"                       : "No misaligned ld/st addresses",
+    "enable_misaligned_data"        : "false",
+
+    "Comment"                       : "14 performance counters implemented",
+    "num_mmode_perf_regs"           : 14
+}

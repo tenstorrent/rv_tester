@@ -1,0 +1,10 @@
+exports_files(
+    [
+        "gflags.cpp",
+        "memmap.json",
+        "sim.sh",
+        "sim_run.sh",
+        "whisper.json",
+    ],
+    visibility = ["//visibility:public"],
+)

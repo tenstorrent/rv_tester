@@ -1,0 +1,6 @@
+exports_files(
+    [
+        "cva6.BUILD",
+    ],
+    visibility = ["//visibility:public"],
+)

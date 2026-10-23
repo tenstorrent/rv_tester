@@ -1,0 +1,46 @@
+rv_tester_rvfi_attrs: &rv_tester_rvfi_attrs
+  ENABLE: 1
+  FP_ENABLE: 1
+  VEC_ENABLE: 0
+  MEM_ENABLE: 1
+  CSR_ENABLE: 0
+  UOP_ENABLE: 1
+  # C910 retires up to 3 ROB packets/cycle, each packing up to 3 instructions,
+  # so the per-instruction RVFI stream can present up to 9 retirements/cycle.
+  NRETS: [9]
+  NRETS_CUMSUM: [0]
+  TOTAL_NRETS: 9
+
+rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
+  ENABLE: 1
+  NREADS: [3]
+  NREADS_CUMSUM: [0]
+  NINSERTS: [3]
+  NINSERTS_CUMSUM: [0]
+  NWRITES: [3]
+  NWRITES_CUMSUM: [0]
+  NBYPASSES: [3]
+  NBYPASSES_CUMSUM: [0]
+  NIFETCHES: [1]
+  NIFETCHES_CUMSUM: [0]
+  NIEVICTS: [5]
+  NIEVICTS_CUMSUM: [0]
+  # Harness drives no decode slots (+nomcm); older rv_tester ignores these.
+  NDECODES: [1]
+  NDECODES_CUMSUM: [0]
+  TOTAL_NREADS: 3
+  TOTAL_NINSERTS: 3
+  TOTAL_NWRITES: 3
+  TOTAL_NBYPASSES: 3
+  TOTAL_NIFETCHES: 1
+  TOTAL_NIEVICTS: 5
+  TOTAL_NDECODES: 1
+
+rv_tester_pmci_attrs: &rv_tester_pmci_attrs
+  PMU_ENABLE: 0
+  SC_PMCI_ENABLED: 0
+  LS_PIPES: [3]
+
+rv_tester_csri_attrs: &rv_tester_csri_attrs
+  ENABLE: 1
+  NCSRI: 11

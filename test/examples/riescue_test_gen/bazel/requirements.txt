@@ -1,0 +1,4 @@
+# RiescueD runtime deps only; riescue's setup.py extras are docs/lint tools.
+pyyaml==6.0.3
+sortedcontainers==2.4.0
+intervaltree==3.1.0

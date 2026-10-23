@@ -1,0 +1,9 @@
+exports_files(
+    [
+        "riescue.BUILD",
+        "riescue_eot_sd_tohost.patch",
+        "riscv_none_elf_gcc.BUILD",
+        "requirements.txt",
+    ],
+    visibility = ["//visibility:public"],
+)

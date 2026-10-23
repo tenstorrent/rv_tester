@@ -69,3 +69,6 @@ build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy
 # pulled into one binary -- which `timing = True` in //test:verilator.bzl made
 # happen by ordering verilator's runtime ahead of @lz4 in the link line.
 build --per_file_copt=external/verilator.*@-DLZ4LIB_VISIBILITY=static,-DLZ4_PUBLISH_STATIC_FUNCTIONS,-DLZ4_compress_destSize_extState=vlt_LZ4_compress_destSize_extState,-DLZ4_compress_forceExtDict=vlt_LZ4_compress_forceExtDict,-DLZ4_decompress_safe_forceExtDict=vlt_LZ4_decompress_safe_forceExtDict,-DLZ4_decompress_safe_partial_forceExtDict=vlt_LZ4_decompress_safe_partial_forceExtDict
+
+test --zip_undeclared_test_outputs=false
+run --zip_undeclared_test_outputs=false

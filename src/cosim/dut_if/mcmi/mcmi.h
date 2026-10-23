@@ -6,6 +6,7 @@
 #include <fstream>
 #include <fmt/format.h>
 #include <unordered_map>
+#include <deque>
 #include <memory>
 #include <bitset>
 #include <vector>
@@ -61,6 +62,8 @@ private:
   void process(const bridge::error_loc&);
 
   bool patch_access(uint64_t addr);
+  uint64_t remap_patch_tag(uint64_t tag);
+  void close_patch_session();
   bool patch_fetch_access(uint64_t addr);
   bool debug_fetch_access(uint64_t addr);
   bool is_ncio(uint32_t mem_attr);
@@ -125,9 +128,19 @@ private:
   bool mem_error_ = false;
   uint64_t ecause_ = 0;
   std::unordered_map<uint64_t, bool> vec_cmode_mem_errors_;
+  // Patch-routine memory tags map to the trigger tag Whisper knows; closed
+  // sessions are kept since NCIO completions can arrive after patch exit.
+  struct patch_tag_range_t {
+    uint64_t trigger_tag;
+    uint64_t lo_tag;
+    uint64_t hi_tag;
+  };
+  static constexpr size_t PATCH_TAG_RANGES_KEPT = 16;
   bool patch_mode_ = false;
   uint64_t patch_mode_first_tag_ = 0;
-  std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
+  uint64_t patch_lo_tag_ = 0;
+  uint64_t patch_hi_tag_ = 0;
+  std::deque<patch_tag_range_t> patch_tag_ranges_;
   bool vec_cmode_ = false;
   std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
   uint64_t vec_cmode_first_tag_ = 0;

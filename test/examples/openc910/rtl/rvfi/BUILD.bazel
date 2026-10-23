@@ -1,0 +1,4 @@
+exports_files(
+    ["ct_rvfi_gen.v"],
+    visibility = ["//visibility:public"],
+)
