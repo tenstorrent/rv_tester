@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <sstream>
+#include <charconv>
+#include <limits>
 #include <string>
 #include <cassert>
 #include <unistd.h>
@@ -84,21 +86,77 @@ int htif::pty::read() {
   return -1;
 }
 
+static std::set<uint16_t> parse_hart_ids(const char* flag, const std::string& list) {
+  std::set<uint16_t> hart_ids;
+  std::istringstream ss(list);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    uint64_t hart_id = 0;
+    const auto [end, error] = std::from_chars(token.data(), token.data() + token.size(), hart_id, 10);
+    if (token.empty() || error == std::errc::invalid_argument || end != token.data() + token.size()) {
+      cvm::log(cvm::ERROR, "Error: [htif] +{}={} has the entry '{}', which is not a decimal hart id\n", flag, list, token);
+      continue;
+    }
+    if (error == std::errc::result_out_of_range || hart_id > std::numeric_limits<uint16_t>::max()) {
+      cvm::log(cvm::ERROR, "Error: [htif] +{}={} has the hart id {}, which is above {}\n", flag, list, token, std::numeric_limits<uint16_t>::max());
+      continue;
+    }
+    if (!hart_ids.insert(static_cast<uint16_t>(hart_id)).second)
+      cvm::log(cvm::ERROR, "Error: [htif] +{}={} has the hart id {} more than once\n", flag, list, token);
+  }
+  return hart_ids;
+}
+
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
     : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0), htif_log_("htif.log") {
-  if (!FLAGS_payload_has_hart_id)
+  if (FLAGS_payload_has_hart_id) {
+    if (FLAGS_eot == "max_instr")
+      cvm::log(cvm::ERROR, "Error: [htif] +payload_has_hart_id ends the run when every enabled hart has exited, so it cannot be used with +eot=max_instr\n");
+    const bool by_mhartid = !FLAGS_hart_mhartid.empty();
+    enabled_harts_ = by_mhartid ? parse_hart_ids("hart_mhartid", FLAGS_hart_mhartid) : parse_hart_ids("hart_enable_id", FLAGS_hart_enable_id);
+    if (enabled_harts_.empty())
+      cvm::log(cvm::ERROR, "Error: [htif] +payload_has_hart_id needs the hart ids of the enabled harts in +hart_mhartid or +hart_enable_id\n");
     return;
-  std::istringstream ss(FLAGS_hart_enable_id);
-  std::string token;
-  while (std::getline(ss, token, ','))
-    enabled_harts_.insert(static_cast<uint16_t>(std::stoul(token)));
+  }
+  if (FLAGS_eot != "tohost_all")
+    return;
+  cvm::log(cvm::NONE, "[htif] +eot=tohost_all counts tohost exit writes, so a hart that writes tohost twice is counted twice. +payload_has_hart_id counts each hart once\n");
+  if (FLAGS_num_harts == 0)
+    cvm::log(cvm::ERROR, "Error: [htif] +eot=tohost_all needs +num_harts above 0\n");
+  if (FLAGS_hart_enable_id.empty())
+    return;
+  const auto listed = parse_hart_ids("hart_enable_id", FLAGS_hart_enable_id);
+  if (listed.size() != FLAGS_num_harts)
+    cvm::log(cvm::ERROR, "Error: [htif] +eot=tohost_all ends after +num_harts={} exits, but +hart_enable_id={} lists {} harts\n", FLAGS_num_harts, FLAGS_hart_enable_id, listed.size());
+}
+
+static std::string hart_list(const std::set<uint16_t>& harts) {
+  std::string list;
+  for (uint16_t hart : harts)
+    list += (list.empty() ? "" : ",") + std::to_string(hart);
+  return list.empty() ? "none" : list;
 }
 
 htif::~htif() {
+  if (FLAGS_payload_has_hart_id) {
+    if (enabled_harts_.empty())
+      return;
+    std::set<uint16_t> passed_harts;
+    std::set<uint16_t> missing_harts;
+    for (uint16_t hart : enabled_harts_) {
+      if (!exited_harts_.count(hart))
+        missing_harts.insert(hart);
+      else if (!failed_harts_.count(hart))
+        passed_harts.insert(hart);
+    }
+    cvm::log(cvm::NONE, "HTIF exit summary: {} of {} enabled harts exited; passed {}, failed {}, missing {}\n",
+             exited_harts_.size(), enabled_harts_.size(), hart_list(passed_harts), hart_list(failed_harts_), hart_list(missing_harts));
+    return;
+  }
   if (passed_ == 0 && failed_ == 0)
     return;
-  cvm::log(cvm::NONE, "HTIF exit summary: passed {}, failed {}, expected {} harts\n",
-           passed_, failed_, FLAGS_num_harts);
+  const std::string expected = FLAGS_eot == "tohost_all" ? ", expected " + std::to_string(FLAGS_num_harts) : "";
+  cvm::log(cvm::NONE, "HTIF exit summary: {} exit writes, passed {}, failed {}{}\n", passed_ + failed_, passed_, failed_, expected);
 }
 
 static bool
@@ -172,6 +230,48 @@ void htif::read(const transactor::read_t& r, data_t& data) {
   return;
 }
 
+void htif::record_exit(std::optional<uint16_t> hart_id, bool passed) {
+  if (!hart_id) {
+    (passed ? passed_ : failed_)++;
+    return;
+  }
+  if (!exited_harts_.insert(*hart_id).second) {
+    cvm::log(cvm::ERROR, "Error: [htif] hart id {} exited more than once\n", *hart_id);
+    passed = false;
+  }
+  if (!passed)
+    failed_harts_.insert(*hart_id);
+}
+
+void htif::end_test_if_done(bool per_hart, bool passed) {
+  bool done = passed;
+  bool test_passed = true;
+  if (per_hart) {
+    done = exited_harts_.size() == enabled_harts_.size();
+    test_passed = failed_harts_.empty();
+  } else if (FLAGS_eot == "tohost_all") {
+    done = passed_ + failed_ == int(FLAGS_num_harts);
+    test_passed = failed_ == 0;
+  }
+  if (done)
+    end_test(test_passed);
+}
+
+std::string htif::exit_progress() const {
+  if (FLAGS_payload_has_hart_id)
+    return " (" + std::to_string(exited_harts_.size()) + " of " + std::to_string(enabled_harts_.size()) + " harts exited)";
+  if (FLAGS_eot == "tohost_all")
+    return " (exit " + std::to_string(passed_ + failed_) + " of " + std::to_string(FLAGS_num_harts) + ")";
+  return "";
+}
+
+void htif::end_test(bool passed) {
+  if (ended_)
+    return;
+  ended_ = true;
+  cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = passed});
+}
+
 void htif::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   // auto& length = w.length;
@@ -219,36 +319,31 @@ void htif::write(const transactor::write_t& w) {
     }
   } else if (dev == 0 and cmd == 0) {
     if (FLAGS_payload_has_hart_id) {
-      uint16_t hart_id = (payload >> 16) & 0xffff;
+      const auto exit = std::bit_cast<hart_exit_t>(dword);
+      const uint16_t hart_id = exit.hart_id;
       if (!enabled_harts_.count(hart_id)) {
         cvm::log(cvm::ERROR, "Error: illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, w.id);
+        end_test(false);
       } else {
-        uint64_t status = payload & ~(uint64_t(0xffff) << 16);
-        if ((status & 1) && ((status >> 1) == uint64_t(0))) {
-          if (passed_harts_.insert(hart_id).second)
-            passed_++;
-          cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 hart_id={} ({}/{}) axi_id={}\n", hart_id, passed_, enabled_harts_.size(), w.id);
+        const bool passed = exit.terminate && exit.code == 0 && exit.reserved == 0;
+        record_exit(hart_id, passed);
+        if (passed) {
+          cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 hart_id={}{} axi_id={}\n", hart_id, exit_progress(), w.id);
         } else {
-          if (failed_harts_.insert(hart_id).second)
-            failed_++;
-          cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} hart_id={} ({}/{}) axi_id={}\n", (status & 1), (status >> 1), hart_id, failed_, enabled_harts_.size(), w.id);
+          cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, code={:#x}, reserved={:#x} hart_id={}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), uint64_t(exit.reserved), hart_id, exit_progress(), w.id);
         }
-        if (passed_harts_.size() + failed_harts_.size() == enabled_harts_.size()) {
-          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_harts_.empty()});
-        }
-      }
-    } else if ((payload & 1) && ((payload >> 1) == uint64_t(0))) {
-      passed_++;
-      cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 ({}/{}) axi_id={}\n", passed_, FLAGS_num_harts, w.id);
-      if (FLAGS_eot != "tohost_all") {
-        cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = true});
+        end_test_if_done(true, passed);
       }
     } else {
-      failed_++;
-      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} ({}/{}) axi_id={}\n", (payload & 1), (payload >> 1), failed_, FLAGS_num_harts, w.id);
-    }
-    if (FLAGS_eot == "tohost_all" && passed_ + failed_ == int(FLAGS_num_harts)) {
-      cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_ == 0});
+      const auto exit = std::bit_cast<exit_t>(dword);
+      const bool passed = exit.terminate && exit.code == 0;
+      record_exit(std::nullopt, passed);
+      if (passed) {
+        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0{} axi_id={}\n", exit_progress(), w.id);
+      } else {
+        cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), exit_progress(), w.id);
+      }
+      end_test_if_done(false, passed);
     }
   } else {
     assert(0);
