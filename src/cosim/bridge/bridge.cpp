@@ -118,6 +118,10 @@ static std::vector<uint64_t> create_dword_vec(const std::bitset<256>& input) {
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
     : sc_slice_base_([]() { uint32_t cluster_id = 0; return generate_sc_device_addr(cluster_id) + 0x8; }()),
+      num_clusters_([]() {
+        auto count = cvm::topology::attr(cvm::topology::get_from_type("CLUSTER", 0), "COUNT");
+        return (count.first && count.second > 0) ? count.second : 1u;
+      }()),
       bridge_log_("h" + std::to_string(id) + "_bridge.log"),
       loc_(loc),
       id_(id),
@@ -2460,15 +2464,51 @@ bool bridge::intr_csrs_mismatch(const hart_id_t& hart, const std::string& instr,
   return false;
 }
 
-bool bridge::debug_mem_access(const uint64_t& pa) {
-  uint32_t cluster_id = 0;
-  if (debug_mode_ && pa >= generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset && pa < (generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset + FLAGS_debug_mem_size))
-    return true;
+namespace {
+
+template <typename BaseFn>
+bool pa_in_any_cluster_window(uint64_t pa, uint32_t nclusters, BaseFn base_of, uint64_t size) {
+  for (uint32_t cluster_id = 0; cluster_id < nclusters; ++cluster_id) {
+    const uint64_t base = base_of(cluster_id);
+    if (pa >= base && pa < base + size)
+      return true;
+  }
   return false;
 }
 
+template <typename BaseFn>
+bool any_cluster_sc_slice(uint64_t pa, uint32_t nclusters, BaseFn base_of) {
+  for (uint32_t cluster_id = 0; cluster_id < nclusters; ++cluster_id) {
+    if ((pa & 0xffffffffffff0fffULL) == base_of(cluster_id))
+      return true;
+  }
+  return false;
+}
+
+} // namespace
+
+static uint64_t cluster_mmr_offset(uint32_t cluster_id) {
+  return generate_cr_device_addr(cluster_id) - generate_cr_device_addr(0);
+}
+
+bool bridge::debug_mem_access(const uint64_t& pa) {
+  if (!debug_mode_)
+    return false;
+  return pa_in_any_cluster_window(
+      pa, num_clusters_,
+      [](uint32_t cluster_id) {
+        return generate_dm_device_addr(cluster_id) + FLAGS_debug_mem_base_offset;
+      },
+      FLAGS_debug_mem_size);
+}
+
 bool bridge::unsupported_mmr_access(const uint64_t& pa) {
-  if (pa >= mmr_lo_addr() && pa < mmr_hi_addr())
+  const uint64_t lo = mmr_lo_addr();
+  const uint64_t hi = mmr_hi_addr();
+  if (pa_in_any_cluster_window(
+          pa, num_clusters_,
+          [lo](uint32_t cluster_id) { return lo + cluster_mmr_offset(cluster_id); },
+          hi - lo))
     return true;
   if (pa >= sep_base_ && pa < sep_end_)
     return true;
@@ -2510,9 +2550,10 @@ bool bridge::uart_access(const uint64_t& pa) {
 }
 
 bool bridge::sc_slice_status(const uint64_t& pa) {
-  if ((pa & 0xffffffffffff0fff) == sc_slice_base_)
-    return true;
-  return false;
+  const uint64_t base = sc_slice_base_;
+  return any_cluster_sc_slice(
+      pa, num_clusters_,
+      [base](uint32_t cluster_id) { return base + cluster_mmr_offset(cluster_id); });
 }
 
 // Poke resources in whisper
