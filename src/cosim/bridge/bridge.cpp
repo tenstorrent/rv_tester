@@ -620,6 +620,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     bridge_log(cvm::HIGH, "<{}> Patch exit into debug (excp33={}, priv_debug={}), stepping whisper and skipping DE until debug vector\n",
                d.cycle, check_debug_entry_at_patch_exit_, is_priv_debug_mode_);
     check_debug_entry_at_patch_exit_ = false;
+    check_intr_at_patch_exit_ = false;
+    check_nmi_at_patch_exit_ = false;
     skip_de_until_debug_vector_ = true;
     patch_mode_ = NO_PATCH;
 
@@ -682,6 +684,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w_.clear();
 
   if (patch_mode_ == NO_PATCH || ((patch_mode_ == EXIT_PATCH))) {
+    if (patch_mode_ == EXIT_PATCH)
+      pre_step_patch_exit_trap_select(hart, d);
     auto stime = std::chrono::high_resolution_clock::now();
     step(hart, w);
     step_++;
@@ -809,7 +813,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
     } else if (resynch_needed(hart, d, instr, w, resource, dut, iss)) {
       resynch(hart, d);
     } else if (patch_mode_ == EXIT_PATCH) {
-      bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[exit_patch]\n", d.cycle);
+      bridge_log(cvm::MEDIUM, "<{}> Resynch: Reason=[exit_patch] mismatch {} - {} DUT: {} ISS: {}\n", d.cycle, resource, instr, dut, iss);
       resynch_whisper_on_patch(hart, d, instr, w);
     } else {
       print_instr_stdout(hart, w);
@@ -1233,7 +1237,8 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   // xRET check, interrupt pending must be taken post xRET
   // Hence undeferring all interrupts in post-step of xRET
   // Thus next step takes interrupt in Whisper
-  if (cosim_util::is_xret_opcode(w_.opcode)) {
+  // w_ keeps the xRET across unstepped patch-routine retires; only the retire after the step undefers
+  if (patch_mode_ == NO_PATCH && cosim_util::is_xret_opcode(w_.opcode)) {
     // If xRET is seen, then undefer all interrupts except for those that asserted during xRET or
     // After xRET and before next instruction retires.
     defer_interrupt(hart, d.cycle, 0 | ((tmp_mip_latest_ ^ last_step_mip_) | mip_changed_since_last_step_).to_ullong());
@@ -1265,6 +1270,31 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   mip_changed_since_last_step_.reset();
 }
 
+// Mask interrupts/NMIs raised during the patch so the exit step takes the DUT's entry trap
+void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d) {
+  if (!check_nmi_at_patch_exit_ && !check_intr_at_patch_exit_)
+    return;
+
+  std::bitset<64> w_mip;
+  uint64_t w_defer_mip = 0;
+  peek_mip(hart, d.cycle, w_mip);
+  peek_deferred_interrupts(hart, w_defer_mip);
+  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip;
+  uint64_t defer_nmip = nmip_.to_ullong();
+
+  if (check_nmi_at_patch_exit_) {
+    defer_nmip &= ~(uint64_t{1} << check_nmi_at_patch_cause_);
+  } else {
+    uint64_t intr_bit = check_intr_at_patch_cause_ + (check_intr_at_patch_virt_ ? 1 : 0);
+    defer_mip &= ~(uint64_t{1} << intr_bit);
+  }
+
+  bridge_log(cvm::MEDIUM, "<{}> Patch exit: Whisper step must take the DUT entry trap (nmi={} ncause={} intr={} icause={} virt={}) defer_mip={:#x} defer_nmi={:#x}\n",
+             d.cycle, check_nmi_at_patch_exit_, check_nmi_at_patch_cause_, check_intr_at_patch_exit_, check_intr_at_patch_cause_, check_intr_at_patch_virt_, defer_mip, defer_nmip);
+  defer_interrupt(hart, d.cycle, defer_mip);
+  defer_nmi(hart, d.cycle, defer_nmip);
+}
+
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   // Apply interrupt clears that were held back while a retire was in flight.
@@ -1279,9 +1309,13 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   // Check deferred interrupt at patch exit (mirrors NMI exit check)
-  if (w_.intr && patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
-    if (check_intr_at_patch_cause_ != w_.icause)
-      error("Hart {}: Interrupt cause mismatch at patch exit, whisper:{} dut: {}\n", hart, w_.icause, check_intr_at_patch_cause_);
+  if (patch_mode_ == EXIT_PATCH && check_intr_at_patch_exit_) {
+    if (!w_.intr)
+      error("Hart {}: DUT took interrupt at patch entry, Whisper did not at patch exit. dcause:[{}] virt:[{}]\n",
+            hart, check_intr_at_patch_cause_, check_intr_at_patch_virt_);
+    else if (check_intr_at_patch_cause_ != w_.icause || check_intr_at_patch_virt_ != w_.virt_mode)
+      error("Hart {}: Interrupt cause mismatch at patch exit, whisper:{} virt:{} dut:{} virt:{}\n",
+            hart, w_.icause, w_.virt_mode, check_intr_at_patch_cause_, check_intr_at_patch_virt_);
     check_intr_at_patch_exit_ = false;
     return;
   }
@@ -1296,6 +1330,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     if (patch_mode_ == ENTER_PATCH) {
       check_intr_at_patch_exit_ = true;
       check_intr_at_patch_cause_ = d.icause;
+      check_intr_at_patch_virt_ = d.virt_mode;
       bridge_log(cvm::MEDIUM, "<{}> Interrupt detected at patch entry, deferring to exit. dcause:[{}]\n", w.time, d.icause);
       return;
     }
@@ -1353,8 +1388,10 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  if (w_.nmi && patch_mode_ == EXIT_PATCH && check_nmi_at_patch_exit_) {
-    if (check_nmi_at_patch_cause_ != w_.ncause)
+  if (patch_mode_ == EXIT_PATCH && check_nmi_at_patch_exit_) {
+    if (!w_.nmi)
+      error("Hart {}: DUT took NMI at patch entry, Whisper did not at patch exit. dcause:[{}]\n", hart, check_nmi_at_patch_cause_);
+    else if (check_nmi_at_patch_cause_ != w_.ncause)
       error("Hart {}: NMI cause mismatch, whisper:{} dut: {}\n", hart, w_.ncause, check_nmi_at_patch_cause_);
     check_nmi_at_patch_exit_ = false;
     return;
@@ -1663,6 +1700,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
   // Interrupts/Exceptions
   if (w_.trap) {
     bool cause_valid = false;
+    bool cause_virt = false;
     uint64_t cause = 0;
     uint64_t ncause = 0;
     for (auto& c : w_.csr) {
@@ -1673,17 +1711,20 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
       if ((c.csr_addr == mcause.address) || (c.csr_addr == scause.address) || (((w.priv_mode == VU) || (w.priv_mode == VS)) && (c.csr_addr == vscause.address))) {
         cause_valid = true;
         cause = c.csr_wdata;
+        cause_virt = (c.csr_addr == vscause.address);
       }
     }
     if (!cause_valid)
       return;
 
+    w_.virt_mode = false;
     if ((ncause >> 63) & 0x1) {
       w_.nmi = true;
       w_.ncause = (ncause & 0x3);
     } else if ((cause >> 63) & 0x1) {
       w_.intr = true;
       w_.icause = (cause & 0x3f);
+      w_.virt_mode = cause_virt;
     } else {
       w_.excp = true;
       w_.ecause = (cause & 0xff);
@@ -2225,7 +2266,7 @@ bool bridge::resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const st
   }
 
   // Whisper cancelled post-trigger instruction that DUT completed
-  if (w.is_cancelled && !d.excp && !d.intr)
+  if (w.is_cancelled && !d.excp && !d.intr && patch_mode_ != EXIT_PATCH)
     return true;
 
   if (w.force_resynch)
@@ -2478,7 +2519,8 @@ bool bridge::sc_slice_status(const uint64_t& pa) {
 void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   bool valid = false;
 
-  if (d.pc.pc_rdata != w_.pc.pc_rdata) {
+  // The EXIT_PATCH record is the patch-RAM exit jalr; its PC is not a valid Whisper PC
+  if (d.pc.pc_rdata != w_.pc.pc_rdata && patch_mode_ != EXIT_PATCH) {
     bridge_log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, step_, d.pc.pc_rdata);
 
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'p', 0, d.pc.pc_rdata, false, false, valid) || !valid) && FLAGS_whisper_client_check) {

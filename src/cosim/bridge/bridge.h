@@ -187,6 +187,7 @@ private:
   void pre_step_debug_exit(hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
@@ -456,6 +457,7 @@ private:
   uint64_t check_nmi_at_patch_cause_ = 0;
   bool check_intr_at_patch_exit_ = false;
   uint64_t check_intr_at_patch_cause_ = 0;
+  bool check_intr_at_patch_virt_ = false;
   bool check_debug_entry_at_patch_exit_ = false;
   bool skip_de_until_debug_vector_ = false;
   rv_debug_t deferred_debug_entry_{};
