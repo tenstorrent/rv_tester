@@ -68,39 +68,42 @@ module triggers
   int unsigned next_interrupt_clock = 0;
   bit interrupt_sequence_active = 1'b0;
 
-  /* verilator lint_off BLKANDNBLK */
-  /* verilator lint_off BLKSEQ */
+  // Next-state values: an INTERRUPT event reloads the count and the first
+  // fire time in the same cycle it is seen.
+  int unsigned cur_interrupt_count_next;
+  int unsigned next_interrupt_clock_next;
+  logic        fire_interrupt;
+  always_comb begin
+    cur_interrupt_count_next  = cur_interrupt_count;
+    next_interrupt_clock_next = next_interrupt_clock;
+    if (hart_specific_event_trigger[INTERRUPT]) begin
+      cur_interrupt_count_next  = interrupt_injection_count;
+      next_interrupt_clock_next = clocks + interrupt_injection_initial_delay;
+    end
+    fire_interrupt = !reset && (cur_interrupt_count_next > 0) && (clocks == next_interrupt_clock_next);
+  end
+
   always @(posedge clk) begin
     clocks <= clocks + 1;
+    trigger_interrupt <= fire_interrupt;
     trigger_interrupt_delayed <= trigger_interrupt;
-    if (hart_specific_event_trigger[INTERRUPT]) begin
-      cur_interrupt_count = interrupt_injection_count;
-      next_interrupt_clock = clocks + interrupt_injection_initial_delay;
-      // Latch event_trigger_vlds when initial trigger occurs
-      event_trigger_vlds_latched <= event_trigger_vlds;
-      interrupt_sequence_active = (cur_interrupt_count > 0);
+    if (fire_interrupt) begin
+      cur_interrupt_count <= cur_interrupt_count_next - 1;
+      // DPI call stays in the clocked block so the random stream advances
+      // only when an interrupt fires.
+      next_interrupt_clock <= clocks + get_random_in_range(interrupt_injection_rand_delay_min, interrupt_injection_rand_delay_max);
+    end else begin
+      cur_interrupt_count <= cur_interrupt_count_next;
+      next_interrupt_clock <= next_interrupt_clock_next;
     end
-    if (reset) begin
-      trigger_interrupt <= 1'b0;
+    if (reset || (cur_interrupt_count_next == 0)) begin
       event_trigger_vlds_latched <= '0;
       interrupt_sequence_active <= 1'b0;
-    end
-    else begin
-      trigger_interrupt = 1'b0;
-      if ((cur_interrupt_count > 0) && (clocks == next_interrupt_clock)) begin
-        trigger_interrupt = 1'b1;
-        cur_interrupt_count <= cur_interrupt_count - 1;
-        next_interrupt_clock <= clocks + get_random_in_range(interrupt_injection_rand_delay_min, interrupt_injection_rand_delay_max);
-      end
-      // Clear latched value and flag when all interrupts are sent
-      if (cur_interrupt_count == 0) begin
-        event_trigger_vlds_latched <= '0;
-        interrupt_sequence_active <= 1'b0;
-      end
+    end else if (hart_specific_event_trigger[INTERRUPT]) begin
+      event_trigger_vlds_latched <= event_trigger_vlds;
+      interrupt_sequence_active <= 1'b1;
     end
   end
-  /* verilator lint_on BLKSEQ */
-  /* verilator lint_on BLKANDNBLK */
 
   // m_event_trigger_ticks
   assign m_event_trigger_ticks[0].valid = trigger_interrupt & (location != cvm_topology::nil);

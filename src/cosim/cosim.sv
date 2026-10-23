@@ -238,7 +238,7 @@ module cosim
   import "DPI-C" function longint get_max_cycle();
   import "DPI-C" function longint get_max_stall_cycle();
   import "DPI-C" context function int is_eot_tohost();
-  import "DPI-C" function string get_stall_probable_cause();
+  import "DPI-C" function void report_max_stall_timeout(int hart, longint max_stall_cycle);
 
   bit PSC_enabled;
   typedef longint unsigned LU;
@@ -1688,14 +1688,12 @@ end
             max_stall_cycle <= updated_max_stall_cycle;
             $display("\nHart %0d:  Updated max_stall_cycle=%0d", NUM, updated_max_stall_cycle);
           end else if (longint'(cycles_since_retire) > max_stall_cycle) begin
-            automatic string pc = get_stall_probable_cause();
-            $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles. %s", NUM, max_stall_cycle, pc);
+            report_max_stall_timeout(NUM, max_stall_cycle);
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
         end else if (!timeout_scale_en && max_stall_cycle_timeout_detect && cosim_terminate_sent == '0) begin
-          automatic string pc = get_stall_probable_cause();
-          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles. %s", NUM, max_stall_cycle, pc);
+          report_max_stall_timeout(NUM, max_stall_cycle);
           cosim_terminate();
           cosim_terminate_sent <= 1'b1;
         end

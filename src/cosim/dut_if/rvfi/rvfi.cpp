@@ -1134,6 +1134,11 @@ extern "C" __attribute__((weak)) const char* get_stall_probable_cause() {
   return "";
 }
 
+extern "C" void report_max_stall_timeout(int hart, long long max_stall_cycle) {
+  cvm::log(cvm::ERROR, "\nError: Hart {}: No instruction retired for max_stall_cycle ({}) cycles. {}\n",
+           hart, static_cast<unsigned long long>(max_stall_cycle), get_stall_probable_cause());
+}
+
 bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
   // Define the regex pattern to find 'c' followed by digits
   std::regex pattern(R"(c(\d+))");
