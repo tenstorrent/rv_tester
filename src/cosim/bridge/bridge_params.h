@@ -35,8 +35,6 @@ constexpr uint64_t pmm_cfgs_mask_lo = 32;
 constexpr uint64_t pmm_mask_size = 2;
 constexpr uint64_t time_csr = 0xC01;
 constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
-constexpr uint64_t c_core_cfg_csr_addr = 0xBE6;
-constexpr uint64_t c_core_cfg_dis_coherent_icache_mask = 0x1;
 // ACLINT M-time / M-timecmp (generate_acl_device_addr() + 0 / + 0x8000)
 inline uint64_t mtime_mmr() {
   uint32_t cluster_id = 0;

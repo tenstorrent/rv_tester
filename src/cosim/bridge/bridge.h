@@ -9,7 +9,6 @@
 #include <iomanip>
 #include <vector>
 #include <map>
-#include <optional>
 #include <regex>
 
 #include "cvm/topology.hpp"
@@ -193,7 +192,6 @@ private:
   void post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_coherent_icache_poke(hart_id_t hart, const rv_instr_t& d);
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -475,7 +473,6 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
-  std::optional<bool> coherent_icache_{};
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
