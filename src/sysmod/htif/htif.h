@@ -48,7 +48,28 @@ public:
     bool passed = false;
   };
 
+  struct exit_t {
+    uint64_t terminate : 1;
+    uint64_t code : 47;
+    uint64_t cmd : 8;
+    uint64_t dev : 8;
+  };
+
+  struct hart_exit_t {
+    uint64_t terminate : 1;
+    uint64_t code : 15;
+    uint64_t hart_id : 16;
+    uint64_t reserved : 16;
+    uint64_t cmd : 8;
+    uint64_t dev : 8;
+  };
+
 private:
+  void hart_exit(const hart_exit_t& exit, uint32_t axi_id);
+  void tohost_exit(const exit_t& exit, uint32_t axi_id);
+  void end_test(bool passed);
+  std::string exit_progress() const;
+
   uint64_t to_ = 0;
   uint64_t from_ = 0;
   cvm::file_logger htif_log_;
@@ -69,6 +90,7 @@ private:
   int passed_ = 0;
   int failed_ = 0;
   std::set<uint16_t> enabled_harts_;
-  std::set<uint16_t> passed_harts_;
+  std::set<uint16_t> exited_harts_;
   std::set<uint16_t> failed_harts_;
+  bool ended_ = false;
 };
