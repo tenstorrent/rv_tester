@@ -2,6 +2,13 @@
 import math
 def clog2(n):
         return math.ceil(math.log2(n))
+
+def axi_user_width(intf):
+    try:
+        return int(intf.USER_WIDTH)
+    except Exception:
+        name = str(intf.NAME).lower()
+        return 8 if "mst" in name else 1
 %>\
 
 % for axi_sw in TOP.PLATFORM.AXI_SW:
@@ -74,7 +81,7 @@ ${name}:
             region:
                 width: 4
             user:
-                width: 1
+                width: ${axi_user_width(axi_sw)}
     r_q_ptr:
         domain: ${domain}
         num: 1
