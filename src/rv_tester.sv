@@ -75,7 +75,14 @@ module rv_tester
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
       if (NUM_CLK_PROFILES == 0 || c == TB_CLK_IDX || c == REF_CLK_IDX) begin : g_fixed
-        rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
+`ifdef TB_CLK_AT_CORE_FREQ
+        // RVBBL-3395: emulators derive every clock from the fastest one, so a TB clock faster than
+        // the core clock makes the core clock non-uniform in waves; run the TB clkgen at core freq.
+        localparam int CLKGEN_FREQ_MHZ = (c == TB_CLK_IDX) ? CLK_PROFILE_FREQ_MHZ[0][CORE_CLK_IDX] : CLK_PROFILE_FREQ_MHZ[0][c];
+`else
+        localparam int CLKGEN_FREQ_MHZ = CLK_PROFILE_FREQ_MHZ[0][c];
+`endif
+        rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLKGEN_FREQ_MHZ), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
           rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
