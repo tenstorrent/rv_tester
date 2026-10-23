@@ -1,0 +1,33 @@
+load("//test/examples/common/dv:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
+
+# openc910: enable RVFI with RVFI macro, disable PMU, waive legacy Verilog-2001 warnings.
+OPENC910_VOPTS = SW_TESTBENCH_VOPTS + [
+    "+define+RV_TESTER_PMCI_DISABLE",
+    "+define+RVFI_TRACE",
+    "+define+RVFI_MEM",
+    "+define+RVFI",
+    "-Wno-ALWCOMBORDER",
+    "-Wno-BLKANDNBLK",
+    "-Wno-CASEINCOMPLETE",
+    "-Wno-CASEOVERLAP",
+    "-Wno-CMPCONST",
+    "-Wno-COMBDLY",
+    "-Wno-IMPLICIT",
+    "-Wno-IMPLICITSTATIC",
+    "-Wno-IMPORTSTAR",
+    "-Wno-LATCH",
+    "-Wno-LITENDIAN",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-SELRANGE",
+    "-Wno-SYMRSVDWORD",
+    "-Wno-UNOPTFLAT",
+    "-Wno-UNPACKED",
+    "-Wno-UNSIGNED",
+    "-Wno-UNUSED",
+    "-Wno-VARHIDDEN",
+    "-Wno-WIDTH",
+    "-Wno-WIDTHCONCAT",
+    "-Wno-WIDTHTRUNC",
+    "-Wno-ASCRANGE",
+    "-Wno-PINNOCONNECT",
+]

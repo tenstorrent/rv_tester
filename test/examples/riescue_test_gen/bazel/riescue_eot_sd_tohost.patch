@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: © 2026 Tenstorrent USA, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Write the 64-bit HTIF tohost register with sd, not sw: rv_tester's htif
+# deserializes the full 64-bit write beat, so a 32-bit store's mirrored
+# upper AXI lanes corrupt the pass/fail payload. Big-endian already uses sd.
+diff --git a/riescue/dtest_framework/runtime/eot.py b/riescue/dtest_framework/runtime/eot.py
+index 2d76447..aa94646 100644
+--- a/riescue/dtest_framework/runtime/eot.py
++++ b/riescue/dtest_framework/runtime/eot.py
+@@ -165,7 +165,7 @@ eot__failed:
+     fence iorw, iorw
+     ld t0, tohost_addr_mem
+     li t1, 0x{self.featmgr.eot_pass_value:x}
+-    {"sw" if not self.featmgr.big_endian else "sd"} t1, 0(t0)
++    sd t1, 0(t0)
+         """
+         code += self.featmgr.call_hook(RV.HookPoint.POST_PASS)
+         code += "\n    j eot__halt \n"
+@@ -195,7 +195,7 @@ eot__failed:
+     fence iorw, iorw
+     ld t0, tohost_addr_mem
+     li t1, 0x{self.featmgr.eot_fail_value:x}
+-    {"sw" if not self.featmgr.big_endian else "sd"} t1, 0(t0)
++    sd t1, 0(t0)
+         """
+         code += self.featmgr.call_hook(RV.HookPoint.POST_FAIL)
+         code += "\n    j eot__halt \n"

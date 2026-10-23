@@ -111,10 +111,23 @@ use_repo(
     "rules_hdl",
 )
 
-bazel_dep(name = "rv_tester_examples", version = "0.0.0", dev_dependency = True)
-archive_override(
-    module_name = "rv_tester_examples",
-    urls = ["https://github.com/tenstorrent/rv_tester_examples/archive/33f9001ba82c8d3aed4b740efe6aa3f6ac17e8fa.tar.gz"],
-    strip_prefix = "rv_tester_examples-33f9001ba82c8d3aed4b740efe6aa3f6ac17e8fa",
-    integrity = "sha256-yqTOuhyuSWY8bno050t0P1LBXkNYKh9+FfQq/nF8lcs=",
+# Integration examples under //test/examples: upstream cores fetched at a
+# pinned commit with a BUILD overlay, plus RiescueD and the bare-metal GCC it
+# compiles generated tests with. Dev-only: nothing in //src depends on them.
+cva6_ext = use_extension("//test/examples/cva6/bazel:cva6_ext.bzl", "cva6_ext", dev_dependency = True)
+use_repo(cva6_ext, "cva6")
+
+openc910_ext = use_extension("//test/examples/openc910/bazel:openc910_ext.bzl", "openc910_ext", dev_dependency = True)
+use_repo(openc910_ext, "openc910")
+
+riescue_ext = use_extension("//test/examples/riescue_test_gen/bazel:riescue_ext.bzl", "riescue_ext", dev_dependency = True)
+use_repo(riescue_ext, "riescue", "riscv_none_elf_gcc")
+
+# RiescueD's pypi deps; hub names must be unique across pip.parse calls.
+pip_dev = use_extension("@rules_python//python/extensions:pip.bzl", "pip", dev_dependency = True)
+pip_dev.parse(
+    hub_name = "riescue_pypi",
+    python_version = "3.9",
+    requirements_lock = "//test/examples/riescue_test_gen/bazel:requirements.txt",
 )
+use_repo(pip_dev, "riescue_pypi")

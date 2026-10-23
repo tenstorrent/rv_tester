@@ -1,0 +1,83 @@
+# RiescueD-generated tests: riescued turns tests/*.s into ELFs at build time,
+# which run on the example cores in lockstep like the prebuilt testbins.
+
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//test/examples/common/dv:sim_test.bzl", "DEFAULT_PLUSARGS", "rv_tester_sim_test")
+load("//test/examples/openc910/dv:plusargs.bzl", "C910_PLUSARGS")
+load("//test/examples/riescue_test_gen/bazel:riescued_elf.bzl", "riescued_elf")
+
+py_binary(
+    name = "riescued",
+    srcs = ["riescued_main.py"],
+    main = "riescued_main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@riescue//:riescue_lib",
+        "@riescue_pypi//intervaltree",
+        "@riescue_pypi//pyyaml",
+        "@riescue_pypi//sortedcontainers",
+    ],
+)
+
+riescued_elf(
+    name = "riescue_smoke",
+    testfile = "tests/riescue_smoke.s",
+    visibility = ["//visibility:public"],
+)
+
+riescued_elf(
+    name = "openc910_issue_69",
+    testfile = "tests/openc910_issue_69.s",
+    visibility = ["//visibility:public"],
+)
+
+# Riescue boot code reads misa/mstatus, so the tests use the //<core>/dv
+# whisper configs (corrected to mirror each DUT) instead of the shared one.
+
+rv_tester_sim_test(
+    name = "riescue_smoke_openc910_verilator",
+    timeout = "eternal",
+    elf = ":riescue_smoke.elf",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tb = "//test/examples/openc910/dv/verilator:openc910_tb_verilator",
+    whisper_json = "//test/examples/openc910/dv:openc910_whisper.json",
+)
+
+rv_tester_sim_test(
+    name = "riescue_smoke_cva6_verilator",
+    timeout = "long",
+    elf = ":riescue_smoke.elf",
+    tb = "//test/examples/cva6/dv/verilator:cva6_tb_verilator",
+    whisper_json = "//test/examples/cva6/dv:cva6_whisper.json",
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [
+        ":riescue_smoke_cva6_verilator",
+        ":riescue_smoke_openc910_verilator",
+    ],
+)
+
+# Bug repro for https://github.com/XUANTIE-RV/openc910/issues/69: EXPECTED TO
+# FAIL on openc910 until the RTL is fixed (minstret reads 2, spec says 1).
+# Tagged manual so suites stay green; the cva6 variant is the passing control.
+
+rv_tester_sim_test(
+    name = "openc910_issue_69_openc910_verilator",
+    timeout = "eternal",
+    elf = ":openc910_issue_69.elf",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tags = ["manual"],
+    tb = "//test/examples/openc910/dv/verilator:openc910_tb_verilator",
+    whisper_json = "//test/examples/openc910/dv:openc910_whisper.json",
+)
+
+rv_tester_sim_test(
+    name = "openc910_issue_69_cva6_verilator",
+    timeout = "long",
+    elf = ":openc910_issue_69.elf",
+    tags = ["manual"],
+    tb = "//test/examples/cva6/dv/verilator:cva6_tb_verilator",
+    whisper_json = "//test/examples/cva6/dv:cva6_whisper.json",
+)

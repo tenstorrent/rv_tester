@@ -1,0 +1,33 @@
+load("//test/examples/common/dv:sim_test.bzl", "DEFAULT_PLUSARGS", "rv_tester_sim_test")
+load("//test/examples/openc910/dv:plusargs.bzl", "C910_PLUSARGS")
+
+# ELFs are linked at reset vector 0x80000000; harness drives pad_core0_rvba
+# to match. C910 cosim is slow; generous timeouts.
+
+rv_tester_sim_test(
+    name = "hello_world_openc910_verilator",
+    timeout = "eternal",
+    elf = "//test/examples/common/testbins:hello_world.elf",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tb = "//test/examples/openc910/dv/verilator:openc910_tb_verilator",
+)
+
+rv_tester_sim_test(
+    name = "infinite_openc910_verilator",
+    timeout = "eternal",
+    elf = "//test/examples/common/testbins:infinite.elf",
+    plusargs = [
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=200",
+    ] + C910_PLUSARGS,
+    tb = "//test/examples/openc910/dv/verilator:openc910_tb_verilator",
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [
+        ":infinite_openc910_verilator",
+        ":hello_world_openc910_verilator",
+    ],
+)
