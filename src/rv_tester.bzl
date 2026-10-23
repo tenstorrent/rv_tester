@@ -191,6 +191,7 @@ def rv_tester_gen(
         deps = [
             "@rv_tester//src/sysmod:sysmod_plusargs",
             "@rv_tester//src:structs",
+            "@rv_tester//:clock_profiles",
             "@rv_tester//src:crash_handler",
             "@rv_tester//src/common:common",
             "@rv_tester//src/common:svdpi",

@@ -4,3 +4,9 @@ filegroup(
     srcs = [".clang-tidy"],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "clock_profiles",
+    deps = ["//src/util:clock_profiles"],
+    visibility = ["//visibility:public"],
+)
