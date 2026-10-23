@@ -234,31 +234,42 @@ void htif::read(const transactor::read_t& r, data_t& data) {
   return;
 }
 
-void htif::record_exit(std::optional<uint16_t> hart_id, bool passed) {
-  if (!hart_id) {
-    (passed ? passed_ : failed_)++;
+void htif::hart_exit(const hart_exit_t& exit, uint32_t axi_id) {
+  const uint16_t hart_id = exit.hart_id;
+  if (!enabled_harts_.count(hart_id)) {
+    cvm::log(cvm::ERROR, "Error: illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, axi_id);
+    end_test(false);
     return;
   }
-  if (!exited_harts_.insert(*hart_id).second) {
-    cvm::log(cvm::ERROR, "Error: [htif] hart id {} exited more than once\n", *hart_id);
-    passed = false;
+  const bool passed = exit.terminate && exit.code == 0 && exit.reserved == 0;
+  const bool first = exited_harts_.insert(hart_id).second;
+  if (passed) {
+    cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 hart_id={}{} axi_id={}\n", hart_id, exit_progress(), axi_id);
+  } else {
+    cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, code={:#x}, reserved={:#x} hart_id={}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), uint64_t(exit.reserved), hart_id, exit_progress(), axi_id);
   }
-  if (!passed)
-    failed_harts_.insert(*hart_id);
+  if (!first)
+    cvm::log(cvm::ERROR, "Error: [htif] hart id {} exited more than once\n", hart_id);
+  if (!passed || !first)
+    failed_harts_.insert(hart_id);
+  if (exited_harts_.size() == enabled_harts_.size())
+    end_test(failed_harts_.empty());
 }
 
-void htif::end_test_if_done(bool per_hart, bool passed) {
-  bool done = passed;
-  bool test_passed = true;
-  if (per_hart) {
-    done = exited_harts_.size() == enabled_harts_.size();
-    test_passed = failed_harts_.empty();
-  } else if (FLAGS_eot == "tohost_all") {
-    done = passed_ + failed_ == int(FLAGS_num_harts);
-    test_passed = failed_ == 0;
+void htif::tohost_exit(const exit_t& exit, uint32_t axi_id) {
+  const bool passed = exit.terminate && exit.code == 0;
+  (passed ? passed_ : failed_)++;
+  if (passed) {
+    cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0{} axi_id={}\n", exit_progress(), axi_id);
+  } else {
+    cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), exit_progress(), axi_id);
   }
-  if (done)
-    end_test(test_passed);
+  if (FLAGS_eot != "tohost_all") {
+    if (passed)
+      end_test(true);
+  } else if (passed_ + failed_ == int(FLAGS_num_harts)) {
+    end_test(failed_ == 0);
+  }
 }
 
 std::string htif::exit_progress() const {
@@ -322,33 +333,10 @@ void htif::write(const transactor::write_t& w) {
         from_ = ((payload >> 48) << 48) | uint64_t(ch);
     }
   } else if (dev == 0 and cmd == 0) {
-    if (FLAGS_payload_has_hart_id) {
-      const auto exit = std::bit_cast<hart_exit_t>(dword);
-      const uint16_t hart_id = exit.hart_id;
-      if (!enabled_harts_.count(hart_id)) {
-        cvm::log(cvm::ERROR, "Error: illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, w.id);
-        end_test(false);
-      } else {
-        const bool passed = exit.terminate && exit.code == 0 && exit.reserved == 0;
-        record_exit(hart_id, passed);
-        if (passed) {
-          cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 hart_id={}{} axi_id={}\n", hart_id, exit_progress(), w.id);
-        } else {
-          cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, code={:#x}, reserved={:#x} hart_id={}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), uint64_t(exit.reserved), hart_id, exit_progress(), w.id);
-        }
-        end_test_if_done(true, passed);
-      }
-    } else {
-      const auto exit = std::bit_cast<exit_t>(dword);
-      const bool passed = exit.terminate && exit.code == 0;
-      record_exit(std::nullopt, passed);
-      if (passed) {
-        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0{} axi_id={}\n", exit_progress(), w.id);
-      } else {
-        cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}{} axi_id={}\n", uint64_t(exit.terminate), uint64_t(exit.code), exit_progress(), w.id);
-      }
-      end_test_if_done(false, passed);
-    }
+    if (FLAGS_payload_has_hart_id)
+      hart_exit(std::bit_cast<hart_exit_t>(dword), w.id);
+    else
+      tohost_exit(std::bit_cast<exit_t>(dword), w.id);
   } else {
     assert(0);
   }

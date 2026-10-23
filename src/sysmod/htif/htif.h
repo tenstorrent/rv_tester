@@ -7,7 +7,6 @@
 #include "src/sysmod/device.h"
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
-#include <optional>
 #include <set>
 
 /// Model an htif (host target interface) device
@@ -66,8 +65,8 @@ public:
   };
 
 private:
-  void record_exit(std::optional<uint16_t> hart_id, bool passed);
-  void end_test_if_done(bool per_hart, bool passed);
+  void hart_exit(const hart_exit_t& exit, uint32_t axi_id);
+  void tohost_exit(const exit_t& exit, uint32_t axi_id);
   void end_test(bool passed);
   std::string exit_progress() const;
 
