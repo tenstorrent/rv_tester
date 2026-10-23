@@ -86,7 +86,12 @@ int htif::pty::read() {
   return -1;
 }
 
-static std::set<uint16_t> parse_hart_ids(const char* flag, const std::string& list) {
+// A tohost payload carries the mhartid, so +hart_mhartid wins when it is set. The +eot=tohost_all exit count
+// compares +hart_enable_id with +num_harts, so it always uses +hart_enable_id.
+static std::set<uint16_t> parse_hart_ids() {
+  const bool by_mhartid = !FLAGS_hart_mhartid.empty() && (FLAGS_payload_has_hart_id || FLAGS_eot != "tohost_all");
+  const char* flag = by_mhartid ? "hart_mhartid" : "hart_enable_id";
+  const std::string& list = by_mhartid ? FLAGS_hart_mhartid : FLAGS_hart_enable_id;
   std::set<uint16_t> hart_ids;
   std::istringstream ss(list);
   std::string token;
@@ -112,8 +117,7 @@ htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
   if (FLAGS_payload_has_hart_id) {
     if (FLAGS_eot == "max_instr")
       cvm::log(cvm::ERROR, "Error: [htif] +payload_has_hart_id ends the run when every enabled hart has exited, so it cannot be used with +eot=max_instr\n");
-    const bool by_mhartid = !FLAGS_hart_mhartid.empty();
-    enabled_harts_ = by_mhartid ? parse_hart_ids("hart_mhartid", FLAGS_hart_mhartid) : parse_hart_ids("hart_enable_id", FLAGS_hart_enable_id);
+    enabled_harts_ = parse_hart_ids();
     if (enabled_harts_.empty())
       cvm::log(cvm::ERROR, "Error: [htif] +payload_has_hart_id needs the hart ids of the enabled harts in +hart_mhartid or +hart_enable_id\n");
     return;
@@ -125,7 +129,7 @@ htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
     cvm::log(cvm::ERROR, "Error: [htif] +eot=tohost_all needs +num_harts above 0\n");
   if (FLAGS_hart_enable_id.empty())
     return;
-  const auto listed = parse_hart_ids("hart_enable_id", FLAGS_hart_enable_id);
+  const auto listed = parse_hart_ids();
   if (listed.size() != FLAGS_num_harts)
     cvm::log(cvm::ERROR, "Error: [htif] +eot=tohost_all ends after +num_harts={} exits, but +hart_enable_id={} lists {} harts\n", FLAGS_num_harts, FLAGS_hart_enable_id, listed.size());
 }
