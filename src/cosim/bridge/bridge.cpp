@@ -15,6 +15,7 @@
 #include "whisper_decoder.h"
 #include "rv_tester_plusargs.h"
 #include "trickbox/interrupter.h"
+#include "aclint/aclint_cfg.h"
 #include "rvfi_plusargs.h"
 #include "sysmod_plusargs.h"
 #include "sysmod_params.hpp"
@@ -332,6 +333,22 @@ void bridge::csr_init() {
       update_csr(id_, src_t::iss, csr->address, data, cac_mask);
       csr_cac_.Step(id_, false);
     }
+  }
+
+  // The TB deposits the ACLINT model mode and tick increment into the core
+  // c_mscfg1 at reset release; the ISS copy has to carry the same value or a
+  // CSR read would miscompare.
+  const aclint_cfg_t aclint_cfg = aclint_resolve_cfg();
+  if (FLAGS_aclint_c_mscfg1_addr != 0 && aclint_cfg_overrides_c_mscfg1(aclint_cfg)) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, FLAGS_aclint_c_mscfg1_addr, data, mask, poke_mask, read_mask, valid)) && FLAGS_whisper_client_check)
+      error("Hart {}: Failed to peek csr : {:#x} in csr_init()\n", id_, FLAGS_aclint_c_mscfg1_addr);
+    const uint64_t value = aclint_cfg_apply_c_mscfg1(aclint_cfg, data);
+    bridge_log(cvm::LOW, "ACLINT model config: c_mscfg1 {:#x} -> {:#x} (local_sync={} ref_time_incr={})\n", data, value, aclint_cfg.local_sync, aclint_cfg.ref_time_incr);
+    poke_resource(id_, 0, 'c', FLAGS_aclint_c_mscfg1_addr, value);
+    uint64_t cac_mask = 0xffffffffffffffff;
+    update_csr(id_, src_t::dut, FLAGS_aclint_c_mscfg1_addr, value, cac_mask);
+    update_csr(id_, src_t::iss, FLAGS_aclint_c_mscfg1_addr, value, cac_mask);
+    csr_cac_.Step(id_, false);
   }
 }
 

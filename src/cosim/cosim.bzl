@@ -98,6 +98,7 @@ def cosim_gen(name, packet, csr_param, topology, harness, project_overrides_cc, 
                 "@rv_tester//src/sysmod:sysmod_plusargs",
                 "@rv_tester//src/sysmod:sysmod_params",
                 "@rv_tester//src/sysmod/trickbox:trickbox",
+                "@rv_tester//src/sysmod/aclint:aclint",
                ],
     data     = [
                 "@whisper//:whisper",
