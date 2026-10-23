@@ -1210,6 +1210,23 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   if (w_intr && w_cause < 64 && dut_mip_.test(w_cause))
     deferred_intr_age_[w_cause]++;
 
+  // Whisper may take a cause only once the DUT mip shows it pending. A pending
+  // bit can reach Whisper with no event on this bridge, such as another hart's
+  // MCM bypass into this hart's IMSIC file or ACLINT register, so the cause is
+  // deferred here. The changed-since-last-step mark keeps it deferred through a
+  // DUT trap of another cause and through an xRET; the DUT trap releases it.
+  if (w_intr && w_cause < 64 && !dut_mip_.test(w_cause)) {
+    mip_changed_since_last_step_.set(w_cause);
+    uint64_t w_defer_mip = 0;
+    peek_deferred_interrupts(hart, w_defer_mip);
+    const uint64_t cause_bit = uint64_t{1} << w_cause;
+    if (!(w_defer_mip & cause_bit)) {
+      bridge_log(cvm::MEDIUM, "<{}> Whisper cause {} pending ahead of the DUT mip, deferring\n", d.cycle, intr_name(w_cause));
+      defer_interrupt(hart, d.cycle, w_defer_mip | cause_bit);
+      deferred_intr_age_.try_emplace(w_cause, 0);
+    }
+  }
+
   // If DUT takes interrupt, then undefer all interrupts
   // Exception: If Interrupts asserted during ucode sequence then do not undefer those interrupts as they are not yet visible to RTL.
   // Interrupts raised in Whisper after the last DUT retire were not visible when the DUT selected
