@@ -42,6 +42,7 @@ uint64_t generate_acl_device_addr(uint32_t cluster_id);
 uint64_t generate_dm_device_addr(uint32_t cluster_id);
 uint64_t generate_sc_device_addr(uint32_t cluster_id);
 uint64_t generate_axisw_device_addr(uint32_t cluster_id);
+uint64_t generate_pmnw_device_addr(uint32_t cluster_id);
 
 // Helper functions
 uint64_t extract_mmr_offset(uint64_t addr);

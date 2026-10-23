@@ -102,6 +102,10 @@ uint64_t generate_axisw_device_addr(uint32_t cluster_id) {
   return generate_device_addr(FLAGS_axisw_device_id, cluster_id, FLAGS_mmr_m);
 }
 
+uint64_t generate_pmnw_device_addr(uint32_t cluster_id) {
+  return generate_device_addr(FLAGS_pmnw_device_id, cluster_id, FLAGS_mmr_m);
+}
+
 // --- Helper functions ---
 
 uint64_t extract_mmr_offset(uint64_t addr) {

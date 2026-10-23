@@ -33,6 +33,7 @@ DEFINE_uint32(acl_device_id, 0x0, "ACL device ID");
 DEFINE_uint32(dm_device_id, 0x0, "DM device ID");
 DEFINE_uint32(sc_device_id, 0x0, "SC device ID");
 DEFINE_uint32(axisw_device_id, 0x0, "AXISW device ID");
+DEFINE_uint32(pmnw_device_id, 0x0, "PMNW device ID");
 
 DEFINE_uint32(imsic_m, 0x0, "IMSIC machine privilege level");
 DEFINE_uint32(mmr_m, 0x0, "MMR machine privilege level");

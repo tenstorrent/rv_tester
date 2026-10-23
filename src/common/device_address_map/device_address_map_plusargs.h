@@ -35,6 +35,7 @@ DECLARE_uint32(acl_device_id);
 DECLARE_uint32(dm_device_id);
 DECLARE_uint32(sc_device_id);
 DECLARE_uint32(axisw_device_id);
+DECLARE_uint32(pmnw_device_id);
 
 // Device privilege level (IMSIC/MMR M and S)
 DECLARE_uint32(imsic_m);
