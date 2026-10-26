@@ -6,8 +6,7 @@ module rv_tester
     pmu_pkg::INSTRUCTIONS;
   #(
     parameter bit EXTERNAL_CLOCK            = 0,
-    parameter int unsigned NUM_CLK_PROFILES = 0,
-    parameter bit [NUM_CLK_PROFILES:0][NCLKS-1:0][31:0] CLK_PROFILE_FREQ_MHZ = CLOCK_FREQ_MHZ,
+    parameter CLK_PROFILE_FREQ_MHZ = {NCLKS{32'd0}},
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
     parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     `TOPOLOGY
@@ -37,8 +36,14 @@ module rv_tester
 
   logic fastest_clk;
 
-  localparam int unsigned NUM_CLK_MODES = NUM_CLK_PROFILES + 1;
-  localparam int unsigned CLK_MODE_W    = NUM_CLK_PROFILES == 0 ? 1 : $clog2(NUM_CLK_MODES);
+  if ($bits(CLK_PROFILE_FREQ_MHZ) % (NCLKS * 32) != 0) $error("Error: %m: CLK_PROFILE_FREQ_MHZ width %0d is not a multiple of NCLKS * 32 (%0d)", $bits(CLK_PROFILE_FREQ_MHZ), NCLKS * 32);
+
+  localparam int unsigned NUM_CLK_MODES    = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
+  localparam int unsigned NUM_CLK_PROFILES = NUM_CLK_MODES - 1;
+  localparam int unsigned CLK_MODE_W       = NUM_CLK_PROFILES == 0 ? 1 : $clog2(NUM_CLK_MODES);
+  localparam bit [NUM_CLK_MODES-1:0][NCLKS-1:0][31:0] CLK_FREQ_MHZ = CLK_PROFILE_FREQ_MHZ;
+
+  if (CLK_FREQ_MHZ == '0) $error("Error: %m: CLK_PROFILE_FREQ_MHZ is not set; pass the clock frequency table to rv_tester");
 
   function automatic int unsigned find_max_freq(bit [NUM_CLK_MODES-1:0][NCLKS-1:0][31:0] freqs);
     int unsigned max_val = 0;
@@ -50,7 +55,7 @@ module rv_tester
     return max_val;
   endfunction
 
-  localparam int max_clock_freq_overall = find_max_freq(CLK_PROFILE_FREQ_MHZ);
+  localparam int max_clock_freq_overall = find_max_freq(CLK_FREQ_MHZ);
 
 `ifdef PALLADIUM_CAKE1X
   IXCclkgen #(max_clock_freq_overall) uclk (fastest_clk);
@@ -75,10 +80,10 @@ module rv_tester
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
       if (NUM_CLK_PROFILES == 0 || c == TB_CLK_IDX || c == REF_CLK_IDX) begin : g_fixed
-        rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
+        rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
-          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
         end
         assign clk[c] = mode_clk[c][clock_mode];
       end
@@ -104,6 +109,7 @@ module rv_tester
 
   import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
   import "DPI-C" function int rv_tester_init(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
+  import "DPI-C" function void rv_tester_set_clock_freq(input int unsigned profile, input int unsigned clk, input int unsigned freq_mhz);
   import "DPI-C" function void rv_tester_set_seed();
   import "DPI-C" context function void rv_tester_cvm_error_handler();
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
@@ -113,6 +119,7 @@ module rv_tester
   import "DPI-C" context function bit rv_tester_flush_callbacks();
   import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
   import "DPI-C" context function void rv_tester_clock_monitor(LU clocks, int unsigned clock_mode);
+
   // Captures this scope and installs the TB cycle counter on the EAM.
   import "DPI-C" context function void eam_register_scope();
 
@@ -379,6 +386,11 @@ module rv_tester
   
         if (rv_tester_reset) begin
           if(num_builds < 0) begin
+            for (int m = 0; m < NUM_CLK_MODES; m++) begin
+              for (int c = 0; c < NCLKS; c++) begin
+                rv_tester_set_clock_freq(m, c, CLK_FREQ_MHZ[m][c]);
+              end
+            end
             $display("[RVTESTER]: constructing Full registry");
             rv_tester_build_registry();
             num_builds <= 0;
@@ -681,7 +693,7 @@ end
   end
 
 
-  localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
+  localparam int AXI_CLOCK_PERIOD = CLK_FREQ_MHZ[0][AXI_CLK_IDX] == 0 ? 0 : 1000000 / CLK_FREQ_MHZ[0][AXI_CLK_IDX];
   localparam int JTAG_CLOCK_PERIOD = 10*100;
   localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
   sysmod #(
@@ -944,7 +956,7 @@ end
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     if (!rv_tester_reset) begin
       terminate_never_unknown: assert(!$isunknown(terminate))
-        else $error("<%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
+        else $error("Error: <%0d> %m: terminate is X/Z (terminate=%b)", clocks, terminate);
     end
   end
 

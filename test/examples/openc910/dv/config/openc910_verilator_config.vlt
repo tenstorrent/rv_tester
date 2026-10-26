@@ -1,0 +1,37 @@
+`verilator_config
+
+lint_off -rule ALWCOMBORDER -file "external/opensrc-cva6/*"
+lint_off -rule BLKANDNBLK -file "external/opensrc-cva6/*"
+lint_off -rule CASEINCOMPLETE -file "external/opensrc-cva6/*"
+lint_off -rule DECLFILENAME -file "external/opensrc-cva6/*"
+lint_off -rule EOFNEWLINE -file "external/opensrc-cva6/*"
+lint_off -rule IMPLICITSTATIC -file "external/opensrc-cva6/*"
+lint_off -rule IMPORTSTAR -file "external/opensrc-cva6/*"
+lint_off -rule LATCH -file "external/opensrc-cva6/*"
+lint_off -rule LITENDIAN -file "external/opensrc-cva6/*"
+lint_off -rule PINCONNECTEMPTY -file "external/opensrc-cva6/*"
+lint_off -rule SELRANGE -file "external/opensrc-cva6/*"
+lint_off -rule SYMRSVDWORD -file "external/opensrc-cva6/*"
+lint_off -rule UNDRIVEN -file "external/opensrc-cva6/*"
+lint_off -rule UNOPTFLAT -file "external/opensrc-cva6/*"
+lint_off -rule UNPACKED -file "external/opensrc-cva6/*"
+lint_off -rule UNSIGNED -file "external/opensrc-cva6/*"
+lint_off -rule UNUSED -file "external/opensrc-cva6/*"
+lint_off -rule USERERROR -file "external/opensrc-cva6/*"
+lint_off -rule VARHIDDEN -file "external/opensrc-cva6/*"
+lint_off -rule WIDTH -file "external/opensrc-cva6/*"
+lint_off -rule WIDTHCONCAT -file "external/opensrc-cva6/*"
+
+lint_off -rule BLKANDNBLK -file "external/opensrc-fpnew/*"
+lint_off -rule LITENDIAN -file "external/opensrc-fpnew/*"
+lint_off -rule UNOPTFLAT -file "external/opensrc-fpnew/*"
+lint_off -rule WIDTH -file "external/opensrc-fpnew/*"
+
+lint_off -rule IMPORTSTAR -file "external/opensrc-fpu_div_sqrt_mvp/*"
+lint_off -rule UNOPTFLAT -file "external/opensrc-fpu_div_sqrt_mvp/*"
+lint_off -rule WIDTH -file "external/opensrc-fpu_div_sqrt_mvp/*"
+
+lint_off -rule UNOPTFLAT -file "external/opensrc-common_cells/*"
+lint_off -rule WIDTH -file "external/opensrc-common_cells/*"
+
+lint_off -rule WIDTH -file "external/opensrc-tech_cells_generic/*"

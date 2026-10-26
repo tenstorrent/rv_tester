@@ -1,0 +1,29 @@
+{
+    "_comment": "Memory map mirrors common/dv/memmap.json. Features: RV64IMAC_zicsr subset of both example cores. f/d must stay supported=false: riescue's loader emits FP init whenever FP is *supported*, and the cva6 harness ties off rv_tester frd_*.",
+    "reset_pc": "0x8000_0000",
+    "mmap": {
+        "dram": {
+            "dram": {"address": "0x8000_0000", "size": "0x8000_0000"}
+        },
+        "io": {
+            "clint": {"address": "0x200_0000", "size": "0xc000"},
+            "htif": {"address": "0x7000_0000", "size": "0x10"}
+        }
+    },
+    "features": {
+        "rv64": {"supported": true, "enabled": true, "randomize": 100},
+        "i": {"supported": true, "enabled": true, "randomize": 100},
+        "m": {"supported": true, "enabled": true, "randomize": 100},
+        "a": {"supported": true, "enabled": true, "randomize": 100},
+        "c": {"supported": true, "enabled": true, "randomize": 100},
+        "f": {"supported": false, "enabled": false, "randomize": 0},
+        "d": {"supported": false, "enabled": false, "randomize": 0},
+        "v": {"supported": false, "enabled": false, "randomize": 0},
+        "h": {"supported": false, "enabled": false, "randomize": 0},
+        "u": {"supported": true, "enabled": false, "randomize": 0},
+        "s": {"supported": true, "enabled": false, "randomize": 0},
+        "zicsr": {"supported": true, "enabled": true, "randomize": 100},
+        "zicntr": {"supported": true, "enabled": true, "randomize": 100},
+        "zifencei": {"supported": true, "enabled": false, "randomize": 0}
+    }
+}

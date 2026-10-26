@@ -1,0 +1,43 @@
+load("//test:verilator.bzl", "verilator_cc_library")
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("//test/examples/openc910/dv:verilator_opts.bzl", "OPENC910_VOPTS")
+
+verilog_library(
+    name = "openc910_top",
+    srcs = [
+        "//test/examples/openc910/dv:harness/top.sv",
+        "//test/examples/openc910/dv:harness/openc910_test_harness.sv",
+    ],
+    deps = [
+        "//test/examples/openc910/dv:openc910_rv_tester_sv",
+        "@openc910//:openc910_core",
+    ],
+    top_module = "top",
+)
+
+verilator_cc_library(
+    name = "openc910_tb_veri_lib",
+    module = "openc910_top",
+    trace_mode = "vcd",
+    vopts = OPENC910_VOPTS,
+)
+
+cc_binary(
+    name = "openc910_tb_verilator",
+    srcs = ["//test/sw_testbench:sw_tb.cpp"],
+    # Model built trace-capable; define VERILATOR_WAVES/VCD for dump code.
+    copts = [
+        "-DVERILATOR_WAVES",
+        "-DVERILATOR_VCD",
+    ],
+    deps = [
+        ":openc910_tb_veri_lib",
+        "//test/examples/openc910/dv:dpi_glue",
+        "//test/examples/openc910/dv:openc910_rv_tester_dpi",
+        "//:clock_profiles",
+        "@cvm//:logger",
+        "@cvm//:topology",
+        "@rules_verilator//verilator:verilated_runtime",
+    ],
+    visibility = ["//visibility:public"],
+)

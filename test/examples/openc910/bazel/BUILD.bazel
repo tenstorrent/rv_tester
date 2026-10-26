@@ -1,0 +1,6 @@
+exports_files(
+    [
+        "openc910.BUILD",
+    ],
+    visibility = ["//visibility:public"],
+)

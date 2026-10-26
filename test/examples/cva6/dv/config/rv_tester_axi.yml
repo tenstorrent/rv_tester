@@ -1,0 +1,69 @@
+# ariane (cva6) AXI topology
+axi_attrs: &axi_attrs
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 64
+    STRB_WIDTH: 8
+    ID_WIDTH:   4
+    NAME:       ""
+    DOMAIN: 2
+
+# AXI slave groups: mem AXI (count:2) + NCIO_AXI (count:1).
+axi_mem: &axi_mem
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw
+  NAME:  AXI
+  count: 2
+
+axi_ncio: &axi_ncio
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw
+  NAME: NCIO_AXI
+  ADDR_WIDTH: 52
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH: 15
+
+# AXI master groups. Each goes to a distinct physical port (count:1 except
+# overlay-side AXI_SW_MST which has 2 instances).
+axi_mst_0: &axi_mst_0
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME:  AXI_SW_MST
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  USER_WIDTH: 8
+  count: 2
+
+axi_mst_1: &axi_mst_1
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: SMC_AXI_MST
+  ADDR_WIDTH: 52
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH: 15
+  USER_WIDTH: 4
+  DOMAIN: 3
+
+axi_mst_2: &axi_mst_2
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: IOMMU_AXI_TR_REQ_MST
+  ADDR_WIDTH: 64
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH: 9
+  USER_WIDTH: 1
+
+axi_mst_3: &axi_mst_3
+  <<: *axi_attrs
+  <<: *rv_tester_axi_sw_mst
+  NAME: DM_AXI_MST
+  ADDR_WIDTH: 27
+  DATA_WIDTH: 64
+  STRB_WIDTH: 8
+  ID_WIDTH: 17
+  USER_WIDTH: 1
+
+platform_axi_sw_attrs:     &platform_axi_sw_attrs     [*axi_mem, *axi_ncio]
+platform_axi_sw_mst_attrs: &platform_axi_sw_mst_attrs [*axi_mst_0, *axi_mst_1, *axi_mst_2, *axi_mst_3]

@@ -1,8 +1,31 @@
-# rv_tester_examples smoke against this tree; runs as part of //test/...
+# Integration examples: open-source cores under rv_tester in Whisper lockstep.
+# The smoke suite runs as part of //test/...; the ad-hoc runners are tagged
+# manual so wildcard builds do not pull in the Verilator testbenches:
+#   bazel-7 run --config=bzlmod //test/examples:run_openc910 -- +load=path/to.elf [+plusarg...]
+
+load("//test/examples/common/dv:sim_test.bzl", "DEFAULT_PLUSARGS", "rv_tester_sim_run")
+load("//test/examples/openc910/dv:plusargs.bzl", "C910_PLUSARGS")
+
 test_suite(
     name = "examples_smoke",
     tests = [
-        "@rv_tester_examples//cva6/dv/testlists:all_smoke",
-        "@rv_tester_examples//openc910/dv/testlists:all_smoke",
+        "//test/examples/cva6/dv/testlists:all_smoke",
+        "//test/examples/openc910/dv/testlists:all_smoke",
+        "//test/examples/riescue_test_gen:all_smoke",
     ],
+)
+
+rv_tester_sim_run(
+    name = "run_openc910",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tags = ["manual"],
+    tb = "//test/examples/openc910/dv/verilator:openc910_tb_verilator",
+    whisper_json = "//test/examples/openc910/dv:openc910_whisper.json",
+)
+
+rv_tester_sim_run(
+    name = "run_cva6",
+    tags = ["manual"],
+    tb = "//test/examples/cva6/dv/verilator:cva6_tb_verilator",
+    whisper_json = "//test/examples/cva6/dv:cva6_whisper.json",
 )

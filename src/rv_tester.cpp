@@ -224,12 +224,6 @@ int rv_tester_init() {
   cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
   cvm::plusargs::parse();
 
-  auto num_clk_profiles = cvm::topology::attr(cvm::topology::get_from_type("CLKI", 0), "NUM_CLK_PROFILES");
-  int max_clk_profile = num_clk_profiles.first ? static_cast<int>(num_clk_profiles.second) : 0;
-  if (FLAGS_clk_profile < 0 || FLAGS_clk_profile > max_clk_profile) {
-    cvm::log(cvm::MEDIUM, "INFO: +clk_profile={} outside 0..{}, using 0\n", FLAGS_clk_profile, max_clk_profile);
-    FLAGS_clk_profile = 0;
-  }
   return 0;
 }
 

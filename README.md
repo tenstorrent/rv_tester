@@ -56,7 +56,9 @@ bazel-7 test //test/... --config=bzlmod \
 ```
 
 Nested READMEs under `src/` (e.g. `src/cosim/`, `src/sysmod/`) document
-individual subsystems in more detail.
+individual subsystems in more detail. [`test/examples/`](test/examples/) runs
+open-source cores (CVA6, OpenC910) under rv_tester in Whisper lockstep and is
+the reference for integrating a new core.
 
 ## Contributing
 

@@ -1,0 +1,61 @@
+load("@cvm//:defs.bzl", "topology_gen")
+load("//bazel:defs.bzl", "rv_tester_gen")
+load("//test/examples/common/dv:whisper_override.bzl", "whisper_json_override")
+
+# Consumed by the //test/examples/cva6/dv/verilator sub-package; kept separate so this
+# package needn't load @rules_verilator/@rules_hdl.
+exports_files(
+    [
+        "harness/top.sv",
+        "harness/cva6_test_harness.sv",
+        "config/cva6_verilator_config.vlt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "dpi_glue",
+    srcs = ["//test/examples/common/dv:gflags.cpp"],
+    deps = ["@cvm//:plusargs"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//test/examples/cva6/dv/verilator:__pkg__"],
+)
+
+# Shared whisper.json corrected to mirror this DUT, for tests whose boot code
+# reads misa/mstatus (e.g. RiescueD ELFs): add "su" to "isa" (whisper
+# otherwise legalizes mstatus.MPP 0 -> 3) and set B in misa.
+whisper_json_override(
+    name = "cva6_whisper_json",
+    out = "cva6_whisper.json",
+    substitutions = {
+        "0x800000000014112d": "0x800000000014112f",
+        "rv64imafdc": "rv64imafdcsu",
+    },
+    visibility = ["//visibility:public"],
+)
+
+topology_gen(
+    name = "cva6_topology",
+    srcs = [
+        "//src/transactors/axi_sw:axi_sw_attrs.yml",
+        "config/cva6_rv_tester_platform.yml",
+        "config/cva6_rv_tester_hart.yml",
+        "config/rv_tester_axi.yml",
+        "//src:rv_tester_topology",
+        "config/cva6_topology.yml",
+    ],
+)
+
+rv_tester_gen(
+    name = "cva6_rv_tester",
+    topology = "cva6_topology",
+    csr_spec = "//scripts/csr:csr_spec",
+    project_overrides = "//scripts:project_overrides",
+    pmu_spec = "//src/pmu:pmu_spec",
+    cc_attrs = {
+        "alwayslink": True,
+        "linkstatic": True,
+    },
+    visibility = ["//test/examples/cva6/dv/verilator:__pkg__"],
+)
