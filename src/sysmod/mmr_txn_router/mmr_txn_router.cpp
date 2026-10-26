@@ -39,47 +39,26 @@ bool is_hardware_axi_source(cvm::topology::loc_t source) {
   return std::find(sources.begin(), sources.end(), source) != sources.end();
 }
 
-axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow) {
+axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow, size_t bus_bytes) {
   axi::a_no_id_t ar(false, addr, 0);
   // ms_mmr rejects ring AR with AXI size < 32b. Upsize narrow non-hardware
   // reads on the reroute path; hardware reads stay narrow so ms_mmr can DECERR.
   size_t axi_length = length;
   if (upsize_narrow && axi_length > 0 && axi_length < 4)
     axi_length = 4;
-  // Mirror axi_sw_mst::a_wrapper burst sizing for power-of-two lengths.
-  switch (axi_length) {
-  case 1:
+  // AxSIZE may not exceed the master's data-bus width, so a transfer wider than
+  // the bus is carried as a burst of full-width beats. Mirrors
+  // axi_sw_mst::a_wrapper, which likewise falls back to a byte stream when the
+  // length is not a whole number of power-of-two-sized beats. A zero bus_bytes
+  // means the width is unknown; keep the single-beat encoding in that case.
+  const size_t beat_bytes = (bus_bytes && axi_length > bus_bytes) ? bus_bytes : axi_length;
+  const bool pow2_beat = beat_bytes && ((beat_bytes & (beat_bytes - 1)) == 0);
+  if (pow2_beat && (axi_length % beat_bytes == 0)) {
+    ar.size = __builtin_ctz(uint32_t(beat_bytes));
+    ar.len = axi_length / beat_bytes - 1;
+  } else {
     ar.size = 0;
-    ar.len = 0;
-    break;
-  case 2:
-    ar.size = 1;
-    ar.len = 0;
-    break;
-  case 4:
-    ar.size = 2;
-    ar.len = 0;
-    break;
-  case 8:
-    ar.size = 3;
-    ar.len = 0;
-    break;
-  case 16:
-    ar.size = 4;
-    ar.len = 0;
-    break;
-  case 32:
-    ar.size = 5;
-    ar.len = 0;
-    break;
-  case 64:
-    ar.size = 6;
-    ar.len = 0;
-    break;
-  default:
-    ar.len = length - 1;
-    ar.size = 0;
-    break;
+    ar.len = axi_length - 1;
   }
   return ar;
 }
@@ -133,6 +112,7 @@ void mmr_txn_router::configure() {
              attr_fields_, FLAGS_rg_attr_user_codepoints, FLAGS_rg_attr_srcid01_every);
   read_resp_channel_ = cvm::registry::messenger.channel<transactor::read_response_t>(axi_mst_loc_l);
   write_resp_channel_ = cvm::registry::messenger.channel<transactor::write_response_t>(axi_mst_loc_l);
+  axi_mst_data_bytes_ = cvm::topology::attr(axi_mst_loc_l, "DATA_WIDTH").second / 8;
 }
 
 cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t& data) {
@@ -141,7 +121,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
   auto& length = r.length;
 
   const bool hardware_read = is_hardware_axi_source(dr.source);
-  axi::a_no_id_t ar = make_ar(addr, length, !hardware_read);
+  axi::a_no_id_t ar = make_ar(addr, length, !hardware_read, axi_mst_data_bytes_);
   if (hardware_read)
     ar.allow_decerr_resp = true;
   {

@@ -36,6 +36,9 @@ private:
   transactor::axi_attr_t pick_attr(bool is_write);
 
   cvm::topology::loc_t axi_mst_loc_l;
+  // Data-bus width (bytes) of the reroute master; an AxSIZE may not exceed it,
+  // so wider transfers are expressed as full-width bursts in make_ar.
+  size_t axi_mst_data_bytes_ = 0;
   cvm::messenger::pool<transactor::read_response_t>::channel_info read_resp_channel_;
   cvm::messenger::pool<transactor::write_response_t>::channel_info write_resp_channel_;
   // Copy n bytes from the given integer, x, to the data iterator
