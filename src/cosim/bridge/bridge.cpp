@@ -3444,19 +3444,12 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
     }
   }
   if (addr == hgatp.address) {
-    uint64_t mode = (data & mask) >> 60;
-    bool valid_mode = false;
-    for (uint16_t hgatp_valid_mode : hgatp_valid_modes) {
-      if (mode == hgatp_valid_mode) {
-        valid_mode = true;
-        break;
-      }
-    }
+    uint64_t dut_hgatp = get_csr(id_, src_t::dut, hgatp.address);
+    uint64_t new_hgatp = (data & result) | (dut_hgatp & ~result);
+    uint64_t mode = new_hgatp >> 60;
+    const bool valid_mode = std::find(hgatp_valid_modes.begin(), hgatp_valid_modes.end(), mode) != hgatp_valid_modes.end();
     if (!valid_mode) {
       result = result & 0xfffffffffffffffULL;
-    } else {
-      uint64_t mode_mask = get_csr(id_, src_t::dut, hgatp.address) >> 60 | mode;
-      result = result & ((mode_mask << 60) | 0xfffffffffffffffULL);
     }
   }
 
