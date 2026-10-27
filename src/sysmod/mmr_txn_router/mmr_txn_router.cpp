@@ -244,11 +244,13 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
   // interrupt. Mirrors the read reroute path.
   const transactor::axi_attr_t attr = pick_attr(true);
 
-  // A reroute master that caps AxLEN rejects any burst (see read()); a write
-  // that is not a single power-of-two beat within the bus width is reissued as a
-  // sequence of single bus-width-beat writes, each strobing only its own bytes.
+  // A reroute master that caps AxLEN rejects bursts beyond the cap (see read());
+  // such a write is reissued as single bus-width beats, each strobing its bytes.
+  // a_wrapper emits one beat for a power-of-two transfer within the bus width,
+  // otherwise a byte stream of `length` beats.
   const bool w_single_beat = length && ((length & (length - 1)) == 0) && length <= axi_mst_data_bytes_;
-  if (axi_mst_max_beats_ && !w_single_beat)
+  const size_t w_beats = w_single_beat ? 1 : length;
+  if (axi_mst_max_beats_ && w_beats > axi_mst_max_beats_)
     co_return co_await write_split(w, attr);
 
   transactor::write_request_t req{addr, length, data, strb};
