@@ -524,6 +524,20 @@ TEST_F(CsralTest, StateenHierarchyHookMasksByMstateen) {
   EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("sstateen0")), 0x1u);
 }
 
+TEST_F(CsralTest, HgatpModeJudgedOnPostWriteValue) {
+  // Port of modify_csr_mask: MODE legality is decided on the value hgatp will
+  // hold after the write, so a partial write that leaves a legal MODE in
+  // place lands, and an illegal MODE only loses its mode bits.
+  auto m = make();
+  m->sw_write(0, addr_of("misa"), reset_of("misa") | 0x80ull, kAll, 3, 100); // hgatp exists_if misa.H
+  m->sw_write(0, addr_of("hgatp"), 0x8000000000001234ull, kAll, 3, 101);
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("hgatp")), 0x8000000000001234ull);
+  m->sw_write(0, addr_of("hgatp"), 0x1000000000005678ull, kAll, 3, 102); // MODE=1: illegal
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("hgatp")), 0x8000000000005678ull);
+  m->sw_write(0, addr_of("hgatp"), 0x1ull, 0x1ull, 3, 103); // csrs-style partial write
+  EXPECT_EQ(m->read(0, csral::src_t::dut, addr_of("hgatp")), 0x8000000000005679ull);
+}
+
 // ---- ISS updates and reporting -------------------------------------------------
 
 TEST_F(CsralTest, IssWriteUpdatesIssMirrorOnly) {

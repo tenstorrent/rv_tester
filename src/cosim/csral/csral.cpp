@@ -665,17 +665,14 @@ void csral::register_default_hooks() {
       register_legalize_hook(sst, stateen_hook);
   }
 
-  // hgatp: an illegal mode write (not in {0,8,9,10}) leaves the mode bits unwritten.
+  // hgatp: an illegal MODE (not in {0,8,9,10}) leaves the mode bits unwritten;
+  // legality is judged on the value hgatp holds after the write.
   if (const std::uint32_t hgatp = addr_of("hgatp"); hgatp != 0) {
-    register_legalize_hook(hgatp, [hgatp](csral& m, hart_id_t hart, std::uint32_t, std::uint8_t, std::uint64_t raw_wmask, std::uint64_t& data, std::uint64_t& mask) {
-      const std::uint64_t mode = (data & raw_wmask) >> 60;
-      const bool valid_mode = mode == 0 || mode == 8 || mode == 9 || mode == 10;
-      if (!valid_mode) {
+    register_legalize_hook(hgatp, [hgatp](csral& m, hart_id_t hart, std::uint32_t, std::uint8_t, std::uint64_t, std::uint64_t& data, std::uint64_t& mask) {
+      const std::uint64_t next = (data & mask) | (m.read(hart, src_t::dut, hgatp) & ~mask);
+      const std::uint64_t mode = next >> 60;
+      if (!(mode == 0 || mode == 8 || mode == 9 || mode == 10))
         mask &= 0x0fffffffffffffffull;
-      } else {
-        const std::uint64_t mode_mask = (m.read(hart, src_t::dut, hgatp) >> 60) | mode;
-        mask &= (mode_mask << 60) | 0x0fffffffffffffffull;
-      }
     });
   }
 
