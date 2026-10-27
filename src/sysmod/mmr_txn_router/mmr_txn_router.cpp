@@ -167,7 +167,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
 
   axi::id_t axi_id;
   if (!cvm::registry::messenger.call<axi_sw_mst_push_ar_no_id_rpc>(axi_mst_loc_l, ar, axi_id)) {
-    cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for read addr={:#x} len={}\n", addr, length);
+    cvm::log(cvm::ERROR, "Error: [mmr_txn_router] failed to allocate AXI id for read addr={:#x} len={}\n", addr, length);
     co_return axi::RESP_DECERR;
   }
 
@@ -224,7 +224,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
 
   axi::id_t axi_id;
   if (!cvm::registry::messenger.call<axi_sw_mst_push_write_request_rpc>(axi_mst_loc_l, req, axi_id)) {
-    cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for write addr={:#x} len={}\n", addr, length);
+    cvm::log(cvm::ERROR, "Error: [mmr_txn_router] failed to allocate AXI id for write addr={:#x} len={}\n", addr, length);
     co_return axi::RESP_DECERR;
   }
 

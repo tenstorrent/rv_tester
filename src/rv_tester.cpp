@@ -238,7 +238,7 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
   if (!memmap::instance().get(m))
     return;
   if (m.size() > no_addr_rules) {
-    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
     return;
   }
 
