@@ -613,12 +613,12 @@ bool csral::pmp_napot(hart_id_t hart, std::uint32_t addr) {
   return pmp_cfg_bit(hart, addr, 4);
 }
 
-void csral::register_default_hooks() {
-  auto addr_of = [](std::string_view name) -> std::uint32_t {
-    const auto* r = CSRAL::find_by_name(name);
-    return r == nullptr ? 0 : r->address;
-  };
+std::uint32_t csral::addr_of(std::string_view name) {
+  const auto* r = CSRAL::find_by_name(name);
+  return r == nullptr ? 0 : r->address;
+}
 
+void csral::register_default_hooks() {
   vl_addr_ = addr_of("vl");
   pmpaddr0_ = addr_of("pmpaddr0");
   pmpcfg0_ = addr_of("pmpcfg0");

@@ -289,6 +289,7 @@ private:
   bool is_priv_debug_mode_ = false;
   bool debug_mode_ = false;
   bool dtvec_ebreak_ = false;
+  const uint64_t c_dtvec_addr_ = csral::addr_of("c_dtvec"); // 0 when the spec has no c_dtvec
   bool debug_haltreq_asserted = false;
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;

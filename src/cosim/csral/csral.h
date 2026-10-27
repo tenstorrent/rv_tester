@@ -120,6 +120,8 @@ public:
   void dump(hart_id_t hart, const std::function<void(std::string_view name, std::uint64_t dut, std::uint64_t iss)>& emit);
 
   static const CSRAL::csr_t* row(std::uint32_t addr) { return CSRAL::find_by_address(addr); }
+  // 0 when this spec has no CSR of that name.
+  static std::uint32_t addr_of(std::string_view name);
   static const CSRAL::field_t* field_of(const CSRAL::csr_t& csr, std::string_view field_name);
 
   // The pmpaddr entry's pmpcfg L bit (live peek): gates ISS updates and the PMP hook.

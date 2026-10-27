@@ -28,13 +28,6 @@ constexpr uint64_t smc_lo_addr = 0xc000'0000;
 constexpr uint64_t smc_hi_addr = 0xc214'ffff;
 constexpr uint64_t patch_ram_lo = 0x4214C000;
 constexpr uint64_t patch_ram_hi = 0x4214DFFF;
-constexpr std::array<uint16_t, 4> hgatp_valid_modes = {0, 8, 9, 10};
-constexpr uint16_t pmm_legal_values[] = {0, 2};
-constexpr uint64_t pmm_hstatus_mask_lo = 48;
-constexpr uint64_t pmm_cfgs_mask_lo = 32;
-constexpr uint64_t pmm_mask_size = 2;
-constexpr uint64_t time_csr = 0xC01;
-constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
 // ACLINT M-time / M-timecmp (generate_acl_device_addr() + 0 / + 0x8000)
 inline uint64_t mtime_mmr() {
   uint32_t cluster_id = 0;
