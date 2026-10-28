@@ -769,6 +769,25 @@ end
   end
 
 
+  // sysmod ticks (trickbox debugger/DMI, timers, SW clock update) used to be
+  // held by dut_reset[CORE_CLK_IDX]. That reset also folds in &core_no_fetch
+  // (rv_tester_dut_reset.svh) so the core models stay parked until the cores
+  // first leave no-fetch at boot. During a CLC3/CLC4 entry sequence the PMSS
+  // puts every core back into no-fetch while the DM/DMI (AXI domain) stays
+  // alive, so with the old gating the debugger stopped issuing the DMI
+  // commands that are supposed to wake the cluster and the test stalled.
+  // Hold sysmod on the AXI-domain reset instead, and apply the core-domain
+  // hold only until the cores have been released once after a reset.
+  logic sysmod_cores_released;
+  always @(posedge dut_clk[AXI_CLK_IDX]) begin
+    if (sys_reset[AXI_CLK_IDX] || dut_reset[AXI_CLK_IDX])
+      sysmod_cores_released <= 1'b0;
+    else if (!dut_reset[CORE_CLK_IDX])
+      sysmod_cores_released <= 1'b1;
+  end
+  wire sysmod_hold = dut_reset[AXI_CLK_IDX] ||
+                     (dut_reset[CORE_CLK_IDX] && !sysmod_cores_released);
+
   localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
   localparam int JTAG_CLOCK_PERIOD = 10*100;
   localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
@@ -786,7 +805,7 @@ end
                      .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
                      .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
                      .dut_reset_req,
-                     .dut_core_reset(dut_reset[CORE_CLK_IDX]),
+                     .dut_core_reset(sysmod_hold),
                      .bootstrap,
                      .dmi_write(dmi_write),
                      .debug_req_vld(DebugReqVld_ANY),
