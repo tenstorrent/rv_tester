@@ -102,7 +102,9 @@ public:
     clock = 0;
     timestamp = 0;
 
-    cvm::set_logger_prefix([]() -> std::string_view {
+    cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
+      if (v == cvm::ERROR)
+        return "";
       prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
       prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
       return prefix;
