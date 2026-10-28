@@ -90,7 +90,6 @@ public:
 
   void final_phase();
   void report_metrics();
-  void process(const rv_tester::terminate_called&);
   void process(const rv_tester::terminate_called_mem_checks&);
   void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode>(patch); }
 

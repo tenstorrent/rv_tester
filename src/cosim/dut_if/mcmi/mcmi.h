@@ -57,7 +57,7 @@ private:
   void process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback);
   void process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch);
 
-  void process(const rv_tester::terminate_called&);
+  void process(const rv_tester_transactions::cosim::m_drain<>& m_drain);
   void process(const rv_tester::terminate_called_mem_checks&);
   void process(const bridge::error_loc&);
 
