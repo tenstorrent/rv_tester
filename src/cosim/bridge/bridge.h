@@ -253,6 +253,7 @@ private:
 
 private:
   const uint64_t sc_slice_base_;
+  const uint32_t num_clusters_;
 
   // CSRs where some bits are masked by misa.H
   std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
