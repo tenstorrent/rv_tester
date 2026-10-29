@@ -34,3 +34,8 @@ if __name__ == "__main__":
     for k,v in cfg.items():
         if not k.startswith("R_Q") and not k.startswith("B_Q"):
             print(f"  {k}: {v}")
+    # Default AxLEN cap shared by every master so the grouped-AXI topology struct
+    # carries the field uniformly (template.sv sizes it from the first group); a
+    # bus that must cap bursts (e.g. an AXI-Lite port) overrides this to 0. 255 is
+    # the full AXI range, which the mmr_txn_router reroute path treats as no cap.
+    print("  MAX_AXLEN: 255")

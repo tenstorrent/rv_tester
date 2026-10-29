@@ -39,47 +39,26 @@ bool is_hardware_axi_source(cvm::topology::loc_t source) {
   return std::find(sources.begin(), sources.end(), source) != sources.end();
 }
 
-axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow) {
+axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow, size_t bus_bytes) {
   axi::a_no_id_t ar(false, addr, 0);
   // ms_mmr rejects ring AR with AXI size < 32b. Upsize narrow non-hardware
   // reads on the reroute path; hardware reads stay narrow so ms_mmr can DECERR.
   size_t axi_length = length;
   if (upsize_narrow && axi_length > 0 && axi_length < 4)
     axi_length = 4;
-  // Mirror axi_sw_mst::a_wrapper burst sizing for power-of-two lengths.
-  switch (axi_length) {
-  case 1:
+  // AxSIZE may not exceed the master's data-bus width, so a transfer wider than
+  // the bus is carried as a burst of full-width beats. Mirrors
+  // axi_sw_mst::a_wrapper, which likewise falls back to a byte stream when the
+  // length is not a whole number of power-of-two-sized beats. A zero bus_bytes
+  // means the width is unknown; keep the single-beat encoding in that case.
+  const size_t beat_bytes = (bus_bytes && axi_length > bus_bytes) ? bus_bytes : axi_length;
+  const bool pow2_beat = beat_bytes && ((beat_bytes & (beat_bytes - 1)) == 0);
+  if (pow2_beat && (axi_length % beat_bytes == 0)) {
+    ar.size = __builtin_ctz(uint32_t(beat_bytes));
+    ar.len = axi_length / beat_bytes - 1;
+  } else {
     ar.size = 0;
-    ar.len = 0;
-    break;
-  case 2:
-    ar.size = 1;
-    ar.len = 0;
-    break;
-  case 4:
-    ar.size = 2;
-    ar.len = 0;
-    break;
-  case 8:
-    ar.size = 3;
-    ar.len = 0;
-    break;
-  case 16:
-    ar.size = 4;
-    ar.len = 0;
-    break;
-  case 32:
-    ar.size = 5;
-    ar.len = 0;
-    break;
-  case 64:
-    ar.size = 6;
-    ar.len = 0;
-    break;
-  default:
-    ar.len = length - 1;
-    ar.size = 0;
-    break;
+    ar.len = axi_length - 1;
   }
   return ar;
 }
@@ -133,6 +112,11 @@ void mmr_txn_router::configure() {
              attr_fields_, FLAGS_rg_attr_user_codepoints, FLAGS_rg_attr_srcid01_every);
   read_resp_channel_ = cvm::registry::messenger.channel<transactor::read_response_t>(axi_mst_loc_l);
   write_resp_channel_ = cvm::registry::messenger.channel<transactor::write_response_t>(axi_mst_loc_l);
+  axi_mst_data_bytes_ = cvm::topology::attr(axi_mst_loc_l, "DATA_WIDTH").second / 8;
+  // A reroute master may cap AxLEN (declared per bus as MAX_AXLEN in topology);
+  // an absent attribute leaves the bus free to accept arbitrary-length bursts.
+  const auto max_axlen = cvm::topology::attr(axi_mst_loc_l, "MAX_AXLEN");
+  axi_mst_max_beats_ = max_axlen.first ? size_t(max_axlen.second) + 1 : 0;
 }
 
 cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t& data) {
@@ -141,7 +125,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
   auto& length = r.length;
 
   const bool hardware_read = is_hardware_axi_source(dr.source);
-  axi::a_no_id_t ar = make_ar(addr, length, !hardware_read);
+  axi::a_no_id_t ar = make_ar(addr, length, !hardware_read, axi_mst_data_bytes_);
   if (hardware_read)
     ar.allow_decerr_resp = true;
   {
@@ -152,6 +136,12 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
     ar.region = attr.region;
     ar.user = attr.user;
   }
+
+  // A reroute master that caps AxLEN (e.g. the AXI-Lite CPL utility bus) rejects
+  // any burst, so a transfer that would not fit the cap is reissued as a sequence
+  // of single bus-width-beat reads and reassembled in read_split.
+  if (axi_mst_max_beats_ && ar.len > axi_mst_max_beats_ - 1)
+    co_return co_await read_split(addr, length, ar, data);
 
   // Fault-sim only: upsize some rerouted reads to a >8B AXI size so the ring->SCB
   // ar.size[2] lane is exercised. The SC/SCB MMR slave rejects >8B (scb_mmr.sv:258)
@@ -199,6 +189,50 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
   co_return resp.resp;
 }
 
+cvm::messenger::task<std::uint8_t> mmr_txn_router::read_split(uint64_t addr, size_t length,
+                                                             const axi::a_no_id_t& tmpl, data_t& data) {
+  const size_t bus = axi_mst_data_bytes_;
+  const uint8_t bus_axsize = uint8_t(__builtin_ctz(uint32_t(bus)));
+  const uint64_t end = addr + length;
+  data.assign(length, 0);
+
+  for (uint64_t beat_addr = addr & ~uint64_t(bus - 1); beat_addr < end; beat_addr += bus) {
+    axi::a_no_id_t ar = tmpl;
+    ar.addr = beat_addr;
+    ar.size = bus_axsize;
+    ar.len = 0;
+    // One logical read fans out to many AXI ids; the allocator owns each.
+    ar.is_manual_id = false;
+
+    axi::id_t axi_id;
+    if (!cvm::registry::messenger.call<axi_sw_mst_push_ar_no_id_rpc>(axi_mst_loc_l, ar, axi_id)) {
+      cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for split read addr={:#x}\n", beat_addr);
+      co_return axi::RESP_DECERR;
+    }
+
+    cvm::registry::messenger.clear_channel<transactor::read_response_t>(read_resp_channel_);
+    auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(
+        read_resp_channel_,
+        [&axi_id](const transactor::read_response_t& rr) { return rr.id == axi_id; });
+
+    // Each beat returns a full bus-width word; copy out the bytes that overlap
+    // the requested range, placed on the lanes addressed within the word.
+    const uint64_t lo = std::max(addr, beat_addr);
+    const uint64_t hi = std::min(end, beat_addr + bus);
+    for (uint64_t b = lo; b < hi && (b - beat_addr) < resp.data.size(); ++b)
+      data[b - addr] = resp.data[b - beat_addr];
+
+    if (resp.resp != axi::RESP_OKAY) {
+      cvm::log(cvm::HIGH, "[mmr_txn_router] split read beat addr={:#x} resp={}\n", beat_addr, resp.resp);
+      co_return resp.resp;
+    }
+  }
+
+  cvm::log(cvm::HIGH, "[mmr_txn_router] split mmr read reassembled: addr={:#x} len={} over {}B beats\n",
+           addr, length, bus);
+  co_return axi::RESP_OKAY;
+}
+
 cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write_t& w) {
   uint64_t addr = w.addr;
   size_t length = w.length;
@@ -208,9 +242,20 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
   // Allow + propagate the B-channel resp: a DUT MMR store may legitimately
   // DECERR (chicken bit / unmapped), which the DUT turns into the async DERR
   // interrupt. Mirrors the read reroute path.
+  const transactor::axi_attr_t attr = pick_attr(true);
+
+  // A reroute master that caps AxLEN rejects bursts beyond the cap (see read());
+  // such a write is reissued as single bus-width beats, each strobing its bytes.
+  // a_wrapper emits one beat for a power-of-two transfer within the bus width,
+  // otherwise a byte stream of `length` beats.
+  const bool w_single_beat = length && ((length & (length - 1)) == 0) && length <= axi_mst_data_bytes_;
+  const size_t w_beats = w_single_beat ? 1 : length;
+  if (axi_mst_max_beats_ && w_beats > axi_mst_max_beats_)
+    co_return co_await write_split(w, attr);
+
   transactor::write_request_t req{addr, length, data, strb};
   req.allow_decerr_resp = true;
-  req.attr = pick_attr(true);
+  req.attr = attr;
 
   // Fault-sim only: upsize some rerouted writes to a >8B AXI size so the ring->SCB
   // aw.size[2] lane is exercised. The SC/SCB MMR slave rejects >8B (scb_mmr.sv:258)
@@ -240,4 +285,46 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
 
   cvm::log(cvm::HIGH, "[mmr_txn_router] routing mmr write back to overlay: addr={:#x} resp={}\n", addr, resp.resp);
   co_return resp.resp;
+}
+
+cvm::messenger::task<std::uint8_t> mmr_txn_router::write_split(const transactor::write_t& w,
+                                                              const transactor::axi_attr_t& attr) {
+  const size_t bus = axi_mst_data_bytes_;
+  const uint64_t addr = w.addr;
+  const uint64_t end = addr + w.length;
+
+  for (uint64_t beat_addr = addr & ~uint64_t(bus - 1); beat_addr < end; beat_addr += bus) {
+    const uint64_t lo = std::max(addr, beat_addr);
+    const uint64_t hi = std::min(end, beat_addr + bus);
+    data_t beat_data(bus, 0);
+    std::vector<bool> beat_strb(bus, false);
+    for (uint64_t b = lo; b < hi; ++b) {
+      beat_data[b - beat_addr] = w.data[b - addr];
+      beat_strb[b - beat_addr] = w.strb[b - addr];
+    }
+
+    transactor::write_request_t req{beat_addr, bus, beat_data, beat_strb};
+    req.allow_decerr_resp = true;
+    req.attr = attr;
+    // One logical write fans out to many AXI ids; the allocator owns each.
+    req.attr.is_manual_id = false;
+
+    axi::id_t axi_id;
+    if (!cvm::registry::messenger.call<axi_sw_mst_push_write_request_rpc>(axi_mst_loc_l, req, axi_id)) {
+      cvm::log(cvm::ERROR, "[mmr_txn_router] failed to allocate AXI id for split write addr={:#x}\n", beat_addr);
+      co_return axi::RESP_DECERR;
+    }
+
+    cvm::registry::messenger.clear_channel<transactor::write_response_t>(write_resp_channel_);
+    auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(
+        write_resp_channel_,
+        [&axi_id](const transactor::write_response_t& wr) { return wr.id == axi_id; });
+
+    if (resp.resp != axi::RESP_OKAY) {
+      cvm::log(cvm::HIGH, "[mmr_txn_router] split write beat addr={:#x} resp={}\n", beat_addr, resp.resp);
+      co_return resp.resp;
+    }
+  }
+
+  co_return axi::RESP_OKAY;
 }
