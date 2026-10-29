@@ -20,7 +20,7 @@ _default_vopts = [
     "-Wno-EOFNEWLINE",
 ]
 
-# disable warnings for both clang and gcc
+# disable warnings on verilator generated code
 _default_copts = ["-w"]
 
 def verilator_cc_library(vopts = [], copts = [], timing = True, *args, **kwargs):
