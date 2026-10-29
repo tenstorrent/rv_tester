@@ -241,7 +241,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
 void bridge::configure() {
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-  cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this](const auto& v) { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this](const auto& v) { return this->process(v); });
 
   uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
@@ -3724,13 +3723,9 @@ void bridge::process(const rv_tester::terminate_called_mem_checks&) {
   }
 }
 
-void bridge::process(const rv_tester::terminate_called&) {
-  if (!metrics_reported_)
-    report_metrics();
-  terminated_ = true;
-}
-
 void bridge::report_metrics() {
+  if (metrics_reported_)
+    return;
   metrics_reported_ = true;
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;

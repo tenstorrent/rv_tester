@@ -43,11 +43,10 @@ void mcmi::configure() {
       rv_tester_transactions::cosim::m_mcmi_flush<>,
       rv_tester_transactions::cosim::m_mcmi_writeback<>,
       rv_tester_transactions::cosim::m_mcmi_dfetch<>,
+      rv_tester_transactions::cosim::m_drain<>,
       bridge::error_loc>(loc_);
 
-  connect<
-      rv_tester::terminate_called,
-      rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
+  connect<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
 }
 
 mcmi::~mcmi() {
@@ -578,7 +577,9 @@ void mcmi::process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m
       ncio_fetches_.end());
 }
 
-void mcmi::process(const rv_tester::terminate_called&) {
+void mcmi::process(const rv_tester_transactions::cosim::m_drain<>& m_drain) {
+  if (loc_ != m_drain.location)
+    return;
   terminated_ = true;
 }
 

@@ -40,9 +40,13 @@ public:
   ~rvfi();
   void configure();
   void check();
+  bool shutdown_ready();
+  // Only a final shutdown is polled until ready; warm reset / rerun shutdowns never reach cvm_done.
+  static void set_final_shutdown(bool final) { final_shutdown_ = final; }
 
 private:
   void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
+  void process(const rv_tester_transactions::cosim::m_drain<>& m_drain);
   void process(const rv_tester_transactions::cosim::m_disable_checks<>& m_disable_checks);
   void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
   void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
@@ -59,7 +63,6 @@ private:
   void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
   void process(const rv_tester_transactions::cosim::m_mhpm_counter_ovf<>& m_mhpm_counter_ovf);
 
-  void process(const rv_tester::terminate_called&);
   void process(const rv_tester::terminate_called_mem_checks&);
   void process(const bridge::error_loc&);
 
@@ -155,4 +158,6 @@ private:
   bool terminated_ = false;
   bool in_debug_mode_ = false;
   bool whisper_reloaded = false;
+
+  inline static bool final_shutdown_ = false;
 };

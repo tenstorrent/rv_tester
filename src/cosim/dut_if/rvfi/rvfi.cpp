@@ -83,6 +83,7 @@ void rvfi::configure() {
   connect<
       rv_tester_transactions::cosim::m_reset<>,
       rv_tester_transactions::cosim::m_disable_checks<>,
+      rv_tester_transactions::cosim::m_drain<>,
       rv_tester_transactions::cosim::m_rvfi<>,
       rv_tester_transactions::cosim::m_steps<>,
       rv_tester_transactions::cosim::m_gp_regs<>,
@@ -99,9 +100,7 @@ void rvfi::configure() {
       rv_tester_transactions::cosim::m_debug<>,
       bridge::error_loc>(loc_);
 
-  connect<
-      rv_tester::terminate_called,
-      rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
+  connect<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
 
   if (bridge_)
     bridge_->configure();
@@ -117,6 +116,21 @@ rvfi::~rvfi() {
 
 void rvfi::check() {
   // bridge_->report_metrics();
+}
+
+// Sent by each cosim instance on the m_rvfi stream once the TB terminate handshake reaches
+// cvm_done, so every earlier m_rvfi has been delivered: this is where rvfi terminates (RVDE-31810).
+void rvfi::process(const rv_tester_transactions::cosim::m_drain<>& m_drain) {
+  if (loc_ != m_drain.location)
+    return;
+  cvm::log(cvm::HIGH, "[RVFI] drained at cycle {}, stopping further rvfi processing\n", m_drain.cycle);
+  terminated_ = true;
+  if (bridge_)
+    bridge_->report_metrics();
+}
+
+bool rvfi::shutdown_ready() {
+  return !FLAGS_rvfi || in_reset_ || terminated_ || !final_shutdown_;
 }
 
 bool rvfi::patch_access(uint64_t addr) {
@@ -1104,11 +1118,6 @@ bool rvfi::check_axi_error(uint64_t addr) {
 
 void rvfi::process(const rv_tester::terminate_called_mem_checks&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled by EOT memory checks, stopping further rvfi processing\n");
-  terminated_ = true;
-}
-
-void rvfi::process(const rv_tester::terminate_called&) {
-  cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
   terminated_ = true;
 }
 

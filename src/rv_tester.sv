@@ -9,6 +9,7 @@ module rv_tester
     parameter CLK_PROFILE_FREQ_MHZ = {NCLKS{32'd0}},
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
     parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
+    parameter int unsigned SHUTDOWN_TIMEOUT_CYCLES       = 100000,
     `TOPOLOGY
     ) (
        input clk_ext [NCLKS-1:0],
@@ -174,6 +175,7 @@ module rv_tester
   bit overlay_mmr_en = 1'b0;
 
   logic terminate_1T = '0;
+  logic cvm_done;
   logic cvm_done_drained;
   logic terminated_1T = '0;
   logic rerun_now;
@@ -510,6 +512,8 @@ module rv_tester
         if (print_terminate_message) begin
           $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
         end
+        if (quiesce_counter > int'(SHUTDOWN_TIMEOUT_CYCLES))
+          $fatal(1, "<%0d> [RVTESTER]: Error: registry not ready to shutdown after %0d cycles", clocks, SHUTDOWN_TIMEOUT_CYCLES);
       end
 
       if (shutdowned && final_terminate) begin
@@ -786,6 +790,7 @@ end
                      .poke_event_in(poke_event_in),
                      .cycles_since_retire(cycles_since_retire[c]),
                      .disable_checks(disable_checks),
+                     .cvm_done(cvm_done),
                      .boot_done(boot_done[c]),
  `ifdef CACHE_MODEL_EN
                      .devict_cl_valid(devict_cl_valid[c]),

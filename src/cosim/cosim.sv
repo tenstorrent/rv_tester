@@ -147,6 +147,7 @@ module cosim
       output int cycles_since_retire,
       output rv_tester_pkg::terminate_t terminate,
       input logic disable_checks,
+      input logic cvm_done,
       output logic boot_done,
       input  logic             devict_cl_valid,
       input  logic [51:0]      devict_cl_addr,
@@ -866,6 +867,13 @@ end
   assign m_disable_checkss[0].valid            = RVFI_EN & rvfi_enabled & disable_checks;
   assign m_disable_checkss[0].data.location    = location;
   assign m_disable_checkss[0].data.cycle       = clocks;
+
+  // Drain marker on the rising edge of cvm_done (RVDE-31810); see rv_tester_transactions.yml.
+  logic cvm_done_d1;
+  always @(posedge clk) cvm_done_d1 <= cvm_done;
+  assign m_drains[0].valid         = RVFI_EN & rvfi_enabled & cvm_done & ~cvm_done_d1;
+  assign m_drains[0].data.location = location;
+  assign m_drains[0].data.cycle    = clocks;
 
   // m_interrupt_pend
 

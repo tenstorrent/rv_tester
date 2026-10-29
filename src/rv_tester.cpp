@@ -20,6 +20,7 @@
 #include "eot_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "src/transactors/axi_sw/eam.hpp"
+#include "src/cosim/dut_if/rvfi/rvfi.h"
 #include "svdpi.h"
 
 static bool validate_ge0(const char* flagname, const int value) {
@@ -272,6 +273,7 @@ uint8_t rv_tester_shutdown_registry(bool all_domains) {
     check_called = true;
   }
 
+  rvfi::set_final_shutdown(all_domains);
   if (all_domains) {
     cvm::log(cvm::NONE, "[registry] shutdown all domains...\n");
     return cvm::registry::shutdown();
