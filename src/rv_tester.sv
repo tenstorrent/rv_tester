@@ -696,6 +696,11 @@ end
   localparam int AXI_CLOCK_PERIOD = CLK_FREQ_MHZ[0][AXI_CLK_IDX] == 0 ? 0 : 1000000 / CLK_FREQ_MHZ[0][AXI_CLK_IDX];
   localparam int JTAG_CLOCK_PERIOD = 10*100;
   localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
+  // The RTL ACLINT sits in the reference warm-reset domain, so the model
+  // follows the harness reference-domain reset as well as the tester reset.
+  logic aclint_ref_reset;
+  assign aclint_ref_reset = sys_reset[REF_CLK_IDX] | dut_reset[REF_CLK_IDX];
+
   sysmod #(
            .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
            .JTAG_CLOCK_PERIOD_PS(JTAG_CLOCK_PERIOD),
@@ -708,7 +713,7 @@ end
                      .clk(dut_clk[AXI_CLK_IDX]),
                      .reset(sys_reset[AXI_CLK_IDX]),
                      .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
-                     .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
+                     .aclint_ref_reset(aclint_ref_reset),
                      .dut_reset_req,
                      .dut_core_reset(dut_reset[CORE_CLK_IDX]),
                      .bootstrap,
@@ -718,6 +723,13 @@ end
                      .interrupt,
                      .aclint_ref_pulse(aclint_ref_pulse),
                      .aclint_time_sync(aclint_time_sync),
+                     .aclint_ctime_wr(aclint_ctime_wr),
+                     .aclint_ctime_wr_data(aclint_ctime_wr_data),
+                     .aclint_mtip_cl(aclint_mtip_cl),
+                     .aclint_cfg_local_sync(aclint_cfg_local_sync),
+                     .aclint_cfg_local_sync_latency(aclint_cfg_local_sync_latency),
+                     .aclint_cfg_timer_update_latency(aclint_cfg_timer_update_latency),
+                     .aclint_cfg_ref_time_incr(aclint_cfg_ref_time_incr),
                      .terminate(sysmod_terminate),
                      `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
                      );
