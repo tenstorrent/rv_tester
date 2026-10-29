@@ -351,6 +351,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.elem_idx = m_mcmi_bypass.elem_idx;
   m.amo = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
+  m.attr = m_mcmi_bypass.attr;
 
   process_memory_access(
       m_mcmi_bypass.addr,
@@ -728,7 +729,8 @@ void mcmi::process_amo(mem_t& read) {
   if (m.amo_op != AMOCAS)
     amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
-  bridge_->process_dut_mcm_bypass(m.hart, m, true);
+  // NC/IO AMOs complete in the fabric, so their write must bypass the modelled cache
+  bridge_->process_dut_mcm_bypass(m.hart, m, m.attr == 0x1000);
   amo_writes_.erase(read.tag);
 }
 
