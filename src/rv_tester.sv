@@ -144,12 +144,7 @@ module rv_tester
   bit perf = 1'b0;
   logic sys_reset_any;
   logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
-  logic dut_reset_req_d1;
   logic fml_shutdowned;
-  logic init_pulse;
-  logic warm_reset_pulse;
-  int unsigned warm_reset_clocks = 0;
-  int unsigned soc_clocks = 0;
   //LU clocks = 0;
   LU axi_clocks;
   bit perf_init_done = 1'b0;       // init done
@@ -165,7 +160,6 @@ module rv_tester
   int dm_build_count = 0;
 
   logic warm_reset_req_d1;
-  logic dmi_warm_reset;
 
   int num_builds = -1;
 
@@ -575,11 +569,6 @@ end
     end
   end
 
-  // soc clock counter
-  always @(posedge dut_clk[SOC_CLK_IDX]) begin
-    soc_clocks <= soc_clocks + 1;
-  end
-
   // Reset is held at the end of a run so the DPIs quiesce. The harness owns the
   // per-clock-domain dut_reset[] composition; rv_tester only publishes
   // warm_reset_pullup so the harness can extend the hold until pwrmgmt asserts
@@ -609,14 +598,7 @@ end
 
   // posedge on dut_reset_req should trigger a warm reset
   always @(posedge dut_clk[AXI_CLK_IDX]) begin
-    dut_reset_req_d1 <= dut_reset_req;
     shifted_dut_reset_req_d1 <= shifted_dut_reset_req;
-    if (warm_reset_now) begin
-      /* verilator lint_off BLKSEQ */
-      warm_reset_clocks = soc_clocks;
-      /* verilator lint_on BLKSEQ */
-    end
-
     warm_reset_req_d1 <= warm_reset_req;
     warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
   end
@@ -710,7 +692,7 @@ end
                      .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
                      .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
                      .dut_reset_req,
-                     .dut_core_reset(dut_reset[CORE_CLK_IDX]),
+                     .dut_reset(dut_reset[AXI_CLK_IDX]),
                      .bootstrap,
                      .dmi_write(dmi_write),
                      .debug_req_vld(DebugReqVld_ANY),
