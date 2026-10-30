@@ -1,0 +1,57 @@
+load("@cvm//:defs.bzl", "topology_gen")
+load("//bazel:defs.bzl", "rv_tester_gen")
+load("//test/examples/common/dv:whisper_override.bzl", "whisper_json_override")
+
+exports_files(
+    [
+        "harness/top.sv",
+        "harness/openc910_test_harness.sv",
+        "config/openc910_verilator_config.vlt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "dpi_glue",
+    srcs = ["//test/examples/common/dv:gflags.cpp"],
+    deps = ["@cvm//:plusargs"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//test/examples/openc910/dv/verilator:__pkg__"],
+)
+
+whisper_json_override(
+    name = "openc910_whisper_json",
+    out = "openc910_whisper.json",
+    substitutions = {
+        "0x800000000014112d": "0x800000000094112d",
+        "rv64imafdc": "rv64imafdcsu",
+        "0x0000000a00000000": "0x0000000a00001900",
+    },
+    visibility = ["//visibility:public"],
+)
+
+topology_gen(
+    name = "openc910_topology",
+    srcs = [
+        "//src/transactors/axi_sw:axi_sw_attrs.yml",
+        "config/openc910_rv_tester_platform.yml",
+        "config/openc910_rv_tester_hart.yml",
+        "config/rv_tester_axi.yml",
+        "//src:rv_tester_topology",
+        "config/openc910_topology.yml",
+    ],
+)
+
+rv_tester_gen(
+    name = "openc910_rv_tester",
+    topology = "openc910_topology",
+    csr_spec = "//scripts/csr:csr_spec",
+    project_overrides = "//scripts:project_overrides",
+    pmu_spec = "//src/pmu:pmu_spec",
+    cc_attrs = {
+        "alwayslink": True,
+        "linkstatic": True,
+    },
+    visibility = ["//test/examples/openc910/dv/verilator:__pkg__"],
+)

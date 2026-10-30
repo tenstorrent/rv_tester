@@ -20,14 +20,14 @@ void debug_req_vld::write(uint64_t addr, size_t, const data_t& data,
   deserializeInt(data, t_data);
 
   if (addr != assert_addr_ && addr != deassert_addr_) {
-    cvm::log(cvm::ERROR, "Error:[debug_req_vld] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
+    cvm::log(cvm::ERROR, "Error: [debug_req_vld] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
     return;
   }
 
   const bool set = (addr == assert_addr_);
   const uint64_t hart = t_data & 0xff;
   if (hart >= hart_count_) {
-    cvm::log(cvm::ERROR, "Error:[debug_req_vld] hart {} out of range, hart_count={}\n", hart, hart_count_);
+    cvm::log(cvm::ERROR, "Error: [debug_req_vld] hart {} out of range, hart_count={}\n", hart, hart_count_);
     return;
   }
 

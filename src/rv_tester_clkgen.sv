@@ -9,7 +9,9 @@ module rv_tester_clkgen #(
                              output logic clk
                              );
 
-  localparam int CLOCK_PERIOD_PS = 1000000 / CLOCK_FREQ_MHZ;
+  localparam int CLOCK_PERIOD_PS = CLOCK_FREQ_MHZ == 0 ? 0 : 1000000 / CLOCK_FREQ_MHZ;
+
+  if (CLOCK_FREQ_MHZ == 0) $error("Error: %m: CLOCK_FREQ_MHZ is 0; pass the clock frequency table to rv_tester through CLK_PROFILE_FREQ_MHZ");
 
 `ifndef PALLADIUM_CAKE1X
   logic unused_fastest_clk_ok;

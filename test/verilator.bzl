@@ -20,5 +20,8 @@ _default_vopts = [
     "-Wno-EOFNEWLINE",
 ]
 
-def verilator_cc_library(vopts = [], timing = True, *args, **kwargs):
-    _verilator_cc_library(vopts = _default_vopts + vopts, timing = timing, *args, **kwargs)
+# disable warnings on verilator generated code
+_default_copts = ["-w"]
+
+def verilator_cc_library(vopts = [], copts = [], timing = True, *args, **kwargs):
+    _verilator_cc_library(vopts = _default_vopts + vopts, copts = _default_copts + copts, timing = timing, *args, **kwargs)

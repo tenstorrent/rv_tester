@@ -313,7 +313,7 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
     bool valid = true;
     cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n", (ld_addr + (offset * 8)), read_data);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset * 8)), 8, read_data, false, false, valid) || !valid) && FLAGS_whisper_client_check) {
-      cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
+      cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory\n");
     }
   }
 }
@@ -864,13 +864,13 @@ void sysmod::load_boot(const std::string& boot) {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
     if (boot.substr(boot.length() - 3) == "elf") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined\n");
         return;
       }
     }
     if (boot.substr(boot.length() - 3) == "hex") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined\n");
         return;
       }
     }
@@ -883,13 +883,13 @@ void sysmod::load_debugrom(const std::string& debugrom) {
     cvm::log(cvm::MEDIUM, "Loading debug ROM {}\n", debugrom);
     if (debugrom.substr(debugrom.length() - 3) == "elf") {
       if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_elf(debugrom)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM\n");
         return;
       }
     }
     if (debugrom.substr(debugrom.length() - 3) == "hex") {
       if (not dev("dm") or not dynamic_cast<sysmod_mem&>(*dev("dm")).init_hex(debugrom)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No dm device defined for debug ROM\n");
         return;
       }
     }
@@ -902,13 +902,13 @@ void sysmod::load_cplfw(const std::string& cplfw) {
     cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
     if (cplfw.substr(cplfw.length() - 3) == "elf") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined\n");
         return;
       }
     }
     if (cplfw.substr(cplfw.length() - 3) == "hex") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(cplfw)) {
-        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined\n");
         return;
       }
     }

@@ -154,7 +154,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
         return;
       } else {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-        cvm::log(cvm::ERROR, "<{}> Error: Hart:<{}> max_instr limit reached: {}\n", cycle, hartid, FLAGS_max_instr);
+        cvm::log(cvm::ERROR, "Error: <{}> Hart:<{}> max_instr limit reached: {}\n", cycle, hartid, FLAGS_max_instr);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
         eot_terminate(true);
         return;
@@ -180,7 +180,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
   } else {
     ended_ = true;
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
+    cvm::log(cvm::ERROR, "Error: <{}> Hart:<{}> Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     eot_terminate(false);
   }

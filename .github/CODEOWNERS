@@ -1,0 +1,2 @@
+.github/CODEOWNERS         @tenstorrent/rv_tester-writers
+src/                       @tenstorrent/rv_tester-writers

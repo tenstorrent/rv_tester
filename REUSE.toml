@@ -23,6 +23,7 @@ path = [
     "LICENSE_understanding.txt",
     "NOTICE",
     "**/*.bazel",
+    "**/*.BUILD",
     "**/*.bzl",
     "**/*.yml",
     "**/*.yaml",

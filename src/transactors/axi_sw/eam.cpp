@@ -247,7 +247,9 @@ void eam::invalidate_overlaps(const axi::a_t& a) {
 
   const std::size_t own = index(hart_of(a));
   for (std::size_t i = 0; i < NUM_ENTRIES; i++) {
-    if (i == own || !t_[i].valid)
+    if (!t_[i].valid)
+      continue;
+    if (a.lock && i == own)
       continue;
 
     const axi::addr_t rsv_first = rsv_base(t_[i].rsv_addr);
@@ -306,8 +308,9 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
     return v;
   }
 
-  // Every write, exclusive or not, kills overlapping reservations of other
-  // harts.
+  // Every write kills overlapping reservations of other harts. A non-exclusive
+  // write also kills an overlapping reservation of the same hart. An exclusive
+  // write leaves its own entry for the match below, which clears it either way.
   invalidate_overlaps(a);
 
   if (!a.lock)

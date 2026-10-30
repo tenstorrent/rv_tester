@@ -224,12 +224,6 @@ int rv_tester_init() {
   cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
   cvm::plusargs::parse();
 
-  auto num_clk_profiles = cvm::topology::attr(cvm::topology::get_from_type("CLKI", 0), "NUM_CLK_PROFILES");
-  int max_clk_profile = num_clk_profiles.first ? static_cast<int>(num_clk_profiles.second) : 0;
-  if (FLAGS_clk_profile < 0 || FLAGS_clk_profile > max_clk_profile) {
-    cvm::log(cvm::MEDIUM, "INFO: +clk_profile={} outside 0..{}, using 0\n", FLAGS_clk_profile, max_clk_profile);
-    FLAGS_clk_profile = 0;
-  }
   return 0;
 }
 
@@ -244,7 +238,7 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
   if (!memmap::instance().get(m))
     return;
   if (m.size() > no_addr_rules) {
-    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
     return;
   }
 

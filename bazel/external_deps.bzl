@@ -46,8 +46,8 @@ def _declare_cvm_and_rules_hdl():
     # currently PRIVATE, so this fetch needs a GitHub token in ~/.netrc until
     # it is made public. GitHub's canonical repo name is capitalized (CVM), so
     # the archive's top-level dir — and thus strip_prefix — is "CVM-<commit>".
-    cvm_hash = "911f7c3f1084c403d513a3f05ab041ccde10c347"
-    sha256 = "39d6cff2a14e26600c51760ed05bf3ecb2c1790b1150fcd932b0ed44efb3ef97"
+    cvm_hash = "ac4bbd294ddddf5eec740ec1df844b29743a51eb"
+    sha256 = "cf7a66ba05fb0689dfd402620698e7ed43f9ab7703dafa3ab8b1849bd5920b8e"
     cvm_url = "https://github.com/tenstorrent/CVM/archive/{commit}.tar.gz".format(commit = cvm_hash)
     maybe(
         http_archive,

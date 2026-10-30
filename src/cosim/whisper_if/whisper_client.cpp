@@ -192,6 +192,7 @@ void whisperClient<URV>::configure() {
   cvm::registry::messenger.procedure<whisperSetRsrvAllowRPC>(loc_, [this](int hart, bool allowNonCacheable, bool allowIo, bool& valid) { return this->whisperSetRsrvAllow(hart, allowNonCacheable, allowIo, valid); });
   cvm::registry::messenger.procedure<whisperSetClearTinstLrScRPC>(loc_, [this](int hart, bool enable, bool& valid) { return this->whisperSetClearTinstLrSc(hart, enable, valid); });
   cvm::registry::messenger.procedure<whisperEnablePmaMasksRPC>(loc_, [this](int hart, bool enable, bool& valid) { return this->whisperEnablePmaMasks(hart, enable, valid); });
+  cvm::registry::messenger.procedure<whisperSetCoherentIcacheRPC>(loc_, [this](int hart, bool enable, bool& valid) { return this->whisperSetCoherentIcache(hart, enable, valid); });
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc_, [this](uint64_t addr, unsigned size, bool enable) { return this->whisperMcmSkipReadDataCheck(addr, size, enable); });
 }
 
@@ -1359,6 +1360,11 @@ bool whisperClient<URV>::whisperSetClearTinstLrSc(int hart, bool enable, bool& v
 template <typename URV>
 bool whisperClient<URV>::whisperEnablePmaMasks(int hart, bool enable, bool& valid) {
   return whisperPoke(hart, 0, 's', WhisperSpecialResource::EnablePmamasks, enable, false, false, valid);
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperSetCoherentIcache(int hart, bool enable, bool& valid) {
+  return whisperPoke(hart, 0, 's', WhisperSpecialResource::CoherentIcache, enable, false, false, valid);
 }
 
 template class whisperClient<uint32_t>;
