@@ -316,6 +316,13 @@ private:
       {0xEB0, "vstopi"},  // Virtual Supervisor Top Interrupt
   };
 
+  std::map<uint64_t, std::string> hypervisor_trap_csr_map_ = {
+      {0x34A, "mtinst"},
+      {0x34B, "mtval2"},
+      {0x643, "htval"},
+      {0x64A, "htinst"},
+  };
+
   // MCM order map needed for periodic cosim
   std::unordered_map<uint64_t, int> mcm_orders_;
   // Tag -> (PA, size) for load-fault MCM skip when RTL returned bus error data

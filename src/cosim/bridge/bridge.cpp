@@ -1901,6 +1901,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     uint64_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       if ((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
+        if (FLAGS_hyp_save_restore_en && (hypervisor_trap_csr_map_.find(c.csr_addr) != hypervisor_trap_csr_map_.end()))
+          update_csr(hart, src_t::dut, c.csr_addr, data, mask, false, false); // DUT may update H trap registers, whisper does not
       } else {
         update_csr(hart, src_t::dut, c.csr_addr, data, mask);
       }
@@ -1929,7 +1931,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         if (c.csr_wmask & 0x80) {
           if (c.csr_wdata & 0x80) {
             if (!misa_h_) {
-              // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
+              // Restore CSR values from the temporary map when misa.H becomes one
               if (FLAGS_hyp_save_restore_en) {
                 for (const auto& [addr, value] : hypervisor_masked_csrs_) {
                   bool valid = false;
@@ -1968,6 +1970,19 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                       update_csr(hart, src_t::dut, medeleg.address, poke_value, mask, false, false);
                     }
                   }
+                }
+                // Trap CSR values are UNSPECIFIED on misa.H re-enable. Whisper keeps old value by default
+                // if DUT was udpated, this updates with newer values
+                for (const auto& [addr, name] : hypervisor_trap_csr_map_) {
+                  bool valid = false;
+                  uint64_t value = get_csr(hart, src_t::dut, addr);
+                  mask = 0xffffffffffffffffULL;
+                  update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, value, false, false, valid) || !valid) && FLAGS_whisper_client_check) {
+                    error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                    return;
+                  }
+                  bridge_log(cvm::MEDIUM, "<{}> Syncing hypervisor trap CSR {} ({:#x}) to DUT value {:#x} on misa.H re-enable\n", d.cycle, name, addr, value);
                 }
               }
             }
