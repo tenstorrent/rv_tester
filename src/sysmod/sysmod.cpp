@@ -66,6 +66,9 @@ DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency 
 DEFINE_uint32(num_harts, cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could ie 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+DEFINE_string(hart_mhartid, "",
+              "mhartid of each hart, in +hart_enable_id order. Ex: 0,8. Hart i then runs on the whisper hart "
+              "with index hart_mhartid[i], whose MHARTID is that value. Empty: hart i runs on whisper hart i.");
 //Fuse
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(ntrace_enable, true, "Trace enable fuse");
