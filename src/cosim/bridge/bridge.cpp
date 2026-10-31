@@ -3812,16 +3812,18 @@ void bridge::report_metrics() {
   // Whisper csr values
   const bool dump_csr_metrics = FLAGS_csr_metrics || mismatch_res_ != "";
   bool valid;
-  for (const auto* csr : csr_map) {
-    uint64_t csr_data;
-    if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
-    } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
-    } else {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
+
+  if (dump_csr_metrics) {
+    for (const auto* csr : csr_map) {
+      uint64_t csr_data;
+      if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
+      } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
+      } else {
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
+          error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
+        }
+       print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
       }
-      if (dump_csr_metrics)
-        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
     }
   }
   if (mismatch_res_ != "") {
