@@ -187,6 +187,8 @@ private:
   void pre_step_debug_exit(hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_trap_pending_restore(hart_id_t hart, const rv_instr_t& d);
+  bool dut_pending_recently(uint64_t intr_bit);
   void pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d);
   void post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
@@ -479,7 +481,8 @@ private:
   bool custom_vlzero_excp_ = false;
 
   std::bitset<64> intr_during_ucode_ = 0;
-  std::bitset<64> intr_cleared_during_ucode_ = 0;
+  std::bitset<64> trap_restored_mip_ = 0;
+  bool trap_restore_at_patch_exit_ = false;
   rv_intr_t timer_state_{};
   bool intr_partially_deferred_ = false;
   bool poke_time_csr_post_step_ = false;
