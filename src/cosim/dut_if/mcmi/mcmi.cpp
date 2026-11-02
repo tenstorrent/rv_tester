@@ -582,9 +582,7 @@ void mcmi::process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m
       ncio_fetches_.end());
 }
 
-void mcmi::process(const rv_tester_transactions::cosim::m_drain<>& m_drain) {
-  if (loc_ != m_drain.location)
-    return;
+void mcmi::process(const rv_tester_transactions::cosim::m_drain<>&) {
   terminated_ = true;
 }
 

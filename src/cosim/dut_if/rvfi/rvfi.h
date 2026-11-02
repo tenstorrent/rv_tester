@@ -40,9 +40,6 @@ public:
   ~rvfi();
   void configure();
   void check();
-  bool shutdown_ready();
-  // Only a final shutdown is polled until ready; warm reset / rerun shutdowns never reach cvm_done.
-  static void set_final_shutdown(bool final) { final_shutdown_ = final; }
 
 private:
   void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
@@ -158,6 +155,4 @@ private:
   bool terminated_ = false;
   bool in_debug_mode_ = false;
   bool whisper_reloaded = false;
-
-  inline static bool final_shutdown_ = false;
 };

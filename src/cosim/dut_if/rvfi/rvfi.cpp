@@ -118,20 +118,35 @@ void rvfi::check() {
   // bridge_->report_metrics();
 }
 
-// Sent by each cosim instance on the m_rvfi stream once the TB terminate handshake reaches
-// cvm_done, so every earlier m_rvfi has been delivered: this is where rvfi terminates (RVDE-31810).
+// Last message on this cosim's m_rvfi stream at cvm_done, so every earlier m_rvfi has arrived (RVDE-31810).
 void rvfi::process(const rv_tester_transactions::cosim::m_drain<>& m_drain) {
-  if (loc_ != m_drain.location)
-    return;
   cvm::log(cvm::HIGH, "[RVFI] drained at cycle {}, stopping further rvfi processing\n", m_drain.cycle);
   terminated_ = true;
   if (bridge_)
     bridge_->report_metrics();
 }
 
-bool rvfi::shutdown_ready() {
-  return !FLAGS_rvfi || in_reset_ || terminated_ || !final_shutdown_;
-}
+// Holds the final shutdown until this cosim's m_drain arrives; registry reset domain 1 so warm-reset shutdowns (domain 0) skip it.
+class rvfi_drain {
+public:
+  rvfi_drain(cvm::topology::loc_t loc, unsigned) : loc_(loc) {}
+
+  // Subscribed here, not in the constructor: every domain build clears the messenger, then configures all domains.
+  void configure() {
+    out_of_reset_ = drained_ = false;
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_reset<>>(loc_, [this](const auto&) { out_of_reset_ = true; });
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_drain<>>(loc_, [this](const auto&) { drained_ = out_of_reset_; });
+  }
+
+  bool shutdown_ready() { return !FLAGS_rvfi || !out_of_reset_ || drained_; }
+
+private:
+  cvm::topology::loc_t loc_;
+  bool out_of_reset_ = false;
+  bool drained_ = false;
+};
+
+REGISTRY_register_with_reset(rvfi_drain, COSIM, cvm::registry::all, 1);
 
 bool rvfi::patch_access(uint64_t addr) {
   if (!patch_mode_)
