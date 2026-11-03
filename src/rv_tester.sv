@@ -175,7 +175,6 @@ module rv_tester
   bit overlay_mmr_en = 1'b0;
 
   logic terminate_1T = '0;
-  logic cvm_done;
   logic cvm_done_drained;
   logic terminated_1T = '0;
   logic rerun_now;

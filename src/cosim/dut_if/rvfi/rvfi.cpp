@@ -131,7 +131,6 @@ class rvfi_drain {
 public:
   rvfi_drain(cvm::topology::loc_t loc, unsigned) : loc_(loc) {}
 
-  // Subscribed here, not in the constructor: every domain build clears the messenger, then configures all domains.
   void configure() {
     out_of_reset_ = drained_ = false;
     cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_reset<>>(loc_, [this](const auto&) { out_of_reset_ = true; });
