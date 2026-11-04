@@ -50,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/tenstorrent/cvm:0.1.5
+      options: ${{ matrix.container_options }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -67,6 +68,10 @@ jobs:
             targets: "-- //test/... -//test/examples/..."
             flags: "--features=tsan --test_tag_filters=-no-sanitizer"
             cache: tsan
+            # TSan's startup calls personality(ADDR_NO_RANDOMIZE), which Docker's
+            # default seccomp profile rejects with EPERM; the runtime then aborts
+            # in tsan_platform_linux.cpp before main().
+            container_options: "--security-opt seccomp=unconfined"
           - name: valgrind
             targets: "-- //test/... -//test/examples/..."
             flags: "--test_env=SIM_WRAP='valgrind --tool=memcheck --leak-check=full --error-exitcode=1' --test_tag_filters=-no-valgrind"  # --track-origins=yes  # use it to root cause uninitialized values (commented for better performance)

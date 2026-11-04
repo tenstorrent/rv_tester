@@ -479,6 +479,7 @@ private:
 
   std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
   bool custom_vlzero_excp_ = false;
+  bool iss_insn_recorded_ = false; // set by update_whisper_state, valid only for the retire in flight
 
   std::bitset<64> intr_during_ucode_ = 0;
   std::bitset<64> trap_restored_mip_ = 0;
