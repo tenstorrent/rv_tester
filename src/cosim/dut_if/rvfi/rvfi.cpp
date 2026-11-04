@@ -276,7 +276,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       patch_mode_ = true;
       if (FLAGS_patch_mode_tag_override)
         patch_mode_first_tag_ = m_trap.order; // trigger tag (mc_excp.Tag), not a ucode tag
-    } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
+    } else if (FLAGS_vec_cmode_tag_override && ((ecause_ == CUSTOM_VEC_CMODE) || (ecause_ == CUSTOM_MC2_VEC_CMODE))) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
         vec_cmode_first_tag_ = m_trap.order; // Capture the tag and use it for all activity related to the vector instruction

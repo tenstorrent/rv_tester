@@ -937,8 +937,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       skip_update_insn = false;
     }
     custom_vlzero_excp_ = false;
+    // Only skip the vector-to-nop override; a genuine nop is recorded on both sides.
     if (d.excp && d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) {
-      skip_update_insn = true;
+      skip_update_insn = !iss_insn_recorded_;
       custom_vlzero_excp_ = true;
     }
     if (!skip_update_insn) {
@@ -955,6 +956,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       }
     }
   }
+  iss_insn_recorded_ = false;
   if (FLAGS_flags_check && (d.flags != 0)) {
     update_flags(hart, src_t::dut, d.flags);
   }
@@ -1520,8 +1522,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   if (d.excp && is_custom_excp(d.ecause)) {
     bridge_log(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
 
-    // Vector conservative mode
-    if (d.ecause == CUSTOM_VEC_CMODE) {
+    // Vector conservative mode (both causes mark cmode entry)
+    if (d.ecause == CUSTOM_VEC_CMODE || d.ecause == CUSTOM_MC2_VEC_CMODE) {
       resynch(hart, d);
     } else if (d.ecause == CUSTOM_DBG_ENTRY) { // custom debug mode enter exception
       rv_debug_t debug;
@@ -1653,7 +1655,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
+  iss_insn_recorded_ = FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH);
+  if (iss_insn_recorded_)
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
