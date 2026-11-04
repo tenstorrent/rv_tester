@@ -6,6 +6,10 @@
 #include <cinttypes>
 #include <vector>
 
+#include "cvm/plusargs.hpp"
+
+DEFINE_uint64(sw_tb_bad_retire, 0, "sw_1c: report a wrong pc on the Nth post-reset stimulus retire; 0 = never");
+
 extern "C" void write_rvfi(uint8_t valid, uint32_t order, uint32_t hartid, uint32_t nretid, uint32_t insn, uint64_t pc,
                            uint8_t rd_addr, uint64_t rd_wdata);
 extern "C" void write_rvfi_trap(uint32_t order, uint32_t hartid, uint64_t pc, uint64_t cause);
@@ -81,7 +85,9 @@ std::vector<Retire> ipi_program(size_t self) {
 extern "C" void get_1c_stimulus(uint8_t reset, uint32_t order) {
   static uint64_t pc = 0x80000000;
   static uint32_t insn = 0x6f;
-  write_rvfi(!reset, order, 0, 0, insn, pc, 0, 0);
+  static uint64_t retired = 0;
+  const bool bad = !reset && ++retired == FLAGS_sw_tb_bad_retire;
+  write_rvfi(!reset, order, 0, 0, insn, bad ? pc + 4 : pc, 0, 0);
 }
 
 extern "C" void get_2c_stimulus(uint8_t reset, uint32_t order) {
