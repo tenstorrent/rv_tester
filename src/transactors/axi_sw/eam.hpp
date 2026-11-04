@@ -23,10 +23,11 @@ DECLARE_string(eam_unsupported_addr);
 //
 // An exclusive read (ARLOCK) installs/overwrites the entry for that index and
 // is answered with EXOKAY. Any write invalidates reservations at other
-// indices whose reservation granule it overlaps. An exclusive write (AWLOCK)
-// succeeds (EXOKAY) only if its own entry is still valid and its control
-// fields match the ones captured at reservation time; otherwise the write is
-// squashed and answered with OKAY.
+// indices whose reservation granule it overlaps. A non-exclusive write also
+// invalidates the writer's own overlapping reservation. An exclusive write
+// (AWLOCK) succeeds (EXOKAY) only if its own entry is still valid and its
+// control fields match the ones captured at reservation time; otherwise the
+// write is squashed and answered with OKAY.
 //
 // The table is system-wide (a process-wide singleton), so a reservation
 // registered on one axi port can be cleared or matched from another. All

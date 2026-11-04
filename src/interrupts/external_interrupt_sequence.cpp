@@ -271,14 +271,17 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
                                            bool disable_vs_id_rand, bool exp_err_rsp) {
   bool is_vgein_intr = false;
   uint32_t addr = 0;
+  // The per-hart file stride follows the platform address map, so the hart
+  // index is placed at the IMSIC core-ID start bit instead of a fixed shift.
+  const uint32_t hart_offset = intr_hart << device_address_map_imsic_core_id_start_bit();
 
   log(cvm::HIGH, "[ExtInterruptSeq] send_msi: num={} file={} hart={} vs_id={}\n",
       intr_num, intr_file, intr_hart, vs_id);
 
   if (intr_file == 0x0) {
-    addr = msi_m_file_addr + (intr_hart << 18);
+    addr = msi_m_file_addr + hart_offset;
   } else if (intr_file == 0x01) {
-    addr = msi_s_file_addr + (intr_hart << 18);
+    addr = msi_s_file_addr + hart_offset;
   } else if (intr_file == 0x02) {
     log(cvm::MEDIUM, "[ExtInterruptSeq] Driving VS interrupt for hart={}, num={}\n", intr_hart, intr_num);
 
@@ -331,7 +334,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
           intr_vs_id_random_++;
         }
 
-        addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
+        addr = msi_vs_file_addr + (vs_id << 12) + hart_offset;
         uint32_t length = 4;
         std::vector<uint8_t> data(4, 0);
         std::vector<bool> strb(4, false);
@@ -342,7 +345,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
         cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb, exp_err_rsp});
       } else {
         // Dual interrupt -- first with VGEIN
-        addr = msi_vs_file_addr + (vgein << 12) + (intr_hart << 18);
+        addr = msi_vs_file_addr + (vgein << 12) + hart_offset;
         uint32_t length = 4;
         std::vector<uint8_t> data(4, 0);
         std::vector<bool> strb(4, false);
@@ -368,7 +371,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
           // Chosen VS should not be equal to vgein, and if any of the HGEIE bits(except the vgein bit) is not set, chosen VS should have its HGEIE bit not set
         }
 
-        addr = msi_vs_file_addr + (second_vs_id << 12) + (intr_hart << 18);
+        addr = msi_vs_file_addr + (second_vs_id << 12) + hart_offset;
         cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb, exp_err_rsp});
         intr_vs_id_two_++;
       }
@@ -376,7 +379,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       is_vgein_intr = false;
       if (!disable_vs_id_rand)
         vs_id = (rng1() % FLAGS_imsic_vs_id_threshold) + 1;
-      addr = msi_vs_file_addr + (vs_id << 12) + (intr_hart << 18);
+      addr = msi_vs_file_addr + (vs_id << 12) + hart_offset;
     }
   } else {
     log(cvm::ERROR, "Error: [ExtInterruptSeq] Wrong IMSIC interrupt file specified\n");

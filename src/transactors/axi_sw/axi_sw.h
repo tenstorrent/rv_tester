@@ -306,7 +306,7 @@ private:
     }
 
     if (FLAGS_axi_sw_read_consecutive_spurious_calls_allowed >= 0 && r_q_rptr_blocking_update_consecutive_spurious_calls_ > FLAGS_axi_sw_read_consecutive_spurious_calls_allowed) {
-      cvm::log(cvm::ERROR, "[axi_sw] Error: no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
+      cvm::log(cvm::ERROR, "Error: [axi_sw] no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
     }
     *r_q_ptr.successful = sent != 0 || device_access_pending;
   }
@@ -431,7 +431,7 @@ private:
       _axi_sw::axi_sw_r_64(r.id, r.resp, r.data.data(), r.last, latency);
       break;
     default:
-      cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
+      cvm::log(cvm::ERROR, "Error: [axi_sw] unsupported data width for axi_sw\n");
     }
 
     return true;
@@ -494,13 +494,13 @@ public:
 
     bool random_latency = add_latency_min_ != 0 or add_latency_max_ != 1 or FLAGS_axi_sw_reorder_window != 0;
     if (FLAGS_axi_sw_read_latency_fixed and random_latency)
-      cvm::log(cvm::ERROR, "Error: can't specify both fixed latency and randomized latency options (add response latency, reorder window)");
+      cvm::log(cvm::ERROR, "Error: can't specify both fixed latency and randomized latency options (add response latency, reorder window)\n");
 
     if (FLAGS_axi_sw_read_latency_max and random_latency)
-      cvm::log(cvm::ERROR, "Error: can't specify both max latency and randomized latency options (add response latency, reorder window)");
+      cvm::log(cvm::ERROR, "Error: can't specify both max latency and randomized latency options (add response latency, reorder window)\n");
 
     if (FLAGS_axi_sw_fast_write_response and random_latency)
-      cvm::log(cvm::ERROR, "Error: can't specify both fast write response and randomized latency options (add response latency, reorder window)");
+      cvm::log(cvm::ERROR, "Error: can't specify both fast write response and randomized latency options (add response latency, reorder window)\n");
 
     connect_task<W, AW, AR, axi_sw_defs::reorder_q_flush_t>();
 

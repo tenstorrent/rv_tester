@@ -57,7 +57,7 @@ private:
   void process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback);
   void process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch);
 
-  void process(const rv_tester::terminate_called&);
+  void process(const rv_tester_transactions::cosim::m_drain<>&);
   void process(const rv_tester::terminate_called_mem_checks&);
   void process(const bridge::error_loc&);
 
@@ -73,6 +73,7 @@ private:
   std::bitset<256> extract_bits_as_bitset(const std::bitset<256>& bitset, size_t msb, size_t lsb);
   bool sc_failed(mem_t& write);
   void process_amo(mem_t& read);
+  static bool bypass_pokes_cache(const mem_t& m);
   void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
   void process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
 

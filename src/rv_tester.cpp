@@ -93,6 +93,7 @@ std::uint64_t read_rv_tester_cycles() {
 } // namespace
 
 static bool check_called;
+static bool all_domains_shutdown;
 class logger_instrument {
 
 public:
@@ -238,7 +239,7 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
   if (!memmap::instance().get(m))
     return;
   if (m.size() > no_addr_rules) {
-    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
     return;
   }
 
@@ -255,13 +256,19 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
 
 void rv_tester_build_registry() {
   check_called = false;
+  all_domains_shutdown = false;
   cvm::registry::build();
   cvm::registry::configure();
 }
 
 void rv_tester_domain0_build_registry() {
   check_called = false;
-  cvm::registry::build_domain(0);
+  // A rerun after an all-domain shutdown (e.g. unconditional_terminate) must rebuild every domain before configure().
+  if (all_domains_shutdown)
+    cvm::registry::build();
+  else
+    cvm::registry::build_domain(0);
+  all_domains_shutdown = false;
   cvm::registry::configure();
 }
 
@@ -274,7 +281,8 @@ uint8_t rv_tester_shutdown_registry(bool all_domains) {
 
   if (all_domains) {
     cvm::log(cvm::NONE, "[registry] shutdown all domains...\n");
-    return cvm::registry::shutdown();
+    all_domains_shutdown = cvm::registry::shutdown();
+    return all_domains_shutdown;
   }
   cvm::log(cvm::NONE, "[registry] shutdown domain:0 (GENERAL)...\n");
   return cvm::registry::shutdown_domain(0);

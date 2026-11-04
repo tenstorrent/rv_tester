@@ -241,7 +241,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
 void bridge::configure() {
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-  cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this](const auto& v) { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this](const auto& v) { return this->process(v); });
 
   uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
@@ -584,6 +583,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     mcm_orders_.erase(d.tag);
 
   twoStage_ = false;
+  iss_insn_recorded_ = false;
 
   whisper_state_t w{
       .tag = d.tag,
@@ -937,8 +937,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       skip_update_insn = false;
     }
     custom_vlzero_excp_ = false;
+    // Only skip the vector-to-nop override; a genuine nop is recorded on both sides.
     if (d.excp && d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) {
-      skip_update_insn = true;
+      skip_update_insn = !iss_insn_recorded_;
       custom_vlzero_excp_ = true;
     }
     if (!skip_update_insn) {
@@ -1200,6 +1201,8 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
 
   latest_imsic_.second++; // age increase
 
+  pre_step_trap_pending_restore(hart, d);
+
   bool w_intr = false, w_virt_mode = false;
   uint64_t w_cause = 0;
   check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
@@ -1270,6 +1273,53 @@ void bridge::pre_step_interrupt_process(hart_id_t hart, const rv_instr_t& d) {
   mip_changed_since_last_step_.reset();
 }
 
+// A cause the DUT mip shows pending now, or showed until a few retires ago. The
+// retire-queue bound covers the distance between a commit and its trap record.
+bool bridge::dut_pending_recently(uint64_t intr_bit) {
+  if (intr_bit >= 64)
+    return false;
+  if (dut_mip_.test(intr_bit))
+    return true;
+  auto age = dut_mip_clr_age_.find(intr_bit);
+  return age != dut_mip_clr_age_.end() && age->second <= FLAGS_max_pend_intr_age;
+}
+
+void bridge::pre_step_trap_pending_restore(hart_id_t hart, const rv_instr_t& d) {
+  uint64_t intr_bit = 0;
+  if (patch_mode_ == ENTER_PATCH) {
+    trap_restore_at_patch_exit_ = d.intr && d.icause != 0 && dut_pending_recently(d.icause + (d.virt_mode ? 1 : 0));
+    return;
+  }
+  if (patch_mode_ == EXIT_PATCH) {
+    if (!check_intr_at_patch_exit_ || !trap_restore_at_patch_exit_)
+      return;
+    trap_restore_at_patch_exit_ = false;
+    intr_bit = check_intr_at_patch_cause_ + (check_intr_at_patch_virt_ ? 1 : 0);
+  } else if (patch_mode_ == NO_PATCH && d.intr && d.icause != 0) {
+    intr_bit = d.icause + (d.virt_mode ? 1 : 0);
+    if (!dut_pending_recently(intr_bit))
+      return;
+  } else {
+    return;
+  }
+  if (intr_bit >= 64)
+    return;
+
+  bool w_intr = false, w_virt_mode = false;
+  uint64_t w_cause = 0;
+  check_interrupt(hart, d.cycle, w_intr, w_cause, w_virt_mode);
+  if (w_intr && w_cause == intr_bit)
+    return;
+  peek_mip(hart, d.cycle, tmp_mip_latest_);
+  if (tmp_mip_latest_.test(intr_bit))
+    return;
+
+  bridge_log(cvm::MEDIUM, "<{}> DUT trap on {} after Whisper lost the pending bit, re-raising it for this step\n", d.cycle, intr_name(intr_bit));
+  tmp_mip_latest_.set(intr_bit);
+  poke_mip(hart, d.cycle, tmp_mip_latest_);
+  trap_restored_mip_.set(intr_bit);
+}
+
 // Mask interrupts/NMIs raised during the patch so the exit step takes the DUT's entry trap
 void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d) {
   if (!check_nmi_at_patch_exit_ && !check_intr_at_patch_exit_)
@@ -1297,15 +1347,12 @@ void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
-  // Apply interrupt clears that were held back while a retire was in flight.
-  // Done first so that no early return below can leave Whisper's mip stale for
-  // additional steps; the Whisper step for this retire has already completed, so
-  // the pending bit is no longer needed.
-  if (intr_cleared_during_ucode_.to_ullong() != 0) {
+  // Drop the bit re-raised for this trap step before any early return below.
+  if (trap_restored_mip_.any()) {
     peek_mip(hart, d.cycle, tmp_mip_latest_);
-    tmp_mip_latest_ &= ~intr_cleared_during_ucode_;
+    tmp_mip_latest_ &= ~trap_restored_mip_;
     poke_mip(hart, d.cycle, tmp_mip_latest_);
-    intr_cleared_during_ucode_.reset();
+    trap_restored_mip_.reset();
   }
 
   // Check deferred interrupt at patch exit (mirrors NMI exit check)
@@ -1474,8 +1521,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   if (d.excp && is_custom_excp(d.ecause)) {
     bridge_log(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
 
-    // Vector conservative mode
-    if (d.ecause == CUSTOM_VEC_CMODE) {
+    // Vector conservative mode (both causes mark cmode entry)
+    if (d.ecause == CUSTOM_VEC_CMODE || d.ecause == CUSTOM_MC2_VEC_CMODE) {
       resynch(hart, d);
     } else if (d.ecause == CUSTOM_DBG_ENTRY) { // custom debug mode enter exception
       rv_debug_t debug;
@@ -1607,7 +1654,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
+  iss_insn_recorded_ = FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH);
+  if (iss_insn_recorded_)
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -2358,7 +2406,10 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
 }
 
 bool bridge::clint_read(const uint64_t& pa) {
-  return memmap::instance().in_range({"clint", "aclint"}, pa);
+  // Prefix match: cluster memmaps use per-cluster tags (aclint_cl0..15), not
+  // a single "clint"/"aclint" entry, so exact-tag lookup never matched (RVBBL-6555).
+  return memmap::instance().in_range_prefix("aclint", pa) ||
+         memmap::instance().in_range_prefix("clint", pa);
 }
 
 bool bridge::tbox_read(const uint64_t& pa) {
@@ -3045,25 +3096,13 @@ void bridge::process_dut_mtip(hart_id_t hart, uint64_t cycle, bool mtip, bool in
   std::bitset<64> mtip_bits = 1 << MTI;
   peek_mip(hart, cycle, tmp_mip_prev_);
 
-  // Record the pin toggle directly. This callback is only invoked on an MTIP edge,
-  // and the de-assert is applied to the ISS mip lazily (post-step), so the edge is
-  // not observable from the Whisper mip peek/poke that check_mip_change() sees.
-  mip_changed_since_last_step_ |= mtip_bits;
-  if (mtip) {
-    // A re-assertion cancels any clear that is still pending for post-step.
-    intr_cleared_during_ucode_ &= ~mtip_bits;
+  // The pin is the only observation of the timer clear on this path, so both edges
+  // are applied at once and mip reads keep following the core. A trap the core
+  // committed before the pin fell is re-raised for its step in pre-step.
+  if (mtip)
     poke_mip(hart, cycle, tmp_mip_prev_ | mtip_bits);
-  } else {
-    // MTIP de-assertion is always applied to the ISS in post-step, never here.
-    // The core can commit to taking MTI several cycles before RVFI reports the
-    // interrupt (mepc/mcause hw updates and the trap ucode retires arrive later),
-    // so the `intr_during_ucode` qualifier does not cover the whole window.
-    // Withdrawing the pending bit from Whisper in that window makes Whisper miss an
-    // interrupt the DUT already took -> "DUT took interrupt, Whisper did not".
-    // TODO: Add support for other interrupts that can be cleared asynchronously.
-    intr_cleared_during_ucode_ |= mtip_bits;
-    bridge_log(cvm::MEDIUM, "<{}> MTIP cleared, will clear it in post-step, intr_cleared_during_ucode={:#x}\n", cycle, intr_cleared_during_ucode_.to_ullong());
-  }
+  else
+    poke_mip(hart, cycle, tmp_mip_prev_ & ~mtip_bits);
   peek_mip(hart, cycle, tmp_mip_latest_);
   check_mip_change(tmp_mip_prev_, tmp_mip_latest_);
   check_and_defer_interrupt(hart, cycle, tmp_mip_latest_, intr_during_ucode);
@@ -3690,13 +3729,9 @@ void bridge::process(const rv_tester::terminate_called_mem_checks&) {
   }
 }
 
-void bridge::process(const rv_tester::terminate_called&) {
-  if (!metrics_reported_)
-    report_metrics();
-  terminated_ = true;
-}
-
 void bridge::report_metrics() {
+  if (metrics_reported_)
+    return;
   metrics_reported_ = true;
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
@@ -3778,16 +3813,18 @@ void bridge::report_metrics() {
   // Whisper csr values
   const bool dump_csr_metrics = FLAGS_csr_metrics || mismatch_res_ != "";
   bool valid;
-  for (const auto* csr : csr_map) {
-    uint64_t csr_data;
-    if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
-    } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
-    } else {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
-      }
-      if (dump_csr_metrics)
+
+  if (dump_csr_metrics) {
+    for (const auto* csr : csr_map) {
+      uint64_t csr_data;
+      if ((!hyp_enabled()) && (hypervisor_csr_map_.find(csr->address) != hypervisor_csr_map_.end())) {
+      } else if ((MayPeekCSR_map_.find(csr->address) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr->address)) {
+      } else {
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr->address, csr_data, valid)) && FLAGS_whisper_client_check) {
+          error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr->address);
+        }
         print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
+      }
     }
   }
   if (mismatch_res_ != "") {

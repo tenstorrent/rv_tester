@@ -7,6 +7,7 @@ exceptions:
   CUSTOM_DBG_ENTRY:   44
   CUSTOM_VLZERO_EXCP: 45
   CUSTOM_VEC_CMODE:   46
+  CUSTOM_MC2_VEC_CMODE: 47
 
 interrupts:
   BUS_ERRI:    23

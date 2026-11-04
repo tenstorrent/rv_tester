@@ -224,7 +224,7 @@ public:
   void process(const B& b) {
     if (used_id(b.id) && ((exp_err_rsp_ids_[b.id] && b.resp == axi::RESP_OKAY) || (!exp_err_rsp_ids_[b.id] && b.resp != axi::RESP_OKAY))) {
       if (!((FLAGS_axi_allow_decerr_resp || allow_decerr_resp_ids_[b.id]) && b.resp == axi::RESP_DECERR) && !((FLAGS_axi_allow_slverr_resp || allow_slverr_resp_ids_[b.id]) && b.resp == axi::RESP_SLVERR)) {
-        cvm::log(cvm::ERROR, "[{}] Error: bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, exp_err_rsp_ids_[b.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(b.resp));
+        cvm::log(cvm::ERROR, "Error: [{}] bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, exp_err_rsp_ids_[b.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(b.resp));
         return;
       } else {
         cvm::log(cvm::HIGH, "[{}] Allowing error b.response id: {} resp: {}\n", name_, b.id, b.resp);
@@ -248,7 +248,7 @@ public:
   void process(const R& r) {
     if (used_id(r.id) && ((exp_err_rsp_ids_[r.id] && r.resp == axi::RESP_OKAY) || (!exp_err_rsp_ids_[r.id] && r.resp != axi::RESP_OKAY))) {
       if (!((FLAGS_axi_allow_decerr_resp || allow_decerr_resp_ids_[r.id]) && r.resp == axi::RESP_DECERR) && !((FLAGS_axi_allow_slverr_resp || allow_slverr_resp_ids_[r.id]) && r.resp == axi::RESP_SLVERR)) {
-        cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, exp_err_rsp_ids_[r.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(r.resp));
+        cvm::log(cvm::ERROR, "Error: [{}] bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, exp_err_rsp_ids_[r.id] ? uint8_t(axi::RESP_DECERR) : uint8_t(axi::RESP_OKAY), uint8_t(r.resp));
         return;
       } else {
         cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
@@ -300,7 +300,7 @@ public:
   void process(const axi::a_t& a) {
     //id check
     if (used_id(a.id)) {
-      cvm::log(cvm::ERROR, "[{}] Error: bad request id: {}, pass unused id for transaction \n", name_, a.id);
+      cvm::log(cvm::ERROR, "Error: [{}] bad request id: {}, pass unused id for transaction \n", name_, a.id);
       return;
     }
     alloc_id(a.id);
@@ -330,7 +330,7 @@ public:
     }
 
     if ((a.addr & axi::addr_t(~0xFFF)) != ((a.addr + req_length - 1) & axi::addr_t(~0xFFF))) {
-      cvm::log(cvm::ERROR, "[{}] Error: Request crosses 4k boundary, addr: {}, length: {}\n", name_, req_addr, req_length);
+      cvm::log(cvm::ERROR, "Error: [{}] Request crosses 4k boundary, addr: {}, length: {}\n", name_, req_addr, req_length);
       return false;
     }
 
@@ -413,12 +413,12 @@ public:
           w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
           if (arg.strb.size() == 0) {
-            cvm::log(cvm::ERROR, "[{}] Error: strb size is 0\n", name_);
+            cvm::log(cvm::ERROR, "Error: [{}] strb size is 0\n", name_);
             return false;
           }
 
           if (arg.strb.size() != arg.data.size()) {
-            cvm::log(cvm::ERROR, "[{}] Error: strb size != data size\n", name_);
+            cvm::log(cvm::ERROR, "Error: [{}] strb size != data size\n", name_);
             return false;
           }
 
@@ -439,14 +439,14 @@ public:
                 else if (data_width_ == 512)
                   _axi_sw_mst::axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
                 else
-                  cvm::log(cvm::ERROR, "[{}] Error: unsupported data width {}", name_, data_width_);
+                  cvm::log(cvm::ERROR, "Error: [{}] unsupported data width {}\n", name_, data_width_);
               });
         } else {
           cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
           return false;
         }
       } else {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: unhandled axi_mst transaction type\n");
+        cvm::log(cvm::ERROR, "Error: [axi_sw_mst] unhandled axi_mst transaction type\n");
         return false;
       }
       return true;

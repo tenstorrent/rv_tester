@@ -24,6 +24,19 @@ read -ra sim_wrap <<< "${SIM_WRAP:-}"
 "${sim_wrap[@]}" "$@" 2>&1 | tee "$LOG"
 rc=${PIPESTATUS[0]}
 
+# EXPECT_ERROR (regex): pass only if the sim reports it after EXPECT_AFTER (regex), with no crash or sanitizer report.
+if [ -n "${EXPECT_ERROR:-}" ]; then
+    if [ "$rc" -ge 128 ] || grep -qE 'Sanitizer|runtime error:' "$LOG"; then
+        echo "sim.sh: crash or sanitizer report (rc=$rc)" >&2
+        exit 1
+    fi
+    after=$(grep -nE -m1 "${EXPECT_AFTER:-.}" "$LOG" | cut -d: -f1)
+    err=$(grep -nE -m1 "$EXPECT_ERROR" "$LOG" | cut -d: -f1)
+    [ -n "$after" ] && [ -n "$err" ] && [ "$err" -gt "$after" ] && exit 0
+    echo "sim.sh: expected '$EXPECT_ERROR' after '${EXPECT_AFTER:-.}'" >&2
+    exit 1
+fi
+
 if [ "$rc" -ne 0 ]; then
     echo "sim.sh: simulator exited with code $rc" >&2
     exit "$rc"

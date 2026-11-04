@@ -87,6 +87,6 @@ void interrupter::write(uint64_t addr, size_t, const data_t& data,
     cvm::registry::messenger.signal<uint16_t>(target_loc, 0);
     cvm::log(cvm::HIGH, "[Trickbox] MTI deassert for hart {} at addr {:#x}\n", hart_id, addr);
   } else {
-    cvm::log(cvm::ERROR, "Error:[Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
+    cvm::log(cvm::ERROR, "Error: [Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
   }
 }

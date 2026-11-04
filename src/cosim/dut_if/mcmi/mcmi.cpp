@@ -43,11 +43,10 @@ void mcmi::configure() {
       rv_tester_transactions::cosim::m_mcmi_flush<>,
       rv_tester_transactions::cosim::m_mcmi_writeback<>,
       rv_tester_transactions::cosim::m_mcmi_dfetch<>,
+      rv_tester_transactions::cosim::m_drain<>,
       bridge::error_loc>(loc_);
 
-  connect<
-      rv_tester::terminate_called,
-      rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
+  connect<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
 }
 
 mcmi::~mcmi() {
@@ -87,7 +86,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       patch_mode_first_tag_ = m_trap.order;
       patch_lo_tag_ = 0;
       patch_hi_tag_ = 0;
-    } else if (ecause_ == CUSTOM_VEC_CMODE) {
+    } else if ((ecause_ == CUSTOM_VEC_CMODE) || (ecause_ == CUSTOM_MC2_VEC_CMODE)) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
         vec_cmode_first_tag_ = m_trap.order; // Capture the tag and use it for all activity related to the vector instruction
@@ -192,7 +191,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       sc_result_.emplace(m.tag, m);
     } else {
       if (!sc_failed(sc_bypass_.at(m.tag))) {
-        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag), true);
+        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag), bypass_pokes_cache(sc_bypass_.at(m.tag)));
         sc_bypass_.erase(m.tag);
       }
     }
@@ -335,6 +334,10 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       });
 }
 
+bool mcmi::bypass_pokes_cache(const mem_t& m) {
+  return (m.attr == 0x1000) && !m.v_ext;
+}
+
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
   if (terminated_ || in_reset_)
     return;
@@ -351,6 +354,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.elem_idx = m_mcmi_bypass.elem_idx;
   m.amo = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
+  m.attr = m_mcmi_bypass.attr;
 
   process_memory_access(
       m_mcmi_bypass.addr,
@@ -378,12 +382,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
           sc_bypass_.emplace(m.tag, m);
           return;
         }
-        if ((m_mcmi_bypass.attr == 0x1000) && (!m.v_ext)) {
-          bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true);
-          // Setting the Cache flag to true for CBO
-        } else {
-          bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
-        }
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, bypass_pokes_cache(m));
       },
       [&](uint64_t start_addr, size_t size, const std::bitset<256>& data_vec, const std::string&) {
         // Split access
@@ -457,9 +456,8 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     }
     active_ncio_fetches_.emplace_back(m);
   } else {
-    // Non-coherent I$ evicts silently; drop whisper's copy so the refill re-reads memory.
-    if (is_noncoherent_icache(m.attr))
-      process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m.cycle, m_mcmi_ifetch_resp.hart, m.pa));
+    // Re-snapshot on every refill: silent evicts and VIPT alias sets both leave whisper stale.
+    process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, m.cycle, m_mcmi_ifetch_resp.hart, m.pa));
     bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
     if (!ncio_fetches_.empty()) {
       ncio_mem_transition_ = true;
@@ -549,6 +547,12 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
     cvm::log(cvm::ERROR, "Error: Failed mcm dwriteback for address : {:#x} , cycle : {}\n", m_mcmi_writeback.addr, m_mcmi_writeback.cycle);
     return;
   }
+
+  valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr, valid) || !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR, "Error: Failed mcm devict after dwriteback for address : {:#x} , cycle : {}\n", m_mcmi_writeback.addr, m_mcmi_writeback.cycle);
+    return;
+  }
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
@@ -578,7 +582,7 @@ void mcmi::process_ncio_fetches(const rv_tester_transactions::cosim::m_rvfi<>& m
       ncio_fetches_.end());
 }
 
-void mcmi::process(const rv_tester::terminate_called&) {
+void mcmi::process(const rv_tester_transactions::cosim::m_drain<>&) {
   terminated_ = true;
 }
 
@@ -728,7 +732,7 @@ void mcmi::process_amo(mem_t& read) {
   if (m.amo_op != AMOCAS)
     amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
-  bridge_->process_dut_mcm_bypass(m.hart, m, true);
+  bridge_->process_dut_mcm_bypass(m.hart, m, bypass_pokes_cache(m));
   amo_writes_.erase(read.tag);
 }
 
