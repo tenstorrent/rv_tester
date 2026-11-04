@@ -584,6 +584,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     mcm_orders_.erase(d.tag);
 
   twoStage_ = false;
+  iss_insn_recorded_ = false;
 
   whisper_state_t w{
       .tag = d.tag,
@@ -956,7 +957,6 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       }
     }
   }
-  iss_insn_recorded_ = false;
   if (FLAGS_flags_check && (d.flags != 0)) {
     update_flags(hart, src_t::dut, d.flags);
   }
