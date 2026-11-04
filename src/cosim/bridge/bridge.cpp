@@ -2407,7 +2407,10 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
 }
 
 bool bridge::clint_read(const uint64_t& pa) {
-  return memmap::instance().in_range({"clint", "aclint"}, pa);
+  // Prefix match: cluster memmaps use per-cluster tags (aclint_cl0..15), not
+  // a single "clint"/"aclint" entry, so exact-tag lookup never matched (RVBBL-6555).
+  return memmap::instance().in_range_prefix("aclint", pa) ||
+         memmap::instance().in_range_prefix("clint", pa);
 }
 
 bool bridge::tbox_read(const uint64_t& pa) {
