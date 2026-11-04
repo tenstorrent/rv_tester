@@ -151,6 +151,20 @@ public:
     return false;
   }
 
+  // Check if pa is in tag family's range
+  bool in_range_tag_family(const std::string& family, const uint64_t& pa) const {
+    for (auto it = memmap_.lower_bound(family); it != memmap_.end(); ++it) {
+      const auto& tag = it->first;
+      if (tag.compare(0, family.size(), family) != 0)
+        break;
+      if (tag.size() != family.size() && tag[family.size()] != '_')
+        continue;
+      if (pa >= it->second.base && pa < it->second.end)
+        return true;
+    }
+    return false;
+  }
+
 private:
   memmap() = default;
   memmap(const memmap&) = delete;
