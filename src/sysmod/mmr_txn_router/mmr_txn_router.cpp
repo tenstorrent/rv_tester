@@ -46,11 +46,9 @@ axi::a_no_id_t make_ar(uint64_t addr, size_t length, bool upsize_narrow, size_t 
   size_t axi_length = length;
   if (upsize_narrow && axi_length > 0 && axi_length < 4)
     axi_length = 4;
-  // AxSIZE may not exceed the master's data-bus width, so a transfer wider than
-  // the bus is carried as a burst of full-width beats. Mirrors
-  // axi_sw_mst::a_wrapper, which likewise falls back to a byte stream when the
-  // length is not a whole number of power-of-two-sized beats. A zero bus_bytes
-  // means the width is unknown; keep the single-beat encoding in that case.
+  // AxSIZE cannot exceed the bus width, so wider transfers burst full-width
+  // beats; non-power-of-two lengths fall back to a byte stream as in
+  // axi_sw_mst::a_wrapper. bus_bytes == 0 means unknown width.
   const size_t beat_bytes = (bus_bytes && axi_length > bus_bytes) ? bus_bytes : axi_length;
   const bool pow2_beat = beat_bytes && ((beat_bytes & (beat_bytes - 1)) == 0);
   if (pow2_beat && (axi_length % beat_bytes == 0)) {
@@ -113,8 +111,6 @@ void mmr_txn_router::configure() {
   read_resp_channel_ = cvm::registry::messenger.channel<transactor::read_response_t>(axi_mst_loc_l);
   write_resp_channel_ = cvm::registry::messenger.channel<transactor::write_response_t>(axi_mst_loc_l);
   axi_mst_data_bytes_ = cvm::topology::attr(axi_mst_loc_l, "DATA_WIDTH").second / 8;
-  // A reroute master may cap AxLEN (declared per bus as MAX_AXLEN in topology);
-  // an absent attribute leaves the bus free to accept arbitrary-length bursts.
   const auto max_axlen = cvm::topology::attr(axi_mst_loc_l, "MAX_AXLEN");
   axi_mst_max_beats_ = max_axlen.first ? size_t(max_axlen.second) + 1 : 0;
 }
@@ -137,9 +133,6 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
     ar.user = attr.user;
   }
 
-  // A reroute master that caps AxLEN (e.g. the AXI-Lite CPL utility bus) rejects
-  // any burst, so a transfer that would not fit the cap is reissued as a sequence
-  // of single bus-width-beat reads and reassembled in read_split.
   if (axi_mst_max_beats_ && ar.len > axi_mst_max_beats_ - 1)
     co_return co_await read_split(addr, length, ar, data);
 
@@ -190,7 +183,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read(const read_t& dr, data_t
 }
 
 cvm::messenger::task<std::uint8_t> mmr_txn_router::read_split(uint64_t addr, size_t length,
-                                                             const axi::a_no_id_t& tmpl, data_t& data) {
+                                                              const axi::a_no_id_t& tmpl, data_t& data) {
   const size_t bus = axi_mst_data_bytes_;
   const uint8_t bus_axsize = uint8_t(__builtin_ctz(uint32_t(bus)));
   const uint64_t end = addr + length;
@@ -201,7 +194,6 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read_split(uint64_t addr, siz
     ar.addr = beat_addr;
     ar.size = bus_axsize;
     ar.len = 0;
-    // One logical read fans out to many AXI ids; the allocator owns each.
     ar.is_manual_id = false;
 
     axi::id_t axi_id;
@@ -215,8 +207,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::read_split(uint64_t addr, siz
         read_resp_channel_,
         [&axi_id](const transactor::read_response_t& rr) { return rr.id == axi_id; });
 
-    // Each beat returns a full bus-width word; copy out the bytes that overlap
-    // the requested range, placed on the lanes addressed within the word.
+    // Copy the lanes of the bus-width word that overlap the requested range.
     const uint64_t lo = std::max(addr, beat_addr);
     const uint64_t hi = std::min(end, beat_addr + bus);
     for (uint64_t b = lo; b < hi && (b - beat_addr) < resp.data.size(); ++b)
@@ -244,10 +235,6 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
   // interrupt. Mirrors the read reroute path.
   const transactor::axi_attr_t attr = pick_attr(true);
 
-  // A reroute master that caps AxLEN rejects bursts beyond the cap (see read());
-  // such a write is reissued as single bus-width beats, each strobing its bytes.
-  // a_wrapper emits one beat for a power-of-two transfer within the bus width,
-  // otherwise a byte stream of `length` beats.
   const bool w_single_beat = length && ((length & (length - 1)) == 0) && length <= axi_mst_data_bytes_;
   const size_t w_beats = w_single_beat ? 1 : length;
   if (axi_mst_max_beats_ && w_beats > axi_mst_max_beats_)
@@ -288,7 +275,7 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write(const transactor::write
 }
 
 cvm::messenger::task<std::uint8_t> mmr_txn_router::write_split(const transactor::write_t& w,
-                                                              const transactor::axi_attr_t& attr) {
+                                                               const transactor::axi_attr_t& attr) {
   const size_t bus = axi_mst_data_bytes_;
   const uint64_t addr = w.addr;
   const uint64_t end = addr + w.length;
@@ -306,7 +293,6 @@ cvm::messenger::task<std::uint8_t> mmr_txn_router::write_split(const transactor:
     transactor::write_request_t req{beat_addr, bus, beat_data, beat_strb};
     req.allow_decerr_resp = true;
     req.attr = attr;
-    // One logical write fans out to many AXI ids; the allocator owns each.
     req.attr.is_manual_id = false;
 
     axi::id_t axi_id;
