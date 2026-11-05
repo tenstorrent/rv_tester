@@ -328,6 +328,7 @@ private:
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
+  cvm::topology::loc_t whisper_loc_;
   unsigned id_;
 
   int num_harts_ = 0;
