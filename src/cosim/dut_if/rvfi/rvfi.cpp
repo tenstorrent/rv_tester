@@ -83,6 +83,7 @@ void rvfi::configure() {
   connect<
       rv_tester_transactions::cosim::m_reset<>,
       rv_tester_transactions::cosim::m_disable_checks<>,
+      rv_tester_transactions::cosim::m_drain<>,
       rv_tester_transactions::cosim::m_rvfi<>,
       rv_tester_transactions::cosim::m_steps<>,
       rv_tester_transactions::cosim::m_gp_regs<>,
@@ -99,9 +100,7 @@ void rvfi::configure() {
       rv_tester_transactions::cosim::m_debug<>,
       bridge::error_loc>(loc_);
 
-  connect<
-      rv_tester::terminate_called,
-      rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
+  connect<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0));
 
   if (bridge_)
     bridge_->configure();
@@ -118,6 +117,35 @@ rvfi::~rvfi() {
 void rvfi::check() {
   // bridge_->report_metrics();
 }
+
+// Last message on this cosim's m_rvfi stream at cvm_done, so every earlier m_rvfi has arrived (RVDE-31810).
+void rvfi::process(const rv_tester_transactions::cosim::m_drain<>& m_drain) {
+  cvm::log(cvm::HIGH, "[RVFI] drained at cycle {}, stopping further rvfi processing\n", m_drain.cycle);
+  terminated_ = true;
+  if (bridge_)
+    bridge_->report_metrics();
+}
+
+// Holds the final shutdown until this cosim's m_drain arrives; registry reset domain 1 so warm-reset shutdowns (domain 0) skip it.
+class rvfi_drain {
+public:
+  rvfi_drain(cvm::topology::loc_t loc, unsigned) : loc_(loc) {}
+
+  void configure() {
+    out_of_reset_ = drained_ = false;
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_reset<>>(loc_, [this](const auto&) { out_of_reset_ = true; });
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_drain<>>(loc_, [this](const auto&) { drained_ = out_of_reset_; });
+  }
+
+  bool shutdown_ready() { return !FLAGS_rvfi || !out_of_reset_ || drained_; }
+
+private:
+  cvm::topology::loc_t loc_;
+  bool out_of_reset_ = false;
+  bool drained_ = false;
+};
+
+REGISTRY_register_with_reset(rvfi_drain, COSIM, cvm::registry::all, 1);
 
 bool rvfi::patch_access(uint64_t addr) {
   if (!patch_mode_)
@@ -276,7 +304,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       patch_mode_ = true;
       if (FLAGS_patch_mode_tag_override)
         patch_mode_first_tag_ = m_trap.order; // trigger tag (mc_excp.Tag), not a ucode tag
-    } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
+    } else if (FLAGS_vec_cmode_tag_override && ((ecause_ == CUSTOM_VEC_CMODE) || (ecause_ == CUSTOM_MC2_VEC_CMODE))) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
         vec_cmode_first_tag_ = m_trap.order; // Capture the tag and use it for all activity related to the vector instruction
@@ -1104,11 +1132,6 @@ bool rvfi::check_axi_error(uint64_t addr) {
 
 void rvfi::process(const rv_tester::terminate_called_mem_checks&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled by EOT memory checks, stopping further rvfi processing\n");
-  terminated_ = true;
-}
-
-void rvfi::process(const rv_tester::terminate_called&) {
-  cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
   terminated_ = true;
 }
 

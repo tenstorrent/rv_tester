@@ -241,7 +241,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
 void bridge::configure() {
   auto platform = cvm::topology::get_from_type("PLATFORM", 0);
-  cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this](const auto& v) { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this](const auto& v) { return this->process(v); });
 
   uint64_t nharts = cvm::topology::attr(platform, "NHARTS").second;
@@ -584,6 +583,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     mcm_orders_.erase(d.tag);
 
   twoStage_ = false;
+  iss_insn_recorded_ = false;
 
   whisper_state_t w{
       .tag = d.tag,
@@ -937,8 +937,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       skip_update_insn = false;
     }
     custom_vlzero_excp_ = false;
+    // Only skip the vector-to-nop override; a genuine nop is recorded on both sides.
     if (d.excp && d.ecause == CUSTOM_VLZERO_EXCP && d.uop == opcode_nop) {
-      skip_update_insn = true;
+      skip_update_insn = !iss_insn_recorded_;
       custom_vlzero_excp_ = true;
     }
     if (!skip_update_insn) {
@@ -1520,8 +1521,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   if (d.excp && is_custom_excp(d.ecause)) {
     bridge_log(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
 
-    // Vector conservative mode
-    if (d.ecause == CUSTOM_VEC_CMODE) {
+    // Vector conservative mode (both causes mark cmode entry)
+    if (d.ecause == CUSTOM_VEC_CMODE || d.ecause == CUSTOM_MC2_VEC_CMODE) {
       resynch(hart, d);
     } else if (d.ecause == CUSTOM_DBG_ENTRY) { // custom debug mode enter exception
       rv_debug_t debug;
@@ -1653,7 +1654,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_i
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH))
+  iss_insn_recorded_ = FLAGS_insn_check && !(w_.comp || dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !is_cracked_amocas(w.disasm) && !is_cracked_csr(w.disasm) && !(w.disasm.substr(0, 7) == "illegal") && !dut_opcode_modified && (patch_mode_ == NO_PATCH);
+  if (iss_insn_recorded_)
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -2404,7 +2406,10 @@ bool bridge::resynch_on_instr(const hart_id_t& hart, const std::string& instr, c
 }
 
 bool bridge::clint_read(const uint64_t& pa) {
-  return memmap::instance().in_range({"clint", "aclint"}, pa);
+  // Prefix match: cluster memmaps use per-cluster tags (aclint_cl0..15), not
+  // a single "clint"/"aclint" entry, so exact-tag lookup never matched (RVBBL-6555).
+  return memmap::instance().in_range_prefix("aclint", pa) ||
+         memmap::instance().in_range_prefix("clint", pa);
 }
 
 bool bridge::tbox_read(const uint64_t& pa) {
@@ -3724,13 +3729,9 @@ void bridge::process(const rv_tester::terminate_called_mem_checks&) {
   }
 }
 
-void bridge::process(const rv_tester::terminate_called&) {
-  if (!metrics_reported_)
-    report_metrics();
-  terminated_ = true;
-}
-
 void bridge::report_metrics() {
+  if (metrics_reported_)
+    return;
   metrics_reported_ = true;
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;

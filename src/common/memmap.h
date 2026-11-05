@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -138,7 +139,11 @@ public:
   bool in_range(const std::string& tag, const uint64_t& pa) {
     auto it = memmap_.find(tag);
     if (it == memmap_.end()) {
-      cvm::log(cvm::MEDIUM, "\tResynch: No entry found for {} in memmap\n", tag);
+      // Log once per missing tag; this is called per retired instruction on
+      // hot paths and repeated logging floods the test log (RVBBL-6555).
+      static std::set<std::string> warned;
+      if (warned.insert(tag).second)
+        cvm::log(cvm::MEDIUM, "\tResynch: No entry found for {} in memmap\n", tag);
       return false;
     }
     return pa >= it->second.base && pa < it->second.end;
@@ -146,6 +151,17 @@ public:
   bool in_range(std::initializer_list<std::string> tags, const uint64_t& pa) {
     for (const auto& tag : tags) {
       if (in_range(tag, pa))
+        return true;
+    }
+    return false;
+  }
+  // Match any entry whose tag starts with `prefix`. Needed because
+  // chips/dv/cluster_memmap.json names per-cluster entries (e.g. aclint_cl0..15)
+  // rather than a single "aclint"/"clint" tag (RVBBL-6555).
+  bool in_range_prefix(const std::string& prefix, const uint64_t& pa) {
+    for (auto it = memmap_.lower_bound(prefix);
+         it != memmap_.end() && it->first.compare(0, prefix.size(), prefix) == 0; ++it) {
+      if (pa >= it->second.base && pa < it->second.end)
         return true;
     }
     return false;
