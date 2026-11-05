@@ -19,6 +19,7 @@ DECLARE_uint64(seed);
 DECLARE_uint32(num_harts);
 DECLARE_uint32(hart_enable_mask);
 DECLARE_string(hart_enable_id);
+DECLARE_string(hart_mhartid);
 DECLARE_uint32(debug_enable);
 DECLARE_bool(ntrace_enable);
 DECLARE_bool(dst_enable);
