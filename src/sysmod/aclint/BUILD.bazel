@@ -3,10 +3,11 @@ cc_library(
     strip_include_prefix = ".",
     include_prefix = "aclint",
     srcs = ["aclint.cpp"],
-    hdrs = ["aclint.h"],
+    hdrs = ["aclint.h", "aclint_cfg.h"],
     deps = [
       "//src/sysmod:device",
       "//src/sysmod/clint:clint",
+      "//src/sysmod:sysmod_plusargs",
       "//src/common:svdpi",
       "@cvm//:registry",
       "@cvm//:plusargs",
