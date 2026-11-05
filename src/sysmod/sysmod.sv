@@ -20,7 +20,7 @@ module sysmod
       input aclint_ref_clk,
       input aclint_ref_reset,
       input dut_reset_req,
-      input dut_core_reset,
+      input dut_reset,
       output logic trace_quiesced,
       //output logic jtag_quiesced,
       output rv_tester_params::bootstrap_t bootstrap,
@@ -101,7 +101,7 @@ module sysmod
   export "DPI-C" function sysmod_terminate;
 
   localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-  assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (~dut_core_reset) & (clocks > TICKS )& (location != cvm_topology::nil);
+  assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (~dut_reset) & (clocks > TICKS )& (location != cvm_topology::nil);
   assign ticks[0].data.location = location;
   assign ticks[0].data.advance  = TICKS;
   assign ticks[0].data.clocks   = clocks;
