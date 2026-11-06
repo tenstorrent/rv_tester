@@ -105,7 +105,7 @@ void external_interrupt_sequence::configure() {
   }
 
   if (FLAGS_imsic_intr != "off" && FLAGS_imsic_intr != "random" && FLAGS_imsic_intr != "uarch_trigger") {
-    log(cvm::ERROR, "Error: [ExtInterruptSeq][h{}] Invalid value for +imsic_intr flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_imsic_intr);
+    log(cvm::ERROR, "[ExtInterruptSeq][h{}] Invalid value for +imsic_intr flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_imsic_intr);
   } else if (imsic_intr_uarch_trigger_mode()) {
     interrupt_injection_thread();
   }
@@ -152,7 +152,7 @@ cvm::messenger::task<void> external_interrupt_sequence::interrupt_trigger() {
       unsigned intr_file = 0;
       unsigned disable_flags = FLAGS_disable_m_imsic_intr | (FLAGS_disable_s_imsic_intr << 1) | (FLAGS_disable_vs_imsic_intr << 2);
       if (disable_flags == 0x7)
-        log(cvm::ERROR, "Error: [ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled\n");
+        log(cvm::ERROR, "[ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled\n");
       do {
         intr_file = rng1() % 3;
       } while (((1 << intr_file) & disable_flags) != 0);
@@ -212,7 +212,7 @@ void external_interrupt_sequence::on_sysmod_tick(uint64_t advance) {
   unsigned intr_file = 0;
   unsigned disable_flags = FLAGS_disable_m_imsic_intr | (FLAGS_disable_s_imsic_intr << 1) | (FLAGS_disable_vs_imsic_intr << 2);
   if (disable_flags == 0x7) {
-    log(cvm::ERROR, "Error: [ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled\n");
+    log(cvm::ERROR, "[ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled\n");
     return;
   }
   do {
@@ -293,7 +293,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
              intr_hart, 0x301, data_misa, mask, poke_mask, read_mask, valid) ||
          !valid) &&
         FLAGS_whisper_client_check)
-      log(cvm::ERROR, "Error: Hart {}: Failed to peek MISA in send_msi()\n", intr_hart);
+      log(cvm::ERROR, "Hart {}: Failed to peek MISA in send_msi()\n", intr_hart);
 
     if (((data_misa >> 7) & 0x1) && !disable_vs_id_rand) {
       is_vgein_intr = true;
@@ -305,7 +305,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
                intr_hart, 0x600, hstatus_data, mask, poke_mask, read_mask, valid) ||
            !valid) &&
           FLAGS_whisper_client_check)
-        log(cvm::ERROR, "Error: Hart {}: Failed to peek HSTATUS in send_msi()\n", intr_hart);
+        log(cvm::ERROR, "Hart {}: Failed to peek HSTATUS in send_msi()\n", intr_hart);
       uint32_t vgein = (hstatus_data >> 12) & 0x3F;
 
       // Peek HGEIE
@@ -315,7 +315,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
                intr_hart, 0x607, hgeie_data, mask, poke_mask, read_mask, valid) ||
            !valid) &&
           FLAGS_whisper_client_check)
-        log(cvm::ERROR, "Error: Hart {}: Failed to peek HGEIE in send_msi()\n", intr_hart);
+        log(cvm::ERROR, "Hart {}: Failed to peek HGEIE in send_msi()\n", intr_hart);
 
       // 50% chance for single vs dual interrupt
       bool generate_dual_interrupt = (rng1() % 2) == 0;
@@ -382,7 +382,7 @@ void external_interrupt_sequence::send_msi(uint64_t intr_num, unsigned intr_file
       addr = msi_vs_file_addr + (vs_id << 12) + hart_offset;
     }
   } else {
-    log(cvm::ERROR, "Error: [ExtInterruptSeq] Wrong IMSIC interrupt file specified\n");
+    log(cvm::ERROR, "[ExtInterruptSeq] Wrong IMSIC interrupt file specified\n");
     return;
   }
 
@@ -414,7 +414,7 @@ bool external_interrupt_sequence::check_axi_backpressure() {
     return true;
   }
   if (msi_wait_timeout_ >= FLAGS_msi_backpressure_timeout) {
-    log(cvm::ERROR, "Error: MSI Backpressure timeout: {} cycles\n", msi_wait_timeout_);
+    log(cvm::ERROR, "MSI Backpressure timeout: {} cycles\n", msi_wait_timeout_);
     return false;
   }
   return false;
@@ -439,6 +439,6 @@ uint32_t external_interrupt_sequence::get_logical_core_id(uint32_t physical_hart
     }
     logical_id++;
   }
-  log(cvm::ERROR, "Error: [ExtInterruptSeq] Physical hart ID {} not found in hart_enable_id list\n", physical_hart_id);
+  log(cvm::ERROR, "[ExtInterruptSeq] Physical hart ID {} not found in hart_enable_id list\n", physical_hart_id);
   return 0;
 }

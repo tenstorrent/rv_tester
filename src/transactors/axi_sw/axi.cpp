@@ -338,7 +338,7 @@ cvm::messenger::task<void> axi::operator()() {
           cvm::log(cvm::HIGH, "[axi] aw: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
           auto w = w_q_.dequeue();
           if (!!w.last != last) {
-            cvm::log(cvm::ERROR, "Error: [axi] w.last not set in for write to addr {:#x}\n", start);
+            cvm::log(cvm::ERROR, "[axi] w.last not set in for write to addr {:#x}\n", start);
           }
 
           // use std::shift_left in C++20

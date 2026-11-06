@@ -115,7 +115,7 @@ public:
       cvm::log(cvm::LOW, "\n\n");
       cvm::log(cvm::LOW, "******************************************************* \n");
       cvm::log(cvm::LOW, "******************************************************* \n");
-      cvm::log(cvm::ERROR, "\nError: Memmap.json check failed, Stopping simulation memmap.json has overlaps \n");
+      cvm::log(cvm::ERROR, "\nMemmap.json check failed, Stopping simulation memmap.json has overlaps \n");
       cvm::log(cvm::LOW, "******************************************************* \n");
       cvm::log(cvm::LOW, "******************************************************* \n");
       assert(false);

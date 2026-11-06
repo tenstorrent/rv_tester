@@ -111,7 +111,7 @@ void rvfi::configure() {
 rvfi::~rvfi() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_dpi == false))
-    cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
+    cvm::log(cvm::ERROR, "rvfi termination without processing any instructions\n");
 }
 
 void rvfi::check() {
@@ -537,7 +537,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     }
 
     if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      cvm::log(cvm::ERROR, "Invalid rvfi privilege mode: {:#x}\n", instr.priv);
       return;
     }
 
@@ -619,7 +619,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       }
       priv_ = m_rvfi.mode;
       if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-        cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+        cvm::log(cvm::ERROR, "Invalid rvfi privilege mode: {:#x}\n", instr.priv);
         return;
       }
     }
@@ -1158,7 +1158,7 @@ extern "C" __attribute__((weak)) const char* get_stall_probable_cause() {
 }
 
 extern "C" void report_max_stall_timeout(int hart, long long max_stall_cycle) {
-  cvm::log(cvm::ERROR, "\nError: Hart {}: No instruction retired for max_stall_cycle ({}) cycles. {}\n",
+  cvm::log(cvm::ERROR, "\nHart {}: No instruction retired for max_stall_cycle ({}) cycles. {}\n",
            hart, static_cast<unsigned long long>(max_stall_cycle), get_stall_probable_cause());
 }
 

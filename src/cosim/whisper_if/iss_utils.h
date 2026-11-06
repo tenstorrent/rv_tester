@@ -163,7 +163,7 @@ int whisperClient<URV>::processStandaloneInfo() {
   WdRiscv::Args args_iss = WdRiscv::Args();
   bool ok = constructSystem(session_iss, system_iss, args_iss, FLAGS_num_harts, true);
   if (!ok) {
-    cvm::log(cvm::ERROR, "Error: Couldn't construct system for Standalone processing\n");
+    cvm::log(cvm::ERROR, "Couldn't construct system for Standalone processing\n");
     return 1;
   }
 

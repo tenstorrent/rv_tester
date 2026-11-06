@@ -84,7 +84,7 @@ void io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data) {
       data[0] = rdata_byte_vec[read_counter];
       read_counter++;
     } else {
-      cvm::log(cvm::ERROR, "Error: [io_coh_helper] read request exceeded programmed read size: {:#x} \n", tx_size);
+      cvm::log(cvm::ERROR, "[io_coh_helper] read request exceeded programmed read size: {:#x} \n", tx_size);
     }
   }
   if (addr == (io_coh_helper_base + 0x5b0)) {
@@ -190,7 +190,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   cvm::log(cvm::HIGH, "[io_coh_helper] overlay B id={} resp={}\n", wresp.id, uint8_t(wresp.resp));
 
   if (!(aw_txn.allow_decerr_resp || aw_txn.exp_err_rsp) && wresp.resp != axi::RESP_OKAY) {
-    cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
+    cvm::log(cvm::ERROR, "Bad write completion response {} \n", +wresp.resp);
     co_return;
   }
   //std::get<1>(t) = false;
@@ -202,7 +202,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", addr, data_vec[0]);
     for (uint8_t i = 0; i < tx_size; ++i) {
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr + i, 1, data_vec[i], false, false, valid) || !valid) && FLAGS_whisper_client_check) {
-        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
         co_return;
       }
       {
@@ -381,7 +381,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
             [&wresp_id](const axi::b_t& b) { return b.id == wresp_id; });
 
         if (!(a_txn.allow_decerr_resp || a_txn.exp_err_rsp) && wresp.resp != axi::RESP_OKAY) {
-          cvm::log(cvm::ERROR, "Error: Bad write completion response {} \n", +wresp.resp);
+          cvm::log(cvm::ERROR, "Bad write completion response {} \n", +wresp.resp);
           co_return;
         }
         ////------------------------------
@@ -390,7 +390,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
           cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n", txns_vec[i].addr, data_vec[0]);
           for (uint8_t i = 0; i < tx_size; ++i) {
             if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', txns_vec[i].addr + i, 1, data_vec[i], false, false, valid) && FLAGS_whisper_client_check)) {
-              cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+              cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
               co_return;
             }
             {
@@ -422,7 +422,7 @@ void io_coh_helper::write(uint64_t addr, size_t, const data_t& data,
 
   if (addr == io_coh_helper_base) {
     if (t_data > 0)
-      cvm::log(cvm::ERROR, "Error: [io_coh_helper] Only Clearing of io_coh_helper Status allowed, Illegal to set status bit manually \n");
+      cvm::log(cvm::ERROR, "[io_coh_helper] Only Clearing of io_coh_helper Status allowed, Illegal to set status bit manually \n");
     tx_status = t_data & 0x1;
     wdata_vec = {};
 
@@ -479,7 +479,7 @@ void io_coh_helper::write(uint64_t addr, size_t, const data_t& data,
 
     if (tx_type == 0) {
       if (wdata_vec.size() != tx_size) {
-        cvm::log(cvm::ERROR, "Error: [io_coh_helper] wdata vector size doesnt match programmed size \n");
+        cvm::log(cvm::ERROR, "[io_coh_helper] wdata vector size doesnt match programmed size \n");
 
       } else {
         overlay_write(tx_addr);

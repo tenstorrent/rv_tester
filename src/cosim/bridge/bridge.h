@@ -123,7 +123,7 @@ private:
   }
   template <typename... Args>
   void error(std::string_view format, Args&&... args) {
-    std::string prefix = "Error: ";
+    std::string prefix;
     if (patch_mode_) {
       prefix += "PATCH ";
     }

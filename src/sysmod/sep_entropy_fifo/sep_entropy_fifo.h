@@ -15,7 +15,7 @@ private:
 public:
   sep_entropy_fifo(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc);
   void write(const transactor::write_t&) {
-    cvm::log(cvm::ERROR, "Error: Writes currently not supported for sep_entropy_fifo\n");
+    cvm::log(cvm::ERROR, "Writes currently not supported for sep_entropy_fifo\n");
   };
   void read(const transactor::read_t& r, data_t& data);
   void fill_fifo();

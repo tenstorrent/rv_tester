@@ -218,7 +218,7 @@ void debugger::parse_dmi_from_csv() {
         }
       } else {
         // invalid command seen in the csv file
-        cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid command in csv file {}\n", instr);
+        cvm::log(cvm::ERROR, "[Trickbox] Invalid command in csv file {}\n", instr);
       }
 
       // Check commands to push to specific queues
@@ -247,7 +247,7 @@ void debugger::parse_dmi_from_csv() {
         try {
           dmi_req.addr = std::stoul(row[1], nullptr, 16);
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid argument: addr for stoul csv arg 1: {}\n", e.what());
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: addr for stoul csv arg 1: {}\n", e.what());
         }
       }
 
@@ -264,7 +264,7 @@ void debugger::parse_dmi_from_csv() {
             }
           }
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "Error: [Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }
 
@@ -304,7 +304,7 @@ void debugger::parse_dmi_from_csv() {
 
     file_parsing_done = 1;
   } else {
-    cvm::log(cvm::ERROR, "Error: [Trickbox] Could not open dmi cfg file {}\n", FLAGS_dbg_input_file_path);
+    cvm::log(cvm::ERROR, "[Trickbox] Could not open dmi cfg file {}\n", FLAGS_dbg_input_file_path);
   }
 }
 

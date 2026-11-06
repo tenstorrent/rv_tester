@@ -84,7 +84,7 @@ void memdump::configure() {
 
 bool memdump::lookup_symbol(const std::string& sym, uint64_t& out) {
   if (FLAGS_load.empty()) {
-    cvm::log(cvm::ERROR, "Error: [memdump] cannot resolve @{}: +load is empty\n", sym);
+    cvm::log(cvm::ERROR, "[memdump] cannot resolve @{}: +load is empty\n", sym);
     return false;
   }
   auto it = symbol_cache_.find(sym);
@@ -107,14 +107,14 @@ bool memdump::lookup_symbol(const std::string& sym, uint64_t& out) {
       continue;
     }
   }
-  cvm::log(cvm::ERROR, "Error: [memdump] symbol @{} not found in {}\n", sym, FLAGS_load);
+  cvm::log(cvm::ERROR, "[memdump] symbol @{} not found in {}\n", sym, FLAGS_load);
   return false;
 }
 
 bool memdump::resolve_token(const std::string& tok, uint64_t& out) {
   const std::string t = strip(tok);
   if (t.empty()) {
-    cvm::log(cvm::ERROR, "Error: [memdump] empty token in expression\n");
+    cvm::log(cvm::ERROR, "[memdump] empty token in expression\n");
     return false;
   }
   if (t[0] == '@') {
@@ -124,7 +124,7 @@ bool memdump::resolve_token(const std::string& tok, uint64_t& out) {
     out = std::stoull(t, nullptr, 0);
     return true;
   } catch (...) {
-    cvm::log(cvm::ERROR, "Error: [memdump] cannot parse numeric literal '{}'\n", t);
+    cvm::log(cvm::ERROR, "[memdump] cannot parse numeric literal '{}'\n", t);
     return false;
   }
 }
@@ -165,12 +165,12 @@ void memdump::parse_plusarg() {
     auto fields = split(spec, ':');
     if (fields.size() != 3) {
       cvm::log(cvm::ERROR,
-               "Error: [memdump] bad spec '{}' (expected file:start:end)\n", spec);
+               "[memdump] bad spec '{}' (expected file:start:end)\n", spec);
       continue;
     }
     const std::string filename = strip(fields[0]);
     if (filename.empty()) {
-      cvm::log(cvm::ERROR, "Error: [memdump] empty filename in spec '{}'\n", spec);
+      cvm::log(cvm::ERROR, "[memdump] empty filename in spec '{}'\n", spec);
       continue;
     }
     uint64_t start = 0, end = 0;
@@ -180,7 +180,7 @@ void memdump::parse_plusarg() {
       continue;
     if (start >= end) {
       cvm::log(cvm::ERROR,
-               "Error: [memdump] {} : start {:#x} >= end {:#x}, skipping\n",
+               "[memdump] {} : start {:#x} >= end {:#x}, skipping\n",
                filename, start, end);
       continue;
     }
@@ -200,7 +200,7 @@ memdump::dump_all() {
   for (auto& r : regions_) {
     std::ofstream ofs(r.filename, std::ios::binary | std::ios::trunc);
     if (!ofs) {
-      cvm::log(cvm::ERROR, "Error: [memdump] cannot open {} for writing\n", r.filename);
+      cvm::log(cvm::ERROR, "[memdump] cannot open {} for writing\n", r.filename);
       continue;
     }
     const size_t len = r.end - r.start;
