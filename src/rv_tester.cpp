@@ -103,9 +103,13 @@ public:
     clock = 0;
     timestamp = 0;
 
-    cvm::set_logger_prefix([]() -> std::string_view {
-      prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
-      prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+    cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
+      if (v == cvm::ERROR) {
+        prefix = "ERROR: ";
+      } else {
+        prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+        prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      }
       return prefix;
     });
 
@@ -239,7 +243,7 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
   if (!memmap::instance().get(m))
     return;
   if (m.size() > no_addr_rules) {
-    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
+    cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
     return;
   }
 
@@ -331,7 +335,7 @@ void rv_tester_streaming_dpi_shutdown() {
   }
   cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
   if (!rv_tester_shutdown_registry(true)) {
-    cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
+    cvm::log(cvm::ERROR, "[streaming_dpi] failed to shutdown registry\n");
   }
 }
 
