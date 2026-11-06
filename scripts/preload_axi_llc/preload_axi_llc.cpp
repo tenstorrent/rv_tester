@@ -54,18 +54,18 @@ preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_
 
     dataOut[i].open(pf.dataFiles[i]);
     if (!dataOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "could not open output file %s\n", pf.dataFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file {}\n", pf.dataFiles[i]);
     }
     tagOut[i].open(pf.tagFiles[i]);
     if (!tagOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "could not open output file %s\n", pf.tagFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file {}\n", pf.tagFiles[i]);
     }
   }
 
   // Open the CSV file for reading.
   std::ifstream csv(csv_path);
   if (!csv.is_open()) {
-    cvm::log(cvm::ERROR, "could not open CSV file: %s\n", csv_path.c_str());
+    cvm::log(cvm::ERROR, "could not open CSV file: {}\n", csv_path);
     return pf;
   }
 
@@ -175,6 +175,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "Usage: " << argv[0] << " <csv_path> <num_sets> <num_blocks> <num_ways> <addr_width> <data_width>\n";
     return 1;
   }
+
+  // Outside rv_tester nothing installs a logger prefix, so mark errors here.
+  cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view { return v == cvm::ERROR ? "Error: " : ""; });
 
   std::string csv_path = argv[1];
   int num_sets = std::stoi(argv[2]);

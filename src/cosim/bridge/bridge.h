@@ -127,7 +127,7 @@ private:
     if (patch_mode_) {
       prefix += "PATCH ";
     }
-    std::string out = "\n" + prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
+    std::string out = prefix + fmt::format(fmt::runtime(format), std::forward<Args>(args)...) + "\n"; // for those who forget newline
     print(cvm::ERROR, out);
   }
   bool flags_bridge_log_;
