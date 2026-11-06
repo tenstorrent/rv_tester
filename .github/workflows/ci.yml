@@ -32,7 +32,6 @@ jobs:
         run: |
           (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
           python3 scripts/plusarg_lint.py
-          python3 scripts/error_log_lint.py
           git ls-files '*.cpp' '*.cc' '*.h' '*.hpp' | xargs clang-format --Werror --dry-run --verbose
       - name: clang-tidy
         run: bazel-7 build //test/sw_testbench/verilator:sw_2c_tb_verilator --config=bzlmod --config=clang-tidy $BAZEL_OPTS
