@@ -61,6 +61,7 @@ DEFINE_bool(offline_dpi, false, "Enable OFFLINE DPI capture for emulation");
 DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode for simulation");
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
+DEFINE_string(logger_error_prefix, "Error: ", "Prefix prepended to every cvm::ERROR log message");
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value == 0) && (FLAGS_cvm_debug_cycle_on > 0))
@@ -105,7 +106,7 @@ public:
 
     cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
       if (v == cvm::ERROR) {
-        prefix = "ERROR: ";
+        prefix = FLAGS_logger_error_prefix;
       } else {
         prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
         prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
