@@ -54,18 +54,18 @@ preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_
 
     dataOut[i].open(pf.dataFiles[i]);
     if (!dataOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "could not open output file %s", pf.dataFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file %s\n", pf.dataFiles[i].c_str());
     }
     tagOut[i].open(pf.tagFiles[i]);
     if (!tagOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "could not open output file %s", pf.tagFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file %s\n", pf.tagFiles[i].c_str());
     }
   }
 
   // Open the CSV file for reading.
   std::ifstream csv(csv_path);
   if (!csv.is_open()) {
-    cvm::log(cvm::ERROR, "could not open CSV file: %s", csv_path.c_str());
+    cvm::log(cvm::ERROR, "could not open CSV file: %s\n", csv_path.c_str());
     return pf;
   }
 
