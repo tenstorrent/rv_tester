@@ -15,12 +15,3 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
-
-cc_test(
-    name = "logger_prefix_test",
-    srcs = ["rv_tester_logger_prefix_test.cpp"],
-    deps = [
-        "//src:logger_prefix",
-        "@com_google_googletest//:gtest_main",
-    ],
-)

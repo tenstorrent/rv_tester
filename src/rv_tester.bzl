@@ -193,7 +193,6 @@ def rv_tester_gen(
             "@rv_tester//src:structs",
             "@rv_tester//:clock_profiles",
             "@rv_tester//src:crash_handler",
-            "@rv_tester//src:logger_prefix",
             "@rv_tester//src/common:common",
             "@rv_tester//src/common:svdpi",
             "@rv_tester//scripts/preload_axi_llc:preload_axi_llc",

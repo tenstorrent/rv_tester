@@ -6,7 +6,6 @@
 #include <chrono>
 
 #include "rv_tester_crash_handler.hpp"
-#include "rv_tester_logger_prefix.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology_defs.hpp"
@@ -103,7 +102,13 @@ public:
 
   static void install_prefix() {
     cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
-      return rv_tester::format_logger_prefix(prefix, v, FLAGS_logger_error_prefix, timestamp, clock);
+      if (v == cvm::ERROR) {
+        prefix = FLAGS_logger_error_prefix;
+      } else {
+        prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+        prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      }
+      return prefix;
     });
   }
 
