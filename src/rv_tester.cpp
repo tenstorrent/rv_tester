@@ -61,6 +61,7 @@ DEFINE_bool(offline_dpi, false, "Enable OFFLINE DPI capture for emulation");
 DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode for simulation");
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(warm_reset_directed_en, false, "enable warm reset directed");
+DEFINE_string(logger_error_prefix, "Error: ", "Prefix prepended to every cvm::ERROR log message");
 
 static bool validate_debug_cycle_off(const char* flagname, const uint64_t value) {
   if ((value == 0) && (FLAGS_cvm_debug_cycle_on > 0))
@@ -99,15 +100,23 @@ class logger_instrument {
 public:
   logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc) {};
 
+  static void install_prefix() {
+    cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
+      if (v == cvm::ERROR) {
+        prefix = FLAGS_logger_error_prefix;
+      } else {
+        prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+        prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      }
+      return prefix;
+    });
+  }
+
   void configure() {
     clock = 0;
     timestamp = 0;
 
-    cvm::set_logger_prefix([]() -> std::string_view {
-      prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
-      prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
-      return prefix;
-    });
+    install_prefix();
 
     cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [](const auto& c) { clock = c.clock; });
     cvm::registry::messenger.connect<rv_tester_transactions::logger::timestamp<>>(loc, [](const auto& t) { timestamp = t.timeval; });
@@ -224,6 +233,7 @@ int rv_tester_init() {
   rv_tester_install_crash_handlers();
   cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
   cvm::plusargs::parse();
+  logger_instrument::install_prefix();
 
   return 0;
 }
@@ -239,7 +249,7 @@ void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int /*num_ways*/, int /
   if (!memmap::instance().get(m))
     return;
   if (m.size() > no_addr_rules) {
-    cvm::log(cvm::ERROR, "Error: Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
+    cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})\n", m.size(), no_addr_rules);
     return;
   }
 
@@ -331,7 +341,7 @@ void rv_tester_streaming_dpi_shutdown() {
   }
   cvm::log(cvm::NONE, "[streaming_dpi] shutting down registry\n");
   if (!rv_tester_shutdown_registry(true)) {
-    cvm::log(cvm::ERROR, "Error: [streaming_dpi] failed to shutdown registry\n");
+    cvm::log(cvm::ERROR, "[streaming_dpi] failed to shutdown registry\n");
   }
 }
 

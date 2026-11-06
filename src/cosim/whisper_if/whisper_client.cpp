@@ -204,7 +204,7 @@ bool whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&
   std::vector<std::string> args_str = {"whisper"};
   auto config_file = overrideWhisperJson(standalone);
   if (config_file == "") {
-    cvm::log(cvm::ERROR, "Error: Unable to parse whisper json from +whisper_json_path\n");
+    cvm::log(cvm::ERROR, "Unable to parse whisper json from +whisper_json_path\n");
     return false;
   }
   cvm::log(cvm::HIGH, "Whisper config changed to: {}\n", config_file);
@@ -351,13 +351,13 @@ int whisperClient<URV>::whisperStandalone() {
   bool ok = session_->run(args_);
   ok = ok && session_->cleanup(args_);
   if (!ok) {
-    cvm::log(cvm::ERROR, "Error: Test failed on Standalone Whisper, stopping simulation\n");
+    cvm::log(cvm::ERROR, "Test failed on Standalone Whisper, stopping simulation\n");
     return 1;
   } else {
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       auto instr_count = system_->ithHart(i).get()->getInstructionCount();
       if (instr_count >= FLAGS_max_instr) {
-        cvm::log(cvm::ERROR, "Error: Test reached max instr on standalone Whisper, stopping simulation\n");
+        cvm::log(cvm::ERROR, "Test reached max instr on standalone Whisper, stopping simulation\n");
         return 1;
       }
     }
@@ -368,13 +368,13 @@ int whisperClient<URV>::whisperStandalone() {
 template <typename URV>
 int whisperClient<URV>::whisperConnect() {
   if (FLAGS_preload && FLAGS_standalone && ncores_ > 1)
-    cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
+    cvm::log(cvm::ERROR, "Preloading works only on single core runs and +standalone plusarg enabled\n");
 
   if (FLAGS_standalone) {
     cvm::log(cvm::MEDIUM, "Running Whisper standalone\n");
     args_ = WdRiscv::Args();
     if (!constructSystem(session_, system_, args_, FLAGS_num_harts, true, "iss_standalone.log")) {
-      cvm::log(cvm::ERROR, "Error: could not construct system\n");
+      cvm::log(cvm::ERROR, "could not construct system\n");
       return 1;
     }
     int failed = whisperStandalone();
@@ -388,7 +388,7 @@ int whisperClient<URV>::whisperConnect() {
   cvm::log(cvm::HIGH, "Construct Whisper for cosim\n");
   args_ = WdRiscv::Args();
   if (!constructSystem(session_, system_, args_, ncores_, false))
-    cvm::log(cvm::ERROR, "Error: could not construct system\n");
+    cvm::log(cvm::ERROR, "could not construct system\n");
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   if (!FLAGS_hart_mhartid.empty()) {
@@ -397,22 +397,22 @@ int whisperClient<URV>::whisperConnect() {
     try {
       entries = parseHartList(FLAGS_hart_mhartid);
     } catch (const std::exception&) {
-      cvm::log(cvm::ERROR, "Error: [whisperClient] Cannot parse +hart_mhartid={}\n", FLAGS_hart_mhartid);
+      cvm::log(cvm::ERROR, "[whisperClient] Cannot parse +hart_mhartid={}\n", FLAGS_hart_mhartid);
       valid = false;
     }
     if (valid && entries.size() != FLAGS_num_harts) {
-      cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid has {} entries, +num_harts is {}\n",
+      cvm::log(cvm::ERROR, "[whisperClient] +hart_mhartid has {} entries, +num_harts is {}\n",
                entries.size(), FLAGS_num_harts);
       valid = false;
     }
     std::vector<bool> used(system_->hartCount(), false);
     for (uint64_t entry : entries) {
       if (entry >= system_->hartCount()) {
-        cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid entry {} is not below the whisper hart count {}\n",
+        cvm::log(cvm::ERROR, "[whisperClient] +hart_mhartid entry {} is not below the whisper hart count {}\n",
                  entry, system_->hartCount());
         valid = false;
       } else if (used[entry]) {
-        cvm::log(cvm::ERROR, "Error: [whisperClient] +hart_mhartid entry {} appears more than once\n", entry);
+        cvm::log(cvm::ERROR, "[whisperClient] +hart_mhartid entry {} appears more than once\n", entry);
         valid = false;
       } else {
         used[entry] = true;
@@ -432,14 +432,14 @@ int whisperClient<URV>::whisperConnect() {
   if (FLAGS_cov) {
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
     if (not soPtr)
-      cvm::log(cvm::ERROR, "Error: Failed to load shared library {}\n", dlerror());
+      cvm::log(cvm::ERROR, "Failed to load shared library {}\n", dlerror());
 
     std::string entry("tracerExtension");
     entry += sizeof(URV) == 4 ? "32" : "64";
 
     __tracerExtension = reinterpret_cast<void (*)(void*)>(dlsym(soPtr, entry.c_str()));
     if (not __tracerExtension)
-      cvm::log(cvm::ERROR, "Error: Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
+      cvm::log(cvm::ERROR, "Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
   }
 
   // Signal to subscribers that whisper is ready to receive cosim calls
@@ -973,7 +973,7 @@ bool whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
     req.tag[i] = (uint8_t)((mask >> (i * 8)) & 0xff);
 
   if (req.size > req.buffer.size()) {
-    cvm::log(cvm::ERROR, "Error: whisperMcmWrite: write size {} too large\n", req.size);
+    cvm::log(cvm::ERROR, "whisperMcmWrite: write size {} too large\n", req.size);
     valid = false;
     return true;
   }
@@ -1290,7 +1290,7 @@ whisperClient<URV>::overrideWhisperJson(bool standalone) {
     j = nlohmann::json::parse(ifs);
     ifs.close();
   } catch (...) {
-    cvm::log(cvm::ERROR, "Error: Unable to parse whisper json from +whisper_json_path\n");
+    cvm::log(cvm::ERROR, "Unable to parse whisper json from +whisper_json_path\n");
     return "";
   }
 

@@ -24,5 +24,5 @@ std::uint32_t ext_mem_rv_tester_get_stall_timeout() { return FLAGS_ext_mem_stall
 }
 
 extern "C" void stall_checker_rv_tester_error(const char* error, std::uint32_t threshold) {
-  cvm::log(cvm::ERROR, "Error: {}: {} cycles\n", error, threshold);
+  cvm::log(cvm::ERROR, "{}: {} cycles\n", error, threshold);
 }
