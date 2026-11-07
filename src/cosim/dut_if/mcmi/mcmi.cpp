@@ -543,10 +543,6 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
   cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm writeback [sv implementation] to addr : {:#x}\n", m_mcmi_writeback.addr);
 
   bool valid = false;
-  // The writeback RPC carries no line data, so it only asserts reference-cache
-  // residency. A dirty-line eviction drained after cvm_done (RVDE-31810) can target
-  // a line the reference model already dropped; treat a missing line as benign,
-  // consistent with the cbo-flush writeback path above.
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr, valid) || !valid) && FLAGS_whisper_client_check) {
     cvm::log(cvm::HIGH, "No mcm dwriteback for address : {:#x} , cycle : {} , since cacheline not present\n", m_mcmi_writeback.addr, m_mcmi_writeback.cycle);
     return;
