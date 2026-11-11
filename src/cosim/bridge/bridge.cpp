@@ -3194,9 +3194,11 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
       whisper_mip_age_.erase(SEI);
       whisper_mip_clr_age_.erase(SEI);
     } else if (seip_new) {
-      whisper_mip_age_[SEI]++;
+      whisper_mip_age_[SEI] = 1;
+      whisper_mip_clr_age_.erase(SEI);
     } else {
-      whisper_mip_clr_age_[SEI]++;
+      whisper_mip_clr_age_[SEI] = 1;
+      whisper_mip_age_.erase(SEI);
     }
   }
 }
