@@ -513,7 +513,7 @@ module axi_sw #(
       if (axi_sw_r_wptr_prev != axi_sw_r_wptr) begin
         flushed <= '0;
       end
-    end else if (!ar_history_empty && read_latency != 0) begin
+    end else if (!ar_history_empty && r_queue_empty && read_latency != 0) begin  // queued data needs no flush
       if (!r_queue_full) begin
         automatic logic fifo_near_critical    = ($bits(ar_history_size)'(AR_HISTORY_Q_MAX) - ar_history_size) <= $bits(ar_history_size)'(read_latency_fifo_threshold);
         automatic logic timeout_near_critical = CW'(clocks) - ar_history_q >= CW'(read_latency - read_latency_timeout_threshold);
