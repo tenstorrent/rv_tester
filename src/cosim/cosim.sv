@@ -1525,6 +1525,7 @@ end
   assign m_imsic_msis[0].valid = ~suppress_interrupts && imsic_msi.valid && rvfi_enabled;
   assign m_imsic_msis[0].data.location = location;
   assign m_imsic_msis[0].data.cycle = clocks;
+  assign m_imsic_msis[0].data.mon_cycle = imsic_msi.cycle;
   assign m_imsic_msis[0].data.addr = imsic_msi.addr;
   assign m_imsic_msis[0].data.data = imsic_msi.data;
   assign m_imsic_msis[0].data.intr_during_ucode = intr_during_ucode;
