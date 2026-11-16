@@ -1329,7 +1329,9 @@ void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d
   uint64_t w_defer_mip = 0;
   peek_mip(hart, d.cycle, w_mip);
   peek_deferred_interrupts(hart, w_defer_mip);
-  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip;
+  bool w_seip = false;
+  peek_seip(hart, d.cycle, w_seip);
+  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip | (uint64_t{w_seip} << SEI);
   uint64_t defer_nmip = nmip_.to_ullong();
 
   if (check_nmi_at_patch_exit_) {
