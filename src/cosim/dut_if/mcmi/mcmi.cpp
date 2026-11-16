@@ -335,7 +335,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 bool mcmi::bypass_pokes_cache(const mem_t& m) {
-  return (m.attr == 0x1000) && !m.v_ext;
+  return m.attr == 0x1000;
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
@@ -391,7 +391,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         m.data_vec = data_vec;
         m.v_ext = m_mcmi_bypass.v_ext;
         m.elem_idx = m_mcmi_bypass.elem_idx;
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, bypass_pokes_cache(m));
       });
 }
 
