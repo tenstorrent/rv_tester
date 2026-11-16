@@ -35,6 +35,10 @@ constexpr uint64_t pmm_cfgs_mask_lo = 32;
 constexpr uint64_t pmm_mask_size = 2;
 constexpr uint64_t time_csr = 0xC01;
 constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
+constexpr std::array<uint16_t, 3> mstatus_mpp_legal_values = {0, 1, 3}; // also applies to mnstatus
+constexpr uint64_t mstatus_mpp_pos = 11;
+constexpr uint64_t mstatus_mpp_size = 2;
+constexpr uint64_t mstatus_mpp_mask = ((1ULL << mstatus_mpp_size) - 1) << mstatus_mpp_pos;
 // ACLINT M-time / M-timecmp (generate_acl_device_addr() + 0 / + 0x8000)
 inline uint64_t mtime_mmr() {
   uint32_t cluster_id = 0;

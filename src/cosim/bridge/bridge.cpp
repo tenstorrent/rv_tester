@@ -3532,6 +3532,15 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
     }
   }
 
+  // handle mstatus.MPP (upon illegal value, leave it unchanged)
+  if ((addr == mstatus.address) || (addr == mnstatus.address)) {
+    uint64_t cur = get_csr(hart, src_t::dut, addr);
+    uint64_t next = (cur & ~result) | (data & result);
+    uint64_t mpp = (next & mstatus_mpp_mask) >> mstatus_mpp_pos;
+    if (std::find(mstatus_mpp_legal_values.begin(), mstatus_mpp_legal_values.end(), mpp) == mstatus_mpp_legal_values.end())
+      result &= ~mstatus_mpp_mask;
+  }
+
   if (addr == srmcfg.address) {
     uint64_t eff_data = data & mask;
     result = 0xfff0fff;
