@@ -31,6 +31,34 @@ sh_test(
     ],
 )
 
+# Retire 100 lands after the pass condition but before cvm_done; only the RVFI drain checks it.
+sh_test(
+    name = "rvfi_drain_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+        "+sw_tb_bad_retire=100",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+    env = {
+        "EXPECT_AFTER": "Pass condition detected",
+        "EXPECT_ERROR": "Core Arch Checker Mismatch - PC ",
+    },
+    # The expected error exits nonzero, which hides valgrind's --error-exitcode.
+    tags = ["no-valgrind"],
+)
+
 sh_test(
     name = "infinite_2c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
@@ -80,6 +108,7 @@ test_suite(
     name = "all_smoke",
     tests = [
         ":infinite_1c_verilator",
+        ":rvfi_drain_1c_verilator",
         ":infinite_2c_verilator",
         ":hart_mhartid_imsic_ipi_8c_verilator",
     ],

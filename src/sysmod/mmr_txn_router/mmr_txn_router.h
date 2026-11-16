@@ -36,8 +36,15 @@ private:
   transactor::axi_attr_t pick_attr(bool is_write);
 
   cvm::topology::loc_t axi_mst_loc_l;
+  size_t axi_mst_data_bytes_ = 0;
+  // MAX_AXLEN+1 from topology; 0 means uncapped.
+  size_t axi_mst_max_beats_ = 0;
   cvm::messenger::pool<transactor::read_response_t>::channel_info read_resp_channel_;
   cvm::messenger::pool<transactor::write_response_t>::channel_info write_resp_channel_;
+
+  // Reissue a transfer exceeding the AxLEN cap as single bus-width beats.
+  cvm::messenger::task<std::uint8_t> read_split(uint64_t addr, size_t length, const axi::a_no_id_t& tmpl, data_t& data);
+  cvm::messenger::task<std::uint8_t> write_split(const transactor::write_t& w, const transactor::axi_attr_t& attr);
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

@@ -591,6 +591,15 @@ cosim:
             haltreq:
                 width: 1
 
+    # Drain marker (RVDE-31810): one per cosim instance when the TB reaches cvm_done. Listed last so
+    # every same-cycle message precedes it; once seen, everything earlier on the stream has arrived.
+    m_drain:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+
 sysmod:
     num: 1
     tick:
