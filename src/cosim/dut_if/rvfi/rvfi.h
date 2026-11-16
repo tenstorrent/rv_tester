@@ -78,6 +78,7 @@ private:
   void enter_debug_mode(rv_instr_t& instr);
   void exit_debug_mode(rv_instr_t& instr);
   bool patch_access(uint64_t addr);
+  uint64_t patch_trigger_tag(uint64_t order, uint64_t pc) const;
   bool is_ncio(uint32_t mem_attr);
   bool check_axi_error(uint64_t addr);
 

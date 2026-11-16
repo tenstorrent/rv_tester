@@ -63,6 +63,7 @@ private:
 
   bool patch_access(uint64_t addr);
   uint64_t remap_patch_tag(uint64_t tag);
+  uint64_t patch_trigger_tag(uint64_t order, uint64_t pc) const;
   void close_patch_session();
   bool patch_fetch_access(uint64_t addr);
   bool debug_fetch_access(uint64_t addr);

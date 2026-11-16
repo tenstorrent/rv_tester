@@ -83,7 +83,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       if (patch_mode_ && patch_lo_tag_)
         close_patch_session();
       patch_mode_ = true;
-      patch_mode_first_tag_ = m_trap.order;
+      patch_mode_first_tag_ = patch_trigger_tag(m_trap.order, m_trap.pc_addr);
       patch_lo_tag_ = 0;
       patch_hi_tag_ = 0;
     } else if ((ecause_ == CUSTOM_VEC_CMODE) || (ecause_ == CUSTOM_MC2_VEC_CMODE)) {
@@ -113,11 +113,11 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     patch_mode_ = true;
     if (!patch_mode_first_tag_)
-      patch_mode_first_tag_ = m_rvfi.order;
+      patch_mode_first_tag_ = patch_trigger_tag(m_rvfi.order, m_rvfi.pc_rdata);
   }
   if (patch_mode_) {
     if (!patch_mode_first_tag_)
-      patch_mode_first_tag_ = m_rvfi.order;
+      patch_mode_first_tag_ = patch_trigger_tag(m_rvfi.order, m_rvfi.pc_rdata);
     if (m_rvfi.mode == RVFI_PATCH_MODE) {
       if (!patch_lo_tag_ || m_rvfi.order < patch_lo_tag_)
         patch_lo_tag_ = m_rvfi.order;
@@ -148,7 +148,10 @@ void mcmi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
   prev_branch_tag_ = m_rvfi.branch_tag;
 
-  vec_cmode_ = false;
+  // Trap records do not end the vector instruction; rvfi keeps its cmode state across them too,
+  // so both sides derive the same patch trigger tag.
+  if (!m_rvfi.trap)
+    vec_cmode_ = false;
 
   // RVDE-24355: Clean up conservative mode memory errors when vec_cmode_ is cleared
   if (!vec_cmode_ && !vec_cmode_mem_errors_.empty()) {
@@ -606,6 +609,13 @@ void mcmi::close_patch_session() {
   patch_mode_first_tag_ = 0;
   patch_lo_tag_ = 0;
   patch_hi_tag_ = 0;
+}
+
+// Matches rvfi::patch_trigger_tag so patch-routine MCM events remap to the tag Whisper steps.
+uint64_t mcmi::patch_trigger_tag(uint64_t order, uint64_t pc) const {
+  if (FLAGS_vec_cmode_tag_override && vec_cmode_ && (pc == vec_cmode_pc_addr_))
+    return vec_cmode_first_tag_;
+  return order;
 }
 
 uint64_t mcmi::remap_patch_tag(uint64_t tag) {

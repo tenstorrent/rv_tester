@@ -165,6 +165,14 @@ bool rvfi::patch_access(uint64_t addr) {
   return false;
 }
 
+// A patch entered from a conservative-mode vector instruction keeps that instruction's
+// tag, so its MCM reads (issued under vec_cmode_first_tag_) stay attached to the step.
+uint64_t rvfi::patch_trigger_tag(uint64_t order, uint64_t pc) const {
+  if (FLAGS_vec_cmode_tag_override && vec_cmode_ && (pc == vec_cmode_pc_addr_))
+    return vec_cmode_first_tag_;
+  return order;
+}
+
 void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
   if (terminated_)
@@ -303,7 +311,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
         bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
       if (FLAGS_patch_mode_tag_override)
-        patch_mode_first_tag_ = m_trap.order; // trigger tag (mc_excp.Tag), not a ucode tag
+        patch_mode_first_tag_ = patch_trigger_tag(m_trap.order, m_trap.pc_addr); // trigger tag (mc_excp.Tag), not a ucode tag
     } else if (FLAGS_vec_cmode_tag_override && ((ecause_ == CUSTOM_VEC_CMODE) || (ecause_ == CUSTOM_MC2_VEC_CMODE))) {
       if (!(vec_cmode_ && (m_trap.pc_addr == vec_cmode_pc_addr_))) {
         vec_cmode_ = true;                   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
@@ -551,7 +559,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
         // Preserve the trigger tag captured at the patch trap (ecause 60); only
         // fall back to this ucode record for a pure ucode-initiated patch entry.
         if (!patch_mode_first_tag_)
-          patch_mode_first_tag_ = m_rvfi.order;
+          patch_mode_first_tag_ = patch_trigger_tag(m_rvfi.order, m_rvfi.pc_rdata);
         instr.tag = patch_mode_first_tag_;
       }
     }
