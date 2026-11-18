@@ -277,6 +277,7 @@ uint8_t rv_tester_shutdown_registry(bool all_domains) {
     cvm::log(cvm::NONE, "[registry] check...\n");
     cvm::registry::check();
     check_called = true;
+    cvm::registry::messenger.signal<rv_tester::registry_shutdown>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::registry_shutdown{});
   }
 
   if (all_domains) {
