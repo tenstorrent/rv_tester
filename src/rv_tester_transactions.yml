@@ -569,6 +569,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            mon_cycle:
+                width: 64
             addr:
                 width: 64
             data:
