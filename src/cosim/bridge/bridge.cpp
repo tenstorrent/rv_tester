@@ -1329,7 +1329,9 @@ void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d
   uint64_t w_defer_mip = 0;
   peek_mip(hart, d.cycle, w_mip);
   peek_deferred_interrupts(hart, w_defer_mip);
-  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip;
+  bool w_seip = false;
+  peek_seip(hart, d.cycle, w_seip);
+  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip | (uint64_t{w_seip} << SEI);
   uint64_t defer_nmip = nmip_.to_ullong();
 
   if (check_nmi_at_patch_exit_) {
@@ -2995,10 +2997,13 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     poke_non_standard_interrupt(hart, i.cycle, non_std_intr, i.intr_during_ucode);
   // ================================================================================================================
 
-  // A software clear of LCOFIP retiring inside the counter-overflow propagation
-  // window is stepped in Whisper before the delayed OF poke re-asserts the bit
+  // Hardware never clears LCOFIP, so a clear of that bit is a software write
+  // whatever the packet-level hw tag says: the tag is set by any hardware
+  // change in the same packet, such as a timer set retiring with the csrrc.
+  // A software clear retiring inside the counter-overflow propagation window
+  // is stepped in Whisper before the delayed OF poke re-asserts the bit
   // there, while the DUT applied the hardware set first. Whisper follows the DUT.
-  if (!i.hw && i.mip_clr[LCOFI]) {
+  if (i.mip_clr[LCOFI]) {
     peek_mip(hart, i.cycle, tmp_mip_prev_);
     if (tmp_mip_prev_[LCOFI]) {
       bridge_log(cvm::MEDIUM, "<{}> LCOFI SW clear ordered after delayed OF poke, clearing in Whisper: mip={}\n", i.cycle, to_string(i));
@@ -3013,7 +3018,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Handling needed only for hw interrupts
   if (!i.hw)
     return;
-  if (i.hw && i.mip_clr[LCOFI])
+  // With LCOFIP the only change in the packet, the hw tag can only have come
+  // from the LCOFIP bit itself, which is a harness attribution fault.
+  if (i.mip_clr[LCOFI] && i.mip_clr.count() == 1 && i.mip_set.none() && !i.seip_set && !i.seip_clr)
     error("Hart {}: LCOFI can only be cleared by software write (not HW)\n", hart);
 
   // Handle each interrupt category
@@ -3194,9 +3201,11 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
       whisper_mip_age_.erase(SEI);
       whisper_mip_clr_age_.erase(SEI);
     } else if (seip_new) {
-      whisper_mip_age_[SEI]++;
+      whisper_mip_age_[SEI] = 1;
+      whisper_mip_clr_age_.erase(SEI);
     } else {
-      whisper_mip_clr_age_[SEI]++;
+      whisper_mip_clr_age_[SEI] = 1;
+      whisper_mip_age_.erase(SEI);
     }
   }
 }

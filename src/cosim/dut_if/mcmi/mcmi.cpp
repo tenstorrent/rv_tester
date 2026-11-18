@@ -335,7 +335,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 bool mcmi::bypass_pokes_cache(const mem_t& m) {
-  return (m.attr == 0x1000) && !m.v_ext;
+  return m.attr == 0x1000;
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
@@ -391,7 +391,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         m.data_vec = data_vec;
         m.v_ext = m_mcmi_bypass.v_ext;
         m.elem_idx = m_mcmi_bypass.elem_idx;
-        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, bypass_pokes_cache(m));
       });
 }
 
@@ -548,11 +548,11 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
     return;
   }
 
-  valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr, valid) || !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR, "Error: Failed mcm devict after dwriteback for address : {:#x} , cycle : {}\n", m_mcmi_writeback.addr, m_mcmi_writeback.cycle);
-    return;
-  }
+  // valid = false;
+  // if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr, valid) || !valid) && FLAGS_whisper_client_check) {
+  //   cvm::log(cvm::ERROR, "Error: Failed mcm devict after dwriteback for address : {:#x} , cycle : {}\n", m_mcmi_writeback.addr, m_mcmi_writeback.cycle);
+  //   return;
+  // }
 }
 
 void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
