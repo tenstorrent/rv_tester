@@ -859,6 +859,10 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
   uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
   update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  if (c.csr_addr == vstart.address) {
+    dut_vstart_ = (dut_vstart_ & ~c.csr_wmask) | (c.csr_wdata & c.csr_wmask);
+    dut_vstart_tag_ = prev_vec_cmode_first_tag_;
+  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -1109,9 +1113,11 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   bool valid;
   bool is_load = d.mem_read.valid || (d.trap_opcode != 0) || load_bus_error || pending_load_fault;
-  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, ecause, is_load, xtval_addr);
+  const bool vec_cmode_elem = is_load && d.tag == prev_vec_cmode_first_tag_ && d.tag == dut_vstart_tag_;
+  const unsigned elem_ix = vec_cmode_elem ? static_cast<unsigned>(dut_vstart_) : 0;
+  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x} elem_ix={}\n", d.cycle, ecause, is_load, xtval_addr, elem_ix);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-                                                                                          hart, is_load, ecause, 0, xtval_addr, valid) ||
+                                                                                          hart, is_load, ecause, elem_ix, xtval_addr, valid) ||
        !valid) &&
       FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
