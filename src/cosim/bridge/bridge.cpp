@@ -859,6 +859,10 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
   uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
   update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+  if (c.csr_addr == vstart.address) {
+    dut_vstart_ = (dut_vstart_ & ~c.csr_wmask) | (c.csr_wdata & c.csr_wmask);
+    dut_vstart_tag_ = prev_vec_cmode_first_tag_;
+  }
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
@@ -1109,9 +1113,11 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   bool valid;
   bool is_load = d.mem_read.valid || (d.trap_opcode != 0) || load_bus_error || pending_load_fault;
-  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, ecause, is_load, xtval_addr);
+  const bool vec_cmode_elem = is_load && d.tag == prev_vec_cmode_first_tag_ && d.tag == dut_vstart_tag_;
+  const unsigned elem_ix = vec_cmode_elem ? static_cast<unsigned>(dut_vstart_) : 0;
+  bridge_log(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x} elem_ix={}\n", d.cycle, ecause, is_load, xtval_addr, elem_ix);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-                                                                                          hart, is_load, ecause, 0, xtval_addr, valid) ||
+                                                                                          hart, is_load, ecause, elem_ix, xtval_addr, valid) ||
        !valid) &&
       FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
@@ -1329,7 +1335,9 @@ void bridge::pre_step_patch_exit_trap_select(hart_id_t hart, const rv_instr_t& d
   uint64_t w_defer_mip = 0;
   peek_mip(hart, d.cycle, w_mip);
   peek_deferred_interrupts(hart, w_defer_mip);
-  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip;
+  bool w_seip = false;
+  peek_seip(hart, d.cycle, w_seip);
+  uint64_t defer_mip = w_mip.to_ullong() | w_defer_mip | (uint64_t{w_seip} << SEI);
   uint64_t defer_nmip = nmip_.to_ullong();
 
   if (check_nmi_at_patch_exit_) {
@@ -2995,10 +3003,13 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     poke_non_standard_interrupt(hart, i.cycle, non_std_intr, i.intr_during_ucode);
   // ================================================================================================================
 
-  // A software clear of LCOFIP retiring inside the counter-overflow propagation
-  // window is stepped in Whisper before the delayed OF poke re-asserts the bit
+  // Hardware never clears LCOFIP, so a clear of that bit is a software write
+  // whatever the packet-level hw tag says: the tag is set by any hardware
+  // change in the same packet, such as a timer set retiring with the csrrc.
+  // A software clear retiring inside the counter-overflow propagation window
+  // is stepped in Whisper before the delayed OF poke re-asserts the bit
   // there, while the DUT applied the hardware set first. Whisper follows the DUT.
-  if (!i.hw && i.mip_clr[LCOFI]) {
+  if (i.mip_clr[LCOFI]) {
     peek_mip(hart, i.cycle, tmp_mip_prev_);
     if (tmp_mip_prev_[LCOFI]) {
       bridge_log(cvm::MEDIUM, "<{}> LCOFI SW clear ordered after delayed OF poke, clearing in Whisper: mip={}\n", i.cycle, to_string(i));
@@ -3013,7 +3024,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Handling needed only for hw interrupts
   if (!i.hw)
     return;
-  if (i.hw && i.mip_clr[LCOFI])
+  // With LCOFIP the only change in the packet, the hw tag can only have come
+  // from the LCOFIP bit itself, which is a harness attribution fault.
+  if (i.mip_clr[LCOFI] && i.mip_clr.count() == 1 && i.mip_set.none() && !i.seip_set && !i.seip_clr)
     error("Hart {}: LCOFI can only be cleared by software write (not HW)\n", hart);
 
   // Handle each interrupt category
@@ -3194,9 +3207,11 @@ void bridge::check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new
       whisper_mip_age_.erase(SEI);
       whisper_mip_clr_age_.erase(SEI);
     } else if (seip_new) {
-      whisper_mip_age_[SEI]++;
+      whisper_mip_age_[SEI] = 1;
+      whisper_mip_clr_age_.erase(SEI);
     } else {
-      whisper_mip_clr_age_[SEI]++;
+      whisper_mip_clr_age_[SEI] = 1;
+      whisper_mip_age_.erase(SEI);
     }
   }
 }
@@ -3535,6 +3550,15 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
         result = result & 0xfffffffcffffffffULL;
       }
     }
+  }
+
+  // handle mstatus.MPP (upon illegal value, leave it unchanged)
+  if ((addr == mstatus.address) || (addr == mnstatus.address)) {
+    uint64_t cur = get_csr(hart, src_t::dut, addr);
+    uint64_t next = (cur & ~result) | (data & result);
+    uint64_t mpp = (next & mstatus_mpp_mask) >> mstatus_mpp_pos;
+    if (std::find(mstatus_mpp_legal_values.begin(), mstatus_mpp_legal_values.end(), mpp) == mstatus_mpp_legal_values.end())
+      result &= ~mstatus_mpp_mask;
   }
 
   if (addr == srmcfg.address) {
