@@ -84,7 +84,6 @@ DEFINE_bool(sysmod_mem_random, false, "Return random data for uninitialized memo
 DEFINE_uint64(sysmod_mem_default_64, 0, "Return specific 64-bit pattern for uninitialized memory reads (0 = disabled)");
 // STEE
 DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
-DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 // APLIC
 DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");

@@ -18,6 +18,8 @@ DEFINE_uint64(max_instr_per_core_increment, 20000, "Increment value per addition
 DEFINE_double(ext_mem_stall_factor, 0.8, "Apply mult factor for shared cache to max_stall_cycle");
 DEFINE_bool(timeout_scale_en, true, "Enable timeout scaling via DPI calls (default on for simulation, off for emulation)");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
+// Defined here so axi_sw DPI links it without pulling in sysmod.
+DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 
 extern "C" {
 std::uint32_t ext_mem_rv_tester_get_stall_timeout() { return FLAGS_ext_mem_stall_factor * FLAGS_max_stall_cycle; }

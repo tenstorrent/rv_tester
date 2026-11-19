@@ -11,6 +11,7 @@
 #include <filesystem>
 #include "src/transactors/axi_sw/axi.h"
 #include "src/transactors/axi_sw/eam.hpp"
+#include "src/rv_tester_plusargs.h"
 #include "cvm/logger.hpp"
 
 // Error responses
@@ -110,6 +111,7 @@ void axi::disable_error() {
 }
 
 bool axi::check_error(addr_t addr, size_t& count) {
+  addr &= ~FLAGS_pa_mask;
   bool has_slverr = slverr_list_.check_inject_error(addr, READ);
   bool has_decerr = decerr_list_.check_inject_error(addr, READ);
 
@@ -380,21 +382,24 @@ cvm::messenger::task<void> axi::operator()() {
             cvm::log(cvm::HIGH, "[axi] eam squash write: id={}, addr={:#x}, len={}\n", a.id, start, len);
           }
 
+          // Error lists hold STEE-agnostic PAs; strip the STEE distinction bit(s) before lookup
+          const addr_t err_addr = addr & ~FLAGS_pa_mask;
+
           // Check and increment counters for error injection policies
-          bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(addr, WRITE);
-          bool inject_decerr = last && error_en_ && decerr_list_.check_inject_error(addr, WRITE);
+          bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(err_addr, WRITE);
+          bool inject_decerr = last && error_en_ && decerr_list_.check_inject_error(err_addr, WRITE);
 
           // Always increment counters for addresses in error ranges (regardless of injection)
-          if (last && error_en_ && slverr_list_.find(addr)) {
-            auto count = slverr_list_.incr_count(addr, WRITE);
+          if (last && error_en_ && slverr_list_.find(err_addr)) {
+            auto count = slverr_list_.incr_count(err_addr, WRITE);
             if (inject_slverr) {
               write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_SLVERR));
               cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
               num_slverr_resp_++;
             }
           }
-          if (last && error_en_ && decerr_list_.find(addr)) {
-            auto count = decerr_list_.incr_count(addr, WRITE);
+          if (last && error_en_ && decerr_list_.find(err_addr)) {
+            auto count = decerr_list_.incr_count(err_addr, WRITE);
             if (inject_decerr) {
               write_resp = axi::resp_t(uint8_t(write_resp) | uint8_t(RESP_DECERR));
               cvm::log(cvm::HIGH, "[axi] decerr write resp addr={:#x} count={}\n", addr, count.value());
@@ -413,21 +418,24 @@ cvm::messenger::task<void> axi::operator()() {
           // Resp: honor sysmod/overlay DECERR (etc.) before optional injection.
           axi::resp_t read_resp = eam_v.override_resp ? eam_v.resp : axi::resp_t(sysmod_read_resp);
 
+          // Error lists hold STEE-agnostic PAs; strip the STEE distinction bit(s) before lookup
+          const addr_t err_addr = addr & ~FLAGS_pa_mask;
+
           // Check and increment counters for error injection policies
-          bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(addr, READ);
-          bool inject_decerr = last && error_en_ && decerr_list_.check_inject_error(addr, READ);
+          bool inject_slverr = last && error_en_ && slverr_list_.check_inject_error(err_addr, READ);
+          bool inject_decerr = last && error_en_ && decerr_list_.check_inject_error(err_addr, READ);
 
           // Always increment counters for addresses in error ranges (regardless of injection)
-          if (last && error_en_ && slverr_list_.find(addr)) {
-            auto count = slverr_list_.incr_count(addr, READ);
+          if (last && error_en_ && slverr_list_.find(err_addr)) {
+            auto count = slverr_list_.incr_count(err_addr, READ);
             if (inject_slverr) {
               read_resp = RESP_SLVERR;
               cvm::log(cvm::HIGH, "[axi] slverr read resp addr={:#x} count={}\n", addr, count.value());
               num_slverr_resp_++;
             }
           }
-          if (last && error_en_ && decerr_list_.find(addr)) {
-            auto count = decerr_list_.incr_count(addr, READ);
+          if (last && error_en_ && decerr_list_.find(err_addr)) {
+            auto count = decerr_list_.incr_count(err_addr, READ);
             if (inject_decerr) {
               read_resp = RESP_DECERR;
               cvm::log(cvm::HIGH, "[axi] decerr read resp addr={:#x} count={}\n", addr, count.value());

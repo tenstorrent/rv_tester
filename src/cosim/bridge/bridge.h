@@ -342,6 +342,9 @@ private:
   uint64_t prev_dut_trap_cause_ = 0;
   uint64_t prev_dut_trap_order_ = 0;
   uint64_t prev_vec_cmode_first_tag_ = 0;
+  // DUT vstart and the cmode tag it was reported under
+  uint64_t dut_vstart_ = 0;
+  uint64_t dut_vstart_tag_ = 0;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
