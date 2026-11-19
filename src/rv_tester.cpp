@@ -102,12 +102,10 @@ public:
 
   static void install_prefix() {
     cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view {
-      if (v == cvm::ERROR) {
-        prefix = FLAGS_logger_error_prefix;
-      } else {
-        prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
-        prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
-      }
+      prefix = (timestamp) ? "[" + std::to_string(timestamp) + "ps]" : "";
+      prefix += (clock) ? "[" + std::to_string(clock) + "] " : "";
+      if (v == cvm::ERROR)
+        prefix += FLAGS_logger_error_prefix;
       return prefix;
     });
   }
