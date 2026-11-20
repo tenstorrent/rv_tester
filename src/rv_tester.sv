@@ -80,13 +80,25 @@ module rv_tester
     end
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
-      if (NUM_CLK_PROFILES == 0 || c == TB_CLK_IDX || c == REF_CLK_IDX) begin : g_fixed
+      if (NUM_CLK_PROFILES == 0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
+        // Glitch-free switch: a mode's clock is enabled only once every other
+        // mode is disabled, and each enable changes only on its own clock's
+        // falling edge. clock_mode is registered on TB_CLK, which is itself one
+        // of these muxed clocks, so a plain select could emit a runt pulse.
+        logic [NUM_CLK_MODES-1:0] mode_en;
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
           rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+          logic en_req;
+          logic en_sync = (m == 0);
+          logic en      = (m == 0);
+          assign en_req = (clock_mode == CLK_MODE_W'(m)) && ((mode_en & ~(NUM_CLK_MODES'(1) << m)) == '0);
+          always @(posedge mode_clk[c][m]) en_sync <= en_req;
+          always @(negedge mode_clk[c][m]) en      <= en_sync;
+          assign mode_en[m] = en;
         end
-        assign clk[c] = mode_clk[c][clock_mode];
+        assign clk[c] = |(mode_clk[c] & mode_en);
       end
     end
   end
@@ -103,6 +115,11 @@ module rv_tester
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     rv_tester_reset_d1 <= rv_tester_reset;
     clock_mode         <= clock_mode_next;
+    // An out-of-range profile enables no mode clock and stops TB_CLK, which would hang the sim silently.
+    if (NUM_CLK_PROFILES != 0 && (rv_tester_reset || rv_tester_reset_d1) &&
+        (clk_profile < 0 || clk_profile > int'(NUM_CLK_PROFILES))) begin
+      $fatal(1, "<%0d> rv_tester: +clk_profile=%0d is outside the clock profile table (0..%0d)", clocks, clk_profile, NUM_CLK_PROFILES);
+    end
     if (clock_mode_next != clock_mode) begin
       $display("<%0d> rv_tester: clock_mode %0d -> %0d", clocks, clock_mode, clock_mode_next);
     end

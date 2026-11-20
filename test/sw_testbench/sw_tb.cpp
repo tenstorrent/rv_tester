@@ -138,6 +138,12 @@ int main(int argc, char** argv) {
   const auto clki = cvm::topology::get_from_type("CLKI", 0);
   const auto tb_clk_idx_attr = cvm::topology::attr(clki, "TB_CLK_IDX");
   const uint32_t tb_clk_idx = tb_clk_idx_attr.first ? tb_clk_idx_attr.second : 0;
+  // TB_CLK period changes at run time under +dyn_clk_switch; cycle-based dump
+  // bounds use the starting profile's period.
+  uint32_t clk_profile = 0;
+  if (const char* const valp = vl_mc_scan_plusargs("clk_profile=")) {
+    clk_profile = static_cast<uint32_t>(std::stoul(valp));
+  }
   // Numerator to compute period for a MHz frequency at the current timeprecision
   const uint64_t mhz2periodNumer = static_cast<uint64_t>(std::pow(10.0, -timeprecision - 6));
   const auto check_dump_window = [&]() {
@@ -152,7 +158,7 @@ int main(int argc, char** argv) {
     if (tb_clk_idx >= rv_tester::clocks::nclks()) {
       return;
     }
-    const uint32_t tb_clk_freq_mhz = rv_tester::clocks::freq_mhz(0, tb_clk_idx);
+    const uint32_t tb_clk_freq_mhz = rv_tester::clocks::freq_mhz(clk_profile, tb_clk_idx);
     const uint64_t tb_clk_period = tb_clk_freq_mhz ? mhz2periodNumer / tb_clk_freq_mhz : 0;
     if (!tb_clk_period) {
       cvm::log(cvm::ERROR, "Error: Insufficient timeprecision 1e{} for {}MHz TB clock\n", timeprecision, tb_clk_freq_mhz);

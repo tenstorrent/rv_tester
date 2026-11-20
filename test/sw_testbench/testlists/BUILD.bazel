@@ -59,6 +59,54 @@ sh_test(
     tags = ["no-valgrind"],
 )
 
+# Profile 1 differs from profile 0 on every clock, including TB_CLK and REF_CLK;
+# top.sv checks each clock's period against the selected profile.
+sh_test(
+    name = "clk_profile_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+        "+clk_profile=1",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
+# TB_CLK clocks clock_mode and is itself switched, so rotating profiles
+# exercises the glitch-free switch on the clock that drives its own select.
+sh_test(
+    name = "dyn_clk_switch_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+        "+clk_profile=1",
+        "+dyn_clk_switch",
+        "+freq_switch_ncycles=20",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
 sh_test(
     name = "infinite_2c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
@@ -109,6 +157,8 @@ test_suite(
     tests = [
         ":infinite_1c_verilator",
         ":rvfi_drain_1c_verilator",
+        ":clk_profile_1c_verilator",
+        ":dyn_clk_switch_1c_verilator",
         ":infinite_2c_verilator",
         ":hart_mhartid_imsic_ipi_8c_verilator",
     ],
