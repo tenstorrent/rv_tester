@@ -27,6 +27,9 @@ module sysmod
       output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
       output logic aclint_ref_pulse,
       output logic aclint_time_sync,
+      output logic aclint_ctime_wr,
+      output logic [63:0] aclint_ctime_wr_data,
+      output logic aclint_mtip_cl,
       output rv_tester_pkg::dm_write_t  dmi_write,
       output logic [NHARTS-1:0] debug_req_vld,
       input  event_trigger_intf_t event_triggers [NHARTS-1:0],
@@ -141,8 +144,11 @@ module sysmod
     .aclint_ref_reset (aclint_ref_reset),
     .aclint_ref_pulse (aclint_ref_pulse),
     .aclint_time_sync (aclint_time_sync),
+    .aclint_ctime_wr  (aclint_ctime_wr),
+    .aclint_ctime_wr_data (aclint_ctime_wr_data),
     .mtime            (aclint_mtime),
-    .mtip             (aclint_mtip)
+    .mtip             (aclint_mtip),
+    .mtip_cl          (aclint_mtip_cl)
   );
 
   function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);

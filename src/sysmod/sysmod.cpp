@@ -20,7 +20,7 @@
 #include "sysmod_rpc.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
-#include "aclint/aclint.h"
+#include "src/sysmod/aclint/aclint.h"
 #include "dm/dm.h"
 #include "mmr_txn_router/mmr_txn_router.h"
 #include "io_dev/io_dev.h"

@@ -298,6 +298,9 @@ package rv_tester_params;
   output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
   input  logic                             aclint_ref_pulse,                                      \
   input  logic                             aclint_time_sync,                                      \
+  input  logic                             aclint_ctime_wr,                                       \
+  input  logic [63:0]                      aclint_ctime_wr_data,                                  \
+  input  logic                             aclint_mtip_cl,                                        \
   output rv_tester_pkg::mtimeMmr_t         mtime,                                                 \
   output logic [63:0]                      timeCsr            [rv_tester_params::NHARTS-1:0],     \
   output logic                             mtip_pend          [rv_tester_params::NHARTS-1:0],     \
@@ -378,6 +381,9 @@ package rv_tester_params;
   rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
   logic                                    aclint_ref_pulse;                                      \
   logic                                    aclint_time_sync;                                      \
+  logic                                    aclint_ctime_wr;                                       \
+  logic [63:0]                             aclint_ctime_wr_data;                                  \
+  logic                                    aclint_mtip_cl;                                        \
   rv_tester_pkg::mtimeMmr_t                mtime;                                                 \
   logic [63:0]                             timeCsr         [rv_tester_params::NHARTS-1:0];        \
   logic                                    mtip_pend       [rv_tester_params::NHARTS-1:0];        \
