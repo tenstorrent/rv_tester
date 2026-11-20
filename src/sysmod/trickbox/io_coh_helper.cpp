@@ -202,7 +202,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", addr, data_vec[0]);
     for (uint8_t i = 0; i < tx_size; ++i) {
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr + i, 1, data_vec[i], true, false, valid) || !valid) && FLAGS_whisper_client_check) {
-        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
         co_return;
       }
       {
@@ -390,7 +390,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
           cvm::log(cvm::MEDIUM, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n", txns_vec[i].addr, data_vec[0]);
           for (uint8_t i = 0; i < tx_size; ++i) {
             if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', txns_vec[i].addr + i, 1, data_vec[i], true, false, valid) && FLAGS_whisper_client_check)) {
-              cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+              cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
               co_return;
             }
             {
