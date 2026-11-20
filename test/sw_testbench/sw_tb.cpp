@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
   const auto check_dump_window = [&]() {
     // Make sure we are not doing something stupid, the time queue assumes this
     if (dump_on >= dump_off) {
-      cvm::log(cvm::ERROR, "Error: dump on time ({}) must be before dump off time ({})\n", dump_on, dump_off);
+      cvm::log(cvm::ERROR, "dump on time ({}) must be before dump off time ({})\n", dump_on, dump_off);
       exit(1);
     }
   };
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     const uint32_t tb_clk_freq_mhz = rv_tester::clocks::freq_mhz(0, tb_clk_idx);
     const uint64_t tb_clk_period = tb_clk_freq_mhz ? mhz2periodNumer / tb_clk_freq_mhz : 0;
     if (!tb_clk_period) {
-      cvm::log(cvm::ERROR, "Error: Insufficient timeprecision 1e{} for {}MHz TB clock\n", timeprecision, tb_clk_freq_mhz);
+      cvm::log(cvm::ERROR, "Insufficient timeprecision 1e{} for {}MHz TB clock\n", timeprecision, tb_clk_freq_mhz);
       exit(1);
     }
     if (dump_on_in_cycles) {
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
 
   if (dump_bounds_pending) {
     cvm::log(cvm::ERROR,
-             "Error: cycle-based dump plusargs need the clock table rv_tester registers from CLK_PROFILE_FREQ_MHZ; "
+             "cycle-based dump plusargs need the clock table rv_tester registers from CLK_PROFILE_FREQ_MHZ; "
              "use the time-based (+*_dump_on/off) form instead\n");
     exit(1);
   }

@@ -8,7 +8,7 @@ REGISTRY_register(interrupts, INTERRUPTS, cvm::registry::all);
 
 bool validate_interrupt_injection_rand_delay_min(const char* flagname, const int value) {
   if (value <= 0) {
-    cvm::log(cvm::ERROR, "Error: Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
+    cvm::log(cvm::ERROR, "Invalid value for +{}={}, must be >= 1, as we currently don't support injecting multiple interrupts in a single cycle\n", flagname, value);
     return false;
   }
   return true;

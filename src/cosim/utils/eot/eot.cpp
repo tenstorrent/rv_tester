@@ -92,13 +92,13 @@ void eot::resolve_tohost_addr() {
   // 3. htif address from memmap
   std::map<std::string, memmap_entry_t> m;
   if (!memmap::instance().get(m))
-    cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
+    cvm::log(cvm::ERROR, "Unable to get memmap\n");
 
   if (m.count("htif") > 0) {
     FLAGS_tohost = m.at("htif").base;
     cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", FLAGS_tohost);
   } else {
-    cvm::log(cvm::ERROR, "Error: [eot] tohost from memmap:: htif not found in memmap\n");
+    cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n");
   }
 }
 
@@ -154,7 +154,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
         return;
       } else {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-        cvm::log(cvm::ERROR, "Error: <{}> Hart:<{}> max_instr limit reached: {}\n", cycle, hartid, FLAGS_max_instr);
+        cvm::log(cvm::ERROR, "<{}> Hart:<{}> max_instr limit reached: {}\n", cycle, hartid, FLAGS_max_instr);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
         eot_terminate(true);
         return;
@@ -180,7 +180,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
   } else {
     ended_ = true;
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::ERROR, "Error: <{}> Hart:<{}> Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
+    cvm::log(cvm::ERROR, "<{}> Hart:<{}> Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     eot_terminate(false);
   }
@@ -223,7 +223,7 @@ void eot::eot_terminate(bool passed) {
 void eot::mem_checks_snoop() {
   std::map<std::string, memmap_entry_t> m;
   if (!memmap::instance().get(m))
-    cvm::log(cvm::ERROR, "Error: Unable to get memmap\n");
+    cvm::log(cvm::ERROR, "Unable to get memmap\n");
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
   uint64_t secure_mem_region_start;
@@ -267,7 +267,7 @@ void eot::mem_checks_snoop() {
         }
       }
     } catch (...) {
-      cvm::log(cvm::ERROR, "Error: parsing whisper token:{}\n", token);
+      cvm::log(cvm::ERROR, "parsing whisper token:{}\n", token);
     }
   }
   if (mem_lines_.size() == 0) {
@@ -325,7 +325,7 @@ bool eot::mem_checks() {
     cvm::registry::messenger.call<sysmod_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), w.first, 64, data);
     auto dut = vec_to_bitset(data);
     if (!(dut == w.second)) {
-      cvm::log(cvm::ERROR, "Error: [EOT] Memory Mismatch Addr: 0x{:x}\nDUT:{}\nISS:{}\n", w.first + first_differing_addr(dut, w.second), bitset_to_hex_str(dut), bitset_to_hex_str(w.second));
+      cvm::log(cvm::ERROR, "[EOT] Memory Mismatch Addr: 0x{:x}\nDUT:{}\nISS:{}\n", w.first + first_differing_addr(dut, w.second), bitset_to_hex_str(dut), bitset_to_hex_str(w.second));
       return false;
     } else {
       cvm::log(cvm::HIGH, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
@@ -343,13 +343,13 @@ eot::~eot() {
     return;
   for (const auto i : instr_count_) {
     if (i < FLAGS_min_instr) {
-      cvm::log(cvm::ERROR, "Error: Hart:<{}> instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
+      cvm::log(cvm::ERROR, "Hart:<{}> instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
     }
     h++;
   }
   if (FLAGS_recent_pc != recent_pc_default) {
     if (!(recent_pc_hart_ >= 0 && instr_count_[recent_pc_hart_] - recent_pc_instr_count_ <= FLAGS_recent_pc_instr)) {
-      cvm::log(cvm::ERROR, "Error: did not see PC +recent_pc=0x{:#x} in +recent_pc_instr={} instructions before test ended\n", FLAGS_recent_pc, FLAGS_recent_pc_instr);
+      cvm::log(cvm::ERROR, "did not see PC +recent_pc=0x{:#x} in +recent_pc_instr={} instructions before test ended\n", FLAGS_recent_pc, FLAGS_recent_pc_instr);
     }
   }
 }

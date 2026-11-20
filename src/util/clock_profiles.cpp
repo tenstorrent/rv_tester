@@ -19,7 +19,7 @@ uint32_t nclks() { return freq_table.empty() ? 0 : static_cast<uint32_t>(freq_ta
 
 uint32_t freq_mhz(const uint32_t profile, const uint32_t clk) {
   if (profile >= freq_table.size() || clk >= freq_table[profile].size()) {
-    cvm::log(cvm::ERROR, "Error: clock profile {} clock {} is outside the registered {}x{} frequency table\n", profile,
+    cvm::log(cvm::ERROR, "clock profile {} clock {} is outside the registered {}x{} frequency table\n", profile,
              clk, freq_table.size(), nclks());
     return 0;
   }

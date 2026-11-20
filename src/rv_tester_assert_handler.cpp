@@ -28,6 +28,6 @@ void rv_tester_cvm_terminate(char* msg) {
   }
 
   // If not waived, cvm::ERROR
-  cvm::log(cvm::ERROR, "\n{}\n", msg_str);
+  cvm::log(cvm::ERROR, "{}\n", msg_str);
 }
 }

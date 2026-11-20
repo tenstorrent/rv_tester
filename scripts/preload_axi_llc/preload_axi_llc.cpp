@@ -30,14 +30,14 @@ preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_
   auto tag_bits = tag_addr_bits + 1 /* dirty */ + 1 /* valid */;
 
   if (block_bytes > 64) {
-    cvm::log(cvm::ERROR, "Error: unsupported block width\n");
+    cvm::log(cvm::ERROR, "unsupported block width\n");
     return pf;
   }
   auto blocks_per_cacheline = 64 / block_bytes;
   auto blocks_per_tag = num_blocks;
   auto cachelines_per_tag = blocks_per_tag / blocks_per_cacheline;
   if (cachelines_per_tag < 1) {
-    cvm::log(cvm::ERROR, "Error: unsupported num blocks\n");
+    cvm::log(cvm::ERROR, "unsupported num blocks\n");
   }
 
   auto cachelines_per_tag_bits = std::bit_width(unsigned(cachelines_per_tag - 1));
@@ -54,18 +54,18 @@ preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_
 
     dataOut[i].open(pf.dataFiles[i]);
     if (!dataOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "Error: could not open output file %s", pf.dataFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file {}\n", pf.dataFiles[i]);
     }
     tagOut[i].open(pf.tagFiles[i]);
     if (!tagOut[i].is_open()) {
-      cvm::log(cvm::ERROR, "Error: could not open output file %s", pf.tagFiles[i].c_str());
+      cvm::log(cvm::ERROR, "could not open output file {}\n", pf.tagFiles[i]);
     }
   }
 
   // Open the CSV file for reading.
   std::ifstream csv(csv_path);
   if (!csv.is_open()) {
-    cvm::log(cvm::ERROR, "Error: could not open CSV file: %s", csv_path.c_str());
+    cvm::log(cvm::ERROR, "could not open CSV file: {}\n", csv_path);
     return pf;
   }
 
@@ -138,7 +138,7 @@ preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_
       auto it = address_positions.find(block_addr);
 
       if (it == address_positions.end()) {
-        cvm::log(cvm::ERROR, "Error: internal error, could not find address to put data\n");
+        cvm::log(cvm::ERROR, "internal error, could not find address to put data\n");
         return pf;
       }
 
@@ -175,6 +175,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "Usage: " << argv[0] << " <csv_path> <num_sets> <num_blocks> <num_ways> <addr_width> <data_width>\n";
     return 1;
   }
+
+  // Outside rv_tester nothing installs a logger prefix, so mark errors here.
+  cvm::set_logger_prefix([](cvm::verbosity_level v) -> std::string_view { return v == cvm::ERROR ? "Error: " : ""; });
 
   std::string csv_path = argv[1];
   int num_sets = std::stoi(argv[2]);
