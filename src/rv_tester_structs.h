@@ -19,6 +19,8 @@ struct snoop_addrs_eot {
 // for handlers which want to terminate immediately
 struct terminate_called_fast {};
 
+struct registry_shutdown {};
+
 // used to signal when whisper is ready for cosim calls
 struct whisper_connected {};
 
