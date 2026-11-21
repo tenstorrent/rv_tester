@@ -49,6 +49,38 @@ module top
     );
 
     assign dut_clk = clk;
+
+    // Every clock, TB_CLK and REF_CLK included, must run at its +clk_profile
+    // entry once cold reset is released. Skipped under +dyn_clk_switch, where
+    // the profile rotates at run time.
+    localparam int unsigned NUM_CLK_TABLE_ROWS = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
+    localparam bit [NUM_CLK_TABLE_ROWS-1:0][NCLKS-1:0][31:0] CLK_FREQ_TABLE = CLK_PROFILE_FREQ_MHZ;
+    int check_clk_profile = 0;
+    bit check_clk_freq = '0;
+    realtime expected_clk_period [NCLKS];
+    initial begin
+        void'($value$plusargs("clk_profile=%d", check_clk_profile));
+        check_clk_freq = !$test$plusargs("dyn_clk_switch");
+        foreach (CLK_FREQ_TABLE[m, c]) begin
+            if (m == check_clk_profile) begin
+                expected_clk_period[c] = 1000000.0 / real'(CLK_FREQ_TABLE[m][c]) * 1ps;
+            end
+        end
+    end
+    for (genvar c = 0; c < NCLKS; c++) begin : g_clk_freq_check
+        realtime last_edge = 0;
+        always @(posedge clk[c]) begin
+            if (check_clk_freq && !reset[COLD_RESET_IDX] && last_edge != 0) begin
+                automatic realtime period = $realtime - last_edge;
+                if (period > expected_clk_period[c] + 2ps || period < expected_clk_period[c] - 2ps) begin
+                    $error("clk[%0d] period %0.1f ps, expected %0.1f ps for +clk_profile=%0d",
+                           c, period / 1ps, expected_clk_period[c] / 1ps, check_clk_profile);
+                end
+            end
+            last_edge = $realtime;
+        end
+    end
+
     /* verilator lint_off WIDTHEXPAND */
     assign core_no_fetch[cvm_topology_gen::mods.TOP.PLATFORM.NHARTS-1:0] = {cvm_topology_gen::mods.TOP.PLATFORM.NHARTS{reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX]}};
     /* verilator lint_on WIDTHEXPAND */
