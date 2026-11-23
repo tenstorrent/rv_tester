@@ -84,6 +84,8 @@ sh_test(
 
 # TB_CLK clocks clock_mode and is itself switched, so rotating profiles
 # exercises the glitch-free switch on the clock that drives its own select.
+# Profiles 2-6 share every frequency, so top.sv also fails if any clock pauses
+# on a switch that does not change its frequency.
 sh_test(
     name = "dyn_clk_switch_1c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],

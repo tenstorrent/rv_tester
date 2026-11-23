@@ -50,33 +50,49 @@ module top
 
     assign dut_clk = clk;
 
-    // Every clock, TB_CLK and REF_CLK included, must run at its +clk_profile
-    // entry once cold reset is released. Skipped under +dyn_clk_switch, where
-    // the profile rotates at run time.
+    // Every clock, TB_CLK and REF_CLK included, must run at the selected
+    // profile's frequency from its first edge. Under +dyn_clk_switch a clock may
+    // only be off for a few edges after a switch that changed its own frequency,
+    // so a clock whose frequency stays the same must never pause.
     localparam int unsigned NUM_CLK_TABLE_ROWS = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
     localparam bit [NUM_CLK_TABLE_ROWS-1:0][NCLKS-1:0][31:0] CLK_FREQ_TABLE = CLK_PROFILE_FREQ_MHZ;
+    localparam int unsigned CLK_SETTLE_EDGES = 4;
     int check_clk_profile = 0;
-    bit check_clk_freq = '0;
-    realtime expected_clk_period [NCLKS];
+    bit check_dyn_clk_switch = '0;
     initial begin
         void'($value$plusargs("clk_profile=%d", check_clk_profile));
-        check_clk_freq = !$test$plusargs("dyn_clk_switch");
-        foreach (CLK_FREQ_TABLE[m, c]) begin
-            if (m == check_clk_profile) begin
-                expected_clk_period[c] = 1000000.0 / real'(CLK_FREQ_TABLE[m][c]) * 1ps;
-            end
-        end
+        check_dyn_clk_switch = $test$plusargs("dyn_clk_switch");
     end
+
+    function automatic realtime expected_clk_period(int mode, int clk_idx);
+        foreach (CLK_FREQ_TABLE[m, c]) begin
+            if (m == mode && c == clk_idx) return 1000000.0 / real'(CLK_FREQ_TABLE[m][c]) * 1ps;
+        end
+        return 0;
+    endfunction
+
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk_freq_check
         realtime last_edge = 0;
+        int last_mode = -1;
+        int unsigned settle_edges = 0;
         always @(posedge clk[c]) begin
-            if (check_clk_freq && !reset[COLD_RESET_IDX] && last_edge != 0) begin
+            automatic int mode = check_dyn_clk_switch ? int'(tester.clock_mode) : check_clk_profile;
+            automatic realtime expected = expected_clk_period(mode, c);
+            if (last_mode >= 0 && expected != expected_clk_period(last_mode, c)) begin
+                settle_edges = CLK_SETTLE_EDGES;
+            end
+            if (last_edge != 0) begin
                 automatic realtime period = $realtime - last_edge;
-                if (period > expected_clk_period[c] + 2ps || period < expected_clk_period[c] - 2ps) begin
-                    $error("clk[%0d] period %0.1f ps, expected %0.1f ps for +clk_profile=%0d",
-                           c, period / 1ps, expected_clk_period[c] / 1ps, check_clk_profile);
+                if (period <= expected + 2ps && period >= expected - 2ps) begin
+                    settle_edges = 0;
+                end else if (settle_edges != 0) begin
+                    settle_edges--;
+                end else begin
+                    $error("clk[%0d] period %0.1f ps, expected %0.1f ps for clock mode %0d",
+                           c, period / 1ps, expected / 1ps, mode);
                 end
             end
+            last_mode = mode;
             last_edge = $realtime;
         end
     end

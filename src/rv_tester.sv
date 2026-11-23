@@ -74,29 +74,71 @@ module rv_tester
   bit dyn_clk_switch = '0;
   bit rv_tester_reset_d1 = '0;
 
+  // For each mode, the lowest mode that gives clock c the same frequency. Modes
+  // that share a frequency share one generator, so switching between them leaves
+  // the clock running instead of pausing it.
+  function automatic bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] clk_src_modes(int unsigned c);
+    bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] src;
+    for (int m = 0; m < NUM_CLK_MODES; m++) begin
+      src[m] = CLK_MODE_W'(m);
+      for (int i = m - 1; i >= 0; i--) begin
+        if (CLK_FREQ_MHZ[i][c] == CLK_FREQ_MHZ[m][c]) src[m] = CLK_MODE_W'(i);
+      end
+    end
+    return src;
+  endfunction
+
+  // +clk_profile is read at time 0 so a run starts on its profile instead of
+  // switching during reset. cvm_plusargs, read at reset, stays authoritative
+  // (it also sees flagfiles); if it disagrees, the clocks switch then.
+  function automatic int unsigned initial_clk_profile();
+    int p = 0;
+    if ($value$plusargs("clk_profile=%d", p) == 0 || p < 0 || p > int'(NUM_CLK_PROFILES)) p = 0;
+    return p;
+  endfunction
+
+  if (NUM_CLK_PROFILES != 0) begin : g_clk_profile_init
+    initial begin
+      clk_profile = int'(initial_clk_profile());
+      clock_mode  = CLK_MODE_W'(initial_clk_profile());
+    end
+  end
+
   if (EXTERNAL_CLOCK) begin
     for (genvar c = 0; c < NCLKS; c++) begin
       assign clk[c] = clk_ext[c];
     end
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
-      if (NUM_CLK_PROFILES == 0) begin : g_fixed
+      localparam bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] SRC_MODE = clk_src_modes(c);
+      if (NUM_CLK_PROFILES == 0 || SRC_MODE == '0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
-        // Glitch-free switch: a mode's clock is enabled only once every other
-        // mode is disabled, and each enable changes only on its own clock's
-        // falling edge. clock_mode is registered on TB_CLK, which is itself one
-        // of these muxed clocks, so a plain select could emit a runt pulse.
+        // Glitch-free switch: a source's clock is enabled only once every other
+        // source is disabled, and each enable changes only on its own clock's
+        // falling edge. clock_mode is registered on TB_CLK, which may itself be
+        // one of these muxed clocks, so a plain select could emit a runt pulse.
         logic [NUM_CLK_MODES-1:0] mode_en;
+        logic [CLK_MODE_W-1:0]    src_mode;
+        assign src_mode = SRC_MODE[clock_mode];
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
-          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
-          logic en_req;
-          logic en_sync = (m == 0);
-          logic en      = (m == 0);
-          assign en_req = (clock_mode == CLK_MODE_W'(m)) && ((mode_en & ~(NUM_CLK_MODES'(1) << m)) == '0);
-          always @(posedge mode_clk[c][m]) en_sync <= en_req;
-          always @(negedge mode_clk[c][m]) en      <= en_sync;
-          assign mode_en[m] = en;
+          if (SRC_MODE[m] == CLK_MODE_W'(m)) begin : g_src
+            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+            logic en_req;
+            logic en_sync;
+            logic en;
+            initial begin
+              en_sync = (SRC_MODE[CLK_MODE_W'(initial_clk_profile())] == CLK_MODE_W'(m));
+              en      = en_sync;
+            end
+            assign en_req = (src_mode == CLK_MODE_W'(m)) && ((mode_en & ~(NUM_CLK_MODES'(1) << m)) == '0);
+            always @(posedge mode_clk[c][m]) en_sync <= en_req;
+            always @(negedge mode_clk[c][m]) en      <= en_sync;
+            assign mode_en[m] = en;
+          end else begin : g_shared
+            assign mode_clk[c][m] = 1'b0;
+            assign mode_en[m]     = 1'b0;
+          end
         end
         assign clk[c] = |(mode_clk[c] & mode_en);
       end
