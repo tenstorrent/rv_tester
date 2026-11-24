@@ -51,9 +51,9 @@ module top
     assign dut_clk = clk;
 
     // Every clock, TB_CLK and REF_CLK included, must run at the selected
-    // profile's frequency from its first edge. Under +dyn_clk_switch a clock may
-    // only be off for a few edges after a switch that changed its own frequency,
-    // so a clock whose frequency stays the same must never pause.
+    // profile's frequency once cold reset is released. Under +dyn_clk_switch a
+    // clock may only be off for a few edges after a switch that changed its own
+    // frequency.
     localparam int unsigned NUM_CLK_TABLE_ROWS = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
     localparam bit [NUM_CLK_TABLE_ROWS-1:0][NCLKS-1:0][31:0] CLK_FREQ_TABLE = CLK_PROFILE_FREQ_MHZ;
     localparam int unsigned CLK_SETTLE_EDGES = 4;
@@ -61,6 +61,7 @@ module top
     bit check_dyn_clk_switch = '0;
     initial begin
         void'($value$plusargs("clk_profile=%d", check_clk_profile));
+        if (check_clk_profile < 0 || check_clk_profile >= int'(NUM_CLK_TABLE_ROWS)) check_clk_profile = 0;
         check_dyn_clk_switch = $test$plusargs("dyn_clk_switch");
     end
 
@@ -87,7 +88,7 @@ module top
                     settle_edges = 0;
                 end else if (settle_edges != 0) begin
                     settle_edges--;
-                end else begin
+                end else if (!reset[COLD_RESET_IDX]) begin
                     $error("clk[%0d] period %0.1f ps, expected %0.1f ps for clock mode %0d",
                            c, period / 1ps, expected / 1ps, mode);
                 end

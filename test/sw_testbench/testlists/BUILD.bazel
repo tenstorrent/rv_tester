@@ -82,10 +82,35 @@ sh_test(
     ],
 )
 
-# TB_CLK clocks clock_mode and is itself switched, so rotating profiles
-# exercises the glitch-free switch on the clock that drives its own select.
-# Profiles 2-6 share every frequency, so top.sv also fails if any clock pauses
-# on a switch that does not change its frequency.
+sh_test(
+    name = "clk_profile_out_of_range_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=1",
+        "+clk_profile=99",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+    env = {
+        "EXPECT_ERROR": "Error: \\+clk_profile=99 is outside the clock profile table",
+    },
+    # The expected error exits nonzero, which hides valgrind's --error-exitcode.
+    tags = ["no-valgrind"],
+)
+
+# TB_CLK clocks clock_mode and is itself switched. Profiles 2-6 share every
+# frequency, so top.sv also fails if a switch disturbs a clock whose frequency
+# did not change.
 sh_test(
     name = "dyn_clk_switch_1c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],

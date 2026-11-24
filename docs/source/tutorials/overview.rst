@@ -57,8 +57,8 @@ The main components are:
   platform-supplied frequency table (``NUM_CLK_PROFILES``, ``CLK_PROFILE_FREQ_MHZ``),
   external-clock support, and cold/warm reset sequencing across clock domains.
   ``+clk_profile=N`` selects every clock, TB and REF included, from row N of the table, and
-  ``+dyn_clk_switch`` rotates all of them together through a glitch-free switch. Clocks start on
-  the selected profile at time 0, and a clock only switches when its frequency changes.
+  ``+dyn_clk_switch`` rotates all of them together through a glitch-free switch. A clock whose
+  frequency is the same in the new profile keeps running through the switch.
 - **Lifecycle & DPI bring-up** — Parses plusargs, seeds randomization, builds and tears down the
   C++ object registry, and orders DPI initialization against reset so the C++ side is ready
   before the core leaves reset.

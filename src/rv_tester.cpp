@@ -309,6 +309,10 @@ void rv_tester_cvm_error() {
   }
 }
 
+void rv_tester_clk_profile_error(const int profile, const int max_profile) {
+  cvm::log(cvm::ERROR, "+clk_profile={} is outside the clock profile table (0..{})\n", profile, max_profile);
+}
+
 void rv_tester_cvm_error_handler() {
   logger_instrument::set_scope(svGetScope());
   cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);

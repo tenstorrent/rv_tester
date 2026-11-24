@@ -74,71 +74,32 @@ module rv_tester
   bit dyn_clk_switch = '0;
   bit rv_tester_reset_d1 = '0;
 
-  // For each mode, the lowest mode that gives clock c the same frequency. Modes
-  // that share a frequency share one generator, so switching between them leaves
-  // the clock running instead of pausing it.
-  function automatic bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] clk_src_modes(int unsigned c);
-    bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] src;
-    for (int m = 0; m < NUM_CLK_MODES; m++) begin
-      src[m] = CLK_MODE_W'(m);
-      for (int i = m - 1; i >= 0; i--) begin
-        if (CLK_FREQ_MHZ[i][c] == CLK_FREQ_MHZ[m][c]) src[m] = CLK_MODE_W'(i);
-      end
-    end
-    return src;
-  endfunction
-
-  // +clk_profile is read at time 0 so a run starts on its profile instead of
-  // switching during reset. cvm_plusargs, read at reset, stays authoritative
-  // (it also sees flagfiles); if it disagrees, the clocks switch then.
-  function automatic int unsigned initial_clk_profile();
-    int p = 0;
-    if ($value$plusargs("clk_profile=%d", p) == 0 || p < 0 || p > int'(NUM_CLK_PROFILES)) p = 0;
-    return p;
-  endfunction
-
-  if (NUM_CLK_PROFILES != 0) begin : g_clk_profile_init
-    initial begin
-      clk_profile = int'(initial_clk_profile());
-      clock_mode  = CLK_MODE_W'(initial_clk_profile());
-    end
-  end
-
   if (EXTERNAL_CLOCK) begin
     for (genvar c = 0; c < NCLKS; c++) begin
       assign clk[c] = clk_ext[c];
     end
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
-      localparam bit [NUM_CLK_MODES-1:0][CLK_MODE_W-1:0] SRC_MODE = clk_src_modes(c);
-      if (NUM_CLK_PROFILES == 0 || SRC_MODE == '0) begin : g_fixed
+      if (NUM_CLK_PROFILES == 0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
-        // Glitch-free switch: a source's clock is enabled only once every other
-        // source is disabled, and each enable changes only on its own clock's
-        // falling edge. clock_mode is registered on TB_CLK, which may itself be
-        // one of these muxed clocks, so a plain select could emit a runt pulse.
+        // Glitch-free switch. Each source samples the selection on its rising
+        // edge and changes its enable on its falling edge. A source turns on
+        // once no other source can still drive a high pulse: the others are
+        // either off, or deselected and at their last falling edge. Sources
+        // whose edges coincide therefore hand over without a pause.
+        logic [NUM_CLK_MODES-1:0] mode_sel;
         logic [NUM_CLK_MODES-1:0] mode_en;
-        logic [CLK_MODE_W-1:0]    src_mode;
-        assign src_mode = SRC_MODE[clock_mode];
+        logic [NUM_CLK_MODES-1:0] mode_busy;
+        assign mode_busy = mode_en & (mode_sel | mode_clk[c]);
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
-          if (SRC_MODE[m] == CLK_MODE_W'(m)) begin : g_src
-            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
-            logic en_req;
-            logic en_sync;
-            logic en;
-            initial begin
-              en_sync = (SRC_MODE[CLK_MODE_W'(initial_clk_profile())] == CLK_MODE_W'(m));
-              en      = en_sync;
-            end
-            assign en_req = (src_mode == CLK_MODE_W'(m)) && ((mode_en & ~(NUM_CLK_MODES'(1) << m)) == '0);
-            always @(posedge mode_clk[c][m]) en_sync <= en_req;
-            always @(negedge mode_clk[c][m]) en      <= en_sync;
-            assign mode_en[m] = en;
-          end else begin : g_shared
-            assign mode_clk[c][m] = 1'b0;
-            assign mode_en[m]     = 1'b0;
-          end
+          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+          logic sel = (m == 0);
+          logic en  = (m == 0);
+          always @(posedge mode_clk[c][m]) sel <= (clock_mode == CLK_MODE_W'(m));
+          always @(negedge mode_clk[c][m]) en  <= sel && ((mode_busy & ~(NUM_CLK_MODES'(1) << m)) == '0);
+          assign mode_sel[m] = sel;
+          assign mode_en[m]  = en;
         end
         assign clk[c] = |(mode_clk[c] & mode_en);
       end
@@ -157,19 +118,21 @@ module rv_tester
   always @(posedge dut_clk[TB_CLK_IDX]) begin
     rv_tester_reset_d1 <= rv_tester_reset;
     clock_mode         <= clock_mode_next;
-    // An out-of-range profile enables no mode clock and stops TB_CLK, which would hang the sim silently.
-    if (NUM_CLK_PROFILES != 0 && (rv_tester_reset || rv_tester_reset_d1) &&
-        (clk_profile < 0 || clk_profile > int'(NUM_CLK_PROFILES))) begin
-      $fatal(1, "<%0d> rv_tester: +clk_profile=%0d is outside the clock profile table (0..%0d)", clocks, clk_profile, NUM_CLK_PROFILES);
-    end
     if (clock_mode_next != clock_mode) begin
       $display("<%0d> rv_tester: clock_mode %0d -> %0d", clocks, clock_mode, clock_mode_next);
     end
   end
 
+  function automatic int checked_clk_profile(int profile);
+    if (profile >= 0 && profile <= int'(NUM_CLK_PROFILES)) return profile;
+    rv_tester_clk_profile_error(profile, int'(NUM_CLK_PROFILES));
+    return 0;
+  endfunction
+
   import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
   import "DPI-C" function int rv_tester_init(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
   import "DPI-C" function void rv_tester_set_clock_freq(input int unsigned profile, input int unsigned clk, input int unsigned freq_mhz);
+  import "DPI-C" function void rv_tester_clk_profile_error(input int profile, input int max_profile);
   import "DPI-C" function void rv_tester_set_seed();
   import "DPI-C" context function void rv_tester_cvm_error_handler();
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
@@ -422,7 +385,7 @@ module rv_tester
    */
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
-    automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
+    automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity, _clk_profile;
 
     if(rerun_now) begin
       $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
@@ -469,6 +432,7 @@ module rv_tester
         _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
         _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
         perf_period                 = cvm_plusargs::get_int("perf_period");
+        _clk_profile                = cvm_plusargs::get_int("clk_profile");
         /* verilator lint_on BLKSEQ */
   
         eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
@@ -480,7 +444,7 @@ module rv_tester
         ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
         trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
         freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
-        clk_profile                     <= cvm_plusargs::get_int("clk_profile");
+        clk_profile                     <= checked_clk_profile(_clk_profile);
         dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
         call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
         gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;
