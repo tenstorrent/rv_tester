@@ -87,6 +87,7 @@ public:
 
   void reset(bool rebuild_whisper = false);
   void csr_init();
+  void custom_hypervisor_csr_init();
 
   void final_phase();
   void report_metrics();
@@ -247,6 +248,7 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
+  void poke_custom_hypervisor_fields(hart_id_t hart, uint64_t cycle, uint64_t addr, uint64_t field_mask, uint64_t field_value);
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
   void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev = false, bool seip_new = false, bool consider_seip = false);
 
@@ -476,6 +478,10 @@ private:
   bool cosim_remap_opcode_enabled_{false};
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
+  // Custom CSR address -> fields gated by misa.H, taken from the CSR spec
+  std::map<uint64_t, uint64_t> custom_hypervisor_mask_map_;
+  // Custom CSR address -> gated field values held while misa.H is zero
+  std::map<uint64_t, uint64_t> custom_hypervisor_masked_fields_;
   bool misa_h_ = true;
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
 
