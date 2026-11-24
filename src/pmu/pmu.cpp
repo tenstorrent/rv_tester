@@ -238,7 +238,7 @@ void pmu::ipc_check() {
   double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
 
   if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc, true)) {
-    cvm::log(cvm::ERROR, "Error: IPC check failed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
+    cvm::log(cvm::ERROR, "IPC check failed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   } else {
     cvm::log(cvm::NONE, "IPC check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   }
@@ -249,7 +249,7 @@ void pmu::l1d_read_miss_check() {
   double l1d_read_miss_actual = used[L1D_READ_ACCESS_ALL] ? static_cast<double>(used[L1D_READ_MISS]) / static_cast<double>(used[L1D_READ_ACCESS_ALL]) * 100.0 : 0.0;
 
   if (!is_within_range(l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc, false)) {
-    cvm::log(cvm::ERROR, "Error: l1d_read_miss check failed. Act: {:.2f} % Exp: {:.2f} % Tolerance: {} %\n", l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc);
+    cvm::log(cvm::ERROR, "l1d_read_miss check failed. Act: {:.2f} % Exp: {:.2f} % Tolerance: {} %\n", l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc);
   } else {
     cvm::log(cvm::NONE, "l1d_read_miss check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc);
   }
@@ -335,7 +335,7 @@ void pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pm
         filtered_pmc_event = filtered_event_map.find((pmc_checker.event_id & 0xffff0000) >> 16);
         if (pmc_event == event_map.end() && filtered_pmc_event == filtered_event_map.end()) {
           if (!FLAGS_ignore_pmc_reprogram) {
-            cvm::log(cvm::ERROR, "Error: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i + 3, pmc_checker.event_id);
+            cvm::log(cvm::ERROR, "Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i + 3, pmc_checker.event_id);
           } else {
             cvm::log(cvm::NONE, "WARNING: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i + 3, pmc_checker.event_id);
           }
@@ -362,7 +362,7 @@ void pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pm
         event_name_ = name_event_vector(event_csr_array[i].event_type);
         long threshold = (event_csr_array[i].event_granularity == 1) ? 8 : (4 * event_csr_array[i].event_granularity);
         if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > threshold) {
-          cvm::log(cvm::ERROR, "Error: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i + 3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
+          cvm::log(cvm::ERROR, "Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i + 3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
         }
       }
     }

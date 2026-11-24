@@ -36,7 +36,7 @@ void nmi_sequence::configure() {
   } else if (FLAGS_nmi == "uarch_trigger") {
     uarch_trigger_mode_thread();
   } else if (FLAGS_nmi != "off") {
-    cvm::log(cvm::ERROR, "Error: [nmi_sequence][h{}] Invalid value for +nmi flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_nmi);
+    cvm::log(cvm::ERROR, "[nmi_sequence][h{}] Invalid value for +nmi flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_nmi);
   }
 }
 
@@ -72,7 +72,7 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
       bool intr_enabled = false;
       auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       if (!cvm::registry::messenger.call<interrupter::intr_enable_read_RPC>(sysmod_loc, intr_enabled)) {
-        cvm::log(cvm::ERROR, "Error: [interrupts][h{}] Failed to read interrupt enable flag\n", id_);
+        cvm::log(cvm::ERROR, "[interrupts][h{}] Failed to read interrupt enable flag\n", id_);
       }
       if (!intr_enabled) {
         cvm::log(cvm::MEDIUM, "[interrupts][h{}] NMI injection disabled, waiting for trickbox enable write\n", id_);

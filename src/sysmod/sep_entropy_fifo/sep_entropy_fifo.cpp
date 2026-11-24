@@ -25,7 +25,7 @@ void sep_entropy_fifo::read(const transactor::read_t& r, data_t& data) {
       fill_fifo();
   } else {
     if ((pa + length) > (fifo_base + fifo_size)) {
-      cvm::log(cvm::ERROR, "Error: Read outside of device range for sep_entropy_fifo, addr={:x} size={}\n", pa, length);
+      cvm::log(cvm::ERROR, "Read outside of device range for sep_entropy_fifo, addr={:x} size={}\n", pa, length);
       return;
     }
     uint32_t aligned_pa = pa & 0x7;

@@ -36,7 +36,7 @@ void sot::init_label() {
     }
   }
   if (!found) {
-    cvm::log(cvm::ERROR, "Error: test_start_label={} not found in elf\n", FLAGS_test_start_label);
+    cvm::log(cvm::ERROR, "test_start_label={} not found in elf\n", FLAGS_test_start_label);
   }
 }
 

@@ -39,7 +39,7 @@ htif::pty::pty() {
   if (0 > e) {
     master = -1;
     slave = -1;
-    cvm::log(cvm::ERROR, "Error: {}\n", std::strerror(errno));
+    cvm::log(cvm::ERROR, "{}\n", std::strerror(errno));
   }
 
   cvm::log(cvm::NONE, "HTIF PTY: {}\n", name);
@@ -76,11 +76,11 @@ int htif::pty::read() {
     return c;
 
   if (r == -1) {
-    cvm::log(cvm::ERROR, "Error: pty read: unexpected fail on read, errno={}\n", strerror(errno));
+    cvm::log(cvm::ERROR, "pty read: unexpected fail on read, errno={}\n", strerror(errno));
     return -1;
   }
 
-  cvm::log(cvm::ERROR, "Error: pty read: unexpected fail on read\n");
+  cvm::log(cvm::ERROR, "pty read: unexpected fail on read\n");
   return -1;
 }
 
@@ -131,7 +131,7 @@ readCharNonBlocking(int fd) {
   if (ret == 1) {
     return c;
   } else if (ret == -1) {
-    cvm::log(cvm::ERROR, "Error: readCharNonBlocking: unexpected fail on read, errno={}\n", strerror(errno));
+    cvm::log(cvm::ERROR, "readCharNonBlocking: unexpected fail on read, errno={}\n", strerror(errno));
     return -1;
   }
 
@@ -221,7 +221,7 @@ void htif::write(const transactor::write_t& w) {
     if (FLAGS_payload_has_hart_id) {
       uint16_t hart_id = (payload >> 16) & 0xffff;
       if (!enabled_harts_.count(hart_id)) {
-        cvm::log(cvm::ERROR, "Error: illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, w.id);
+        cvm::log(cvm::ERROR, "illegal, hart id {} is not enabled but does an exit axi_id={}\n", hart_id, w.id);
       } else {
         uint64_t status = payload & ~(uint64_t(0xffff) << 16);
         if ((status & 1) && ((status >> 1) == uint64_t(0))) {
@@ -231,7 +231,7 @@ void htif::write(const transactor::write_t& w) {
         } else {
           if (failed_harts_.insert(hart_id).second)
             failed_++;
-          cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} hart_id={} ({}/{}) axi_id={}\n", (status & 1), (status >> 1), hart_id, failed_, enabled_harts_.size(), w.id);
+          cvm::log(cvm::ERROR, "Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} hart_id={} ({}/{}) axi_id={}\n", (status & 1), (status >> 1), hart_id, failed_, enabled_harts_.size(), w.id);
         }
         if (passed_harts_.size() + failed_harts_.size() == enabled_harts_.size()) {
           cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_harts_.empty()});
@@ -245,7 +245,7 @@ void htif::write(const transactor::write_t& w) {
       }
     } else {
       failed_++;
-      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} ({}/{}) axi_id={}\n", (payload & 1), (payload >> 1), failed_, FLAGS_num_harts, w.id);
+      cvm::log(cvm::ERROR, "Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x} ({}/{}) axi_id={}\n", (payload & 1), (payload >> 1), failed_, FLAGS_num_harts, w.id);
     }
     if (FLAGS_eot == "tohost_all" && passed_ + failed_ == int(FLAGS_num_harts)) {
       cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed = failed_ == 0});

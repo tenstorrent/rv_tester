@@ -22,7 +22,7 @@ eam::eam() {
   const std::string& p = FLAGS_eam_pass_invalidate_ratio;
   const size_t delim = p.find(':');
   if (delim == std::string::npos) {
-    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    cvm::log(cvm::ERROR, "[eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
     return;
   }
 
@@ -30,14 +30,14 @@ eam::eam() {
     pattern_pass_ = std::stoul(p.substr(0, delim));
     pattern_fail_ = std::stoul(p.substr(delim + 1));
   } catch (const std::exception&) {
-    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
+    cvm::log(cvm::ERROR, "[eam] +eam_pass_invalidate_ratio='{}' is not in 'n:e' format\n", p);
     pattern_pass_ = 1;
     pattern_fail_ = 0;
     return;
   }
 
   if (pattern_pass_ + pattern_fail_ == 0) {
-    cvm::log(cvm::ERROR, "Error: [eam] +eam_pass_invalidate_ratio='{}' must have n+e greater than zero\n", p);
+    cvm::log(cvm::ERROR, "[eam] +eam_pass_invalidate_ratio='{}' must have n+e greater than zero\n", p);
     pattern_pass_ = 1;
     pattern_fail_ = 0;
   }
@@ -63,7 +63,7 @@ void eam::parse_unsupported_addr() {
 
     const size_t dash = range.find('-');
     if (dash == std::string::npos) {
-      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not in 'first-last' format\n", range);
+      cvm::log(cvm::ERROR, "[eam] +eam_unsupported_addr range '{}' is not in 'first-last' format\n", range);
       continue;
     }
 
@@ -72,12 +72,12 @@ void eam::parse_unsupported_addr() {
       first = std::stoull(range.substr(0, dash), nullptr, 0);
       last = std::stoull(range.substr(dash + 1), nullptr, 0);
     } catch (const std::exception&) {
-      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' is not a valid address pair\n", range);
+      cvm::log(cvm::ERROR, "[eam] +eam_unsupported_addr range '{}' is not a valid address pair\n", range);
       continue;
     }
 
     if (first > last) {
-      cvm::log(cvm::ERROR, "Error: [eam] +eam_unsupported_addr range '{}' has first greater than last\n", range);
+      cvm::log(cvm::ERROR, "[eam] +eam_unsupported_addr range '{}' has first greater than last\n", range);
       continue;
     }
 
@@ -273,12 +273,12 @@ eam_verdict eam::on_addr(const axi::a_t& a) {
   const uint32_t hart = hart_of(a);
 
   if (a.lock && a.atop.transaction != axi::NON_ATOMIC) {
-    cvm::log(cvm::ERROR, "Error: [eam] exclusive access combined with an atomic transaction is not supported: hart={}, id={}, addr={:#x}\n",
+    cvm::log(cvm::ERROR, "[eam] exclusive access combined with an atomic transaction is not supported: hart={}, id={}, addr={:#x}\n",
              hart, a.id, a.addr);
   }
 
   if (a.lock && (addr_in_mmr_or_sp(a.addr) || addr_unsupported_by_arg(a.addr))) {
-    cvm::log(cvm::ERROR, "Error: [eam] Exclusive access to address :{:#x} not expected: hart={}, id={}\n", a.addr, hart, a.id);
+    cvm::log(cvm::ERROR, "[eam] Exclusive access to address :{:#x} not expected: hart={}, id={}\n", a.addr, hart, a.id);
   }
 
   if (!a.w) {

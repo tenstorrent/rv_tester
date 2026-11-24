@@ -36,7 +36,7 @@ void mti_sequence::configure() {
   } else if (FLAGS_mti == "uarch_trigger") {
     uarch_trigger_mode_thread();
   } else if (FLAGS_mti != "off") {
-    cvm::log(cvm::ERROR, "Error: [mti_sequence][h{}] Invalid value for +mti flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_mti);
+    cvm::log(cvm::ERROR, "[mti_sequence][h{}] Invalid value for +mti flag: '{}'. Valid values are: off, random, uarch_trigger\n", id_, FLAGS_mti);
   }
 }
 
@@ -70,7 +70,7 @@ cvm::messenger::task<void> mti_sequence::random_mode() {
       bool intr_enabled = false;
       auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       if (!cvm::registry::messenger.call<interrupter::intr_enable_read_RPC>(sysmod_loc, intr_enabled)) {
-        cvm::log(cvm::ERROR, "Error: [mti_sequence][h{}] Failed to read interrupt enable flag\n", id_);
+        cvm::log(cvm::ERROR, "[mti_sequence][h{}] Failed to read interrupt enable flag\n", id_);
       }
       if (!intr_enabled) {
         cvm::log(cvm::MEDIUM, "[mti_sequence][h{}] MTI injection disabled, waiting for trickbox enable write\n", id_);

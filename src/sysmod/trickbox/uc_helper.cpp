@@ -54,7 +54,7 @@ void uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
   //Poke same data to whisper memory
   cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR whisper poke addr{:#x} poke_data {:#x} \n", uc_helper_base, poke_data);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', uc_helper_base, 8, poke_data, false, false, valid) || !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
     return;
   }
   {
@@ -96,7 +96,7 @@ void uc_helper::write(uint64_t addr, size_t, const data_t& data,
 
   if (addr == uc_helper_base) {
     if (t_data > 0)
-      cvm::log(cvm::ERROR, "Error: [UC_Helper] Only Clearing of UC_helper Status allowed, Illegal to set status bit manually \n");
+      cvm::log(cvm::ERROR, "[UC_Helper] Only Clearing of UC_helper Status allowed, Illegal to set status bit manually \n");
     tx_status = t_data & 0x1;
 
   } else if (addr == (uc_helper_base + 0x100)) {
@@ -127,7 +127,7 @@ void uc_helper::write(uint64_t addr, size_t, const data_t& data,
 
       bool valid;
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0 /*hart*/, 0, 'm', tx_addr + i, 1, poke_data, false, false, valid)) && FLAGS_whisper_client_check) { //Poke same data to whisper memory
-        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
         return;
       }
 
@@ -150,7 +150,7 @@ void uc_helper::write(uint64_t addr, size_t, const data_t& data,
     cvm::log(cvm::HIGH, "[UC_HELPER] Init of Address Range Completed  \n");
     bool valid;
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0 /*hart*/, 0, 'm', uc_helper_base, 1, poke_data, false, false, valid)) && FLAGS_whisper_client_check) {
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+      cvm::log(cvm::ERROR, "Failed to poke whisper memory\n");
       return;
     }
     return;
