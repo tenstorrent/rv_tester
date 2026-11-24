@@ -1075,7 +1075,30 @@ void bridge::issue_whisper_mcm_read(hart_id_t hart, const mem_t& m, bool cache) 
              m.cycle, valid, m.tag, m.pa, m.size, m.data);
 }
 
+void bridge::pre_step_vec_cmode_bus_error_poke(hart_id_t hart, const rv_instr_t& d) {
+  if (!d.mem_read.error)
+    return;
+
+  const auto vl_write = std::find_if(d.csr.begin(), d.csr.end(), [](const csr_t& c) { return c.valid && c.csr_addr == vl.address; });
+  if (vl_write == d.csr.end() || vl_write->csr_wdata == 0)
+    return;
+
+  const unsigned fault_elem_ix = vl_write->csr_wdata;
+  bool valid;
+  bridge_log(cvm::MEDIUM, "<{}> Inject vec cmode fault-only-first bus error with code={} elem_ix={}\n", d.cycle, static_cast<uint64_t>(LD_ACCESS_FAULT), fault_elem_ix);
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+                                                                                          hart, true, LD_ACCESS_FAULT, fault_elem_ix, 0, valid) ||
+       !valid) &&
+      FLAGS_whisper_client_check) {
+    error("Hart {}: Failed whisper API InjectException\n", hart);
+  }
+}
+
 void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
+  if (d.excp && (d.ecause == CUSTOM_VEC_CMODE || d.ecause == CUSTOM_MC2_VEC_CMODE)) {
+    pre_step_vec_cmode_bus_error_poke(hart, d);
+    return;
+  }
   const bool load_bus_error = d.mem_read.error && d.mem_read.valid && !d.mem_write.valid;
   const bool pending_load_fault = (d.tag == prev_dut_trap_order_ && prev_dut_trap_cause_ == LD_ACCESS_FAULT);
   if (!d.excp && !load_bus_error && !d.pc.error && !pending_load_fault)

@@ -176,6 +176,7 @@ private:
 
   // Process pre/post-step
   void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
+  void pre_step_vec_cmode_bus_error_poke(hart_id_t hart, const rv_instr_t& d);
   void issue_whisper_mcm_read(hart_id_t hart, const mem_t& m, bool cache);
   void skip_mcm_read_data_check_for_fault(uint64_t tag, uint64_t addr, unsigned size);
   void pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d);
