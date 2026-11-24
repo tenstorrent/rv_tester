@@ -3861,7 +3861,11 @@ void bridge::report_metrics() {
 
   // DUT csr values
   if (dump_csr_metrics) {
+    // The DUT copies of the vector CSRs are only dumped on a cosim mismatch
+    static const std::unordered_set<std::string_view> dut_csr_mismatch_only = {"vstart", "vxsat", "vxrm", "vcsr", "vl", "vtype", "vlenb"};
     for (const auto* csr : csr_map) {
+      if (mismatch_res_ == "" && dut_csr_mismatch_only.count(csr->name))
+        continue;
       uint64_t csr_data = get_csr(id_, src_t::dut, csr->address);
       print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr->name, csr_data);
     }
@@ -3875,8 +3879,12 @@ void bridge::report_metrics() {
   };
   for (const auto& [e, es] : excp_to_string)
     print_excp_metric(e, es);
-  for (const auto& [e, es] : custom_excp_to_string)
+  for (const auto& [e, es] : custom_excp_to_string) {
+    // The custom vector exception counts are not reported
+    if (e == CUSTOM_VLZERO_EXCP || e == CUSTOM_VEC_CMODE || e == CUSTOM_MC2_VEC_CMODE)
+      continue;
     print_excp_metric(static_cast<excp>(e), es);
+  }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_err_access_fault\": {}}}\n", id_, num_exceptions_insn_err_access_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_err_access_fault\": {}}}\n", id_, num_exceptions_ld_err_access_fault_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_err_access_fault\": {}}}\n", id_, num_exceptions_late_st_err_access_fault_);
