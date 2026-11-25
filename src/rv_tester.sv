@@ -7,6 +7,7 @@ module rv_tester
   #(
     parameter bit EXTERNAL_CLOCK            = 0,
     parameter CLK_PROFILE_FREQ_MHZ = {NCLKS{32'd0}},
+    parameter bit GLITCH_FREE_CLK_SWITCH    = 0,
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
     parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     parameter int unsigned SHUTDOWN_TIMEOUT_CYCLES       = 100000,
@@ -82,6 +83,25 @@ module rv_tester
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
       if (NUM_CLK_PROFILES == 0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
+      end else if (GLITCH_FREE_CLK_SWITCH) begin : g_glitch_free
+        logic [NUM_CLK_MODES-1:0] mode_sel   = NUM_CLK_MODES'(1);
+        logic [NUM_CLK_MODES-1:0] mode_en    = NUM_CLK_MODES'(1);
+        logic [NUM_CLK_MODES-1:0] mode_clk_q = '0;
+        for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
+          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+        end
+        always @(mode_clk[c]) begin
+          for (int m = 0; m < NUM_CLK_MODES; m++) begin
+            if (mode_clk[c][m] && !mode_clk_q[m]) begin
+              mode_sel[m] <= (clock_mode == CLK_MODE_W'(m));
+            end
+            if (!mode_clk[c][m] && mode_clk_q[m]) begin
+              mode_en[m] <= mode_sel[m] && ((mode_en & (mode_sel | mode_clk[c]) & ~(NUM_CLK_MODES'(1) << m)) == '0);
+            end
+          end
+          mode_clk_q <= mode_clk[c];
+        end
+        assign clk[c] = |(mode_clk[c] & mode_en);
       end else begin : g_muxed
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
           rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));

@@ -42,6 +42,7 @@ module top
 
     rv_tester #(
         .CLK_PROFILE_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ),
+        .GLITCH_FREE_CLK_SWITCH(HARNESS != SW_2C),
         .TOPOLOGY(cvm_topology_gen::topology_t),
         .topology(cvm_topology_gen::mods)
     ) tester (
