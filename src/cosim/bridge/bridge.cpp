@@ -73,6 +73,7 @@ DEFINE_uint64(max_cycle, 10000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(hyp_save_restore_en, true, "Save/restore hypervisor masked CSRs on misa.H transition");
+DEFINE_string(hyp_masked_csr, "", "CSRs saved/restored on misa.H transition with their misa.H masked fields. Format: addr:mask,addr:mask");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -295,6 +296,9 @@ void bridge::reset(bool rebuild_whisper) {
     cosim_remap_opcode_ = parser::parse_input(FLAGS_cosim_remap_opcode, parser::type_tag<parser::map<uint32_t, uint32_t>>{});
     cosim_remap_opcode_enabled_ = true;
   }
+  hypervisor_mask_map_.clear();
+  for (const auto& [addr, field_mask] : parser::parse_input(FLAGS_hyp_masked_csr, parser::type_tag<parser::map<uint64_t, uint64_t>>{}))
+    hypervisor_mask_map_[addr] = field_mask;
 }
 
 void bridge::store_cbo_inv_addr(const uint64_t& payload) {
@@ -332,6 +336,16 @@ void bridge::csr_init() {
       csr_cac_.Step(id_, false);
     }
   }
+}
+
+void bridge::poke_custom_hypervisor_fields(hart_id_t hart, uint64_t cycle, uint64_t addr, uint64_t field_mask, uint64_t field_value) {
+  uint64_t iss_value = 0;
+  peek_resource(hart, 'c', addr, iss_value);
+  iss_value = (iss_value & ~field_mask) | (field_value & field_mask);
+  poke_resource(hart, cycle, 'c', addr, iss_value);
+  update_csr(hart, src_t::iss, addr, iss_value, field_mask, false, false);
+  update_csr(hart, src_t::dut, addr, iss_value, field_mask, false, false);
+  bridge_log(cvm::MEDIUM, "<{}> misa.H gated fields {:#x} of custom CSR {:#x} set to {:#x}, ISS: {:#x}\n", cycle, field_mask, addr, field_value & field_mask, iss_value);
 }
 
 void bridge::process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array) {
@@ -1945,6 +1959,10 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                   bool valid = false;
                   uint64_t peek_value = 0;
                   uint64_t poke_value = 0;
+                  if (is_custom_csr(addr)) { // whisper is not aware that this reg + these bits are Hypervisor dependent, so do it manually
+                    poke_custom_hypervisor_fields(hart, d.cycle, addr, hypervisor_mask_map_[addr], value);
+                    continue;
+                  }
                   if (addr == mip.address || addr == mvip.address) {
                     if (addr == mvip.address)
                       continue;
@@ -1988,8 +2006,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
               if (FLAGS_hyp_save_restore_en) {
-                for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                  if (addr == mip.address)
+                for (const auto& [addr, field_mask] : hypervisor_mask_map_) {
+                  if (is_custom_csr(addr)) {
+                    peek_resource(hart, 'c', addr, hypervisor_masked_csrs_[addr]);
+                    poke_custom_hypervisor_fields(hart, d.cycle, addr, field_mask, 0);
+                  } else if (addr == mip.address)
                     hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
                   else
                     hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
@@ -2004,8 +2025,13 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           }
         }
       }
-      if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
-        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
+      if ((hypervisor_mask_map_.find(c.csr_addr) != hypervisor_mask_map_.end())) {
+        uint64_t saved_mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
+        if (!misa_h_ && FLAGS_hyp_save_restore_en && is_custom_csr(c.csr_addr)) {
+          saved_mask &= ~hypervisor_mask_map_[c.csr_addr];
+          poke_custom_hypervisor_fields(hart, d.cycle, c.csr_addr, hypervisor_mask_map_[c.csr_addr], 0);
+        }
+        hypervisor_masked_csrs_[c.csr_addr] = (data & saved_mask) | (hypervisor_masked_csrs_[c.csr_addr] & ~saved_mask) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
       }
     }
   }

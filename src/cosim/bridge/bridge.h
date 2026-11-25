@@ -247,38 +247,14 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return (get_csr(id_, src_t::dut, misa.address) & 0x80) == 0x80; }
+  void poke_custom_hypervisor_fields(hart_id_t hart, uint64_t cycle, uint64_t addr, uint64_t field_mask, uint64_t field_value);
   bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
   void check_mip_change(std::bitset<64>& mip_prev, std::bitset<64> mip_new, bool seip_prev = false, bool seip_new = false, bool consider_seip = false);
 
 private:
   const uint64_t sc_slice_base_;
 
-  // CSRs where some bits are masked by misa.H
-  std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
-      {0x300, "mstatus"},
-      {0x302, "medeleg"},
-      {0x303, "mideleg"},
-      {0x344, "mip"},
-      {0x309, "mvip"},
-      {0x304, "mie"},
-      {0x244, "sip"},
-      // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
-      // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
-      {0x30C, "mstateen0"},
-      // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
-      {0x10C, "sstateen0"}};
-
-  // Bit masks for fields that are masked by misa.H in each CSR
-  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
-      {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
-      {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
-      {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
-      {0x244, 0x0000000000001444}, // sip: same as mip (alias)
-      {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
-      {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
-  };
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_;
 
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
       {0x600, "hstatus"},    // Hypervisor status register -
