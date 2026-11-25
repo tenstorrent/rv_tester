@@ -338,15 +338,12 @@ void bridge::csr_init() {
   }
 }
 
-// The ISS has no misa.H gating for custom CSRs, the DUT view of the gated fields is poked into it
 void bridge::poke_custom_hypervisor_fields(hart_id_t hart, uint64_t cycle, uint64_t addr, uint64_t field_mask, uint64_t field_value) {
   uint64_t iss_value = 0;
   peek_resource(hart, 'c', addr, iss_value);
-  poke_resource(hart, cycle, 'c', addr, (iss_value & ~field_mask) | (field_value & field_mask));
-  peek_resource(hart, 'c', addr, iss_value);
-  // The DUT reports no update for the gated fields, both checker copies take the poked ISS value
-  uint64_t cac_mask = std::numeric_limits<uint64_t>::max();
-  update_csr(hart, src_t::iss, addr, iss_value, cac_mask, false, false);
+  iss_value = (iss_value & ~field_mask) | (field_value & field_mask);
+  poke_resource(hart, cycle, 'c', addr, iss_value);
+  update_csr(hart, src_t::iss, addr, iss_value, field_mask, false, false);
   update_csr(hart, src_t::dut, addr, iss_value, field_mask, false, false);
   bridge_log(cvm::MEDIUM, "<{}> misa.H gated fields {:#x} of custom CSR {:#x} set to {:#x}, ISS: {:#x}\n", cycle, field_mask, addr, field_value & field_mask, iss_value);
 }
@@ -2010,12 +2007,13 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
               if (FLAGS_hyp_save_restore_en) {
                 for (const auto& [addr, field_mask] : hypervisor_mask_map_) {
-                  if (addr == mip.address)
+                  if (is_custom_csr(addr)) {
+                    peek_resource(hart, 'c', addr, hypervisor_masked_csrs_[addr]);
+                    poke_custom_hypervisor_fields(hart, d.cycle, addr, field_mask, 0);
+                  } else if (addr == mip.address)
                     hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
                   else
                     hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
-                  if (is_custom_csr(addr))
-                    poke_custom_hypervisor_fields(hart, d.cycle, addr, field_mask, 0);
                 }
               }
             }
@@ -2029,7 +2027,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       }
       if ((hypervisor_mask_map_.find(c.csr_addr) != hypervisor_mask_map_.end())) {
         uint64_t saved_mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
-        // Software writes leave the gated fields of the DUT untouched while misa.H is zero
         if (!misa_h_ && FLAGS_hyp_save_restore_en && is_custom_csr(c.csr_addr)) {
           saved_mask &= ~hypervisor_mask_map_[c.csr_addr];
           poke_custom_hypervisor_fields(hart, d.cycle, c.csr_addr, hypervisor_mask_map_[c.csr_addr], 0);

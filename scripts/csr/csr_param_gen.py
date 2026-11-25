@@ -6,7 +6,7 @@ import logging
 import argparse
 
 class Field:
-    def __init__(self, name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val, masked_by=""):
+    def __init__(self, name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val):
         self.name = name
         self.width = width
         self.range = (msb, lsb)
@@ -14,32 +14,16 @@ class Field:
         self.legal_value = legal_value
         self.sw_type = sw_type
         self.perf_val = perf_val
-        self.masked_by = masked_by
 
 class CSR:
-    def __init__(self, name, address, size, alias_of="", masked_by=""):
+    def __init__(self, name, address, size, alias_of=""):
         self.name = name
         self.address = address
         self.size = size
         self.field = {}
         self.alias_of = alias_of
-        self.masked_by = masked_by
         self.reset_val = "0x0"  # Initialize with default value
         self.perf_val = "0x0"  # Initialize with default value
-
-    def field_mask_gated_by(self, csr_name, field_name):
-        """Bit mask of the fields whose MASKED_BY resolves to csr_name.field_name"""
-        if str(self.masked_by).strip().lower() != csr_name.lower():
-            return 0
-        mask = 0
-        for field in self.field.values():
-            if str(field.masked_by).strip() != field_name:
-                continue
-            msb, lsb = field.range
-            for bit_pos in range(lsb, msb + 1):
-                if bit_pos < self.size and bit_pos < 64:
-                    mask |= (1 << bit_pos)
-        return mask
 
     def concat_reset_val(self, csr_map_instance=None):
         """Concatenate reset values from all fields in this CSR"""
@@ -182,7 +166,6 @@ class CsrMap:
             csr_address = common_data.get("ADDRESS", "0x0")
             size = int(common_data.get("CSR_SIZE", 64))
             alias_of = common_data.get("ALIAS_OF", "")
-            csr_masked_by = common_data.get("MASKED_BY", "") or ""
             
             field_list = {k: v for k, v in csr_data.items() if k != "common_data"}
             field_dict = {}
@@ -214,12 +197,11 @@ class CsrMap:
                 if not sw_type:
                     sw_type = "WARL"
                 perf_val = field_data.get("PERF_VALUE", None)
-                field_masked_by = field_data.get("MASKED_BY", "") or ""
                 
-                field_obj = Field(field_name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val, field_masked_by)
+                field_obj = Field(field_name, width, msb, lsb, legal_value, reset_val, sw_type, perf_val)
                 field_dict[field_name] = field_obj
             
-            csr_obj = CSR(csr_name, csr_address, size, alias_of, csr_masked_by)
+            csr_obj = CSR(csr_name, csr_address, size, alias_of)
             csr_obj.field = field_dict
             self.csr_property_dict[csr_name] = csr_obj
 
@@ -407,7 +389,6 @@ class CsrMap:
             f.write("    std::uint64_t reset_val;  // 64-bit field-based concatenated reset value\n")
             f.write("    std::uint64_t perf_val;\n")
             f.write("    bool cac_check;  // CAC check enable flag\n")
-            f.write("    std::uint64_t misa_h_mask = 0;  // Fields gated by misa.H\n")
             f.write("    \n")
             f.write("    csr_base(const std::string& csr_name, std::uint64_t csr_address, int csr_size, bool csr_cac_check = true)\n")
             f.write("        : name(csr_name), address(csr_address), size(csr_size), alias_of(nullptr), reset_val(0), perf_val(0), cac_check(csr_cac_check) {}\n")
@@ -457,9 +438,6 @@ class CsrMap:
                 f.write(f"    {struct_name}() : csr_base(\"{lowercase_csr_name}\", 0x{hex_address:03X}, {csr.size}, {cac_check_str}) {{\n")
                 f.write(f"        reset_val = 0x{csr_reset_val_int:016X}ULL;\n")
                 f.write(f"        perf_val = 0x{csr_perf_val_int:016X}ULL;\n")
-                misa_h_mask = csr.field_mask_gated_by("misa", "H")
-                if misa_h_mask:
-                    f.write(f"        misa_h_mask = 0x{misa_h_mask:016X}ULL;\n")
                 f.write(f"    }}\n\n")
                 
                 for field_name, field in csr.field.items():

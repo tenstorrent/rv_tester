@@ -254,7 +254,6 @@ private:
 private:
   const uint64_t sc_slice_base_;
 
-  // CSR address -> fields masked by misa.H, taken from +hyp_masked_csr
   std::map<uint64_t, uint64_t> hypervisor_mask_map_;
 
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
