@@ -87,7 +87,6 @@ public:
 
   void reset(bool rebuild_whisper = false);
   void csr_init();
-  void custom_hypervisor_csr_init();
 
   void final_phase();
   void report_metrics();
@@ -255,32 +254,8 @@ private:
 private:
   const uint64_t sc_slice_base_;
 
-  // CSRs where some bits are masked by misa.H
-  std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
-      {0x300, "mstatus"},
-      {0x302, "medeleg"},
-      {0x303, "mideleg"},
-      {0x344, "mip"},
-      {0x309, "mvip"},
-      {0x304, "mie"},
-      {0x244, "sip"},
-      // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
-      // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
-      {0x30C, "mstateen0"},
-      // {0x60C, "hstateen0"}, // RVDE-24897 - whisper retains the value of hstateen even when misa.H is zero
-      {0x10C, "sstateen0"}};
-
-  // Bit masks for fields that are masked by misa.H in each CSR
-  std::map<uint64_t, uint64_t> hypervisor_mask_map_ = {
-      {0x300, 0x0000000300000000}, // mstatus: MPV(39), GVA(38)
-      {0x302, 0x00000000000F1000}, // medeleg: medeleg_3(23:20), medeleg_masked_0(10)
-      {0x303, 0x0000000000001444}, // mideleg: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x344, 0x0000000000001444}, // mip: SGEIP(12), VSEIP(10), VSTIP(6), VSSIP(2)
-      {0x304, 0x0000000000001444}, // mie: SGEIE(12), VSEIE(10), VSTIE(6), VSSIE(2)
-      {0x244, 0x0000000000001444}, // sip: same as mip (alias)
-      {0x30C, 0x0000000000000000}, // mstateen0: no H-masked fields
-      {0x10C, 0x0000000000000000}  // sstateen0: no H-masked fields
-  };
+  // CSR address -> fields masked by misa.H, taken from +hyp_masked_csr
+  std::map<uint64_t, uint64_t> hypervisor_mask_map_;
 
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
       {0x600, "hstatus"},    // Hypervisor status register -
@@ -478,10 +453,6 @@ private:
   bool cosim_remap_opcode_enabled_{false};
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
-  // Custom CSR address -> fields gated by misa.H, taken from the CSR spec
-  std::map<uint64_t, uint64_t> custom_hypervisor_mask_map_;
-  // Custom CSR address -> gated field values held while misa.H is zero
-  std::map<uint64_t, uint64_t> custom_hypervisor_masked_fields_;
   bool misa_h_ = true;
   std::pair<uint64_t /*pa*/, uint64_t /*age*/> latest_imsic_{0, 0};
 

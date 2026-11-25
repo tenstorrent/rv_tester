@@ -73,6 +73,7 @@ DEFINE_uint64(max_cycle, 10000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(hyp_save_restore_en, true, "Save/restore hypervisor masked CSRs on misa.H transition");
+DEFINE_string(hyp_masked_csr, "", "CSRs saved/restored on misa.H transition with their misa.H masked fields. Format: addr:mask,addr:mask");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -283,7 +284,6 @@ void bridge::reset(bool rebuild_whisper) {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
   csr_init();
-  custom_hypervisor_csr_init();
 
   // Parse plusargs and store in containers
   cosim_resynch_excp_addr_ = parser::parse_input(FLAGS_cosim_resynch_excp_addr, parser::type_tag<parser::pair_map<uint64_t, uint64_t>>{});
@@ -296,6 +296,9 @@ void bridge::reset(bool rebuild_whisper) {
     cosim_remap_opcode_ = parser::parse_input(FLAGS_cosim_remap_opcode, parser::type_tag<parser::map<uint32_t, uint32_t>>{});
     cosim_remap_opcode_enabled_ = true;
   }
+  hypervisor_mask_map_.clear();
+  for (const auto& [addr, field_mask] : parser::parse_input(FLAGS_hyp_masked_csr, parser::type_tag<parser::map<uint64_t, uint64_t>>{}))
+    hypervisor_mask_map_[addr] = field_mask;
 }
 
 void bridge::store_cbo_inv_addr(const uint64_t& payload) {
@@ -332,22 +335,6 @@ void bridge::csr_init() {
       update_csr(id_, src_t::iss, csr->address, data, cac_mask);
       csr_cac_.Step(id_, false);
     }
-  }
-}
-
-void bridge::custom_hypervisor_csr_init() {
-  custom_hypervisor_mask_map_.clear();
-  custom_hypervisor_masked_fields_.clear();
-  for (const auto* csr : csr_map) {
-    if (csr->misa_h_mask == 0 || !is_custom_csr(csr->address))
-      continue;
-    bool valid = false;
-    uint64_t data, mask, poke_mask, read_mask;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, csr->address, data, mask, poke_mask, read_mask, valid) || !valid)
-      continue;
-    custom_hypervisor_mask_map_[csr->address] = csr->misa_h_mask;
-    if ((csr->misa_h_mask & ~poke_mask) != 0)
-      print(cvm::LOW, "Hart {}: ISS poke mask {:#x} of {} does not cover its misa.H gated fields {:#x}\n", id_, poke_mask, csr->name, csr->misa_h_mask);
   }
 }
 
@@ -1975,6 +1962,10 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                   bool valid = false;
                   uint64_t peek_value = 0;
                   uint64_t poke_value = 0;
+                  if (is_custom_csr(addr)) { // whisper is not aware that this reg + these bits are Hypervisor dependent, so do it manually
+                    poke_custom_hypervisor_fields(hart, d.cycle, addr, hypervisor_mask_map_[addr], value);
+                    continue;
+                  }
                   if (addr == mip.address || addr == mvip.address) {
                     if (addr == mvip.address)
                       continue;
@@ -2009,9 +2000,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
                     }
                   }
                 }
-                for (const auto& [addr, field_value] : custom_hypervisor_masked_fields_)
-                  poke_custom_hypervisor_fields(hart, d.cycle, addr, custom_hypervisor_mask_map_[addr], field_value);
-                custom_hypervisor_masked_fields_.clear();
               }
             }
             misa_h_ = 1;
@@ -2021,17 +2009,13 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
               if (FLAGS_hyp_save_restore_en) {
-                for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
+                for (const auto& [addr, field_mask] : hypervisor_mask_map_) {
                   if (addr == mip.address)
                     hypervisor_masked_csrs_[addr] = tmp_mip_latest_.to_ullong();
                   else
                     hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
-                }
-                for (const auto& [addr, field_mask] : custom_hypervisor_mask_map_) {
-                  uint64_t iss_value = 0;
-                  peek_resource(hart, 'c', addr, iss_value);
-                  custom_hypervisor_masked_fields_[addr] = iss_value & field_mask;
-                  poke_custom_hypervisor_fields(hart, d.cycle, addr, field_mask, 0);
+                  if (is_custom_csr(addr))
+                    poke_custom_hypervisor_fields(hart, d.cycle, addr, field_mask, 0);
                 }
               }
             }
@@ -2043,11 +2027,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           }
         }
       }
-      // Software writes leave the gated fields of the DUT untouched while misa.H is zero
-      if (custom_hypervisor_masked_fields_.find(c.csr_addr) != custom_hypervisor_masked_fields_.end())
-        poke_custom_hypervisor_fields(hart, d.cycle, c.csr_addr, custom_hypervisor_mask_map_[c.csr_addr], 0);
-      if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
-        hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
+      if ((hypervisor_mask_map_.find(c.csr_addr) != hypervisor_mask_map_.end())) {
+        uint64_t saved_mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
+        // Software writes leave the gated fields of the DUT untouched while misa.H is zero
+        if (!misa_h_ && FLAGS_hyp_save_restore_en && is_custom_csr(c.csr_addr)) {
+          saved_mask &= ~hypervisor_mask_map_[c.csr_addr];
+          poke_custom_hypervisor_fields(hart, d.cycle, c.csr_addr, hypervisor_mask_map_[c.csr_addr], 0);
+        }
+        hypervisor_masked_csrs_[c.csr_addr] = (data & saved_mask) | (hypervisor_masked_csrs_[c.csr_addr] & ~saved_mask) | (hypervisor_masked_csrs_[c.csr_addr] & hypervisor_mask_map_[c.csr_addr]);
       }
     }
   }
