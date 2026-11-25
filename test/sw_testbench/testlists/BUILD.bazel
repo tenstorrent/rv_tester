@@ -31,6 +31,28 @@ sh_test(
     ],
 )
 
+sh_test(
+    name = "max_instr_tohost_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=tohost",
+        "+max_instr=1",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+    env = {"EXPECT_ERROR": "max_instr limit reached"},
+    tags = ["no-valgrind"],
+)
+
 # Retire 100 lands after the pass condition but before cvm_done; only the RVFI drain checks it.
 sh_test(
     name = "rvfi_drain_1c_verilator",
@@ -108,6 +130,7 @@ test_suite(
     name = "all_smoke",
     tests = [
         ":infinite_1c_verilator",
+        ":max_instr_tohost_1c_verilator",
         ":rvfi_drain_1c_verilator",
         ":infinite_2c_verilator",
         ":hart_mhartid_imsic_ipi_8c_verilator",
