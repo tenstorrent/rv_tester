@@ -144,7 +144,7 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
     return;
 
   if (max_instr == 1) {
-    if (FLAGS_max_instr > 0 && instr_count > FLAGS_max_instr) {
+    if (instr_count >= FLAGS_max_instr) {
       ended_ = true;
       if (FLAGS_eot == "max_instr") {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
