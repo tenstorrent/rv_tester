@@ -83,25 +83,10 @@ module rv_tester
       if (NUM_CLK_PROFILES == 0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
       end else begin : g_muxed
-        // Glitch-free switch. Each source samples the selection on its rising
-        // edge and changes its enable on its falling edge. A source turns on
-        // once no other source can still drive a high pulse: the others are
-        // either off, or deselected and at their last falling edge. Sources
-        // whose edges coincide therefore hand over without a pause.
-        logic [NUM_CLK_MODES-1:0] mode_sel;
-        logic [NUM_CLK_MODES-1:0] mode_en;
-        logic [NUM_CLK_MODES-1:0] mode_busy;
-        assign mode_busy = mode_en & (mode_sel | mode_clk[c]);
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
           rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
-          logic sel = (m == 0);
-          logic en  = (m == 0);
-          always @(posedge mode_clk[c][m]) sel <= (clock_mode == CLK_MODE_W'(m));
-          always @(negedge mode_clk[c][m]) en  <= sel && ((mode_busy & ~(NUM_CLK_MODES'(1) << m)) == '0);
-          assign mode_sel[m] = sel;
-          assign mode_en[m]  = en;
         end
-        assign clk[c] = |(mode_clk[c] & mode_en);
+        assign clk[c] = mode_clk[c][clock_mode];
       end
     end
   end
