@@ -436,6 +436,7 @@ void mcmi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
     cvm::log(cvm::ERROR, "[mcmi] Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
+    return;
   }
 
   mem_t m;
