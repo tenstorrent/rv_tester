@@ -7,7 +7,7 @@ module rv_tester
   #(
     parameter bit EXTERNAL_CLOCK            = 0,
     parameter CLK_PROFILE_FREQ_MHZ = {NCLKS{32'd0}},
-    parameter bit GLITCH_FREE_CLK_SWITCH    = 0,
+    parameter bit GLITCH_FREE_CLK_SWITCH    = 1,
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
     parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     parameter int unsigned SHUTDOWN_TIMEOUT_CYCLES       = 100000,
