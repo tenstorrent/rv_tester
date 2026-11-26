@@ -7,6 +7,7 @@ module rv_tester
   #(
     parameter bit EXTERNAL_CLOCK            = 0,
     parameter CLK_PROFILE_FREQ_MHZ = {NCLKS{32'd0}},
+    parameter bit GLITCH_FREE_CLK_SWITCH    = 1,
     parameter int unsigned CVM_DONE_DELAY_CYCLES         = 500,
     parameter int unsigned CVM_DONE_DRAINED_DELAY_CYCLES = 500,
     parameter int unsigned SHUTDOWN_TIMEOUT_CYCLES       = 100000,
@@ -80,8 +81,27 @@ module rv_tester
     end
   end else begin
     for (genvar c = 0; c < NCLKS; c++) begin : g_clk
-      if (NUM_CLK_PROFILES == 0 || c == TB_CLK_IDX || c == REF_CLK_IDX) begin : g_fixed
+      if (NUM_CLK_PROFILES == 0) begin : g_fixed
         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[0][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(clk[c]), .fastest_clk(fastest_clk));
+      end else if (GLITCH_FREE_CLK_SWITCH) begin : g_glitch_free
+        logic [NUM_CLK_MODES-1:0] mode_sel   = NUM_CLK_MODES'(1);
+        logic [NUM_CLK_MODES-1:0] mode_en    = NUM_CLK_MODES'(1);
+        logic [NUM_CLK_MODES-1:0] mode_clk_q = '0;
+        for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
+          rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
+        end
+        always @(mode_clk[c]) begin
+          for (int m = 0; m < NUM_CLK_MODES; m++) begin
+            if (mode_clk[c][m] && !mode_clk_q[m]) begin
+              mode_sel[m] <= (clock_mode == CLK_MODE_W'(m));
+            end
+            if (!mode_clk[c][m] && mode_clk_q[m]) begin
+              mode_en[m] <= mode_sel[m] && ((mode_en & (mode_sel | mode_clk[c]) & ~(NUM_CLK_MODES'(1) << m)) == '0);
+            end
+          end
+          mode_clk_q <= mode_clk[c];
+        end
+        assign clk[c] = |(mode_clk[c] & mode_en);
       end else begin : g_muxed
         for (genvar m = 0; m < NUM_CLK_MODES; m++) begin : g_mode
           rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLK_FREQ_MHZ[m][c]), .FASTEST_FREQ_MHZ(max_clock_freq_overall)) clkgen(.clk(mode_clk[c][m]), .fastest_clk(fastest_clk));
@@ -108,9 +128,16 @@ module rv_tester
     end
   end
 
+  function automatic int checked_clk_profile(int profile);
+    if (profile >= 0 && profile <= int'(NUM_CLK_PROFILES)) return profile;
+    rv_tester_clk_profile_error(profile, int'(NUM_CLK_PROFILES));
+    return 0;
+  endfunction
+
   import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
   import "DPI-C" function int rv_tester_init(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
   import "DPI-C" function void rv_tester_set_clock_freq(input int unsigned profile, input int unsigned clk, input int unsigned freq_mhz);
+  import "DPI-C" function void rv_tester_clk_profile_error(input int profile, input int max_profile);
   import "DPI-C" function void rv_tester_set_seed();
   import "DPI-C" context function void rv_tester_cvm_error_handler();
   import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
@@ -363,7 +390,7 @@ module rv_tester
    */
   always @(posedge dut_clk[TB_CLK_IDX]) begin
 
-    automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity;
+    automatic int _, _cvm_verbosity, _gen_clocks_verbosity, _gen_timestamp_verbosity, _clk_profile;
 
     if(rerun_now) begin
       $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
@@ -410,6 +437,7 @@ module rv_tester
         _gen_clocks_verbosity       = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
         _gen_timestamp_verbosity    = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
         perf_period                 = cvm_plusargs::get_int("perf_period");
+        _clk_profile                = cvm_plusargs::get_int("clk_profile");
         /* verilator lint_on BLKSEQ */
   
         eot_addr                        <= cvm_plusargs::get_ulongint("tohost");
@@ -421,7 +449,7 @@ module rv_tester
         ndmreset_ack_delay              <= cvm_plusargs::get_int("ndmreset_ack_delay");
         trace_timeout                   <= cvm_plusargs::get_int("trace_timeout");
         freq_switch_ncycles             <= cvm_plusargs::get_int("freq_switch_ncycles");
-        clk_profile                     <= cvm_plusargs::get_int("clk_profile");
+        clk_profile                     <= checked_clk_profile(_clk_profile);
         dyn_clk_switch                  <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
         call_finish                     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
         gen_clocks                      <= _cvm_verbosity >= _gen_clocks_verbosity;

@@ -56,6 +56,8 @@ The main components are:
 - **Clocking & reset** — Per-domain clock generation with clock-profile muxing driven by a
   platform-supplied frequency table (``NUM_CLK_PROFILES``, ``CLK_PROFILE_FREQ_MHZ``),
   external-clock support, and cold/warm reset sequencing across clock domains.
+  ``+clk_profile=N`` selects every clock from row N of the table, and ``+dyn_clk_switch``
+  rotates through the profiles.
 - **Lifecycle & DPI bring-up** — Parses plusargs, seeds randomization, builds and tears down the
   C++ object registry, and orders DPI initialization against reset so the C++ side is ready
   before the core leaves reset.

@@ -11,24 +11,29 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
+# Sim binary, plusargs and runfiles shared by the 1-core tests.
+SW_1C_ARGS = [
+    "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
+    "+load=$(location :infinite.elf)",
+    "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+    "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+    "+nostandalone",
+    "+eot=max_instr",
+    "+max_instr=1",
+]
+
+SW_1C_DATA = [
+    "//test/sw_testbench/verilator:sw_1c_tb_verilator",
+    "//test/sw_testbench:memmap.json",
+    "//test/sw_testbench:whisper.json",
+    ":infinite.elf",
+]
+
 sh_test(
     name = "infinite_1c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
-    args = [
-        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
-        "+load=$(location :infinite.elf)",
-        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
-        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
-        "+nostandalone",
-        "+eot=max_instr",
-        "+max_instr=1",
-    ],
-    data = [
-        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
-        "//test/sw_testbench:memmap.json",
-        "//test/sw_testbench:whisper.json",
-        ":infinite.elf",
-    ],
+    args = SW_1C_ARGS,
+    data = SW_1C_DATA,
 )
 
 sh_test(
@@ -57,28 +62,55 @@ sh_test(
 sh_test(
     name = "rvfi_drain_1c_verilator",
     srcs = ["//test/sw_testbench/testlists:sim.sh"],
-    args = [
-        "$(location //test/sw_testbench/verilator:sw_1c_tb_verilator)",
-        "+load=$(location :infinite.elf)",
-        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
-        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
-        "+nostandalone",
-        "+eot=max_instr",
-        "+max_instr=1",
+    args = SW_1C_ARGS + [
         "+sw_tb_bad_retire=100",
     ],
-    data = [
-        "//test/sw_testbench/verilator:sw_1c_tb_verilator",
-        "//test/sw_testbench:memmap.json",
-        "//test/sw_testbench:whisper.json",
-        ":infinite.elf",
-    ],
+    data = SW_1C_DATA,
     env = {
         "EXPECT_AFTER": "Pass condition detected",
         "EXPECT_ERROR": "Core Arch Checker Mismatch - PC ",
     },
     # The expected error exits nonzero, which hides valgrind's --error-exitcode.
     tags = ["no-valgrind"],
+)
+
+# Profile 1 differs from profile 0 on every clock, including TB_CLK and REF_CLK;
+# top.sv checks each clock's period against the selected profile.
+sh_test(
+    name = "clk_profile_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = SW_1C_ARGS + [
+        "+clk_profile=1",
+    ],
+    data = SW_1C_DATA,
+)
+
+sh_test(
+    name = "clk_profile_out_of_range_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = SW_1C_ARGS + [
+        "+clk_profile=99",
+    ],
+    data = SW_1C_DATA,
+    env = {
+        "EXPECT_ERROR": "Error: \\+clk_profile=99 is outside the clock profile table",
+    },
+    # The expected error exits nonzero, which hides valgrind's --error-exitcode.
+    tags = ["no-valgrind"],
+)
+
+# TB_CLK clocks clock_mode and is itself switched. Profiles 2-6 share every
+# frequency, so top.sv also fails if a switch disturbs a clock whose frequency
+# did not change.
+sh_test(
+    name = "dyn_clk_switch_1c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = SW_1C_ARGS + [
+        "+clk_profile=1",
+        "+dyn_clk_switch",
+        "+freq_switch_ncycles=20",
+    ],
+    data = SW_1C_DATA,
 )
 
 sh_test(
@@ -93,6 +125,30 @@ sh_test(
         "+eot=max_instr",
         "+max_instr=2",
         "+num_harts=2",
+    ],
+    data = [
+        "//test/sw_testbench/verilator:sw_2c_tb_verilator",
+        "//test/sw_testbench:memmap.json",
+        "//test/sw_testbench:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
+sh_test(
+    name = "dyn_clk_switch_2c_verilator",
+    srcs = ["//test/sw_testbench/testlists:sim.sh"],
+    args = [
+        "$(location //test/sw_testbench/verilator:sw_2c_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //test/sw_testbench:memmap.json)",
+        "+whisper_json_path=$(location //test/sw_testbench:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=2",
+        "+num_harts=2",
+        "+clk_profile=1",
+        "+dyn_clk_switch",
+        "+freq_switch_ncycles=20",
     ],
     data = [
         "//test/sw_testbench/verilator:sw_2c_tb_verilator",
@@ -132,7 +188,11 @@ test_suite(
         ":infinite_1c_verilator",
         ":max_instr_tohost_1c_verilator",
         ":rvfi_drain_1c_verilator",
+        ":clk_profile_1c_verilator",
+        ":clk_profile_out_of_range_1c_verilator",
+        ":dyn_clk_switch_1c_verilator",
         ":infinite_2c_verilator",
+        ":dyn_clk_switch_2c_verilator",
         ":hart_mhartid_imsic_ipi_8c_verilator",
     ],
     visibility = ["//visibility:public"],

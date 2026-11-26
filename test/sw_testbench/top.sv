@@ -42,6 +42,7 @@ module top
 
     rv_tester #(
         .CLK_PROFILE_FREQ_MHZ(CLK_PROFILE_FREQ_MHZ),
+        .GLITCH_FREE_CLK_SWITCH(HARNESS != SW_2C),
         .TOPOLOGY(cvm_topology_gen::topology_t),
         .topology(cvm_topology_gen::mods)
     ) tester (
@@ -49,6 +50,55 @@ module top
     );
 
     assign dut_clk = clk;
+
+    // Every clock, TB_CLK and REF_CLK included, must run at the selected
+    // profile's frequency once cold reset is released. Under +dyn_clk_switch a
+    // clock may only be off for a few edges after a switch that changed its own
+    // frequency.
+    localparam int unsigned NUM_CLK_TABLE_ROWS = $bits(CLK_PROFILE_FREQ_MHZ) / (NCLKS * 32);
+    localparam bit [NUM_CLK_TABLE_ROWS-1:0][NCLKS-1:0][31:0] CLK_FREQ_TABLE = CLK_PROFILE_FREQ_MHZ;
+    localparam int unsigned CLK_SETTLE_EDGES = 4;
+    int check_clk_profile = 0;
+    bit check_dyn_clk_switch = '0;
+    initial begin
+        void'($value$plusargs("clk_profile=%d", check_clk_profile));
+        if (check_clk_profile < 0 || check_clk_profile >= int'(NUM_CLK_TABLE_ROWS)) check_clk_profile = 0;
+        check_dyn_clk_switch = $test$plusargs("dyn_clk_switch");
+    end
+
+    function automatic realtime expected_clk_period(int mode, int clk_idx);
+        foreach (CLK_FREQ_TABLE[m, c]) begin
+            if (m == mode && c == clk_idx) return 1000000.0 / real'(CLK_FREQ_TABLE[m][c]) * 1ps;
+        end
+        return 0;
+    endfunction
+
+    for (genvar c = 0; c < NCLKS; c++) begin : g_clk_freq_check
+        realtime last_edge = 0;
+        int last_mode = -1;
+        int unsigned settle_edges = 0;
+        always @(posedge clk[c]) begin
+            automatic int mode = check_dyn_clk_switch ? int'(tester.clock_mode) : check_clk_profile;
+            automatic realtime expected = expected_clk_period(mode, c);
+            if (last_mode >= 0 && expected != expected_clk_period(last_mode, c)) begin
+                settle_edges = CLK_SETTLE_EDGES;
+            end
+            if (last_edge != 0) begin
+                automatic realtime period = $realtime - last_edge;
+                if (period <= expected + 2ps && period >= expected - 2ps) begin
+                    settle_edges = 0;
+                end else if (settle_edges != 0) begin
+                    settle_edges--;
+                end else if (!reset[COLD_RESET_IDX]) begin
+                    $error("clk[%0d] period %0.1f ps, expected %0.1f ps for clock mode %0d",
+                           c, period / 1ps, expected / 1ps, mode);
+                end
+            end
+            last_mode = mode;
+            last_edge = $realtime;
+        end
+    end
+
     /* verilator lint_off WIDTHEXPAND */
     assign core_no_fetch[cvm_topology_gen::mods.TOP.PLATFORM.NHARTS-1:0] = {cvm_topology_gen::mods.TOP.PLATFORM.NHARTS{reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX]}};
     /* verilator lint_on WIDTHEXPAND */
