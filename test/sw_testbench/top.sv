@@ -10,6 +10,7 @@ module top
     typedef enum int {
       SW_1C,
       SW_2C,
+      SW_2C_2CLK,
       SW_8C
     } harness_id;
  
@@ -19,7 +20,8 @@ module top
 
     function automatic bit [NCLKS-1:0][31:0] clk_set(int unsigned tb, int unsigned core, int unsigned axi,
                                                      int unsigned soc, int unsigned ref_clk);
-        bit [NCLKS-1:0][31:0] freq_mhz = '0;
+        // A clock without a role runs at half the core frequency.
+        bit [NCLKS-1:0][31:0] freq_mhz = {NCLKS{32'(core / 2)}};
         freq_mhz[TB_CLK_IDX]   = tb;
         freq_mhz[CORE_CLK_IDX] = core;
         freq_mhz[AXI_CLK_IDX]  = axi;
@@ -59,6 +61,9 @@ module top
     assign dut_reset[AXI_CLK_IDX]  = reset_window || reset[WARM_RESET_IDX] || warm_reset_pullup;
     assign dut_reset[SOC_CLK_IDX]  = reset[COLD_RESET_IDX];
     assign dut_reset[REF_CLK_IDX]  = reset_window;
+    if (HARNESS == SW_2C_2CLK) begin : g_hart1_reset
+        assign dut_reset[HART_RESET_MAP[1]] = core_no_fetch[1] || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    end
 
     rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_next;
 
@@ -115,6 +120,9 @@ module top
     import "DPI-C" context function void get_1c_stimulus(logic reset, int unsigned order);
     import "DPI-C" context function void get_2c_stimulus(logic reset, int unsigned order);
     import "DPI-C" context function void get_8c_stimulus(logic reset, int unsigned order);
+    import "DPI-C" context function void get_hart_stimulus(logic reset, int unsigned order, int unsigned hartid);
+
+    rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_core_clk;
 
     int unsigned order = '0;
     assign quiesced = '1;
@@ -143,13 +151,33 @@ module top
           get_1c_stimulus(reset[COLD_RESET_IDX], order);
         SW_2C:
           get_2c_stimulus(reset[COLD_RESET_IDX], order);
+        SW_2C_2CLK:
+          get_hart_stimulus(reset[COLD_RESET_IDX], order, 0);
         SW_8C:
           get_8c_stimulus(reset[COLD_RESET_IDX], order);
         default:
             $error("No harness specified");
         endcase
-        rvfi <= rvfi_next;
+        rvfi_core_clk <= rvfi_next;
         imsic_msi <= imsic_msi_next;
+    end
+
+    if (HARNESS == SW_2C_2CLK) begin : g_hart1_clock
+        localparam int unsigned HART1_RVFI_LSB = cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[1];
+        rv_tester_params::rvfi_t [rv_tester_params::TOTAL_NRETS-1:0] rvfi_hart1_clk;
+        int unsigned hart1_order = '0;
+
+        always @(posedge clk[HART_CLK_MAP[1]]) begin
+            hart1_order <= hart1_order + 1;
+            get_hart_stimulus(reset[COLD_RESET_IDX], hart1_order, 1);
+            rvfi_hart1_clk <= rvfi_next;
+        end
+
+        for (genvar n = 0; n < rv_tester_params::TOTAL_NRETS; n++) begin : g_rvfi
+            assign rvfi[n] = (n >= HART1_RVFI_LSB) ? rvfi_hart1_clk[n] : rvfi_core_clk[n];
+        end
+    end else begin : g_core_clock
+        assign rvfi = rvfi_core_clk;
     end
 
 endmodule

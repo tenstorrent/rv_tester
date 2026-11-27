@@ -16,7 +16,6 @@ import os
 
 DEFAULT_AXI_SW_TOPO = 'TOP.PLATFORM.AXI_SW'
 DEFAULT_AXI_SW_MST_TOPO = 'TOP.PLATFORM.AXI_SW_MST'
-DEFAULT_CLK_IDX_MAP = {1: 'CORE_CLK_IDX', 2: 'AXI_CLK_IDX', 3: 'SOC_CLK_IDX'}
 
 
 class AXIInterfaceGenerator:
@@ -31,7 +30,7 @@ class AXIInterfaceGenerator:
         self.transaction_file = transaction_file
         self.axi_sw_topo = axi_sw_topo
         self.axi_sw_mst_topo = axi_sw_mst_topo
-        self.clk_idx_map = clk_idx_map if clk_idx_map is not None else dict(DEFAULT_CLK_IDX_MAP)
+        self.clk_idx_map = clk_idx_map if clk_idx_map is not None else dict()
         self.axi_sw_interfaces = dict()
         self.axi_sw_mst_interfaces = dict()
 
@@ -168,8 +167,10 @@ class AXIInterfaceGenerator:
         lines = []
         lines.append(f"`define AXI_INSTANTIATION{macro_suffix} \\")
         for name, intf in self.axi_sw_interfaces.items():
-            domain = intf.get('DOMAIN', 2)
-            clk_idx = self.clk_idx_map.get(domain, 'AXI_CLK_IDX')
+            domain = intf['DOMAIN'][0] if isinstance(intf['DOMAIN'], list) else intf['DOMAIN']
+            clk_idx = self.clk_idx_map.get(domain, domain)
+            reset = intf.get('RESET', clk_idx)
+            reset = reset[0] if isinstance(reset, list) else reset
             sh = intf['SHARD']
             NAME = name.upper()
 
@@ -188,7 +189,7 @@ class AXIInterfaceGenerator:
             lines.append(f"    ) {name} ( \\")
             lines.append(f"        .clk(dut_clk[{clk_idx}]), \\")
             lines.append(f"        .sys_reset(sys_reset[{clk_idx}]), \\")
-            lines.append(f"        .reset_n(~dut_reset[{clk_idx}]), \\")
+            lines.append(f"        .reset_n(~dut_reset[{reset}]), \\")
             lines.append(f"        /* Connect all AW channel signals */ \\")
             lines.append(f"        .axi_mst_aw_valid({name}_req[k].aw_valid), \\")
             lines.append(f"        .axi_mst_aw_id({name}_req[k].aw.id), \\")
@@ -242,8 +243,10 @@ class AXIInterfaceGenerator:
             lines.append(f"    \\")
 
         for name, intf in self.axi_sw_mst_interfaces.items():
-            domain = intf.get('DOMAIN', 2)
-            clk_idx = self.clk_idx_map.get(domain, 'AXI_CLK_IDX')
+            domain = intf['DOMAIN'][0] if isinstance(intf['DOMAIN'], list) else intf['DOMAIN']
+            clk_idx = self.clk_idx_map.get(domain, domain)
+            reset = intf.get('RESET', clk_idx)
+            reset = reset[0] if isinstance(reset, list) else reset
             sh = intf['SHARD']
             NAME = name.upper()
 
@@ -263,7 +266,7 @@ class AXIInterfaceGenerator:
             lines.append(f"    ) {name} ( \\")
             lines.append(f"        .clk(dut_clk[{clk_idx}]), \\")
             lines.append(f"        .sys_reset(sys_reset[{clk_idx}]), \\")
-            lines.append(f"        .reset_n(~dut_reset[{clk_idx}]), \\")
+            lines.append(f"        .reset_n(~dut_reset[{reset}]), \\")
             lines.append(f"        /* Connect all AW channel signals */ \\")
             lines.append(f"        .axi_mst_aw_valid({name}_req[k].aw_valid), \\")
             lines.append(f"        .axi_mst_aw_id({name}_req[k].aw.id), \\")
@@ -375,7 +378,7 @@ def main():
     parser.add_argument('--defines-output', required=False, help='Output C++ header with AXI loc IDX defines')
     parser.add_argument('--axi-sw-topo', default=DEFAULT_AXI_SW_TOPO, help=f'Topology path for AXI_SW group (default: {DEFAULT_AXI_SW_TOPO})')
     parser.add_argument('--axi-sw-mst-topo', default=DEFAULT_AXI_SW_MST_TOPO, help=f'Topology path for AXI_SW_MST group (default: {DEFAULT_AXI_SW_MST_TOPO})')
-    parser.add_argument('--clk-idx-map', default=None, help='JSON object mapping DOMAIN ints to SV clock-index identifiers ' f'(default: {json.dumps({str(k): v for k, v in DEFAULT_CLK_IDX_MAP.items()})})')
+    parser.add_argument('--clk-idx-map', default=None, help='JSON object mapping DOMAIN ints to SV clock-index identifiers (default: DOMAIN is the clock number)')
 
     args = parser.parse_args()
 

@@ -136,8 +136,8 @@ int main(int argc, char** argv) {
   top.eval();
 
   const auto clki = cvm::topology::get_from_type("CLKI", 0);
-  const auto tb_clk_idx_attr = cvm::topology::attr(clki, "TB_CLK_IDX");
-  const uint32_t tb_clk_idx = tb_clk_idx_attr.first ? tb_clk_idx_attr.second : 0;
+  const auto tb_clk_attr = cvm::topology::list_attr(clki, "TB_CLK");
+  const uint32_t tb_clk_idx = tb_clk_attr.first ? tb_clk_attr.second[0] : 0;
   // Numerator to compute period for a MHz frequency at the current timeprecision
   const uint64_t mhz2periodNumer = static_cast<uint64_t>(std::pow(10.0, -timeprecision - 6));
   const auto check_dump_window = [&]() {

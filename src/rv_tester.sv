@@ -564,7 +564,7 @@ end
 
   // Clock counts
   always_ff @(posedge dut_clk[AXI_CLK_IDX]) begin
-    if (dut_reset[AXI_CLK_IDX]) begin
+    if (dut_reset[AXI_RESET[0]]) begin
       axi_clocks <= '0;
     end else begin
       axi_clocks <= axi_clocks + 1;
@@ -633,9 +633,9 @@ end
 
 
   always @(posedge dut_clk[TB_CLK_IDX]) begin
-    dut_reset_axi_latched <= dut_reset[AXI_CLK_IDX];
+    dut_reset_axi_latched <= dut_reset[AXI_RESET[0]];
     if(cold_reset === 1'b0)begin
-      if (ndmreset_ack_clocks_latched && dut_reset_axi_latched && !dut_reset[AXI_CLK_IDX])  begin
+      if (ndmreset_ack_clocks_latched && dut_reset_axi_latched && !dut_reset[AXI_RESET[0]])  begin
         warm_reset_deasserted <= 1'b1;
       end
       if (!dut_reset_req && warm_reset_deasserted)  begin
@@ -677,9 +677,11 @@ end
   endfunction
   export "DPI-C" function rv_tester_terminate;
 
-  `RV_TESTER_TRANSACTIONS_DOMAIN(1, dut_clk[CORE_CLK_IDX]);
-  `RV_TESTER_TRANSACTIONS_DOMAIN(2, dut_clk[AXI_CLK_IDX]);
-  `RV_TESTER_TRANSACTIONS_DOMAIN(3, dut_clk[SOC_CLK_IDX]);
+  `RV_TESTER_TRANSACTIONS_DOMAINS(dut_clk)
+  `RV_TESTER_TRANSACTIONS_SYSMOD_0_INSTANCE_SOURCES
+  `RV_TESTER_TRANSACTIONS_COSIM_0_INSTANCE_SOURCES
+  `RV_TESTER_TRANSACTIONS_INTERRUPTS_0_INSTANCE_SOURCES
+  `RV_TESTER_TRANSACTIONS_TRIGGERS_0_INSTANCE_SOURCES
 
   // Writeback logic
   logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
@@ -713,7 +715,7 @@ end
                      .aclint_ref_clk(dut_clk[REF_CLK_IDX]),
                      .aclint_ref_reset(sys_reset[REF_CLK_IDX]),
                      .dut_reset_req,
-                     .dut_core_reset(dut_reset[CORE_CLK_IDX]),
+                     .dut_core_reset(dut_reset[SYSMOD_RESET[0]]),
                      .bootstrap,
                      .dmi_write(dmi_write),
                      .debug_req_vld(DebugReqVld_ANY),
@@ -722,7 +724,7 @@ end
                      .aclint_ref_pulse(aclint_ref_pulse),
                      .aclint_time_sync(aclint_time_sync),
                      .terminate(sysmod_terminate),
-                     `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
+                     `RV_TESTER_TRANSACTIONS_SYSMOD_0_INSTANCE_PORTS(0)
                      );
 
   assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
@@ -758,10 +760,10 @@ end
             `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
             ) cosim (
                      .tb_clk(dut_clk[TB_CLK_IDX]),
-                     .clk(dut_clk[CORE_CLK_IDX]),
+                     .clk(dut_clk[HART_CLK_MAP[c]]),
                      .reset(sys_reset[TB_CLK_IDX] | reset_window),
-                     .dut_core_reset(dut_reset[CORE_CLK_IDX]),
-                     .dut_reset(dut_reset[TB_CLK_IDX]),
+                     .dut_core_reset(dut_reset[COSIM_RESET[c]]),
+                     .dut_reset(dut_reset[COSIM_TB_RESET[0]]),
                      .clocks,
                      .rvt_reload_d2,
                      .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
@@ -813,7 +815,7 @@ end
  `endif
 
 
-                     `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
+                     `RV_TESTER_TRANSACTIONS_COSIM_0_INSTANCE_PORTS(c)
                      );
   end
 
@@ -847,11 +849,11 @@ end
                  ) interrupts (
                                .clk(dut_clk[AXI_CLK_IDX]),
                                .sys_reset(sys_reset[AXI_CLK_IDX]),
-                               .reset(dut_reset[AXI_CLK_IDX]),
+                               .reset(dut_reset[INTERRUPTS_RESET[0]]),
                                .boot_done(boot_done[c]),
                                .nmi(nmi[c].nmi),
                                .mti(mti[c]),
-                               `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
+                               `RV_TESTER_TRANSACTIONS_INTERRUPTS_0_INSTANCE_PORTS(c)
                                );
   end
 
@@ -863,9 +865,9 @@ end
                ) triggers (
                            .tb_clk(dut_clk[TB_CLK_IDX]),
                            .clk(dut_clk[AXI_CLK_IDX]),
-                           .reset(dut_reset[AXI_CLK_IDX]),
+                           .reset(dut_reset[TRIGGERS_RESET[0]]),
                            .event_trigger_vec(event_triggers),
-                           `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
+                           `RV_TESTER_TRANSACTIONS_TRIGGERS_0_INSTANCE_PORTS(c)
                            );
   end
 
@@ -878,6 +880,8 @@ end
 
 `ifdef RV_TESTER_PMCI_ENABLE
   if (PMU_ENABLE) begin : pmu_en
+    `RV_TESTER_TRANSACTIONS_PMU_CORE_0_INSTANCE_SOURCES
+    `RV_TESTER_TRANSACTIONS_PMU_SC_0_INSTANCE_SOURCES
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
       if (p == 0 && SC_PMCI_EN) begin : pmu_c0
         pmu #(
@@ -888,17 +892,17 @@ end
               `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
               `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
               ) pmu (
-                     .clk(dut_clk[CORE_CLK_IDX]),
-                     .sys_reset(sys_reset[CORE_CLK_IDX]),
-                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clk(dut_clk[HART_CLK_MAP[p]]),
+                     .sys_reset(sys_reset[HART_CLK_MAP[p]]),
+                     .reset(dut_reset[PMU_RESET[p]]),
                      .clocks,
                      .pmci(pmci[p]),
                      .hpmi(hpmi[p]),
                      .sc_pmci(sc_pmci),
                      .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                     .terminate(terminate_sync[CORE_CLK_IDX]),
-                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
-                     `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+                     .terminate(terminate_sync[HART_CLK_MAP[p]]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_0_INSTANCE_PORTS(p),
+                     `RV_TESTER_TRANSACTIONS_PMU_SC_0_INSTANCE_PORTS(p)
                      );
       end else begin : pmu_cX
         pmu #(
@@ -908,29 +912,30 @@ end
               `TOPOLOGY_CFG,
               `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
               ) pmu (
-                     .clk(dut_clk[CORE_CLK_IDX]),
-                     .sys_reset(sys_reset[CORE_CLK_IDX]),
-                     .reset(dut_reset[CORE_CLK_IDX]),
+                     .clk(dut_clk[HART_CLK_MAP[p]]),
+                     .sys_reset(sys_reset[HART_CLK_MAP[p]]),
+                     .reset(dut_reset[PMU_RESET[p]]),
                      .clocks,
                      .pmci(pmci[p]),
                      .hpmi(hpmi[p]),
                      .sc_pmci(),
                      .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-                     .terminate(terminate_sync[CORE_CLK_IDX]),
-                     `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+                     .terminate(terminate_sync[HART_CLK_MAP[p]]),
+                     `RV_TESTER_TRANSACTIONS_PMU_CORE_0_INSTANCE_PORTS(p)
                      );
       end
     end
   end
 `endif
 
-  assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
-  assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
-  assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
+  `RV_TESTER_TRANSACTIONS_LOGGER_0_INSTANCE_SOURCES
+  assign tx_logger_cycle_0s[0][0].valid = gen_clocks;
+  assign tx_logger_cycle_0s[0][0].data.location = location;
+  assign tx_logger_cycle_0s[0][0].data.clock = clocks;
 
-  assign tx_dom_1.logger_timestamp_0s[0][0].valid = gen_timestamp && (current_time != 0);
-  assign tx_dom_1.logger_timestamp_0s[0][0].data.location = location;
-  assign tx_dom_1.logger_timestamp_0s[0][0].data.timeval = current_time;
+  assign tx_logger_timestamp_0s[0][0].valid = gen_timestamp && (current_time != 0);
+  assign tx_logger_timestamp_0s[0][0].data.location = location;
+  assign tx_logger_timestamp_0s[0][0].data.timeval = current_time;
 
   // Generated AXI interface instantiations from topology
   `AXI_INSTANTIATION

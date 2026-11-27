@@ -45,12 +45,18 @@ package rv_tester_params;
   // Clk interface
   // --------------------------------------
   parameter NCLKS = mods.TOP.PLATFORM.CLKI.NCLKS;
-  parameter TB_CLK_IDX = mods.TOP.PLATFORM.CLKI.TB_CLK_IDX;
-  parameter REF_CLK_IDX = mods.TOP.PLATFORM.CLKI.REF_CLK_IDX;
-  parameter CORE_CLK_IDX = mods.TOP.PLATFORM.CLKI.CORE_CLK_IDX;
-  parameter AXI_CLK_IDX = mods.TOP.PLATFORM.CLKI.AXI_CLK_IDX;
-  parameter SOC_CLK_IDX = mods.TOP.PLATFORM.CLKI.SOC_CLK_IDX;
-  parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
+  parameter bit [$bits(mods.TOP.PLATFORM.CLKI.TB_CLK)/32-1:0][31:0] TB_CLK = mods.TOP.PLATFORM.CLKI.TB_CLK;
+  parameter bit [$bits(mods.TOP.PLATFORM.CLKI.REF_CLK)/32-1:0][31:0] REF_CLK = mods.TOP.PLATFORM.CLKI.REF_CLK;
+  parameter bit [$bits(mods.TOP.PLATFORM.CLKI.CORE_CLK)/32-1:0][31:0] CORE_CLK = mods.TOP.PLATFORM.CLKI.CORE_CLK;
+  parameter bit [NHARTS-1:0][31:0] HART_CLK_MAP = mods.TOP.PLATFORM.CLKI.HART_CLK_MAP;
+  parameter bit [$bits(mods.TOP.PLATFORM.CLKI.AXI_CLK)/32-1:0][31:0] AXI_CLK = mods.TOP.PLATFORM.CLKI.AXI_CLK;
+  parameter bit [$bits(mods.TOP.PLATFORM.CLKI.SOC_CLK)/32-1:0][31:0] SOC_CLK = mods.TOP.PLATFORM.CLKI.SOC_CLK;
+  parameter TB_CLK_IDX = TB_CLK[0];
+  parameter REF_CLK_IDX = REF_CLK[0];
+  parameter CORE_CLK_IDX = CORE_CLK[0];
+  parameter AXI_CLK_IDX = AXI_CLK[0];
+  parameter SOC_CLK_IDX = SOC_CLK[0];
+  parameter SW_CLOCK_PERIOD_PS =mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
 
   // --------------------------------------
   // Reset interface
@@ -62,6 +68,17 @@ package rv_tester_params;
   parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
   parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
   parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
+  parameter NDUT_RESETS = mods.TOP.PLATFORM.RESETI.NDUT_RESETS;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.TB_RESET)/32-1:0][31:0] TB_RESET = mods.TOP.PLATFORM.RESETI.TB_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.CORE_RESET)/32-1:0][31:0] CORE_RESET = mods.TOP.PLATFORM.RESETI.CORE_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.AXI_RESET)/32-1:0][31:0] AXI_RESET = mods.TOP.PLATFORM.RESETI.AXI_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.SYSMOD_RESET)/32-1:0][31:0] SYSMOD_RESET = mods.TOP.PLATFORM.RESETI.SYSMOD_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.INTERRUPTS_RESET)/32-1:0][31:0] INTERRUPTS_RESET = mods.TOP.PLATFORM.RESETI.INTERRUPTS_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.TRIGGERS_RESET)/32-1:0][31:0] TRIGGERS_RESET = mods.TOP.PLATFORM.RESETI.TRIGGERS_RESET;
+  parameter bit [$bits(mods.TOP.PLATFORM.RESETI.COSIM_TB_RESET)/32-1:0][31:0] COSIM_TB_RESET = mods.TOP.PLATFORM.RESETI.COSIM_TB_RESET;
+  parameter bit [NHARTS-1:0][31:0] HART_RESET_MAP = mods.TOP.PLATFORM.RESETI.HART_RESET_MAP;
+  parameter bit [NHARTS-1:0][31:0] COSIM_RESET = mods.TOP.PLATFORM.RESETI.COSIM_RESET;
+  parameter bit [NHARTS-1:0][31:0] PMU_RESET = mods.TOP.PLATFORM.RESETI.PMU_RESET;
 
   // --------------------------------------
   // Bootstrap
@@ -273,7 +290,7 @@ package rv_tester_params;
   input  longint unsigned                  clocks,                                                \
   input                                    clk                [rv_tester_params::NCLKS-1:0],      \
   output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
-  output                                   dut_reset          [rv_tester_params::NCLKS-1:0],      \
+  output                                   dut_reset          [rv_tester_params::NDUT_RESETS-1:0],\
   output                                   dut_reset_req,                                         \
   input   logic                            ndmreset_ack,                                          \
   input                                    dut_reset_req_active,                                  \
@@ -353,7 +370,7 @@ package rv_tester_params;
   longint unsigned                         clocks;                                                \
   logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
   logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
-  logic                                    dut_reset       [rv_tester_params::NCLKS-1:0];         \
+  logic                                    dut_reset       [rv_tester_params::NDUT_RESETS-1:0];   \
   logic                                    dut_reset_req;                                         \
   logic                                    ndmreset_ack;                                          \
   logic                                    dut_reset_req_active;                                  \

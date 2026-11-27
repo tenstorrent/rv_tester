@@ -6,7 +6,7 @@ axi_attrs: &axi_attrs
     STRB_WIDTH: 16
     ID_WIDTH:   8
     NAME:       ""
-    DOMAIN: 2
+    DOMAIN: "@TOP.PLATFORM.CLKI.AXI_CLK"
 
 # AXI slave groups: mem AXI (count:2) + NCIO_AXI (count:1).
 axi_mem: &axi_mem
@@ -43,7 +43,7 @@ axi_mst_1: &axi_mst_1
   STRB_WIDTH: 64
   ID_WIDTH: 15
   USER_WIDTH: 4
-  DOMAIN: 3
+  DOMAIN: "@TOP.PLATFORM.CLKI.SOC_CLK"
 
 axi_mst_2: &axi_mst_2
   <<: *axi_attrs

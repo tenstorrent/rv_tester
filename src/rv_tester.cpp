@@ -314,7 +314,7 @@ void rv_tester_cvm_error_handler() {
   cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
 }
 
-void rv_tester_transactions_dpi_init_domain_1() {
+void rv_tester_transactions_dpi_init() {
   cvm::log(cvm::MEDIUM, "Streaming DPI init\n");
   char* env_var = std::getenv("ZEBU_OFFLINE_DPI");
   if ((env_var != nullptr && std::string(env_var) == "1")) {

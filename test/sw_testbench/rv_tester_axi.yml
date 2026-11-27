@@ -3,7 +3,7 @@ axi_attrs: &axi_attrs
     DATA_WIDTH: 512
     STRB_WIDTH: 64
     ID_WIDTH:   4
-    DOMAIN: 2
+    DOMAIN: "@TOP.PLATFORM.CLKI.AXI_CLK"
     NAME:       ""
 
 # AXI slave interface groups. AXI and AXI1 used to be separate entries with
@@ -53,7 +53,7 @@ axi_mst_2: &axi_mst_2
   STRB_WIDTH: 64
   ID_WIDTH:   15
   USER_WIDTH: 4
-  DOMAIN: 3
+  DOMAIN: "@TOP.PLATFORM.CLKI.SOC_CLK"
 
 axi_mst_3: &axi_mst_3
   <<: *axi_attrs

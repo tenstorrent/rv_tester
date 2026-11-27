@@ -97,6 +97,10 @@ extern "C" void get_2c_stimulus(uint8_t reset, uint32_t order) {
   write_rvfi(!reset, order, 1, 0, insn, pc, 0, 0);
 }
 
+extern "C" void get_hart_stimulus(uint8_t reset, uint32_t order, uint32_t hartid) {
+  write_rvfi(!reset, order, hartid, 0, 0x6f, 0x80000000, 0, 0);
+}
+
 extern "C" void get_8c_stimulus(uint8_t reset, uint32_t order) {
   struct Hart {
     std::vector<Retire> program;

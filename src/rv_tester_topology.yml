@@ -1,3 +1,19 @@
+# A dut_reset entry is read through a name. A name absent from the platform
+# attributes takes its value from an older name, so a platform written before
+# the name existed keeps its behaviour.
+rv_tester_reseti_defaults: &rv_tester_reseti_defaults
+  NDUT_RESETS: "@TOP.PLATFORM.CLKI.NCLKS"
+  TB_RESET: "@TOP.PLATFORM.CLKI.TB_CLK"
+  CORE_RESET: "@TOP.PLATFORM.CLKI.CORE_CLK"
+  HART_RESET_MAP: "@TOP.PLATFORM.CLKI.HART_CLK_MAP"
+  AXI_RESET: "@TOP.PLATFORM.CLKI.AXI_CLK"
+  COSIM_RESET: "@TOP.PLATFORM.RESETI.HART_RESET_MAP"
+  COSIM_TB_RESET: "@TOP.PLATFORM.RESETI.TB_RESET"
+  PMU_RESET: "@TOP.PLATFORM.RESETI.HART_RESET_MAP"
+  SYSMOD_RESET: "@TOP.PLATFORM.RESETI.CORE_RESET"
+  INTERRUPTS_RESET: "@TOP.PLATFORM.RESETI.AXI_RESET"
+  TRIGGERS_RESET: "@TOP.PLATFORM.RESETI.AXI_RESET"
+
 rv_tester: &rv_tester
   platform:
     count: 1
@@ -18,7 +34,7 @@ rv_tester: &rv_tester
       type:
         - reseti
       attrs:
-        <<: *rv_tester_reseti_attrs
+        <<: [*rv_tester_reseti_attrs, *rv_tester_reseti_defaults]
 
     sysmod:
       count: 1
